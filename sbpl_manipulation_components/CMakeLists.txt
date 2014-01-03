@@ -1,48 +1,51 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(sbpl_manipulation_components)
 
-#Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
-rosbuild_init()
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 
-#rosbuild_find_ros_package(sbpl_geometry_utils)
-#include_directories(include ${sbpl_geometry_utils_PACKAGE_PATH}/include)
+find_package(catkin REQUIRED
+             COMPONENTS
+                 angles
+                 orocos_kdl
+                 kdl_parser
+                 leatherman
+                 moveit_core
+                 moveit_msgs
+                 moveit_ros_planning
+                 roscpp
+                 sbpl_geometry_utils
+                 urdf
+                 visualization_msgs)
+include_directories(${catkin_INCLUDE_DIRS})
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(sbpl_geometry_utils REQUIRED sbpl_geometry_utils)
-include_directories(${sbpl_geometry_utils_INCLUDE_DIRS})
-link_directories(${sbpl_geometry_utils_LIBRARY_DIRS})
+find_package(Eigen REQUIRED)
+include_directories(${Eigen_INCLUDE_DIRS})
 
-rosbuild_add_boost_directories()
+include_directories(include)
 
-#find_package(Eigen REQUIRED)
-#include_directories(${EIGEN_INCLUDE_DIRS})
-#add_definitions(${EIGEN_DEFINITIONS})
+catkin_package(INCLUDE_DIRS include
+               LIBRARIES ${PROJECT_NAME}
+               CATKIN_DEPENDS
+                   sbpl_geometry_utils
+                   moveit_core
+                   moveit_msgs
+                   moveit_ros_planning
+                   visualization_msgs
+                   roscpp
+                   angles
+               DEPENDS Eigen)
 
-#rosbuild_add_compile_flags(-g)
+add_library(${PROJECT_NAME}
+            src/robot_model.cpp
+            src/kdl_robot_model.cpp
+            src/occupancy_grid.cpp
+            src/collision_checker.cpp
+            src/post_processing.cpp)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-rosbuild_add_library(sbpl_manipulation_components 
-        src/robot_model.cpp
-        src/kdl_robot_model.cpp
-        src/occupancy_grid.cpp
-        src/collision_checker.cpp
-        src/post_processing.cpp)
-
-target_link_libraries(sbpl_manipulation_components 
-                      sbpl_geometry_utils #  ${sbpl_geometry_utils_LIBRARIES}
-                      moveit_distance_field)
-
-rosbuild_add_executable(test_kdl src/test_kdl_robot_model.cpp)
-target_link_libraries(test_kdl sbpl_manipulation_components)
+add_executable(test_kdl src/test_kdl_robot_model.cpp)
+target_link_libraries(test_kdl ${PROJECT_NAME})

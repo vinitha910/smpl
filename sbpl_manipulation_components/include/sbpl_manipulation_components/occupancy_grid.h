@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -37,9 +37,10 @@
 #include <fstream>
 #include <tf/LinearMath/Vector3.h>
 #include <Eigen/Geometry>
+#include <ros/console.h>
 #include <moveit/distance_field/voxel_grid.h>
 #include <moveit/distance_field/propagation_distance_field.h>
-#include <arm_navigation_msgs/CollisionMap.h>
+#include <moveit_msgs/CollisionMap.h>
 #include <visualization_msgs/MarkerArray.h>
 
 /* \brief At this point, this is a very lightweight layer on top of the
@@ -52,9 +53,9 @@ namespace sbpl_arm_planner{
 class OccupancyGrid
 {
   public:
-   
-    /** 
-     * @brief Constructor 
+
+    /**
+     * @brief Constructor
      * @param dimension of grid along X
      * @param dimension of grid along Y
      * @param dimension of grid along Z
@@ -72,18 +73,18 @@ class OccupancyGrid
 
     /** @brief convert grid cell coords into world coords*/
     inline void gridToWorld(int x, int y, int z, double &wx, double &wy, double &wz);
-    
+
     /** @brief convert world coords into grid cell coords*/
-    inline void worldToGrid(double wx, double wy, double wz, int &x, int &y, int &z); 
+    inline void worldToGrid(double wx, double wy, double wz, int &x, int &y, int &z);
 
     /** @brief get the cell's distance to the nearest obstacle in cells*/
     inline unsigned char getCell(int x, int y, int z);
 
     /** @brief get the cell's distance to the nearest obstacle in meters*/
     inline double getCell(int *xyz);
-    
+
     inline double getDistance(int x, int y, int z);
-    
+
     // TODO: Rename this function to match the distance_field API
     inline double getDistanceFromPoint(double x, double y, double z);
 
@@ -92,7 +93,7 @@ class OccupancyGrid
 
     /** @brief return a pointer to the distance field */
     inline distance_field::PropagationDistanceField* getDistanceFieldPtr();
-    
+
     /** @brief get the dimensions of the grid */
     void getGridSize(int &dim_x, int &dim_y, int &dim_z);
 
@@ -109,12 +110,12 @@ class OccupancyGrid
     double getResolution();
 
     /** @brief update the distance field from the collision_map */
-    void updateFromCollisionMap(const arm_navigation_msgs::CollisionMap &collision_map);
-       
-    /** 
+    void updateFromCollisionMap(const moveit_msgs::CollisionMap &collision_map);
+
+    /**
      * @brief manually add a cuboid to the collision map
-     * @param X_origin_of_cuboid 
-     * @param Y_origin_of_cuboid 
+     * @param X_origin_of_cuboid
+     * @param Y_origin_of_cuboid
      * @param Z_origin_of_cuboid
      * @param size along the X dimension (meters)
      * @param size along the Y dimension (meters)
@@ -154,7 +155,7 @@ inline distance_field::PropagationDistanceField* OccupancyGrid::getDistanceField
 
 inline void OccupancyGrid::gridToWorld(int x, int y, int z, double &wx, double &wy, double &wz)
 {
-  grid_->gridToWorld(x, y, z, wx, wy, wz); 
+  grid_->gridToWorld(x, y, z, wx, wy, wz);
 }
 
 inline void OccupancyGrid::worldToGrid(double wx, double wy, double wz, int &x, int &y, int &z)
@@ -215,7 +216,7 @@ inline void OccupancyGrid::addPointsToField(const std::vector<Eigen::Vector3d> &
   std::vector<tf::Vector3> pts(points.size());
   for(size_t i = 0; i < points.size(); ++i)
     pts[i] = tf::Vector3(points[i].x(), points[i].y(), points[i].z());
-  
+
   grid_->addPointsToField(pts);
   */
   EigenSTL::vector_Vector3d pts(points.size());
@@ -233,7 +234,7 @@ inline void OccupancyGrid::updatePointsInField(const std::vector<Eigen::Vector3d
   std::vector<tf::Vector3> pts(points.size());
   for(size_t i = 0; i < points.size(); ++i)
     pts[i] = tf::Vector3(points[i].x(), points[i].y(), points[i].z());
-  
+
   grid_->updatePointsInField(pts, iterative);
   */
   //grid_->updatePointsInField(points, iterative);

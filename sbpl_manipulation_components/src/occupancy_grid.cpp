@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -86,7 +86,7 @@ double OccupancyGrid::getResolution()
   return grid_->getResolution();
 }
 
-void OccupancyGrid::updateFromCollisionMap(const arm_navigation_msgs::CollisionMap &collision_map)
+void OccupancyGrid::updateFromCollisionMap(const moveit_msgs::CollisionMap &collision_map)
 {
   if(collision_map.boxes.empty())
   {
@@ -130,7 +130,7 @@ void OccupancyGrid::getOccupiedVoxels(const geometry_msgs::Pose &pose, const std
       {
         vin(0) = (x);
         vin(1) = (y);
-        vin(2) = (z); 
+        vin(2) = (z);
         vout = m*vin;
         vout += v;
 
@@ -169,7 +169,7 @@ void OccupancyGrid::getOccupiedVoxels(std::vector<geometry_msgs::Point> &voxels)
   std::vector<double> dim(3,0), origin(3,0);
   getOrigin(origin[0], origin[1], origin[2]);
   getWorldSize(dim[0], dim[1], dim[2]);
-  
+
   for(double x=origin[0]; x<=origin[0]+dim[0]; x+=grid_->getResolution())
   {
     for(double y=origin[1]; y<=origin[1]+dim[1]; y+=grid_->getResolution())

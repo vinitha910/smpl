@@ -18,12 +18,12 @@ bool CollisionChecker::setPlanningJoints(const std::vector<std::string> &plannin
   return true;
 }
 
-void CollisionChecker::setRobotState(const arm_navigation_msgs::RobotState &state)
+void CollisionChecker::setRobotState(const moveit_msgs::RobotState &state)
 {
   robot_state_ = state;
 }
 
-bool CollisionChecker::setPlanningScene(const arm_navigation_msgs::PlanningScene &scene)
+bool CollisionChecker::setPlanningScene(const moveit_msgs::PlanningScene &scene)
 {
   planning_scene_  = scene;
   return false;

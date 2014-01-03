@@ -6,8 +6,8 @@
 #include <string>
 #include <sbpl_geometry_utils/Interpolator.h>
 #include <sbpl_geometry_utils/interpolation.h>
-#include <arm_navigation_msgs/PlanningScene.h>
-#include <arm_navigation_msgs/RobotState.h>
+#include <moveit_msgs/PlanningScene.h>
+#include <moveit_msgs/RobotState.h>
 #include <visualization_msgs/MarkerArray.h>
 
 namespace sbpl_arm_planner {
@@ -15,7 +15,7 @@ namespace sbpl_arm_planner {
 class CollisionChecker
 {
   public:
-    
+
     CollisionChecker();
 
     ~CollisionChecker(){};
@@ -26,13 +26,13 @@ class CollisionChecker
     virtual bool setPlanningJoints(const std::vector<std::string> &planning_joints);
 
     /* World Update */
-    virtual void setRobotState(const arm_navigation_msgs::RobotState &state);
+    virtual void setRobotState(const moveit_msgs::RobotState &state);
 
-    virtual bool setPlanningScene(const arm_navigation_msgs::PlanningScene &scene);
+    virtual bool setPlanningScene(const moveit_msgs::PlanningScene &scene);
 
     /* Collision Checking */
     virtual bool isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
-   
+
     virtual bool isStateToStateValid(const std::vector<double> &angles0, const std::vector<double> &angles1, int path_length, int num_checks, double &dist);
 
     /* Utils */
@@ -40,15 +40,15 @@ class CollisionChecker
 
     /* Visualizations */
     virtual visualization_msgs::MarkerArray getCollisionModelVisualization(const std::vector<double> &angles);
-    
+
     virtual visualization_msgs::MarkerArray getVisualization(std::string type);
-  
+
   protected:
 
     std::string group_name_;
     std::vector<std::string> planning_joints_;
-    arm_navigation_msgs::PlanningScene planning_scene_;
-    arm_navigation_msgs::RobotState robot_state_;
+    moveit_msgs::PlanningScene planning_scene_;
+    moveit_msgs::RobotState robot_state_;
 };
 
 }
