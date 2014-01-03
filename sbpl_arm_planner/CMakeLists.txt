@@ -1,45 +1,60 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(sbpl_arm_planner)
 
-#Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
-# Add a ROS C++ macro to tell SBPL to use ROS print statements
-add_definitions(-DROS)
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 
-rosbuild_init()
+find_package(Bullet REQUIRED)
+include_directories(${BULLET_INCLUDE_DIR})
 
-rosbuild_add_boost_directories()
+find_package(catkin REQUIRED
+             COMPONENTS
+                 angles
+                 bfs3d
+                 orocos_kdl
+                 leatherman
+                 geometry_msgs
+                 moveit_msgs
+                 roscpp
+                 sbpl_geometry_utils
+                 sbpl_manipulation_components
+                 tf
+                 trajectory_msgs
+                 visualization_msgs)
+include_directories(${catkin_INCLUDE_DIRS})
+
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN_INCLUDE_DIRS})
+add_definitions(${EIGEN_DEFINITIONS})
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SBPL REQUIRED sbpl)
 include_directories(${SBPL_INCLUDE_DIRS})
 link_directories(${SBPL_LIBRARY_DIRS})
 
-rosbuild_find_ros_package(sbpl_geometry_utils)
-include_directories(include ${sbpl_geometry_utils_PACKAGE_PATH}/include)
+include_directories(include)
+add_definitions(-DROS)
 
-find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIRS})
-add_definitions(${EIGEN_DEFINITIONS})
+catkin_package(INCLUDE_DIRS include
+               LIBRARIES ${PROJECT_NAME}
+               CATKIN_DEPENDS
+                   angles
+                   geometry_msgs
+                   moveit_msgs
+                   sbpl_manipulation_components 
+                   tf
+                   trajectory_msgs
+               DEPENDS Boost Bullet sbpl)
 
-#rosbuild_add_compile_flags(-g)
+add_library(${PROJECT_NAME}
+            src/environment_robarm3d.cpp
+            src/action_set.cpp
+            src/planning_params.cpp
+            src/sbpl_arm_planner_interface.cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${BULLET_LIBRARIES} sbpl)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-rosbuild_add_library(sbpl_arm_planner 
-                        src/environment_robarm3d.cpp
-                        src/action_set.cpp
-                        src/planning_params.cpp
-                        src/sbpl_arm_planner_interface.cpp)
-
-target_link_libraries(sbpl_arm_planner sbpl_manipulation_components leatherman bfs3d sbpl)
+install(TARGETS ${PROJECT_NAME}
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
