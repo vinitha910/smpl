@@ -38,7 +38,7 @@
 #include <boost/shared_ptr.hpp>
 #include <urdf/model.h>
 #include <sbpl_collision_checking/group.h>
-#include <arm_navigation_msgs/MultiDOFJointState.h>
+#include <moveit_msgs/MultiDOFJointState.h>
 
 namespace sbpl_arm_planner
 {
@@ -46,7 +46,7 @@ namespace sbpl_arm_planner
 class SBPLCollisionModel
 {
   public:
-    
+
     SBPLCollisionModel();
 
     ~SBPLCollisionModel();
@@ -82,25 +82,25 @@ class SBPLCollisionModel
     Group* getGroup(std::string name);
 
     void printGroups();
-    
+
     void printDebugInfo(std::string group_name);
 
-    bool setModelToWorldTransform(const arm_navigation_msgs::MultiDOFJointState &state, std::string world_frame);
+    bool setModelToWorldTransform(const moveit_msgs::MultiDOFJointState &state, std::string world_frame);
 
   private:
 
     ros::NodeHandle nh_, ph_;
 
     std::map<std::string, Group*> group_config_map_;
-    
+
     boost::shared_ptr<urdf::Model> urdf_;
-    
+
     Group* dgroup_;
 
     bool getRobotModel();
 
     bool readGroups();
-   
+
     bool computeFK(const std::vector<double> &angles, Group* group, int chain, int segment, KDL::Frame &frame);
 };
 

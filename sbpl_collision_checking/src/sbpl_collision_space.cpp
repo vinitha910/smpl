@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2011, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -65,7 +65,7 @@ bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint
     bool cont = false;
     if(!model_.getJointLimits(group_name_, joint_names[i], min_limits_[i], max_limits_[i], cont))
     {
-      ROS_ERROR("[cspace] Failed to retrieve joint limits for %s.", joint_names[i].c_str()); 
+      ROS_ERROR("[cspace] Failed to retrieve joint limits for %s.", joint_names[i].c_str());
       return false;
     }
     continuous_[i] = cont;
@@ -95,8 +95,8 @@ bool SBPLCollisionSpace::init(std::string group_name)
   {
     ROS_ERROR("Failed to initialize all groups.");
     return false;
-  } 
- 
+  }
+
   // choose the group we are planning for
   if(!model_.setDefaultGroup(group_name_))
   {
@@ -256,7 +256,7 @@ bool SBPLCollisionSpace::updateVoxelGroup(Group *g)
     pts.clear();
     pts.resize(l->voxels_.v.size());
 
-    ROS_INFO("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size())); 
+    ROS_INFO("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size()));
     //leatherman::printKDLFrame(frames[l->voxels_.kdl_chain][l->voxels_.kdl_segment], l->name_);
     for(size_t j = 0; j < l->voxels_.v.size(); ++j)
     {
@@ -313,7 +313,7 @@ bool SBPLCollisionSpace::checkPathForCollision(const std::vector<double> &start,
         if(!checkCollision(path[j], verbose, false, dist_temp))
         {
           dist = dist_temp;
-          return false; 
+          return false;
         }
 
         if(dist_temp < dist)
@@ -404,7 +404,7 @@ bool SBPLCollisionSpace::getCollisionSpheres(const std::vector<double> &angles, 
   // robot
   for(size_t i = 0; i < spheres_.size(); ++i)
   {
-    v = frames_[spheres_[i]->kdl_chain][spheres_[i]->kdl_segment] * spheres_[i]->v; 
+    v = frames_[spheres_[i]->kdl_chain][spheres_[i]->kdl_segment] * spheres_[i]->v;
     xyzr[0] = v.x();
     xyzr[1] = v.y();
     xyzr[2] = v.z();
@@ -440,7 +440,7 @@ void SBPLCollisionSpace::attachSphere(std::string name, std::string link, geomet
   object_attached_ = true;
   attached_object_frame_ = link;
   model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
-  
+
   object_spheres_.resize(1);
   object_spheres_[0].name = name;
   object_spheres_[0].v.x(pose.position.x);
@@ -450,7 +450,7 @@ void SBPLCollisionSpace::attachSphere(std::string name, std::string link, geomet
   object_spheres_[0].kdl_chain = attached_object_chain_num_;
   object_spheres_[0].kdl_segment = attached_object_segment_num_;
 
-  ROS_DEBUG("[cspace] frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_); 
+  ROS_DEBUG("[cspace] frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
   ROS_INFO("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
 }
 
@@ -467,10 +467,10 @@ void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose po
   KDL::Vector top(center.p), bottom(center.p);
   std::vector<KDL::Vector> points;
 
-  top.data[2] += length/2.0; 
-  bottom.data[2] -= length/2.0; 
+  top.data[2] += length/2.0;
+  bottom.data[2] -= length/2.0;
 
-  // get spheres 
+  // get spheres
   leatherman::getIntermediatePoints(top, bottom, radius, points);
   object_spheres_.resize(points.size());
   for(size_t i = 0; i < points.size(); ++i)
@@ -480,10 +480,10 @@ void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose po
     object_spheres_[i].radius = radius;
     object_spheres_[i].kdl_chain = attached_object_chain_num_;
     object_spheres_[i].kdl_segment = attached_object_segment_num_;
-  } 
+  }
 
-  ROS_INFO("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x,pose.position.y,pose.position.z, radius, length, int(object_spheres_.size())); 
-  ROS_INFO("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_); 
+  ROS_INFO("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x,pose.position.y,pose.position.z, radius, length, int(object_spheres_.size()));
+  ROS_INFO("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
   ROS_INFO("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
   ROS_INFO("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
 }
@@ -516,13 +516,13 @@ void SBPLCollisionSpace::attachCube(std::string name, std::string link, geometry
 
 void SBPLCollisionSpace::attachMesh(std::string name, std::string link, geometry_msgs::Pose pose, const std::vector<geometry_msgs::Point> &vertices, const std::vector<int> &triangles)
 {
-  object_attached_ = true;  
+  object_attached_ = true;
   std::vector<std::vector<double> > spheres;
   attached_object_frame_  = link;
   model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
 
   sbpl::SphereEncloser::encloseMesh(vertices, triangles, object_enclosing_sphere_radius_, spheres);
-  
+
   if(spheres.size() <= 3)
     ROS_WARN("[cspace] Attached mesh is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
 
@@ -563,7 +563,7 @@ bool SBPLCollisionSpace::getAttachedObject(const std::vector<double> &angles, st
     v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
 
     // snap to grid
-    grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z); 
+    grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
     grid_->gridToWorld(x, y, z, xyz[i][0], xyz[i][1], xyz[i][2]);
 
     xyz[i][3] = object_spheres_[i].radius;
@@ -572,48 +572,47 @@ bool SBPLCollisionSpace::getAttachedObject(const std::vector<double> &angles, st
   return true;
 }
 
-void SBPLCollisionSpace::processCollisionObjectMsg(const arm_navigation_msgs::CollisionObject &object)
+void SBPLCollisionSpace::processCollisionObjectMsg(const moveit_msgs::CollisionObject &object)
 {
   if(object.id.compare("all") == 0) // ignoring the operation type
   {
     removeAllCollisionObjects();
   }
-  else if(object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::ADD)
+  else if(object.operation == moveit_msgs::CollisionObject::ADD)
   {
     object_map_[object.id] = object;
     addCollisionObject(object);
   }
-  else if(object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::REMOVE)
+  else if(object.operation == moveit_msgs::CollisionObject::REMOVE)
   {
     removeCollisionObject(object);
   }
   else
-    ROS_ERROR("[cspace] Collision object operation '%d' isn't supported yet.", object.operation.operation);
+    ROS_ERROR("[cspace] Collision object operation '%d' isn't supported yet.", object.operation);
 }
 
-void SBPLCollisionSpace::addCollisionObject(const arm_navigation_msgs::CollisionObject &object)
+void SBPLCollisionSpace::addCollisionObject(const moveit_msgs::CollisionObject &object)
 {
-
-  for(size_t i = 0; i < object.shapes.size(); ++i)
+  for(size_t i = 0; i < object.primitives.size(); ++i)
   {
-    if(object.shapes[i].type == arm_navigation_msgs::Shape::BOX)
+    if(object.primitives[i].type == shape_msgs::SolidPrimitive::BOX)
     {
       std::vector<double> dims(3);
-      dims[0] = object.shapes[i].dimensions[0];
-      dims[1] = object.shapes[i].dimensions[1];
-      dims[2] = object.shapes[i].dimensions[2];
+      dims[0] = object.primitives[i].dimensions[0];
+      dims[1] = object.primitives[i].dimensions[1];
+      dims[2] = object.primitives[i].dimensions[2];
       object_voxel_map_[object.id].clear();
-      grid_->getOccupiedVoxels(object.poses[i], dims, object_voxel_map_[object.id]);
+      grid_->getOccupiedVoxels(object.primitive_poses[i], dims, object_voxel_map_[object.id]);
     }
-    else if(object.shapes[i].type == arm_navigation_msgs::Shape::SPHERE)
+    else if(object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE)
     {
       std::vector<std::vector<double> > voxels;
-      sbpl::Voxelizer::voxelizeSphere(object.shapes[i].dimensions[0], object.poses[i], grid_->getResolution(), voxels, true);
+      sbpl::Voxelizer::voxelizeSphere(object.primitives[i].dimensions[0], object.primitive_poses[i], grid_->getResolution(), voxels, true);
       object_voxel_map_[object.id].clear();
       object_voxel_map_[object.id].resize(voxels.size());
 
       // transform into the world frame
-      Eigen::Affine3d m = Eigen::Affine3d(Eigen::Translation3d(object.poses[i].position.x, object.poses[i].position.y, object.poses[i].position.z)*Eigen::Quaterniond(object.poses[i].orientation.x, object.poses[i].orientation.y, object.poses[i].orientation.z, object.poses[i].orientation.w).toRotationMatrix());
+      Eigen::Affine3d m = Eigen::Affine3d(Eigen::Translation3d(object.primitive_poses[i].position.x, object.primitive_poses[i].position.y, object.primitive_poses[i].position.z)*Eigen::Quaterniond(object.primitive_poses[i].orientation.x, object.primitive_poses[i].orientation.y, object.primitive_poses[i].orientation.z, object.primitive_poses[i].orientation.w).toRotationMatrix());
       for(size_t j = 0; j <  voxels.size(); ++j)
       {
         if(voxels[j].size() < 3)
@@ -628,16 +627,19 @@ void SBPLCollisionSpace::addCollisionObject(const arm_navigation_msgs::Collision
         object_voxel_map_[object.id][j] += m.translation();
       }
     }
+    else {
+      ROS_WARN("[cspace] Collision objects of type %d are not yet supported.", object.primitives[i].type);
+    }
+  }
 
-    else if(object.shapes[i].type == arm_navigation_msgs::Shape::MESH)
-    {
+  for (size_t i = 0; i <  object.meshes.size(); ++i) {
       std::vector<std::vector<double> > voxels;
-      sbpl::Voxelizer::voxelizeMesh(object.shapes[i].vertices, object.shapes[i].triangles, grid_->getResolution(), voxels, true);
+      sbpl::Voxelizer::voxelizeMesh(object.meshes[i].vertices, convertToVertexIndices(object.meshes[i].triangles), grid_->getResolution(), voxels, true);
       object_voxel_map_[object.id].clear();
       object_voxel_map_[object.id].resize(voxels.size());
-      
+
       // transform into the world frame
-      Eigen::Affine3d m = Eigen::Affine3d(Eigen::Translation3d(object.poses[i].position.x, object.poses[i].position.y, object.poses[i].position.z)*Eigen::Quaterniond(object.poses[i].orientation.x, object.poses[i].orientation.y, object.poses[i].orientation.z, object.poses[i].orientation.w).toRotationMatrix());
+      Eigen::Affine3d m = Eigen::Affine3d(Eigen::Translation3d(object.mesh_poses[i].position.x, object.mesh_poses[i].position.y, object.mesh_poses[i].position.z)*Eigen::Quaterniond(object.mesh_poses[i].orientation.x, object.mesh_poses[i].orientation.y, object.mesh_poses[i].orientation.z, object.mesh_poses[i].orientation.w).toRotationMatrix());
       for(size_t j = 0; j <  voxels.size(); ++j)
       {
         if(voxels[j].size() < 3)
@@ -651,9 +653,6 @@ void SBPLCollisionSpace::addCollisionObject(const arm_navigation_msgs::Collision
         object_voxel_map_[object.id][j] = m.rotation() * object_voxel_map_[object.id][j];
         object_voxel_map_[object.id][j] += m.translation();
       }
-    }
-    else
-      ROS_WARN("[cspace] Collision objects of type %d are not yet supported.", object.shapes[i].type);
   }
 
   // add this object to list of objects that get added to grid
@@ -667,13 +666,14 @@ void SBPLCollisionSpace::addCollisionObject(const arm_navigation_msgs::Collision
       break;
     }
   }
-  if(new_object)
+  if(new_object) {
     known_objects_.push_back(object.id);
+  }
 
   grid_->addPointsToField(object_voxel_map_[object.id]);
 }
 
-void SBPLCollisionSpace::removeCollisionObject(const arm_navigation_msgs::CollisionObject &object)
+void SBPLCollisionSpace::removeCollisionObject(const moveit_msgs::CollisionObject &object)
 {
   for(size_t i = 0; i < known_objects_.size(); ++i)
   {
@@ -766,7 +766,7 @@ bool SBPLCollisionSpace::getClearance(const std::vector<double> &angles, int num
   }
 
   avg_dist = sum / num_spheres;
-  ROS_DEBUG("[cspace]  num_spheres: %d  avg_dist: %2.2f   min_dist: %2.2f", num_spheres, avg_dist, min_dist); 
+  ROS_DEBUG("[cspace]  num_spheres: %d  avg_dist: %2.2f   min_dist: %2.2f", num_spheres, avg_dist, min_dist);
   return true;
 }
 
@@ -780,7 +780,7 @@ bool SBPLCollisionSpace::isStateToStateValid(const std::vector<double> &angles0,
   return checkPathForCollision(angles0, angles1, false, path_length, num_checks, dist);
 }
 
-bool SBPLCollisionSpace::setPlanningScene(const arm_navigation_msgs::PlanningScene &scene)
+bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scene)
 {
   // robot state
   if(scene.robot_state.joint_state.name.size() != scene.robot_state.joint_state.position.size())
@@ -789,7 +789,7 @@ bool SBPLCollisionSpace::setPlanningScene(const arm_navigation_msgs::PlanningSce
   for(size_t i = 0; i < scene.robot_state.joint_state.name.size(); ++i)
     model_.setJointPosition(scene.robot_state.joint_state.name[i], scene.robot_state.joint_state.position[i]);
 
-  if(!model_.setModelToWorldTransform(scene.robot_state.multi_dof_joint_state, scene.collision_map.header.frame_id))
+  if(!model_.setModelToWorldTransform(scene.robot_state.multi_dof_joint_state, scene.world.collision_map.header.frame_id))
   {
     ROS_ERROR("Failed to set the model-to-world transform. The collision model's frame is different from the collision map's frame.");
     return false;
@@ -799,29 +799,29 @@ bool SBPLCollisionSpace::setPlanningScene(const arm_navigation_msgs::PlanningSce
   grid_->reset();
 
   // collision objects
-  for(size_t i = 0; i < scene.collision_objects.size(); ++i)
+  for(size_t i = 0; i < scene.world.collision_objects.size(); ++i)
   {
-    object_map_[scene.collision_objects[i].id] = scene.collision_objects[i];
-    processCollisionObjectMsg(scene.collision_objects[i]);
+    object_map_[scene.world.collision_objects[i].id] = scene.world.collision_objects[i];
+    processCollisionObjectMsg(scene.world.collision_objects[i]);
   }
 
   // attached collision objects
-  for(size_t i = 0; i < scene.attached_collision_objects.size(); ++i)
+  for(size_t i = 0; i < scene.robot_state.attached_collision_objects.size(); ++i)
   {
-    if(!model_.doesLinkExist(scene.attached_collision_objects[i].link_name, group_name_))
+    if(!model_.doesLinkExist(scene.robot_state.attached_collision_objects[i].link_name, group_name_))
     {
       ROS_WARN("[cspace] This attached object is not intended for the planning joints of the robot.");
     }
     // add object
-    else if(scene.attached_collision_objects[i].object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::ADD)
+    else if(scene.robot_state.attached_collision_objects[i].object.operation == moveit_msgs::CollisionObject::ADD)
     {
-      ROS_DEBUG("[cspace] Received a message to ADD an object (%s) with %d shapes.", scene.attached_collision_objects[i].object.id.c_str(), int(scene.attached_collision_objects[i].object.shapes.size()));
-      attachObject(scene.attached_collision_objects[i]);
+      ROS_DEBUG("[cspace] Received a message to ADD an object (%s) with %zd shapes.", scene.robot_state.attached_collision_objects[i].object.id.c_str(), scene.robot_state.attached_collision_objects[i].object.primitives.size());
+      attachObject(scene.robot_state.attached_collision_objects[i]);
     }
     // remove object
-    else if(scene.attached_collision_objects[i].object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::REMOVE)
+    else if(scene.robot_state.attached_collision_objects[i].object.operation == moveit_msgs::CollisionObject::REMOVE)
     {
-      ROS_DEBUG("[cspace] Removing object (%s) from gripper.", scene.attached_collision_objects[i].object.id.c_str());
+      ROS_DEBUG("[cspace] Removing object (%s) from gripper.", scene.robot_state.attached_collision_objects[i].object.id.c_str());
       removeAttachedObject();
     }
     else
@@ -829,55 +829,60 @@ bool SBPLCollisionSpace::setPlanningScene(const arm_navigation_msgs::PlanningSce
   }
 
   // collision map
-  if(scene.collision_map.header.frame_id.compare(grid_->getReferenceFrame()) != 0)
-    ROS_WARN_ONCE("collision_map_occ is in %s not in %s", scene.collision_map.header.frame_id.c_str(), grid_->getReferenceFrame().c_str());
+  if(scene.world.collision_map.header.frame_id.compare(grid_->getReferenceFrame()) != 0)
+    ROS_WARN_ONCE("collision_map_occ is in %s not in %s", scene.world.collision_map.header.frame_id.c_str(), grid_->getReferenceFrame().c_str());
 
-  if(!scene.collision_map.boxes.empty())
-    grid_->updateFromCollisionMap(scene.collision_map);
+  if(!scene.world.collision_map.boxes.empty())
+    grid_->updateFromCollisionMap(scene.world.collision_map);
 
   // self collision
   updateVoxelGroups();
   return true;
 }
 
-void SBPLCollisionSpace::attachObject(const arm_navigation_msgs::AttachedCollisionObject &obj)
+void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject &obj)
 {
-  geometry_msgs::PoseStamped pose_in, pose_out;
+  geometry_msgs::PoseStamped pose_in;
   std::string link_name = obj.link_name;
-  arm_navigation_msgs::CollisionObject object(obj.object);
-  ROS_INFO("Received a collision object message with %d shapes.", int(object.shapes.size()));
+  moveit_msgs::CollisionObject object(obj.object);
+  ROS_INFO("Received a collision object message with %zd shape primitives and %zd meshes.", object.primitives.size(), object.meshes.size());
 
-  for(size_t i = 0; i < object.shapes.size(); i++)
+  for(size_t i = 0; i < object.primitives.size(); i++)
   {
     pose_in.header = object.header;
     pose_in.header.stamp = ros::Time();
-    pose_in.pose = object.poses[i];
-    //sbpl_arm_planner::transformPose(pscene_, pose_in.pose, pose_out.pose, object.header.frame_id, attached_object_frame_);
-    object.poses[i] = pose_out.pose;
-    ROS_WARN("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s (%0.3f %0.3f %0.3f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str(), pose_out.pose.position.x, pose_out.pose.position.y, pose_out.pose.position.z);
+    pose_in.pose = object.primitive_poses[i];
+    ROS_WARN("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
 
-    if(object.shapes[i].type == arm_navigation_msgs::Shape::SPHERE)
+    if(object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE)
     {
-      ROS_INFO("[cspace] Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.shapes[i].dimensions[0]);
-      attachSphere(object.id, link_name, object.poses[i], object.shapes[i].dimensions[0]);
+      ROS_INFO("[cspace] Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
+      attachSphere(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0]);
     }
-    else if(object.shapes[i].type == arm_navigation_msgs::Shape::CYLINDER)
+    else if(object.primitives[i].type == shape_msgs::SolidPrimitive::CYLINDER)
     {
-      ROS_INFO("[cspace] Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.shapes[i].dimensions[0], object.shapes[i].dimensions[1]);
-      attachCylinder(link_name, object.poses[i], object.shapes[i].dimensions[0], object.shapes[i].dimensions[1]);
+      ROS_INFO("[cspace] Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
+      attachCylinder(link_name, object.primitive_poses[i], object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
     }
-    else if(object.shapes[i].type == arm_navigation_msgs::Shape::MESH)
+    else if(object.primitives[i].type == shape_msgs::SolidPrimitive::BOX)
     {
-      ROS_INFO("[cspace] Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.shapes[i].triangles.size()/3), int(object.shapes[i].vertices.size()));
-      attachMesh(object.id, link_name, object.poses[i], object.shapes[i].vertices, object.shapes[i].triangles);
-    }
-    else if(object.shapes[i].type == arm_navigation_msgs::Shape::BOX)
-    {
-      ROS_INFO("[cspace] Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.shapes[i].dimensions[0], object.shapes[i].dimensions[1], object.shapes[i].dimensions[2]);
-      attachCube(object.id, link_name, object.poses[i], object.shapes[i].dimensions[0], object.shapes[i].dimensions[1], object.shapes[i].dimensions[2]);
+      ROS_INFO("[cspace] Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
+      attachCube(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
     }
     else
-      ROS_WARN("[cspace] Currently attaching objects of type '%d' aren't supported.", object.shapes[i].type);
+      ROS_WARN("[cspace] Currently attaching objects of type '%d' aren't supported.", object.primitives[i].type);
+  }
+
+  for (size_t i = 0; i < object.meshes.size(); i++) {
+      pose_in.header = object.header;
+      pose_in.header.stamp = ros::Time();
+      pose_in.pose = object.mesh_poses[i];
+
+      ROS_WARN("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
+
+      ROS_INFO("[cspace] Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size()/3), int(object.meshes[i].vertices.size()));
+      attachMesh(object.id, link_name, object.mesh_poses[i], object.meshes[i].vertices, convertToVertexIndices(object.meshes[i].triangles));
+//void SBPLCollisionSpace::attachMesh(std::string name, std::string link, geometry_msgs::Pose pose, const std::vector<geometry_msgs::Point> &vertices, const std::vector<int> &triangles)
   }
 }
 
@@ -892,7 +897,7 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(std::string
     {
       if(object_map_.find(known_objects_[i]) != object_map_.end())
       {
-        std::vector<double> hue(object_map_[known_objects_[i]].shapes.size(), 200);
+        std::vector<double> hue(object_map_[known_objects_[i]].primitives.size(), 200);
         ma1 = viz::getCollisionObjectMarkerArray(object_map_[known_objects_[i]], hue, object_map_[known_objects_[i]].id, 0);
         ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
       }
@@ -908,7 +913,7 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(std::string
       sph[i][1] = collision_spheres_[i].v.y();
       sph[i][2] = collision_spheres_[i].v.z();
       rad[i] = spheres_[i]->radius;
-    } 
+    }
     ma = viz::getSpheresMarkerArray(sph, rad, 10, grid_->getReferenceFrame(), "collision_spheres", 0);
   }
   else if(type.compare("collision_object_voxels") == 0)
@@ -965,7 +970,7 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getCollisionModelVisualizati
   for(size_t i = 0; i < sph.size(); ++i)
     rad[i] = sph[i][3];
 
-  ma = viz::getSpheresMarkerArray(sph, rad, 90, grid_->getReferenceFrame(), "collision_model", 0); 
+  ma = viz::getSpheresMarkerArray(sph, rad, 90, grid_->getReferenceFrame(), "collision_model", 0);
 
   // debugging
   //visualization_msgs::MarkerArray ma2 = getMeshModelVisualization("arm", angles);
@@ -1013,6 +1018,18 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getMeshModelVisualization(co
     ma.markers.push_back(viz::getMeshMarker(mpose, mesh_resource, 180, "robot_model", i));
   }
   return ma;
+}
+
+std::vector<int>
+SBPLCollisionSpace::convertToVertexIndices(const std::vector<shape_msgs::MeshTriangle>& triangles) const
+{
+    std::vector<int> triangle_indices(3 * triangles.size());
+    for (int j = 0; j < triangles.size(); ++j) {
+        triangle_indices[3 * j + 0] = triangles[j].vertex_indices[0];
+        triangle_indices[3 * j + 1] = triangles[j].vertex_indices[1];
+        triangle_indices[3 * j + 2] = triangles[j].vertex_indices[2];
+    }
+    return triangle_indices;
 }
 
 }

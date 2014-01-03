@@ -58,23 +58,18 @@ int main(int argc, char **argv)
     return false;
 
   // add robot's pose in map
-  arm_navigation_msgs::PlanningScenePtr scene(new arm_navigation_msgs::PlanningScene);
-  scene->collision_map.header.frame_id = world_frame;
-  scene->robot_state.multi_dof_joint_state.frame_ids.resize(2);
-  scene->robot_state.multi_dof_joint_state.child_frame_ids.resize(2);
-  scene->robot_state.multi_dof_joint_state.poses.resize(2);
-  scene->robot_state.multi_dof_joint_state.frame_ids[0] = "base_link";
-  scene->robot_state.multi_dof_joint_state.child_frame_ids[0] = "torso_lift_link";
-  scene->robot_state.multi_dof_joint_state.poses[0].position.x = -0.06;
-  scene->robot_state.multi_dof_joint_state.poses[0].position.y = 0.0;
-  scene->robot_state.multi_dof_joint_state.poses[0].position.z = 0.34;
-  scene->robot_state.multi_dof_joint_state.poses[0].orientation.w = 1;
-  scene->robot_state.multi_dof_joint_state.frame_ids[1] = "base";
-  scene->robot_state.multi_dof_joint_state.child_frame_ids[1] = "torso";
-  scene->robot_state.multi_dof_joint_state.poses[1].position.x = 0;
-  scene->robot_state.multi_dof_joint_state.poses[1].position.y = 0;
-  scene->robot_state.multi_dof_joint_state.poses[1].position.z = 0;
-  scene->robot_state.multi_dof_joint_state.poses[1].orientation.w = 1;
+  moveit_msgs::PlanningScenePtr scene(new moveit_msgs::PlanningScene);
+  scene->world.collision_map.header.frame_id = world_frame;
+  scene->robot_state.multi_dof_joint_state.header.frame_id = "base_link";
+  scene->robot_state.multi_dof_joint_state.joint_names.push_back("torso_lift_link");
+
+  geometry_msgs::Transform t;
+  t.translation.x = -0.06;
+  t.translation.y = 0.0;
+  t.translation.z = 0.34;
+  t.rotation.w = 1.0;
+  t.rotation.x = t.rotation.y = t.rotation.z = 0.0;
+  scene->robot_state.multi_dof_joint_state.joint_transforms.push_back(t);
 
   scene->robot_state.joint_state.name.push_back("right_gripper_finger_joint");
   scene->robot_state.joint_state.name.push_back("left_gripper_finger_joint");

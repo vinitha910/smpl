@@ -1,48 +1,66 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(sbpl_collision_checking)
 
-#Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-set(ROS_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
-# Add a ROS C++ macro to tell SBPL to use ROS print statements
-add_definitions(-DROS)
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 
-rosbuild_init()
-
-rosbuild_add_boost_directories()
-
-rosbuild_find_ros_package(sbpl_geometry_utils)
-include_directories(include ${sbpl_geometry_utils_PACKAGE_PATH}/include)
+find_package(catkin REQUIRED
+             COMPONENTS
+                 angles
+                 geometry_msgs
+                 orocos_kdl
+                 kdl_parser
+                 leatherman
+                 message_filters
+                 moveit_msgs
+                 moveit_ros_planning
+                 roscpp
+                 sbpl_geometry_utils
+                 sbpl_manipulation_components
+                 sensor_msgs
+                 tf
+                 tf_conversions
+                 urdf
+                 visualization_msgs)
+include_directories(${catkin_INCLUDE_DIRS})
 
 find_package(Eigen REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
 
-#rosbuild_add_compile_flags(-g)
+add_definitions(-DROS)
+include_directories(include)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+catkin_package(INCLUDE_DIRS include
+               LIBRARIES ${PROJECT_NAME}
+               CATKIN_DEPENDS
+                   geometry_msgs
+                   kdl_parser
+                   leatherman
+                   moveit_msgs
+                   moveit_ros_planning
+                   orocos_kdl
+                   roscpp
+                   sbpl_geometry_utils
+                   sbpl_manipulation_components
+                   tf
+                   tf_conversions
+                   urdf
+               DEPENDS Boost)
 
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+add_library(${PROJECT_NAME}
+            src/group.cpp
+            src/sbpl_collision_model.cpp
+            src/sbpl_collision_space.cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
 
-rosbuild_add_library(sbpl_collision_checking 
-                        src/group.cpp 
-                        src/sbpl_collision_model.cpp
-                        src/sbpl_collision_space.cpp)
+add_executable(test_space src/test_collision_space.cpp)
+target_link_libraries(test_space ${PROJECT_NAME} ${catkin_LIBRARIES})
 
-target_link_libraries(sbpl_collision_checking 
-                        ${sbpl_geometry_utils_PACKAGE_PATH}/devel/lib/libsbpl_geometry_utils.so
-                        sbpl_manipulation_components
-                        leatherman)
-
-#rosbuild_add_executable(test_model src/test_collision_model.cpp)
-#target_link_libraries(test_model sbpl_collision_checking)
-
-rosbuild_add_executable(test_space src/test_collision_space.cpp)
-target_link_libraries(test_space sbpl_collision_checking moveit_distance_field)
+install(TARGETS ${PROJECT_NAME} test_space
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

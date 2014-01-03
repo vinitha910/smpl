@@ -3,7 +3,7 @@
 namespace sbpl_arm_planner
 {
 
-SBPLCollisionModel::SBPLCollisionModel() : ph_("~") 
+SBPLCollisionModel::SBPLCollisionModel() : ph_("~")
 {
   urdf_.reset();
   dgroup_ = NULL;
@@ -54,17 +54,17 @@ bool SBPLCollisionModel::readGroups()
 
   // collision spheres
   std::string spheres_name = "collision_spheres";
-  if(!ph_.hasParam(spheres_name)) 
+  if(!ph_.hasParam(spheres_name))
   {
     ROS_WARN_STREAM("No groups for planning specified in " << spheres_name);
     return false;
   }
   ph_.getParam(spheres_name, all_spheres);
 
-  if(all_spheres.getType() != XmlRpc::XmlRpcValue::TypeArray) 
+  if(all_spheres.getType() != XmlRpc::XmlRpcValue::TypeArray)
     ROS_WARN("Spheres is not an array.");
 
-  if(all_spheres.size() == 0) 
+  if(all_spheres.size() == 0)
   {
     ROS_WARN("No spheres in spheres");
     return false;
@@ -72,23 +72,23 @@ bool SBPLCollisionModel::readGroups()
 
   // collision groups
   std::string group_name = "collision_groups";
-  if(!ph_.hasParam(group_name)) 
+  if(!ph_.hasParam(group_name))
   {
     ROS_WARN_STREAM("No groups for planning specified in " << group_name);
     return false;
   }
   ph_.getParam(group_name, all_groups);
 
-  if(all_groups.getType() != XmlRpc::XmlRpcValue::TypeArray) 
+  if(all_groups.getType() != XmlRpc::XmlRpcValue::TypeArray)
     ROS_WARN("Groups is not an array.");
 
-  if(all_groups.size() == 0) 
+  if(all_groups.size() == 0)
   {
     ROS_WARN("No groups in groups");
     return false;
   }
 
-  for(int i = 0; i < all_groups.size(); i++) 
+  for(int i = 0; i < all_groups.size(); i++)
   {
     if(!all_groups[i].hasMember("name"))
     {
@@ -235,12 +235,12 @@ void SBPLCollisionModel::getVoxelGroups(std::vector<Group*> &vg)
 }
 
 bool SBPLCollisionModel::doesLinkExist(std::string name, std::string group_name)
-{ 
+{
   int chain, segment;
   return getFrameInfo(name, group_name, chain, segment);
 }
 
-bool SBPLCollisionModel::setModelToWorldTransform(const arm_navigation_msgs::MultiDOFJointState &state, std::string world_frame)
+bool SBPLCollisionModel::setModelToWorldTransform(const moveit_msgs::MultiDOFJointState &state, std::string world_frame)
 {
   KDL::Frame f;
 
@@ -249,7 +249,7 @@ bool SBPLCollisionModel::setModelToWorldTransform(const arm_navigation_msgs::Mul
     if(world_frame.compare(iter->second->getReferenceFrame()) != 0)
     {
       if(!leatherman::getFrame(state, world_frame, iter->second->getReferenceFrame(), f))
-      { 
+      {
         ROS_ERROR("Failed to get transform from world frame, '%s', to the reference frame, '%s' for collision group, '%s'.", world_frame.c_str(), iter->second->getReferenceFrame().c_str(), iter->second->getName().c_str());
         return false;
       }

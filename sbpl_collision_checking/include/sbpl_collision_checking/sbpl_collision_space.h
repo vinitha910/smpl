@@ -44,7 +44,7 @@
 #include <leatherman/utils.h>
 #include <tf_conversions/tf_kdl.h>
 #include <angles/angles.h>
-#include <arm_navigation_msgs/CollisionObject.h>
+#include <moveit_msgs/CollisionObject.h>
 #include <geometry_msgs/Point.h>
 
 using namespace std;
@@ -63,8 +63,8 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
     bool init(std::string group_name);
 
     void setPadding(double padding);
-   
-    bool setPlanningScene(const arm_navigation_msgs::PlanningScene &scene);
+
+    bool setPlanningScene(const moveit_msgs::PlanningScene &scene);
 
     /** --------------- Collision Checking ----------- */
     bool checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
@@ -87,22 +87,22 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
     bool getCollisionSpheres(const std::vector<double> &angles, std::vector<std::vector<double> > &spheres);
 
     /* ------------- Collision Objects -------------- */
-    void addCollisionObject(const arm_navigation_msgs::CollisionObject &object);
-    void removeCollisionObject(const arm_navigation_msgs::CollisionObject &object);
-    void processCollisionObjectMsg(const arm_navigation_msgs::CollisionObject &object);
+    void addCollisionObject(const moveit_msgs::CollisionObject &object);
+    void removeCollisionObject(const moveit_msgs::CollisionObject &object);
+    void processCollisionObjectMsg(const moveit_msgs::CollisionObject &object);
     void removeAllCollisionObjects();
     void putCollisionObjectsInGrid();
     void getCollisionObjectVoxelPoses(std::vector<geometry_msgs::Pose> &points);
-    
+
     /** --------------- Attached Objects -------------- */
-    void attachObject(const arm_navigation_msgs::AttachedCollisionObject &obj);
+    void attachObject(const moveit_msgs::AttachedCollisionObject &obj);
     void attachSphere(std::string name, std::string link, geometry_msgs::Pose pose, double radius);
     void attachCylinder(std::string link, geometry_msgs::Pose pose, double radius, double length);
     void attachCube(std::string name, std::string link, geometry_msgs::Pose pose, double x_dim, double y_dim, double z_dim);
     void attachMesh(std::string name, std::string link, geometry_msgs::Pose pose, const std::vector<geometry_msgs::Point> &vertices, const std::vector<int> &triangles);
     void removeAttachedObject();
     bool getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double> > &xyz);
-   
+
     /** --------------- Debugging ---------------- */
     visualization_msgs::MarkerArray getVisualization(std::string type);
     visualization_msgs::MarkerArray getCollisionModelVisualization(const std::vector<double> &angles);
@@ -133,18 +133,20 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 
     /* ------------- Collision Objects -------------- */
     std::vector<std::string> known_objects_;
-    std::map<std::string, arm_navigation_msgs::CollisionObject> object_map_;
+    std::map<std::string, moveit_msgs::CollisionObject> object_map_;
     std::map<std::string, std::vector<Eigen::Vector3d> > object_voxel_map_;
 
     /** --------------- Attached Objects --------------*/
     bool object_attached_;
     int attached_object_frame_num_;
-    int attached_object_segment_num_;    
+    int attached_object_segment_num_;
     int attached_object_chain_num_;
     std::string attached_object_frame_;
     std::vector<Sphere> object_spheres_;
-    
+
     std::vector<sbpl_arm_planner::Sphere> collision_spheres_;
+
+    std::vector<int> convertToVertexIndices(const std::vector<shape_msgs::MeshTriangle>& triangles) const;
 };
 
 inline bool SBPLCollisionSpace::isValidCell(const int x, const int y, const int z, const int radius)
@@ -154,6 +156,6 @@ inline bool SBPLCollisionSpace::isValidCell(const int x, const int y, const int 
   return true;
 }
 
-} 
+}
 #endif
 
