@@ -41,6 +41,7 @@ catkin_package(INCLUDE_DIRS include
                LIBRARIES ${PROJECT_NAME}
                CATKIN_DEPENDS
                    angles
+                   bfs3d
                    geometry_msgs
                    moveit_msgs
                    sbpl_manipulation_components 
