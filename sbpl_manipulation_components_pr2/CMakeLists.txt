@@ -1,38 +1,46 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(sbpl_manipulation_components_pr2)
 
-#Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
-rosbuild_init()
+find_package(catkin REQUIRED
+             COMPONENTS
+                angles
+                orocos_kdl
+                pr2_arm_kinematics
+                roscpp
+                sbpl_arm_planner
+                sbpl_manipulation_components
+                sbpl_geometry_utils
+                urdf)
 
-rosbuild_find_ros_package(sbpl_geometry_utils)
-include_directories(include ${sbpl_geometry_utils_PACKAGE_PATH}/include)
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 
-rosbuild_add_boost_directories()
+include_directories(include)
 
-#find_package(Eigen REQUIRED)
-#include_directories(${EIGEN_INCLUDE_DIRS})
-#add_definitions(${EIGEN_DEFINITIONS})
+catkin_package(INCLUDE_DIRS include
+               LIBRARIES ${PROJECT_NAME}
+               CATKIN_DEPENDS
+                   angles
+                   orocos_kdl
+                   pr2_arm_kinematics
+                   roscpp
+                   sbpl_arm_planner
+                   sbpl_manipulation_components
+                   sbpl_geometry_utils
+                   urdf
+               DEPENDS Boost)
 
-#rosbuild_add_compile_flags(-g)
+add_library(${PROJECT_NAME}
+            src/sbpl_math.cpp
+            src/orientation_solver.cpp 
+            src/pr2_kdl_robot_model.cpp
+            src/ubr1_kdl_robot_model.cpp)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-rosbuild_add_library(sbpl_manipulation_components_pr2
-                    src/sbpl_math.cpp
-                    src/orientation_solver.cpp 
-                    src/pr2_kdl_robot_model.cpp
-                    src/ubr1_kdl_robot_model.cpp)
-
-target_link_libraries(sbpl_manipulation_components_pr2 sbpl_manipulation_components)
+install(TARGETS ${PROJECT_NAME}
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 
