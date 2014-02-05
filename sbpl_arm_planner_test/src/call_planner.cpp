@@ -234,15 +234,23 @@ bool getInitialConfiguration(ros::NodeHandle &nh, moveit_msgs::RobotState &state
     if(xlist.size() != 0)
     {
       geometry_msgs::Pose pose;
+      state.multi_dof_joint_state.header.frame_id = std::string(xlist[0]["frame_id"]);
+      state.multi_dof_joint_state.joint_names.resize(xlist.size());
+      state.multi_dof_joint_state.joint_transforms.resize(xlist.size());
       for(int i = 0; i < xlist.size(); ++i)
       {
-        state.multi_dof_joint_state.frame_ids.push_back(xlist[i]["frame_id"]);
-        state.multi_dof_joint_state.child_frame_ids.push_back(xlist[i]["child_frame_id"]);
+        state.multi_dof_joint_state.joint_names[i] = "world_pose";
         pose.position.x = xlist[i]["x"];
         pose.position.y = xlist[i]["y"];
         pose.position.z = xlist[i]["z"];
         leatherman::rpyToQuatMsg(xlist[i]["roll"], xlist[i]["pitch"], xlist[i]["yaw"], pose.orientation);
-        state.multi_dof_joint_state.poses.push_back(pose);
+        state.multi_dof_joint_state.joint_transforms[i].translation.x = pose.position.x;
+        state.multi_dof_joint_state.joint_transforms[i].translation.y = pose.position.y;
+        state.multi_dof_joint_state.joint_transforms[i].translation.z = pose.position.z;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.w = pose.orientation.w;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.x = pose.orientation.x;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.y = pose.orientation.y;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.z = pose.orientation.z;
       }
     }
   }
@@ -355,16 +363,17 @@ int main(int argc, char **argv)
   // collision objects
   moveit_msgs::PlanningScenePtr scene(new moveit_msgs::PlanningScene);
   if(!object_filename.empty())
-    scene->collision_objects = getCollisionObjects(object_filename, planning_frame);
+    scene->world.collision_objects = getCollisionObjects(object_filename, planning_frame);
 
   // create goal
   moveit_msgs::GetMotionPlan::Request req;
   moveit_msgs::GetMotionPlan::Response res;
-  scene->collision_map.header.frame_id = planning_frame;
+  scene->world.collision_map.header.frame_id = planning_frame;
 
   // fill goal state
-  fillConstraint(goal, planning_frame, req.motion_plan_request.goal_constraints);
-  req.motion_plan_request.allowed_planning_time.fromSec(5.0);
+  req.motion_plan_request.goal_constraints.resize(1);
+  fillConstraint(goal, planning_frame, req.motion_plan_request.goal_constraints[0]);
+  req.motion_plan_request.allowed_planning_time = 5.0;
 
   // fill start state
   if(!getInitialConfiguration(ph, scene->robot_state))
