@@ -7,20 +7,36 @@ chain_tip_link: gripper_base
 initial_configuration:
 
   joint_state:
-    - name: joint1_shoulder_yaw
-      position: 0
-    - name: joint2_shoulder_pitch
+    - name: arm_1_shoulder_twist
       position: 0.0
-    - name: joint3_arm_roll
+    - name: arm_2_shoulder_lift
       position: 0.0
-    - name: joint4_elbow
+    - name: arm_3_elbow_twist
+      position: 0.0
+    - name: arm_4_elbow_lift
       position: -0.2
-    - name: joint5_forearm_roll
+    - name: arm_5_wrist_twist
       position: 0.0
-    - name: joint6_wrist_pitch
+    - name: arm_6_wrist_lift
       position: -0.2
-    - name: joint7_wrist_roll
+    - name: arm_7_gripper_lift
       position: 0.0
+
+#  joint_state:
+#    - name: joint1_shoulder_yaw
+#      position: 0
+#    - name: joint2_shoulder_pitch
+#      position: 0.0
+#    - name: joint3_arm_roll
+#      position: 0.0
+#    - name: joint4_elbow
+#      position: -0.2
+#    - name: joint5_forearm_roll
+#      position: 0.0
+#    - name: joint6_wrist_pitch
+#      position: -0.2
+#    - name: joint7_wrist_roll
+#      position: 0.0
 
   multi_dof_joint_state:
     - frame_id: map
@@ -39,7 +55,3 @@ goal:
   roll: 0.0
   pitch: 0.0
   yaw: 0.0
-
-
-
-
