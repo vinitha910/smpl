@@ -27,7 +27,7 @@ include_directories(${Eigen_INCLUDE_DIRS})
 catkin_package()
 
 add_executable(callPlanner src/call_planner.cpp)
-target_link_libraries(callPlanner ${catkin_INCLUDE_DIRS})
+target_link_libraries(callPlanner ${catkin_LIBRARIES})
 
 install(TARGETS callPlanner
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
