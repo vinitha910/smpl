@@ -373,7 +373,7 @@ int main(int argc, char **argv)
   // fill goal state
   req.motion_plan_request.goal_constraints.resize(1);
   fillConstraint(goal, planning_frame, req.motion_plan_request.goal_constraints[0]);
-  req.motion_plan_request.allowed_planning_time = 5.0;
+  req.motion_plan_request.allowed_planning_time = 60.0;
 
   // fill start state
   if(!getInitialConfiguration(ph, scene->robot_state))
@@ -394,7 +394,30 @@ int main(int argc, char **argv)
     ROS_ERROR("Failed to plan.");
   }
   else
+  {
     ma_pub.publish(planner->getCollisionModelTrajectoryMarker());
+  }
+
+  std::vector<std::string> statistic_names = { "initial solution planning time",
+                                               "initial epsilon",
+                                               "initial solution expansions",
+                                               "final epsilon planning time",
+                                               "final epsilon",
+                                               "solution epsilon",
+                                               "expansions",
+                                               "solution cost" };
+  std::map<std::string, double> planning_stats = planner->getPlannerStats();
+
+  ROS_INFO("Planning statistics");
+  for (const auto& statistic : statistic_names) {
+      auto it = planning_stats.find(statistic);
+      if (it != planning_stats.end()) {
+          ROS_INFO("    %s: %0.3f", statistic.c_str(), it->second);
+      }
+      else {
+          ROS_WARN("Did not find planning statistic \"%s\"", statistic.c_str());
+      }
+  }
 
   // visualizations
   ros::spinOnce();

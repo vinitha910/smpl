@@ -27,6 +27,7 @@ include_directories(${Eigen_INCLUDE_DIRS})
 catkin_package()
 
 add_executable(callPlanner src/call_planner.cpp)
+set_target_properties(callPlanner PROPERTIES COMPILE_FLAGS "-std=c++0x")
 target_link_libraries(callPlanner ${catkin_LIBRARIES})
 
 install(TARGETS callPlanner
