@@ -70,6 +70,19 @@ class SBPLArmPlannerInterface
 
     bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request &req);
 
+    /// @brief Return planning statistics from the last call to solve.
+    ///
+    /// Possible keys to statistics include:
+    ///     "initial solution planning time"
+    ///     "initial epsilon"
+    ///     "initial solution expansions"
+    ///     "final epsilon planning time"
+    ///     "final epsilon"
+    ///     "solution epsilon"
+    ///     "expansions"
+    ///     "solution cost"
+    ///
+    /// @return The statistics
     std::map<std::string, double>  getPlannerStats();
 
     visualization_msgs::MarkerArray getVisualization(std::string type);
