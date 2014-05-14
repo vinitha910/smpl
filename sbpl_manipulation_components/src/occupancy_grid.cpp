@@ -38,11 +38,18 @@ using namespace std;
 namespace sbpl_arm_planner
 {
 
-OccupancyGrid::OccupancyGrid(double dim_x, double dim_y, double dim_z, double resolution, double origin_x, double origin_y, double origin_z)
+OccupancyGrid::OccupancyGrid(
+    double dim_x, double dim_y, double dim_z,
+    double resolution,
+    double origin_x, double origin_y, double origin_z,
+    double max_dist)
 {
-  grid_ = new distance_field::PropagationDistanceField(dim_x, dim_y, dim_z, resolution, origin_x, origin_y,  origin_z, 0.40);
-  grid_->reset();
-  delete_grid_ = true;
+    grid_ = new distance_field::PropagationDistanceField(dim_x, dim_y, dim_z,
+                                                         resolution,
+                                                         origin_x, origin_y, origin_z,
+                                                         max_dist);
+    grid_->reset();
+    delete_grid_ = true;
 }
 
 OccupancyGrid::OccupancyGrid(distance_field::PropagationDistanceField* df)

@@ -63,8 +63,9 @@ class OccupancyGrid
      * @param X coordinate of origin (meters)
      * @param Y coordinate of origin (meters)
      * @param Z coordinate of origin (meters)
-    */
-    OccupancyGrid(double dim_x, double dim_y, double dim_z, double resolution, double origin_x, double origin_y, double origin_z);
+     * @param max_dist The maximum distance away from obstacles to propogate the distance field.
+     */
+    OccupancyGrid(double dim_x, double dim_y, double dim_z, double resolution, double origin_x, double origin_y, double origin_z, double max_dist);
 
     OccupancyGrid(distance_field::PropagationDistanceField* df);
 

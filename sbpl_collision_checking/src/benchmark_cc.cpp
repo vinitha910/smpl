@@ -14,7 +14,7 @@ int main(int argc, char **argv)
     num_checks = atoi(argv[1]);
 
   // set up the grid
-  OccupancyGrid* grid_ = new OccupancyGrid(1.7, 1.9, 2.0, 0.01, -0.6, -1.25, -0.05);
+  OccupancyGrid* grid_ = new OccupancyGrid(1.7, 1.9, 2.0, 0.01, -0.6, -1.25, -0.05, 0.40);
 
   // create the collision space
   SBPLCollisionSpace* cspace_ = new SBPLCollisionSpace(grid_);
