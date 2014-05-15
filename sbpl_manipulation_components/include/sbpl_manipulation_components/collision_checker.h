@@ -20,9 +20,8 @@ public:
     virtual ~CollisionChecker();
 
     /* Collision Checking */
-    virtual bool isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
-
-    virtual bool isStateToStateValid(const std::vector<double> &angles0, const std::vector<double> &angles1, int path_length, int num_checks, double &dist);
+    virtual bool isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist) = 0;
+    virtual bool isStateToStateValid(const std::vector<double> &angles0, const std::vector<double> &angles1, int path_length, int num_checks, double &dist) = 0;
 
     /* Utils */
     virtual bool interpolatePath(const std::vector<double> &start, const std::vector<double> &end, const std::vector<double> &inc, std::vector<std::vector<double> >& path);
