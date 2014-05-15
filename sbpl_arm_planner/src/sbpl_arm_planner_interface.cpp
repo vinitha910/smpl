@@ -119,7 +119,6 @@ bool SBPLArmPlannerInterface::solve(const moveit_msgs::PlanningSceneConstPtr& pl
 
   // preprocess
   clock_t t_preprocess = clock();
-  cc_->setPlanningScene(*planning_scene);
   prm_->planning_frame_ = planning_scene->world.octomap.header.frame_id;
   grid_->setReferenceFrame(prm_->planning_frame_);
   // TODO: set kinematics to planning frame

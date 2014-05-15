@@ -14,13 +14,10 @@ namespace sbpl_arm_planner {
 
 class CollisionChecker
 {
-  public:
+public:
 
     CollisionChecker();
     virtual ~CollisionChecker();
-
-    /* World Update */
-    virtual bool setPlanningScene(const moveit_msgs::PlanningScene &scene);
 
     /* Collision Checking */
     virtual bool isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
@@ -34,12 +31,6 @@ class CollisionChecker
     virtual visualization_msgs::MarkerArray getCollisionModelVisualization(const std::vector<double> &angles);
 
     virtual visualization_msgs::MarkerArray getVisualization(std::string type);
-
-  protected:
-
-    std::vector<std::string> planning_joints_;
-    moveit_msgs::PlanningScene planning_scene_;
-    moveit_msgs::RobotState robot_state_;
 };
 
 }

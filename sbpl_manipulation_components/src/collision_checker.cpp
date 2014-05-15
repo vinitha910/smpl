@@ -10,12 +10,6 @@ CollisionChecker::~CollisionChecker()
 {
 }
 
-bool CollisionChecker::setPlanningScene(const moveit_msgs::PlanningScene &scene)
-{
-  planning_scene_  = scene;
-  return false;
-}
-
 bool CollisionChecker::isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist)
 {
   ROS_ERROR("Function is not filled in.");
