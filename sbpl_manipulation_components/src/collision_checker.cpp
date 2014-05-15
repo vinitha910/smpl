@@ -10,11 +10,6 @@ CollisionChecker::~CollisionChecker()
 {
 }
 
-void CollisionChecker::setRobotState(const moveit_msgs::RobotState &state)
-{
-  robot_state_ = state;
-}
-
 bool CollisionChecker::setPlanningScene(const moveit_msgs::PlanningScene &scene)
 {
   planning_scene_  = scene;

@@ -20,8 +20,6 @@ class CollisionChecker
     virtual ~CollisionChecker();
 
     /* World Update */
-    virtual void setRobotState(const moveit_msgs::RobotState &state);
-
     virtual bool setPlanningScene(const moveit_msgs::PlanningScene &scene);
 
     /* Collision Checking */
