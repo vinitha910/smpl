@@ -343,8 +343,7 @@ int main(int argc, char **argv)
   // collision checker
   sbpl_arm_planner::OccupancyGrid *grid = new sbpl_arm_planner::OccupancyGrid(df);
   grid->setReferenceFrame(planning_frame);
-  sbpl_arm_planner::CollisionChecker *cc;
-  cc = new sbpl_arm_planner::SBPLCollisionSpace(grid);
+  sbpl_arm_planner::SBPLCollisionSpace *cc = new sbpl_arm_planner::SBPLCollisionSpace(grid);
 
   if(!cc->init(group_name))
     return false;

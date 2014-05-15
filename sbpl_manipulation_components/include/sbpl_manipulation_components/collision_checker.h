@@ -17,13 +17,7 @@ class CollisionChecker
   public:
 
     CollisionChecker();
-
-    ~CollisionChecker(){};
-
-    /* Initialization */
-    virtual bool init(std::string group_name);
-
-    virtual bool setPlanningJoints(const std::vector<std::string> &planning_joints);
+    virtual ~CollisionChecker();
 
     /* World Update */
     virtual void setRobotState(const moveit_msgs::RobotState &state);
@@ -45,7 +39,6 @@ class CollisionChecker
 
   protected:
 
-    std::string group_name_;
     std::vector<std::string> planning_joints_;
     moveit_msgs::PlanningScene planning_scene_;
     moveit_msgs::RobotState robot_state_;

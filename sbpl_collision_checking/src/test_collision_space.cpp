@@ -48,7 +48,7 @@ int main(int argc, char **argv)
   sbpl_arm_planner::OccupancyGrid* grid = new sbpl_arm_planner::OccupancyGrid(df);
   grid->setReferenceFrame(world_frame);
 
-  sbpl_arm_planner::CollisionChecker* cspace = new sbpl_arm_planner::SBPLCollisionSpace(grid);
+  sbpl_arm_planner::SBPLCollisionSpace* cspace = new sbpl_arm_planner::SBPLCollisionSpace(grid);
 
   if(!cspace->init(group_name))
     return false;

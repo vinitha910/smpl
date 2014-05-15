@@ -6,16 +6,8 @@ CollisionChecker::CollisionChecker()
 {
 }
 
-bool CollisionChecker::init(std::string name)
+CollisionChecker::~CollisionChecker()
 {
-  group_name_ = name;
-  return true;
-}
-
-bool CollisionChecker::setPlanningJoints(const std::vector<std::string> &planning_joints)
-{
-  planning_joints_ = planning_joints;
-  return true;
 }
 
 void CollisionChecker::setRobotState(const moveit_msgs::RobotState &state)
