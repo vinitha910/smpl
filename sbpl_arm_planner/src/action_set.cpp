@@ -143,12 +143,14 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
   }
 
   // add amps (will be added to MP file format)
+  /*
   MotionPrimitive m;
   m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY;
   m.group = 2;
   m.id =  mp_.size();
   m.action.push_back(mprim);
   mp_.push_back(m);
+  */
   
   /*
   m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY;
