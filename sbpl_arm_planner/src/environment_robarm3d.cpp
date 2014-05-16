@@ -812,6 +812,11 @@ std::vector<double> EnvironmentROBARM3D::getGoal()
   return pdata_.goal.pose;
 }
 
+std::vector<double> EnvironmentROBARM3D::getStart()
+{
+  return pdata_.start_entry->state;
+}
+
 visualization_msgs::MarkerArray EnvironmentROBARM3D::getVisualization(std::string type)
 {
   visualization_msgs::MarkerArray ma;

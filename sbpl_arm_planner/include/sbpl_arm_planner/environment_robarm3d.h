@@ -167,6 +167,7 @@ class EnvironmentROBARM3D: public DiscreteSpaceInformation
     RobotModel* getRobotModel(){ return rmodel_; };
     CollisionChecker* getCollisionChecker(){ return cc_; };
     std::vector<double> getGoal();
+    std::vector<double> getStart();
     double getDistanceToGoal(double x, double y, double z);
 
     visualization_msgs::MarkerArray getVisualization(std::string type);
