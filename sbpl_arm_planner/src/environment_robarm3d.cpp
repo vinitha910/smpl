@@ -204,7 +204,7 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
 
       // check joint limits
       if(!rmodel_->checkJointLimits(actions[i][j])) {
-        ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2d violates joint limits");
+        ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2d violates joint limits", i);
         valid = -1;
       }
 
