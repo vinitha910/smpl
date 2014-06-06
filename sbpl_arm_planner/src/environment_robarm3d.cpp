@@ -203,8 +203,10 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
       ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d] angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f  %0.3f", i, actions[i][j][0], actions[i][j][1], actions[i][j][2], actions[i][j][3], actions[i][j][4], actions[i][j][5], actions[i][j][6]);
 
       // check joint limits
-      if(!rmodel_->checkJointLimits(actions[i][j]))
+      if(!rmodel_->checkJointLimits(actions[i][j])) {
+        ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2d violates joint limits");
         valid = -1;
+      }
 
       //check for collisions
       if(!cc_->isStateValid(actions[i][j], prm_->verbose_collisions_, false, dist))
