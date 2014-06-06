@@ -245,8 +245,10 @@ bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionP
   }
   else if(mp.type == sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY)
   {
-    if(dist_to_goal > 0.0) //ik_amp_dist_thresh_m_)
+    if (dist_to_goal > ik_amp_dist_thresh_m_)
+    {
       return false;
+    }
     
     action.resize(1);
     if(!env_->getRobotModel()->computeIK(goal, parent, action[0]))
