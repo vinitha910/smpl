@@ -48,7 +48,8 @@
 #include <sbpl_arm_planner/planning_params.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl_arm_planner
+{
 
 enum GoalType
 {
@@ -57,34 +58,15 @@ enum GoalType
   NUMBER_OF_GOAL_TYPES
 };
 
-typedef struct
+struct GoalConstraint
 {
   int type;
   std::vector<double> pose;
   double xyz_tolerance[3];
   double rpy_tolerance[3];
-} GoalConstraint;
+};
 
-/** @brief struct that describes a basic pose constraint */
-/*
-typedef struct
-{
-  bool is_6dof_goal;
-  int type;
-  int xyz_disc_tolerance;
-  int rpy_disc_tolerance;
-  int xyz_disc[3];
-  int rpy_disc[3];
-  double xyz[3];
-  double rpy[3];
-  double q[4];
-  double fangle;
-  double xyz_tolerance[3];
-  double rpy_tolerance[3];
-} GoalPos;
-*/
-
-typedef struct
+struct EnvROBARM3DHashEntry_t
 {
   int stateID;             // hash entry ID number
   int heur;
@@ -92,7 +74,7 @@ typedef struct
   double dist;
   std::vector<int> coord;
   RobotState state;
-} EnvROBARM3DHashEntry_t;
+};
 
 /** main structure that stores environment data used in planning */
 typedef struct EnvironmentPlanningData
@@ -215,7 +197,6 @@ class EnvironmentROBARM3D: public DiscreteSpaceInformation
     double getEuclideanDistance(double x1, double y1, double z1, double x2, double y2, double z2) const;
 };
 
-
 inline unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
 {
   key += (key << 12); 
@@ -243,8 +224,9 @@ inline unsigned int EnvironmentROBARM3D::getHashBin(const std::vector<int> &coor
 inline void EnvironmentROBARM3D::coordToAngles(const std::vector<int> &coord, std::vector<double> &angles)
 {
   angles.resize(coord.size());
-  for(size_t i = 0; i < coord.size(); i++)
+  for(size_t i = 0; i < coord.size(); i++) {
     angles[i] = coord[i] * prm_->coord_delta_[i];
+  }
 }
 
 inline void EnvironmentROBARM3D::anglesToCoord(const std::vector<double> &angle, std::vector<int> &coord)
@@ -269,7 +251,7 @@ inline double EnvironmentROBARM3D::getEuclideanDistance(double x1, double y1, do
   return sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2));
 }
 
-} //namespace
+} // namespace sbpl_arm_planner
 
 #endif
 

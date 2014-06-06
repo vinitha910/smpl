@@ -35,8 +35,18 @@ clock_t starttime;
 
 using namespace sbpl_arm_planner;
 
-SBPLArmPlannerInterface::SBPLArmPlannerInterface(RobotModel *rm, CollisionChecker *cc, ActionSet* as, distance_field::PropagationDistanceField* df) :
-  nh_("~"), planner_(NULL), sbpl_arm_env_(NULL), prm_(NULL)
+SBPLArmPlannerInterface::SBPLArmPlannerInterface(
+  RobotModel *rm,
+  CollisionChecker *cc,
+  ActionSet* as,
+  distance_field::PropagationDistanceField* df)
+:
+  nh_("~"),
+  planner_(NULL),
+  sbpl_arm_env_(NULL),
+  cc_(NULL),
+  grid_(NULL),
+  prm_(NULL)
 {
   rm_ = rm;
   cc_ = cc;
@@ -159,19 +169,19 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
   return true;
 }
 
-bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints &goal_constraints)
+bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints& goal_constraints)
 {
-  std::vector <std::vector <double> > sbpl_goal(1, std::vector<double> (11,0));  //Changed to include Quaternion
-  std::vector <std::vector <double> > sbpl_tolerance(1, std::vector<double> (12,0));
+  std::vector<std::vector <double> > sbpl_goal(1, std::vector<double> (11,0));  //Changed to include Quaternion
+  std::vector<std::vector <double> > sbpl_tolerance(1, std::vector<double> (12,0));
 
-  if (goal_constraints.position_constraints.empty() ||
-      goal_constraints.orientation_constraints.empty())
+  if (goal_constraints.position_constraints.empty() || goal_constraints.orientation_constraints.empty())
   {
       ROS_WARN("Cannot convert goal constraints without position constraints into goal pose");
       return false;
   }
 
-  if (goal_constraints.position_constraints.front().constraint_region.primitive_poses.empty()) {
+  if (goal_constraints.position_constraints.front().constraint_region.primitive_poses.empty())
+  {
       ROS_WARN("At least one primitive shape pose for goal position constraint regions is required");
       return false;
   }
@@ -211,18 +221,18 @@ bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints &go
   sbpl_tolerance[0][5] = tolerance[5];
 
   ROS_INFO("goal xyz(%s): %.3f %.3f %.3f (tol: %.3fm) rpy: %.3f %.3f %.3f (tol: %.3frad)  (quat: %0.3f %0.3f %0.3f %0.3f)",
-           prm_->planning_frame_.c_str(),sbpl_goal[0][0],sbpl_goal[0][1],sbpl_goal[0][2],sbpl_tolerance[0][0],sbpl_goal[0][3],sbpl_goal[0][4],sbpl_goal[0][5], sbpl_tolerance[0][1],
+           prm_->planning_frame_.c_str(), sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2], sbpl_tolerance[0][0], sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5], sbpl_tolerance[0][1],
            goal_constraints.orientation_constraints[0].orientation.x, goal_constraints.orientation_constraints[0].orientation.y, goal_constraints.orientation_constraints[0].orientation.z, goal_constraints.orientation_constraints[0].orientation.w);
 
   // set sbpl environment goal
-  if(!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_tolerance))
+  if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_tolerance))
   {
     ROS_ERROR("Failed to set goal state. Perhaps goal position is out of reach. Exiting.");
     return false;
   }
 
   //set planner goal
-  if(planner_->set_goal(mdp_cfg_.goalstateid) == 0)
+  if (planner_->set_goal(mdp_cfg_.goalstateid) == 0)
   {
     ROS_ERROR("Failed to set goal state. Exiting.");
     return false;
@@ -231,19 +241,22 @@ bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints &go
   return true;
 }
 
-bool SBPLArmPlannerInterface::planKinematicPath(const moveit_msgs::GetMotionPlan::Request &req,
-                                                moveit_msgs::GetMotionPlan::Response &res)
+bool SBPLArmPlannerInterface::planKinematicPath(
+  const moveit_msgs::GetMotionPlan::Request &req,
+  moveit_msgs::GetMotionPlan::Response &res)
 {
-    if (!planner_initialized_) {
-        ROS_ERROR("Hold up a second...the planner isn't initialized yet. Try again in a second or two.");
-        return false;
-    }
+  if (!planner_initialized_)
+  {
+    ROS_ERROR("Hold up a second...the planner isn't initialized yet. Try again in a second or two.");
+    return false;
+  }
 
-    if (!planToPosition(req, res)) {
-        return false;
-    }
+  if (!planToPosition(req, res))
+  {
+    return false;
+  }
 
-    return true;
+  return true;
 }
 
 bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
@@ -255,7 +268,14 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
   planner_->force_planning_from_scratch();
 
   //plan
-  b_ret = planner_->replan(prm_->allowed_time_, &solution_state_ids, &solution_cost_);
+  ReplanParams replan_params(prm_->allowed_time_);
+  replan_params.initial_eps = 100.0;
+  replan_params.final_eps = 1.0;
+  replan_params.dec_eps = 0.2;
+  replan_params.return_first_solution = false;
+  // replan_params.max_time = prm_->allowed_time_;
+  replan_params.repair_time = 1.0;
+  b_ret = planner_->replan(&solution_state_ids, replan_params, &solution_cost_);
 
   //check if an empty plan was received.
   if(b_ret && solution_state_ids.size() <= 0)
@@ -275,8 +295,9 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
   return b_ret;
 }
 
-bool SBPLArmPlannerInterface::planToPosition(const moveit_msgs::GetMotionPlan::Request &req,
-                                             moveit_msgs::GetMotionPlan::Response &res)
+bool SBPLArmPlannerInterface::planToPosition(
+  const moveit_msgs::GetMotionPlan::Request& req,
+  moveit_msgs::GetMotionPlan::Response& res)
 {
   starttime = clock();
   int status = 0;
