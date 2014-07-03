@@ -63,6 +63,7 @@ catkin_package(
         angles
         geometry_msgs
         kdl_parser
+        leatherman
         moveit_core
         moveit_msgs
         moveit_ros_planning
