@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(sbpl_manipulation)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_CXX_FLAGS "-std=c++0x")
 
 find_package(Boost REQUIRED)
 find_package(Bullet REQUIRED)

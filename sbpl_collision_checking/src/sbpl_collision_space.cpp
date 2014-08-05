@@ -80,138 +80,132 @@ bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint
   return true;
 }
 
-bool SBPLCollisionSpace::init(std::string group_name)
+bool SBPLCollisionSpace::init(const std::string &group_name)
 {
-  group_name_ = group_name;
+    group_name_ = group_name;
 
-  // initialize the collision model
-  if(!model_.init())
-  {
-    ROS_ERROR("[cspace] The robot's collision model failed to initialize.");
-    return false;
-  }
+    // initialize the collision model
+    if (!model_.init()) {
+        ROS_ERROR("[cspace] The robot's collision model failed to initialize.");
+        return false;
+    }
 
-  if(!model_.initAllGroups())
-  {
-    ROS_ERROR("Failed to initialize all groups.");
-    return false;
-  }
+    if (!model_.initAllGroups()) {
+        ROS_ERROR("Failed to initialize all groups.");
+        return false;
+    }
 
-  // choose the group we are planning for
-  if(!model_.setDefaultGroup(group_name_))
-  {
-    ROS_ERROR("Failed to set the default group to '%s'.", group_name_.c_str());
-    return false;
-  }
+    // choose the group we are planning for
+    if (!model_.setDefaultGroup(group_name_)) {
+        ROS_ERROR("Failed to set the default group to '%s'.", group_name_.c_str());
+        return false;
+    }
 
-  // get the collision spheres for the robot
-  model_.getDefaultGroupSpheres(spheres_);
+    // get the collision spheres for the robot
+    model_.getDefaultGroupSpheres(spheres_);
 
-  //model_.printGroups();
-  //model_.printDebugInfo(group_name);
+    if (!updateVoxelGroups()) {
+        return false;
+    }
 
-  if(!updateVoxelGroups())
-    return false;
-
-  return true;
+    return true;
 }
 
 bool SBPLCollisionSpace::checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist)
 {
-  double dist_temp=100.0;
-  dist = 100.0;
-  KDL::Vector v;
-  int x,y,z;
-  Sphere s;
-  bool in_collision = false;
-  if(visualize)
-    collision_spheres_.clear();
+    double dist_temp = 100.0;
+    dist = 100.0;
+    KDL::Vector v;
+    int x, y, z;
+    Sphere s;
+    bool in_collision = false;
+    if (visualize) {
+        collision_spheres_.clear();
+    }
 
-  // compute foward kinematics
-  if(!model_.computeDefaultGroupFK(angles, frames_))
-  {
-    ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-    return false;
-  }
-
-  // check attached object
-  if(object_attached_)
-  {
-    for(size_t i = 0; i < object_spheres_.size(); ++i)
-    {
-      v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
-
-      grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
-
-      // check bounds
-      if(!grid_->isInBounds(x, y, z))
-      {
-        if(verbose)
-          ROS_INFO("[cspace] Sphere %d %d %d is out of bounds.", x, y, z);
+    // compute foward kinematics
+    if (!model_.computeDefaultGroupFK(angles, frames_)) {
+        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
         return false;
-      }
+    }
 
-      // check for collision with world
-      if((dist_temp = grid_->getDistance(x,y,z)) <= object_spheres_[i].radius)
-      {
-        dist = dist_temp;
+    // check attached object
+    if (object_attached_) {
+        for (size_t i = 0; i < object_spheres_.size(); ++i) {
+            v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
 
-        if(visualize)
-        {
-          in_collision = true;
-          s = *(spheres_[i]);
-          s.v = v;
-          collision_spheres_.push_back(s);
+            grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
+
+            // check bounds
+            if (!grid_->isInBounds(x, y, z)) {
+                if (verbose) {
+                    ROS_INFO("[cspace] Sphere %d %d %d is out of bounds.", x, y, z);
+                }
+                return false;
+            }
+
+            // check for collision with world
+            if ((dist_temp = grid_->getDistance(x, y, z)) <= object_spheres_[i].radius) {
+                dist = dist_temp;
+
+                if (visualize) {
+                    in_collision = true;
+                    s = *(spheres_[i]);
+                    s.v = v;
+                    collision_spheres_.push_back(s);
+                }
+                else {
+                    return false;
+                }
+            }
+            if (dist_temp < dist) {
+                dist = dist_temp;
+            }
         }
-        else
-          return false;
-      }
-      if(dist_temp < dist)
-        dist = dist_temp;
-    }
-  }
-
-  // check robot model
-  for(size_t i = 0; i < spheres_.size(); ++i)
-  {
-    v = frames_[spheres_[i]->kdl_chain][spheres_[i]->kdl_segment] * spheres_[i]->v;
-
-    grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
-
-    // check bounds
-    if(!grid_->isInBounds(x, y, z))
-    {
-      if(verbose)
-        ROS_INFO("[cspace] Sphere '%s' with center at {%0.2f %0.2f %0.2f} (%d %d %d) is out of bounds.", spheres_[i]->name.c_str(), v.x(), v.y(), v.z(), x, y, z);
-      return false;
     }
 
-    // check for collision with world
-    if((dist_temp = grid_->getDistance(x,y,z)) <= (spheres_[i]->radius + padding_))
-    {
-      dist = dist_temp;
-      if(verbose)
-        ROS_INFO("    [sphere %d] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*", int(i), spheres_[i]->name.c_str(), x, y, z, spheres_[i]->radius + padding_, grid_->getDistance(x,y,z));
+    // check robot model
+    for (size_t i = 0; i < spheres_.size(); ++i) {
+        v = frames_[spheres_[i]->kdl_chain][spheres_[i]->kdl_segment] * spheres_[i]->v;
 
-      if(visualize)
-      {
-        in_collision = true;
-        s = *(spheres_[i]);
-        s.v = v;
-        collision_spheres_.push_back(s);
-      }
-      else
+        grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
+
+        // check bounds
+        if (!grid_->isInBounds(x, y, z)) {
+            if (verbose) {
+                ROS_INFO("[cspace] Sphere '%s' with center at {%0.2f %0.2f %0.2f} (%d %d %d) is out of bounds.", spheres_[i]->name.c_str(), v.x(), v.y(), v.z(), x, y, z);
+            }
+            return false;
+        }
+
+        // check for collision with world
+        if ((dist_temp = grid_->getDistance(x, y, z)) <= (spheres_[i]->radius + padding_)) {
+            dist = dist_temp;
+            if (verbose) {
+                ROS_INFO("    [sphere %zd] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*", i, spheres_[i]->name.c_str(), x, y, z, spheres_[i]->radius + padding_, grid_->getDistance(x, y, z));
+            }
+
+            if (visualize) {
+                in_collision = true;
+                s = *(spheres_[i]);
+                s.v = v;
+                collision_spheres_.push_back(s);
+            }
+            else {
+                return false;
+            }
+        }
+
+        if (dist_temp < dist) {
+            dist = dist_temp;
+        }
+    }
+
+    if (visualize && in_collision) {
         return false;
     }
 
-    if(dist_temp < dist)
-      dist = dist_temp;
-  }
-
-  if(visualize && in_collision)
-    return false;
-
-  return true;
+    return true;
 }
 
 bool SBPLCollisionSpace::updateVoxelGroups()
@@ -272,72 +266,71 @@ bool SBPLCollisionSpace::updateVoxelGroup(Group *g)
   return true;
 }
 
-bool SBPLCollisionSpace::checkPathForCollision(const std::vector<double> &start, const std::vector<double> &end, bool verbose, int &path_length, int &num_checks, double &dist)
+bool SBPLCollisionSpace::checkPathForCollision(
+    const std::vector<double> &start,
+    const std::vector<double> &end,
+    bool verbose,
+    int &path_length,
+    int &num_checks,
+    double &dist)
 {
-  int inc_cc = 5;
-  double dist_temp = 0;
-  std::vector<double> start_norm(start);
-  std::vector<double> end_norm(end);
-  std::vector<std::vector<double> > path;
-  dist = 100;
-  num_checks = 0;
+    int inc_cc = 5;
+    double dist_temp = 0;
+    std::vector<double> start_norm(start);
+    std::vector<double> end_norm(end);
+    std::vector<std::vector<double>> path;
+    dist = 100;
+    num_checks = 0;
 
-  for(size_t i=0; i < start.size(); ++i)
-  {
-    start_norm[i] = angles::normalize_angle(start[i]);
-    end_norm[i] = angles::normalize_angle(end[i]);
-  }
-
-  if(!interpolatePath(start_norm, end_norm, inc_, path))
-  {
-    path_length = 0;
-    ROS_ERROR_ONCE("[cspace] Failed to interpolate the path. It's probably infeasible due to joint limits.");
-    ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
-    ROS_ERROR("[interpolate]    end: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", end_norm[0], end_norm[1], end_norm[2], end_norm[3], end_norm[4], end_norm[5], end_norm[6]);
-    ROS_ERROR("[interpolate]    min: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", min_limits_[0], min_limits_[1], min_limits_[2], min_limits_[3], min_limits_[4], min_limits_[5], min_limits_[6]);
-    ROS_ERROR("[interpolate]    max: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", max_limits_[0], max_limits_[1], max_limits_[2], max_limits_[3], max_limits_[4], max_limits_[5], max_limits_[6]);
-    return false;
-  }
-
-  // for debugging & statistical purposes
-  path_length = path.size();
-
-  // try to find collisions that might come later in the path earlier
-  if(int(path.size()) > inc_cc)
-  {
-    for(int i = 0; i < inc_cc; i++)
-    {
-      for(size_t j = i; j < path.size(); j=j+inc_cc)
-      {
-        num_checks++;
-        if(!checkCollision(path[j], verbose, false, dist_temp))
-        {
-          dist = dist_temp;
-          return false;
-        }
-
-        if(dist_temp < dist)
-          dist = dist_temp;
-      }
+    for (size_t i = 0; i < start.size(); ++i) {
+        start_norm[i] = angles::normalize_angle(start[i]);
+        end_norm[i] = angles::normalize_angle(end[i]);
     }
-  }
-  else
-  {
-    for(size_t i = 0; i < path.size(); i++)
-    {
-      num_checks++;
-      if(!checkCollision(path[i], verbose, false, dist_temp))
-      {
-        dist = dist_temp;
+
+    if (!interpolatePath(start_norm, end_norm, inc_, path)) {
+        path_length = 0;
+        ROS_ERROR_ONCE("[cspace] Failed to interpolate the path. It's probably infeasible due to joint limits.");
+        ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
+        ROS_ERROR("[interpolate]    end: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", end_norm[0], end_norm[1], end_norm[2], end_norm[3], end_norm[4], end_norm[5], end_norm[6]);
+        ROS_ERROR("[interpolate]    min: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", min_limits_[0], min_limits_[1], min_limits_[2], min_limits_[3], min_limits_[4], min_limits_[5], min_limits_[6]);
+        ROS_ERROR("[interpolate]    max: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", max_limits_[0], max_limits_[1], max_limits_[2], max_limits_[3], max_limits_[4], max_limits_[5], max_limits_[6]);
         return false;
-      }
-
-      if(dist_temp < dist)
-        dist = dist_temp;
     }
-  }
 
-  return true;
+    // for debugging & statistical purposes
+    path_length = path.size();
+
+    // try to find collisions that might come later in the path earlier
+    if (int(path.size()) > inc_cc) {
+        for (int i = 0; i < inc_cc; i++) {
+            for (size_t j = i; j < path.size(); j = j + inc_cc) {
+                num_checks++;
+                if (!checkCollision(path[j], verbose, false, dist_temp)) {
+                    dist = dist_temp;
+                    return false;
+                }
+
+                if (dist_temp < dist) {
+                    dist = dist_temp;
+                }
+            }
+        }
+    }
+    else {
+        for (size_t i = 0; i < path.size(); i++) {
+            num_checks++;
+            if (!checkCollision(path[i], verbose, false, dist_temp)) {
+                dist = dist_temp;
+                return false;
+            }
+
+            if (dist_temp < dist) {
+                dist = dist_temp;
+            }
+        }
+    }
+
+    return true;
 }
 
 double SBPLCollisionSpace::isValidLineSegment(const std::vector<int> a, const std::vector<int> b, const int radius)
@@ -723,19 +716,13 @@ void SBPLCollisionSpace::setJointPosition(std::string name, double position)
   model_.setJointPosition(name, position);
 }
 
-bool SBPLCollisionSpace::interpolatePath(const std::vector<double>& start,
-                                         const std::vector<double>& end,
-                                         const std::vector<double>& inc,
-                                         std::vector<std::vector<double> >& path)
+bool SBPLCollisionSpace::interpolatePath(
+    const std::vector<double> &start,
+    const std::vector<double> &end,
+    const std::vector<double> &inc,
+    std::vector<std::vector<double>> &path)
 {
-  return sbpl::Interpolator::interpolatePath(start, end, min_limits_, max_limits_, inc, path);
-}
-
-bool SBPLCollisionSpace::interpolatePath(const std::vector<double>& start,
-                                         const std::vector<double>& end,
-                                         std::vector<std::vector<double> >& path)
-{
-  return sbpl::Interpolator::interpolatePath(start, end, min_limits_, max_limits_, inc_, path);
+    return sbpl::interp::InterpolatePath(start, end, min_limits_, max_limits_, inc, path);
 }
 
 bool SBPLCollisionSpace::getClearance(const std::vector<double> &angles, int num_spheres, double &avg_dist, double &min_dist)
@@ -775,9 +762,14 @@ bool SBPLCollisionSpace::isStateValid(const std::vector<double> &angles, bool ve
   return checkCollision(angles, verbose, visualize, dist);
 }
 
-bool SBPLCollisionSpace::isStateToStateValid(const std::vector<double> &angles0, const std::vector<double> &angles1, int path_length, int num_checks, double &dist)
+bool SBPLCollisionSpace::isStateToStateValid(
+    const std::vector<double> &angles0,
+    const std::vector<double> &angles1,
+    int &path_length,
+    int &num_checks,
+    double &dist)
 {
-  return checkPathForCollision(angles0, angles1, false, path_length, num_checks, dist);
+    return checkPathForCollision(angles0, angles1, false, path_length, num_checks, dist);
 }
 
 bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scene)

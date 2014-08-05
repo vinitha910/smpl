@@ -60,24 +60,29 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 
     ~SBPLCollisionSpace(){};
 
-    bool init(std::string group_name);
+    bool init(const std::string &group_name);
 
     void setPadding(double padding);
 
     bool setPlanningScene(const moveit_msgs::PlanningScene &scene);
 
     /** --------------- Collision Checking ----------- */
-    bool checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
-    bool checkPathForCollision(const std::vector<double> &start, const std::vector<double> &end, bool verbose, int &path_length, int &num_checks, double &dist);
-    inline bool isValidCell(const int x, const int y, const int z, const int radius);
-    double isValidLineSegment(const std::vector<int> a, const std::vector<int> b, const int radius);
-    bool getClearance(const std::vector<double> &angles, int num_spheres, double &avg_dist, double &min_dist);
+    /// @{ sbpl_arm_planner::CollisionChecker API
     bool isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
-    bool isStateToStateValid(const std::vector<double> &angles0, const std::vector<double> &angles1, int path_length, int num_checks, double &dist);
+    bool isStateToStateValid(
+            const std::vector<double> &angles0,
+            const std::vector<double> &angles1,
+            int &path_length,
+            int &num_checks,
+            double &dist);
+    /// @}
 
     /** ---------------- Utils ---------------- */
-    bool interpolatePath(const std::vector<double>& start, const std::vector<double>& end, std::vector<std::vector<double> >& path);
-    bool interpolatePath(const std::vector<double>& start, const std::vector<double>& end, const std::vector<double>& inc, std::vector<std::vector<double> >& path);
+    bool interpolatePath(
+            const std::vector<double>& start,
+            const std::vector<double>& end,
+            const std::vector<double>& inc,
+            std::vector<std::vector<double> >& path);
 
     /** ------------ Kinematics ----------------- */
     std::string getGroupName() { return group_name_; };
@@ -147,6 +152,18 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
     std::vector<sbpl_arm_planner::Sphere> collision_spheres_;
 
     std::vector<int> convertToVertexIndices(const std::vector<shape_msgs::MeshTriangle>& triangles) const;
+
+    bool checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
+    bool checkPathForCollision(
+            const std::vector<double> &start,
+            const std::vector<double> &end,
+            bool verbose,
+            int &path_length,
+            int &num_checks,
+            double &dist);
+    inline bool isValidCell(const int x, const int y, const int z, const int radius);
+    double isValidLineSegment(const std::vector<int> a, const std::vector<int> b, const int radius);
+    bool getClearance(const std::vector<double> &angles, int num_spheres, double &avg_dist, double &min_dist);
 };
 
 inline bool SBPLCollisionSpace::isValidCell(const int x, const int y, const int z, const int radius)
