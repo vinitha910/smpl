@@ -44,10 +44,10 @@ KDLRobotModel::KDLRobotModel() :
     ik_vel_solver_(),
     fk_solver_()
 {
-  ros::NodeHandle ph("~");
-  ph.param<std::string>("robot_model/chain_root_link", chain_root_name_, " ");
-  ph.param<std::string>("robot_model/chain_tip_link", chain_tip_name_, " ");
-  ph.param("robot_model/free_angle", free_angle_, 2);
+    ros::NodeHandle ph("~");
+    ph.param<std::string>("robot_model/chain_root_link", chain_root_name_, " ");
+    ph.param<std::string>("robot_model/chain_tip_link", chain_tip_name_, " ");
+    ph.param("robot_model/free_angle", free_angle_, 2);
 }
 
 KDLRobotModel::KDLRobotModel(

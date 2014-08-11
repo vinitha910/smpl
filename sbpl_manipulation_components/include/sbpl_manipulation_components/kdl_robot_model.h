@@ -55,7 +55,15 @@ public:
 
     static const int DEFAULT_FREE_ANGLE_INDEX = 2;
 
+    /// @brief Construct a KDL Robot Model with values from the ROS param server.
+    ///
+    /// Expects ROS Parameters:
+    ///     robot_model/chain_root_link : string
+    ///     robot_model/chain_tip_link : string
+    ///     robot_model/free_angle : int (defualt: 2)
     KDLRobotModel();
+
+    /// @brief Construct a KDL Robot Model.
     KDLRobotModel(
             const std::string &chain_root_link,
             const std::string &chain_tip_link,
@@ -75,9 +83,22 @@ public:
     virtual bool computePlanningLinkFK(const std::vector<double> &angles, std::vector<double> &pose);
 
     /* Inverse Kinematics */
-    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
-    virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
-    bool computeIKSearch(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, double timeout);
+    virtual bool computeIK(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector<double> &solution,
+            int option = 0);
+
+    virtual bool computeFastIK(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector<double> &solution);
+
+    bool computeIKSearch(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector<double> &solution,
+            double timeout);
 
     /* Debug Output */
     virtual void printRobotModelInformation();
