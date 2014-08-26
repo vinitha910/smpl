@@ -3,49 +3,47 @@
 namespace sbpl_arm_planner
 {
 
-SBPLCollisionModel::SBPLCollisionModel() : ph_("~")
+SBPLCollisionModel::SBPLCollisionModel() :
+    nh_(),
+    ph_("~"),
+    group_config_map_(),
+    urdf_(),
+    dgroup_(nullptr)
 {
-  urdf_.reset();
-  dgroup_ = NULL;
 }
 
 SBPLCollisionModel::~SBPLCollisionModel()
 {
-  // delete groups
-  for(std::map<std::string, Group*>::const_iterator iter = group_config_map_.begin(); iter != group_config_map_.end(); iter++)
-  {
-    if(iter->second != NULL)
-      delete iter->second;
-  }
+    for (std::map<std::string, Group*>::const_iterator iter = group_config_map_.begin();
+         iter != group_config_map_.end(); iter++)
+    {
+        if (iter->second != NULL) {
+            delete iter->second;
+        }
+    }
 }
 
 bool SBPLCollisionModel::init()
 {
-  if(!getRobotModel())
-    return false;
-
-  return readGroups();
+    return getRobotModel() && readGroups();
 }
 
 bool SBPLCollisionModel::getRobotModel()
 {
-  std::string robot_description;
-  if (nh_.getParam("robot_description", robot_description))
-  {
-    urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
-    if (!urdf_->initString(robot_description))
-    {
-      ROS_WARN("Failed to parse the URDF");
-      return false;
+    std::string robot_description;
+    if (nh_.getParam("robot_description", robot_description)) {
+        urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
+        if (!urdf_->initString(robot_description)) {
+            ROS_WARN("Failed to parse the URDF");
+            return false;
+        }
     }
-  }
-  else
-  {
-    ROS_ERROR("The robot description was not found on the param server.");
-    return false;
-  }
+    else {
+        ROS_ERROR("The robot description was not found on the param server.");
+        return false;
+    }
 
-  return true;
+    return true;
 }
 
 bool SBPLCollisionModel::readGroups()

@@ -31,9 +31,9 @@
 #ifndef _SBPL_COLLISION_SPACE_
 #define _SBPL_COLLISION_SPACE_
 
-#include <ros/ros.h>
+#include <cmath>
 #include <vector>
-#include <math.h>
+#include <ros/ros.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/collision_checker.h>
 #include <sbpl_collision_checking/sbpl_collision_model.h>
@@ -45,20 +45,20 @@
 #include <tf_conversions/tf_kdl.h>
 #include <angles/angles.h>
 #include <moveit_msgs/CollisionObject.h>
+#include <moveit_msgs/PlanningScene.h>
+#include <moveit_msgs/RobotState.h>
 #include <geometry_msgs/Point.h>
-
-using namespace std;
 
 namespace sbpl_arm_planner
 {
 
 class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 {
-  public:
+public:
 
     SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid);
 
-    ~SBPLCollisionSpace(){};
+    ~SBPLCollisionSpace();
 
     bool init(const std::string &group_name);
 
@@ -82,10 +82,10 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
             const std::vector<double>& start,
             const std::vector<double>& end,
             const std::vector<double>& inc,
-            std::vector<std::vector<double> >& path);
+            std::vector<std::vector<double>>& path);
 
     /** ------------ Kinematics ----------------- */
-    std::string getGroupName() { return group_name_; };
+    const std::string& getGroupName() { return group_name_; }
     std::string getReferenceFrame() { return model_.getReferenceFrame(group_name_); };
     void setJointPosition(std::string name, double position);
     bool setPlanningJoints(const std::vector<std::string> &joint_names);
@@ -101,24 +101,40 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 
     /** --------------- Attached Objects -------------- */
     void attachObject(const moveit_msgs::AttachedCollisionObject &obj);
+
     void attachSphere(std::string name, std::string link, geometry_msgs::Pose pose, double radius);
+
     void attachCylinder(std::string link, geometry_msgs::Pose pose, double radius, double length);
-    void attachCube(std::string name, std::string link, geometry_msgs::Pose pose, double x_dim, double y_dim, double z_dim);
-    void attachMesh(std::string name, std::string link, geometry_msgs::Pose pose, const std::vector<geometry_msgs::Point> &vertices, const std::vector<int> &triangles);
+
+    void attachCube(
+            const std::string& name,
+            const std::string& link,
+            const geometry_msgs::Pose& pose,
+            double x_dim,
+            double y_dim,
+            double z_dim);
+
+    void attachMesh(
+            const std::string& name,
+            const std::string& link,
+            const geometry_msgs::Pose& pose,
+            const std::vector<geometry_msgs::Point> &vertices,
+            const std::vector<int> &triangles);
+
     void removeAttachedObject();
-    bool getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double> > &xyz);
+    bool getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double>> &xyz);
 
     /** --------------- Debugging ---------------- */
     visualization_msgs::MarkerArray getVisualization(std::string type);
     visualization_msgs::MarkerArray getCollisionModelVisualization(const std::vector<double> &angles);
-    visualization_msgs::MarkerArray getMeshModelVisualization(const std::string group_name, const std::vector<double> &angles);
+    visualization_msgs::MarkerArray getMeshModelVisualization(const std::string& group_name, const std::vector<double> &angles);
 
     /** ------------- Self Collision ----------- */
     bool updateVoxelGroups();
     bool updateVoxelGroup(Group *g);
     bool updateVoxelGroup(std::string name);
 
-  private:
+private:
 
     sbpl_arm_planner::SBPLCollisionModel model_;
     sbpl_arm_planner::OccupancyGrid* grid_;
@@ -134,7 +150,7 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
     std::vector<double> max_limits_;
     std::vector<bool> continuous_;
     std::vector<Sphere*> spheres_; // temp
-    std::vector<std::vector<KDL::Frame> > frames_; // temp
+    std::vector<std::vector<KDL::Frame>> frames_; // temp
 
     /* ------------- Collision Objects -------------- */
     std::vector<std::string> known_objects_;
@@ -173,6 +189,7 @@ inline bool SBPLCollisionSpace::isValidCell(const int x, const int y, const int 
   return true;
 }
 
-}
+} // namespace sbpl_arm_planner
+
 #endif
 

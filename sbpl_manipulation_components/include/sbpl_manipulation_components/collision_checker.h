@@ -1,16 +1,12 @@
 #ifndef _COLLISION_CHECKER_
 #define _COLLISION_CHECKER_
 
-#include <ros/console.h>
-#include <angles/angles.h>
 #include <string>
-#include <sbpl_geometry_utils/Interpolator.h>
-#include <sbpl_geometry_utils/interpolation.h>
-#include <moveit_msgs/PlanningScene.h>
-#include <moveit_msgs/RobotState.h>
+#include <vector>
 #include <visualization_msgs/MarkerArray.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl_arm_planner
+{
 
 class CollisionChecker
 {
@@ -60,7 +56,7 @@ public:
     virtual visualization_msgs::MarkerArray getVisualization(std::string type);
 };
 
-}
+} // namespace sbpl_arm_planner
 
 #endif
 

@@ -89,7 +89,8 @@ class SBPLCollisionModel
 
   private:
 
-    ros::NodeHandle nh_, ph_;
+    ros::NodeHandle nh_;
+    ros::NodeHandle ph_;
 
     std::map<std::string, Group*> group_config_map_;
 
