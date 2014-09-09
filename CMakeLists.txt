@@ -25,7 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
     trajectory_msgs
     urdf
     visualization_msgs)
-find_package(Eigen REQUIRED)
+find_package(eigen REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SBPL REQUIRED sbpl)
 
@@ -73,7 +73,7 @@ catkin_package(
         tf_conversions
         trajectory_msgs
     DEPENDS 
-        Boost Bullet Eigen sbpl)
+        boost bullet eigen)
 
 add_subdirectory(bfs3d)
 add_subdirectory(sbpl_arm_planner)
