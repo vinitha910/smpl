@@ -36,11 +36,11 @@ class ActionSet
 
     bool getActionSet(const RobotState &parent, std::vector<Action> &actions);
 
-    void print();
+    virtual void print();
 
     void addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim);
 
-  private:
+  protected:
 
     bool use_multires_mprims_;
 
@@ -58,7 +58,7 @@ class ActionSet
 
     std::vector<std::string> motion_primitive_type_names_;
 
-    bool getMotionPrimitivesFromFile(FILE* fCfg);
+    virtual bool getMotionPrimitivesFromFile(FILE* fCfg);
 
     bool applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action);
 

@@ -266,7 +266,8 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
     ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d]    xyz: %d %d %d  goal: %d %d %d  (diff: %d %d %d)", int(i), endeff[0], endeff[1], endeff[2], pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2], abs(pdata_.goal_entry->xyz[0] - endeff[0]), abs(pdata_.goal_entry->xyz[1] - endeff[1]), abs(pdata_.goal_entry->xyz[2] - endeff[2]));
 
     //check if this state meets the goal criteria
-    if (isGoalState(pose, pdata_.goal))
+    if ( (!pdata_.use_7dof_goal && isGoalState(pose, pdata_.goal)) ||
+         (pdata_.use_7dof_goal && isGoalState(actions[i].back(), pdata_.goal_7dof )) )
     {
       succ_is_goal_state = true;
 
@@ -422,7 +423,6 @@ EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::createHashEntry(const std::vector<i
     ROS_ERROR("ERROR in Env... function: last state has incorrect stateID");
     throw new SBPL_Exception();
   }
-
   return HashEntry;
 }
 
@@ -474,7 +474,7 @@ bool EnvironmentROBARM3D::isGoalState(const std::vector<double>& pose, GoalConst
         pdata_.near_goal = true;
         printf("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %.4f sec. (after %d expansions)\n", pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.pose[0], goal.pose[1], goal.pose[2], pdata_.time_to_goal_region, (int)pdata_.expanded_states.size());
       }
-
+      SBPL_WARN("Near goal!");
       if (fabs(pose[3] - goal.pose[3]) <= goal.rpy_tolerance[0] &&
           fabs(pose[4] - goal.pose[4]) <= goal.rpy_tolerance[1] &&
           fabs(pose[5] - goal.pose[5]) <= goal.rpy_tolerance[2])
@@ -498,6 +498,30 @@ bool EnvironmentROBARM3D::isGoalState(const std::vector<double>& pose, GoalConst
   }
 
   return false;
+}
+
+bool EnvironmentROBARM3D::isGoalState(const std::vector<double>& angles, GoalConstraint7DOF& goal)
+{
+  if(!pdata_.use_7dof_goal){
+    SBPL_WARN("using 7dof isGoalState checking, but not using 7dof goal!");
+  }
+  /* std::vector<double> pose;
+  std::vector<double> goal_pose;
+  if(rmodel_->computePlanningLinkFK(angles, pose)){
+    if(rmodel_->computePlanningLinkFK(goal.angles, goal_pose)){
+      double dist_to_goal = sqrt((pose[0] - goal_pose[0])*(pose[0] - goal_pose[0]) +
+                                 (pose[1] - goal_pose[1])*(pose[1] - goal_pose[1]) +
+                                 (pose[2] - goal_pose[2])*(pose[2] - goal_pose[2]));
+      SBPL_INFO("dist to goal: %.3f", dist_to_goal);
+    }
+  } */
+  
+  for(int i = 0; i < goal.angles.size(); i++){
+    if (fabs(angles[i] - goal.angles[i]) > goal.angle_tolerances[i]){
+      return false;
+    }
+  }
+  return true;
 }
 
 int EnvironmentROBARM3D::getActionCost(const std::vector<double> &from_config, const std::vector<double> &to_config, int dist)
@@ -562,8 +586,8 @@ bool EnvironmentROBARM3D::setStartConfiguration(const std::vector<double> angles
   //get joint positions of starting configuration
   if(!rmodel_->computePlanningLinkFK(angles, pose))
     ROS_WARN("Unable to compute forward kinematics for initial robot state. Attempting to plan anyway.");
-  ROS_INFO("[start]             angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", angles[0], angles[1], angles[2], angles[3], angles[4], angles[5], angles[6]);
-  ROS_INFO("[start] planning_link pose:   xyz: %0.3f %0.3f %0.3f  rpy: %0.3f %0.3f %0.3f", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
+  ROS_INFO("[env][start]             angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", angles[0], angles[1], angles[2], angles[3], angles[4], angles[5], angles[6]);
+  ROS_INFO("[env][start] planning_link pose:   xyz: %0.3f %0.3f %0.3f  rpy: %0.3f %0.3f %0.3f", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
   //check joint limits of starting configuration but plan anyway
   if(!rmodel_->checkJointLimits(angles))
@@ -581,8 +605,32 @@ bool EnvironmentROBARM3D::setStartConfiguration(const std::vector<double> angles
   pdata_.start_entry->xyz[0] = (int)x;
   pdata_.start_entry->xyz[1] = (int)y;
   pdata_.start_entry->xyz[2] = (int)z;
-  ROS_INFO("[start]              coord: %d %d %d %d %d %d %d   pose: %d %d %d", pdata_.start_entry->coord[0], pdata_.start_entry->coord[1], pdata_.start_entry->coord[2], pdata_.start_entry->coord[3], pdata_.start_entry->coord[4], pdata_.start_entry->coord[5], pdata_.start_entry->coord[6], x, y, z);
+  ROS_INFO("[env][start]              coord: %d %d %d %d %d %d %d   pose: %d %d %d", pdata_.start_entry->coord[0], pdata_.start_entry->coord[1], pdata_.start_entry->coord[2], pdata_.start_entry->coord[3], pdata_.start_entry->coord[4], pdata_.start_entry->coord[5], pdata_.start_entry->coord[6], x, y, z);
   return true;
+}
+
+bool EnvironmentROBARM3D::setGoalConfiguration(const std::vector<double> goal, const std::vector<double> goal_tolerances){
+  if (!prm_->ready_to_plan_)
+  {
+    ROS_ERROR("Cannot set goal position because environment is not initialized.");
+    return false;
+  }
+
+  //compute the goal pose and fill in pdata_.goal
+  std::vector< std::vector<double> > goals_6dof;
+  std::vector< std::vector<double> > tolerances_6dof;
+  std::vector<double> pose(6,0);
+  if(!rmodel_->computePlanningLinkFK(goal, pose)){
+    SBPL_WARN("Could not compute planning link FK for given goal configuration!");
+    return false; 
+  }
+  goals_6dof.push_back(pose);
+  tolerances_6dof.push_back(std::vector<double>(6,0.05)); //made up goal tolerance (it should not be used in with 7dof goals anyways)
+  setGoalPosition(goals_6dof, tolerances_6dof);
+
+  pdata_.goal_7dof.angles = goal;
+  pdata_.goal_7dof.angle_tolerances = goal_tolerances;
+  pdata_.use_7dof_goal = true;
 }
 
 bool EnvironmentROBARM3D::setGoalPosition(
@@ -602,6 +650,8 @@ bool EnvironmentROBARM3D::setGoalPosition(
     ROS_ERROR("[setGoalPosition] No goal constraint set.");
     return false;
   }
+
+  pdata_.use_7dof_goal = false;
 
   pdata_.goal.pose.resize(6,0);
   pdata_.goal.pose[0] = goals[0][0];
@@ -793,7 +843,7 @@ int EnvironmentROBARM3D::getXYZHeuristic(int FromStateID, int ToStateID)
   {
     double x, y, z;
     grid_->gridToWorld(FromHashEntry->xyz[0],FromHashEntry->xyz[1],FromHashEntry->xyz[2], x, y, z);
-    FromHashEntry->heur = getEuclideanDistance(x, y, z, pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]) * prm_->cost_per_meter_;
+    FromHashEntry->heur = getEuclideanDistance(x, y, z, pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]) * prm_->cost_per_meter_ * 500;
   }
   return FromHashEntry->heur;
 }
@@ -816,7 +866,6 @@ bool EnvironmentROBARM3D::convertStateIDPathToJointTrajectory(const std::vector<
     for (int p = 0; p < prm_->num_joints_; ++p)
       traj.points[i].positions[p] = angles::normalize_angle(angles[p]);
   }
-
   return true;
 }
 
@@ -837,6 +886,14 @@ double EnvironmentROBARM3D::getDistanceToGoal(double x, double y, double z)
 std::vector<double> EnvironmentROBARM3D::getGoal()
 {
   return pdata_.goal.pose;
+}
+
+std::vector<double> EnvironmentROBARM3D::getGoalConfiguration()
+{
+  if(!pdata_.use_7dof_goal){
+    SBPL_WARN("Getting goal 7dof goal configuration, but not using 7dof goal for planning!");
+  }
+  return pdata_.goal_7dof.angles;
 }
 
 std::vector<double> EnvironmentROBARM3D::getStart()

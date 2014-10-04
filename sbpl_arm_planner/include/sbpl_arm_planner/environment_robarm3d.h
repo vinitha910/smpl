@@ -66,6 +66,12 @@ struct GoalConstraint
   double rpy_tolerance[3];
 };
 
+struct GoalConstraint7DOF
+{
+  std::vector<double> angles;
+  std::vector<double> angle_tolerances;
+};
+
 struct EnvROBARM3DHashEntry_t
 {
   int stateID;             // hash entry ID number
@@ -84,6 +90,9 @@ typedef struct EnvironmentPlanningData
   double time_to_goal_region;
   GoalConstraint goal;
 
+  bool use_7dof_goal;
+  GoalConstraint7DOF goal_7dof;
+
   EnvROBARM3DHashEntry_t* goal_entry;
   EnvROBARM3DHashEntry_t* start_entry;
 
@@ -100,6 +109,7 @@ typedef struct EnvironmentPlanningData
   EnvironmentPlanningData()
   {
     near_goal = false;
+    use_7dof_goal = false;
     start_entry = NULL;
     goal_entry = NULL;
     Coord2StateIDHashTable = NULL;
@@ -115,7 +125,7 @@ typedef struct EnvironmentPlanningData
 
 
 /** Environment to be used when planning for a Robotic Arm using the SBPL. */
-class EnvironmentROBARM3D: public DiscreteSpaceInformation 
+class EnvironmentROBARM3D: virtual public DiscreteSpaceInformation 
 {
   public:
 
@@ -125,6 +135,8 @@ class EnvironmentROBARM3D: public DiscreteSpaceInformation
     virtual bool AreEquivalent(int StateID1, int StateID2);
     virtual bool setStartConfiguration(std::vector<double> angles);
     virtual bool setGoalPosition(const std::vector <std::vector<double> > &goals, const std::vector<std::vector<double> > &tolerances);
+    /* used to set 7-DoF goals */
+    virtual bool setGoalConfiguration(std::vector<double> angles, std::vector<double> angle_tolerances);
     virtual void getExpandedStates(std::vector<std::vector<double> >* ara_states);
     virtual void convertStateIDPathToJointAnglesPath(const std::vector<int> &idpath, std::vector<std::vector<double> > &path){};
     virtual bool convertStateIDPathToJointTrajectory(const std::vector<int> &idpath, trajectory_msgs::JointTrajectory &traj);
@@ -135,7 +147,7 @@ class EnvironmentROBARM3D: public DiscreteSpaceInformation
 
     bool initEnvironment();
     bool InitializeMDPCfg(MDPConfig *MDPCfg);
-    bool InitializeEnv(const char* sEnvFile){return false;};
+    inline bool InitializeEnv(const char* sEnvFile){return false;};
     int GetFromToHeuristic(int FromStateID, int ToStateID);
     int GetGoalHeuristic(int stateID);
     int GetStartHeuristic(int stateID);
@@ -148,7 +160,9 @@ class EnvironmentROBARM3D: public DiscreteSpaceInformation
     
     RobotModel* getRobotModel(){ return rmodel_; };
     CollisionChecker* getCollisionChecker(){ return cc_; };
-    std::vector<double> getGoal();
+    bool use7DOFGoal() { return pdata_.use_7dof_goal; };
+    std::vector<double> getGoal(); //returns the 6-dof pose of the goal
+    std::vector<double> getGoalConfiguration(); //returns the actual 7-dof goal configuration (should be used only when 7dof goal is given)
     std::vector<double> getStart();
     double getDistanceToGoal(double x, double y, double z);
 
@@ -180,7 +194,7 @@ class EnvironmentROBARM3D: public DiscreteSpaceInformation
 
     /** planning */
     virtual bool isGoalState(const std::vector<double> &pose, GoalConstraint &goal);
-
+    virtual bool isGoalState(const std::vector<double> &angles, GoalConstraint7DOF& goal);
     /** costs */
     int cost(EnvROBARM3DHashEntry_t* HashEntry1, EnvROBARM3DHashEntry_t* HashEntry2, bool bState2IsGoal);
     int getEdgeCost(int FromStateID, int ToStateID);

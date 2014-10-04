@@ -64,9 +64,9 @@ class SBPLArmPlannerInterface
 
     bool getParams();
 
-    bool planKinematicPath(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
+    virtual bool planKinematicPath(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
 
-    bool solve(const moveit_msgs::PlanningSceneConstPtr& planning_scene, const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
+    virtual bool solve(const moveit_msgs::PlanningSceneConstPtr& planning_scene, const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
 
     bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request &req);
 
@@ -83,13 +83,13 @@ class SBPLArmPlannerInterface
     ///     "solution cost"
     ///
     /// @return The statistics
-    std::map<std::string, double>  getPlannerStats();
+    virtual std::map<std::string, double>  getPlannerStats();
 
     visualization_msgs::MarkerArray getVisualization(std::string type);
 
     visualization_msgs::MarkerArray getCollisionModelTrajectoryMarker();
 
-  private:
+  protected:
 
     ros::NodeHandle nh_;
 
@@ -114,19 +114,22 @@ class SBPLArmPlannerInterface
     moveit_msgs::PlanningScene pscene_;
 
     /** \brief Initialize the SBPL planner and the sbpl_arm_planner environment */
-    bool initializePlannerAndEnvironment();
+    virtual bool initializePlannerAndEnvironment();
 
     /** \brief Set start configuration */
-    bool setStart(const sensor_msgs::JointState &state);
+    virtual bool setStart(const sensor_msgs::JointState &state);
 
     /** \brief Set goal(s) */
-    bool setGoalPosition(const moveit_msgs::Constraints &goals);
+    virtual bool setGoalPosition(const moveit_msgs::Constraints &goals);
+
+    virtual bool setGoalConfiguration(const moveit_msgs::Constraints& goal_constraints); //use this to set a 7dof goal!
 
     /** \brief Plan a path to a cartesian goal(s) */
-    bool planToPosition(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
+    virtual bool planToPosition(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
+    virtual bool planToConfiguration(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
 
     /** \brief Retrieve plan from sbpl */
-    bool plan(trajectory_msgs::JointTrajectory &traj);
+    virtual bool plan(trajectory_msgs::JointTrajectory &traj);
 
     void extractGoalPoseFromGoalConstraints(const moveit_msgs::Constraints& goal_constraints,
                                             geometry_msgs::Pose& goal_pose_out) const;

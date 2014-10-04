@@ -128,8 +128,10 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
     {
       if(fscanf(fCfg,"%s",sTemp) < 1) 
         ROS_WARN("Parsed string has length < 1.");
-      if(!feof(fCfg) && strlen(sTemp) != 0)
+      if(!feof(fCfg) && strlen(sTemp) != 0){
         mprim[j] = angles::from_degrees(atof(sTemp));
+        ROS_INFO("Got %s deg -> %.3f rad", sTemp, mprim[j]);
+      }
       else
       {
         ROS_ERROR("ERROR: End of parameter file reached prematurely. Check for newline.");
@@ -249,10 +251,16 @@ bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionP
     }
     
     action.resize(1);
-    if(!env_->getRobotModel()->computeIK(goal, parent, action[0]))
-    {
-      ROS_DEBUG("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-      return false;
+    if(!env_->use7DOFGoal()){
+      //not a 7dof goal -- use the usual IK method
+      if(!env_->getRobotModel()->computeIK(goal, parent, action[0]))
+      {
+        ROS_DEBUG("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+        return false;
+      }
+    } else {
+      //goal is 7dof -- instead of computing  IK, use the goal itself as the IK solution
+      action[0] = env_->getGoalConfiguration();
     }
   }
   else if(mp.type == sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY)
