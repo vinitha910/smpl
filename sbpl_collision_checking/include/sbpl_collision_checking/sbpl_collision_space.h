@@ -60,7 +60,7 @@ public:
 
     ~SBPLCollisionSpace();
 
-    bool init(const std::string &group_name);
+    bool init(const std::string& urdf_string, const std::string &group_name);
 
     void setPadding(double padding);
 

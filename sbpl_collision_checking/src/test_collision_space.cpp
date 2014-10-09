@@ -6,8 +6,9 @@
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "sbpl_collision_space_test");
+  ros::NodeHandle nh;
   double dist = 0;
-  ros::Publisher p = ros::NodeHandle().advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 500, true);
+  ros::Publisher p = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 500, true);
   ros::NodeHandle ph("~");
   sleep(1);
   std::string group_name, world_frame;
@@ -50,7 +51,13 @@ int main(int argc, char **argv)
 
   sbpl_arm_planner::SBPLCollisionSpace* cspace = new sbpl_arm_planner::SBPLCollisionSpace(grid);
 
-  if(!cspace->init(group_name))
+  std::string urdf_string;
+  if (!nh.getParam("robot_description", urdf_string)) {
+    ROS_ERROR("Failed to retrieve 'robot_description' from the param server");
+    return 1;
+  }
+
+  if(!cspace->init(urdf_string, group_name))
     return false;
   ROS_INFO("Initialized the collision space.");
 

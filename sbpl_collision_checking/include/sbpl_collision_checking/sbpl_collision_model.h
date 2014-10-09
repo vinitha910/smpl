@@ -51,7 +51,7 @@ class SBPLCollisionModel
 
     ~SBPLCollisionModel();
 
-    bool init();
+    bool init(const std::string& urdf_string);
 
     bool initAllGroups();
 
@@ -98,7 +98,7 @@ class SBPLCollisionModel
 
     Group* dgroup_;
 
-    bool getRobotModel();
+    bool initURDF(const std::string& urdf_string);
 
     bool readGroups();
 

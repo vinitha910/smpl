@@ -100,12 +100,12 @@ bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint
     return true;
 }
 
-bool SBPLCollisionSpace::init(const std::string &group_name)
+bool SBPLCollisionSpace::init(const std::string& urdf_string, const std::string &group_name)
 {
     group_name_ = group_name;
 
     // initialize the collision model
-    if (!model_.init()) {
+    if (!model_.init(urdf_string)) {
         ROS_ERROR("[cspace] The robot's collision model failed to initialize.");
         return false;
     }

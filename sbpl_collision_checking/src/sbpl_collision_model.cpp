@@ -23,23 +23,16 @@ SBPLCollisionModel::~SBPLCollisionModel()
     }
 }
 
-bool SBPLCollisionModel::init()
+bool SBPLCollisionModel::init(const std::string& urdf_string)
 {
-    return getRobotModel() && readGroups();
+    return initURDF(urdf_string) && readGroups();
 }
 
-bool SBPLCollisionModel::getRobotModel()
+bool SBPLCollisionModel::initURDF(const std::string& urdf_string)
 {
-    std::string robot_description;
-    if (nh_.getParam("robot_description", robot_description)) {
-        urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
-        if (!urdf_->initString(robot_description)) {
-            ROS_WARN("Failed to parse the URDF");
-            return false;
-        }
-    }
-    else {
-        ROS_ERROR("The robot description was not found on the param server.");
+    urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
+    if (!urdf_->initString(urdf_string)) {
+        ROS_WARN("Failed to parse the URDF");
         return false;
     }
 
@@ -243,7 +236,9 @@ bool SBPLCollisionModel::setModelToWorldTransform(const moveit_msgs::MultiDOFJoi
     KDL::Frame f;
 
     for (std::map<std::string, Group*>::const_iterator iter = group_config_map_.begin();
-        iter != group_config_map_.end(); ++iter) {
+        iter != group_config_map_.end();
+        ++iter)
+    {
         if (iter->second->getReferenceFrame() != world_frame) {
             if (!leatherman::getFrame(state, world_frame, iter->second->getReferenceFrame(), f)) {
                 ROS_ERROR("Failed to get transform from world frame, '%s', to the reference frame, '%s' for collision group, '%s'.", world_frame.c_str(), iter->second->getReferenceFrame().c_str(), iter->second->getName().c_str());
