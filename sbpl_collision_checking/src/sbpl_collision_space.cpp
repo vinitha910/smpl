@@ -802,7 +802,7 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
     }
 
     // reset the distance field (TODO...shouldn't have to reset everytime)
-    grid_->reset();
+//    grid_->reset();
 
     // collision objects
     for (size_t i = 0; i < scene.world.collision_objects.size(); ++i) {
@@ -831,7 +831,7 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
     }
 
     // collision map
-    if (scene.world.collision_map.header.frame_id.compare(grid_->getReferenceFrame()) != 0) {
+    if (scene.world.collision_map.header.frame_id != grid_->getReferenceFrame()) {
         ROS_WARN_ONCE("collision_map_occ is in %s not in %s", scene.world.collision_map.header.frame_id.c_str(), grid_->getReferenceFrame().c_str());
     }
 

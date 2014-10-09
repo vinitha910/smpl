@@ -240,30 +240,26 @@ bool SBPLCollisionModel::doesLinkExist(std::string name, std::string group_name)
 
 bool SBPLCollisionModel::setModelToWorldTransform(const moveit_msgs::MultiDOFJointState &state, std::string world_frame)
 {
-  KDL::Frame f;
+    KDL::Frame f;
 
-  for(std::map<std::string, Group*>::const_iterator iter = group_config_map_.begin(); iter != group_config_map_.end(); ++iter)
-  {
-    if(world_frame.compare(iter->second->getReferenceFrame()) != 0)
-    {
-      if(!leatherman::getFrame(state, world_frame, iter->second->getReferenceFrame(), f))
-      {
-        ROS_ERROR("Failed to get transform from world frame, '%s', to the reference frame, '%s' for collision group, '%s'.", world_frame.c_str(), iter->second->getReferenceFrame().c_str(), iter->second->getName().c_str());
-        return false;
-      }
-      else
-      {
-        iter->second->setGroupToWorldTransform(f);
-        leatherman::printKDLFrame(f, "group-world");
-      }
+    for (std::map<std::string, Group*>::const_iterator iter = group_config_map_.begin();
+        iter != group_config_map_.end(); ++iter) {
+        if (iter->second->getReferenceFrame() != world_frame) {
+            if (!leatherman::getFrame(state, world_frame, iter->second->getReferenceFrame(), f)) {
+                ROS_ERROR("Failed to get transform from world frame, '%s', to the reference frame, '%s' for collision group, '%s'.", world_frame.c_str(), iter->second->getReferenceFrame().c_str(), iter->second->getName().c_str());
+                return false;
+            }
+            else {
+                iter->second->setGroupToWorldTransform(f);
+                leatherman::printKDLFrame(f, "group-world");
+            }
+        }
+        else {
+            f = KDL::Frame::Identity();
+            iter->second->setGroupToWorldTransform(f);
+        }
     }
-    else
-    {
-      f = KDL::Frame::Identity();
-      iter->second->setGroupToWorldTransform(f);
-    }
-  }
-  return true;
+    return true;
 }
 
 }
