@@ -28,6 +28,7 @@
  */
  /** \author Benjamin Cohen */
 
+#include <leatherman/print.h>
 #include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/environment_robarm3d.h>
 
@@ -130,7 +131,7 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
         ROS_WARN("Parsed string has length < 1.");
       if(!feof(fCfg) && strlen(sTemp) != 0){
         mprim[j] = angles::from_degrees(atof(sTemp));
-        ROS_INFO("Got %s deg -> %.3f rad", sTemp, mprim[j]);
+        ROS_INFO_PRETTY("Got %s deg -> %.3f rad", sTemp, mprim[j]);
       }
       else
       {

@@ -43,9 +43,9 @@ int main(int argc, char **argv)
   // group names
   std::vector<std::string> group_names;
   model.getGroupNames(group_names);
-  ROS_INFO("[test] number of groups: %d", int(group_names.size()));
+  ROS_INFO_PRETTY("[test] number of groups: %d", int(group_names.size()));
   for(size_t i = 0; i < group_names.size(); ++i)
-    ROS_INFO("[test] [%d] group_name: %s", int(i), group_names[i].c_str());
+    ROS_INFO_PRETTY("[test] [%d] group_name: %s", int(i), group_names[i].c_str());
 
   // initialize groups
   /*
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
   names[5] = "joint5_forearm_roll";
   names[6] = "joint4_elbow";
 
-  ROS_INFO("[test] Setting the order of the joint positions now.");
+  ROS_INFO_PRETTY("[test] Setting the order of the joint positions now.");
   model.setOrderOfJointPositions(joint_names, group_name);
   model.setDefaultGroup(group_name);
   //model.printDebugInfo(group_name);
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 
   model.printFrames(frames);  
   //model.printGroups();
-  ROS_INFO("Done");
+  ROS_INFO_PRETTY("Done");
   return 0;
 }
 

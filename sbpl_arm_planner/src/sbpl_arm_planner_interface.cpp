@@ -71,7 +71,7 @@ bool SBPLArmPlannerInterface::init()
     return false;
 
   planner_initialized_ = true;
-  ROS_INFO("The SBPL arm planner node initialized succesfully.");
+  ROS_INFO_PRETTY("The SBPL arm planner node initialized succesfully.");
   return true;
 }
 
@@ -116,7 +116,7 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 
   //set search mode (true - settle with first solution)
   planner_->set_search_mode(prm_->search_mode_);
-  ROS_INFO("Initialized sbpl arm planning environment.");
+  ROS_INFO_PRETTY("Initialized sbpl arm planning environment.");
   return true;
 }
 
@@ -143,11 +143,11 @@ bool SBPLArmPlannerInterface::solve(const moveit_msgs::PlanningSceneConstPtr& pl
     return false;
   } 
   if(req.motion_plan_request.goal_constraints.front().position_constraints.size() > 0){
-    ROS_INFO("Planning to position!");
+    ROS_INFO_PRETTY("Planning to position!");
     if(!planToPosition(req,res))
       return false;
   } else if(req.motion_plan_request.goal_constraints.front().joint_constraints.size() > 0){
-    ROS_INFO("Planning to joint configuration!");
+    ROS_INFO_PRETTY("Planning to joint configuration!");
     if(!planToConfiguration(req,res))
       return false;
   } else {
@@ -157,7 +157,7 @@ bool SBPLArmPlannerInterface::solve(const moveit_msgs::PlanningSceneConstPtr& pl
 
   res_ = res;
   double plan_time = (clock() - t_plan) / (double)CLOCKS_PER_SEC;
-  ROS_INFO("t_plan: %0.3fsec  t_preprocess: %0.3fsec", plan_time, preprocess_time);
+  ROS_INFO_PRETTY("t_plan: %0.3fsec  t_preprocess: %0.3fsec", plan_time, preprocess_time);
   return true;
 }
 
@@ -184,7 +184,7 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
     return false;
   }
   printf("done!\n"); fflush(stdout);
-  ROS_INFO("start: %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f", initial_positions[0],initial_positions[1],initial_positions[2],initial_positions[3],initial_positions[4],initial_positions[5],initial_positions[6]);
+  ROS_INFO_PRETTY("start: %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f", initial_positions[0],initial_positions[1],initial_positions[2],initial_positions[3],initial_positions[4],initial_positions[5],initial_positions[6]);
   return true;
 }
 
@@ -206,7 +206,7 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(const moveit_msgs::Constraint
   for(int i = 0; i < (int)std::min(goal_constraints.joint_constraints.size(), sbpl_angle_goal.size()); i++){
     sbpl_angle_goal[i] = goal_constraints.joint_constraints[i].position;
     sbpl_angle_tolerance[i] = 0.5*abs(goal_constraints.joint_constraints[i].tolerance_above) + 0.5*abs(goal_constraints.joint_constraints[i].tolerance_below);
-    ROS_INFO("Joint %d [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
+    ROS_INFO_PRETTY("Joint %d [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
   }
 
   // set sbpl environment goal
@@ -277,7 +277,7 @@ bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints& go
   sbpl_tolerance[0][4] = tolerance[4];
   sbpl_tolerance[0][5] = tolerance[5];
 
-  ROS_INFO("goal xyz(%s): %.3f %.3f %.3f (tol: %.3fm) rpy: %.3f %.3f %.3f (tol: %.3frad)  (quat: %0.3f %0.3f %0.3f %0.3f)",
+  ROS_INFO_PRETTY("goal xyz(%s): %.3f %.3f %.3f (tol: %.3fm) rpy: %.3f %.3f %.3f (tol: %.3frad)  (quat: %0.3f %0.3f %0.3f %0.3f)",
            prm_->planning_frame_.c_str(), sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2], sbpl_tolerance[0][0], sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5], sbpl_tolerance[0][1],
            goal_constraints.orientation_constraints[0].orientation.x, goal_constraints.orientation_constraints[0].orientation.y, goal_constraints.orientation_constraints[0].orientation.z, goal_constraints.orientation_constraints[0].orientation.w);
 
@@ -345,7 +345,7 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
   // if a path is returned, then pack it into msg form
   if(b_ret && (solution_state_ids.size() > 0))
   {
-    ROS_INFO("Initial Epsilon: %0.3f   Final Epsilon: %0.3f  Solution Cost: %d", planner_->get_initial_eps(),planner_->get_final_epsilon(), solution_cost_);
+    ROS_INFO_PRETTY("Initial Epsilon: %0.3f   Final Epsilon: %0.3f  Solution Cost: %d", planner_->get_initial_eps(),planner_->get_final_epsilon(), solution_cost_);
 
     if(!sbpl_arm_env_->convertStateIDPathToJointTrajectory(solution_state_ids, traj))
       return false;
@@ -385,7 +385,7 @@ bool SBPLArmPlannerInterface::planToPosition(
   }
 
   // set start
-  ROS_INFO("Setting start.");
+  ROS_INFO_PRETTY("Setting start.");
 
   if(!setStart(req.motion_plan_request.start_state.joint_state))
   {
@@ -395,14 +395,14 @@ bool SBPLArmPlannerInterface::planToPosition(
 
   if(use6dofgoal){
     // set goal
-    ROS_INFO("Setting goal 6dof goal.");
+    ROS_INFO_PRETTY("Setting goal 6dof goal.");
     if(!setGoalPosition(goal_constraints) && status == 0)
     {
       status = -2;
       ROS_ERROR("Failed to set goal position.");
     }
   } else {
-    ROS_INFO("Setting goal 7dof goal.");
+    ROS_INFO_PRETTY("Setting goal 7dof goal.");
     if(!setGoalConfiguration(goal_constraints) && status == 0)
     {
       status = -2;
@@ -411,7 +411,7 @@ bool SBPLArmPlannerInterface::planToPosition(
   }
 
   // plan
-  ROS_INFO("Calling planner");
+  ROS_INFO_PRETTY("Calling planner");
   if(status == 0 && plan(res.motion_plan_response.trajectory.joint_trajectory))
   {
     const moveit_msgs::PositionConstraint position_constraint = goal_constraints.position_constraints.front();
@@ -492,7 +492,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
   }
 
   // set start
-  ROS_INFO("Setting start.");
+  ROS_INFO_PRETTY("Setting start.");
 
   if(!setStart(req.motion_plan_request.start_state.joint_state))
   {
@@ -502,14 +502,14 @@ bool SBPLArmPlannerInterface::planToConfiguration(
 
   if(use6dofgoal){
     // set goal
-    ROS_INFO("Setting goal 6dof goal.");
+    ROS_INFO_PRETTY("Setting goal 6dof goal.");
     if(!setGoalPosition(goal_constraints) && status == 0)
     {
       status = -2;
       ROS_ERROR("Failed to set goal position.");
     }
   } else {
-    ROS_INFO("Setting goal 7dof goal.");
+    ROS_INFO_PRETTY("Setting goal 7dof goal.");
     if(!setGoalConfiguration(goal_constraints) && status == 0)
     {
       status = -2;
@@ -518,7 +518,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
   }
 
   // plan
-  ROS_INFO("Calling planner");
+  ROS_INFO_PRETTY("Calling planner");
   if(status == 0 && plan(res.motion_plan_response.trajectory.joint_trajectory))
   {
     const moveit_msgs::JointConstraint joint_constraint = goal_constraints.joint_constraints.front();

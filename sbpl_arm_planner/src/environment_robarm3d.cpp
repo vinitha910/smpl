@@ -31,6 +31,7 @@
 #include <sbpl_arm_planner/environment_robarm3d.h>
 //#include <bfs3d/BFS_Util.hpp>
 #include <leatherman/viz.h>
+#include <leatherman/print.h>
 
 #define DEG2RAD(d) ((d)*(M_PI/180.0))
 #define RAD2DEG(r) ((r)*(180.0/M_PI))
@@ -235,7 +236,7 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
     // check for collisions between waypoints
     for(size_t j = 1; j < actions[i].size(); ++j)
     {
-      //ROS_INFO("[ succ: %d] Checking interpolated path from waypoint %d to waypoint %d.", int(i), int(j-1), int(j));
+      //ROS_INFO_PRETTY("[ succ: %d] Checking interpolated path from waypoint %d to waypoint %d.", int(i), int(j-1), int(j));
       if(!cc_->isStateToStateValid(actions[i][j-1], actions[i][j], path_length, nchecks, dist))
       {
         ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2d  dist: %0.3f is in collision along interpolated path. (path_length: %d)", i, dist, path_length);
@@ -455,7 +456,7 @@ bool EnvironmentROBARM3D::initEnvironment()
 
   //set 'environment is initialized' flag
   prm_->ready_to_plan_ = true;
-  ROS_INFO("[env] Environment has been initialized.");
+  ROS_INFO_PRETTY("[env] Environment has been initialized.");
   return true;
 }
 
@@ -586,8 +587,8 @@ bool EnvironmentROBARM3D::setStartConfiguration(const std::vector<double> angles
   //get joint positions of starting configuration
   if(!rmodel_->computePlanningLinkFK(angles, pose))
     ROS_WARN("Unable to compute forward kinematics for initial robot state. Attempting to plan anyway.");
-  ROS_INFO("[env][start]             angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", angles[0], angles[1], angles[2], angles[3], angles[4], angles[5], angles[6]);
-  ROS_INFO("[env][start] planning_link pose:   xyz: %0.3f %0.3f %0.3f  rpy: %0.3f %0.3f %0.3f", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
+  ROS_INFO_PRETTY("[env][start]             angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", angles[0], angles[1], angles[2], angles[3], angles[4], angles[5], angles[6]);
+  ROS_INFO_PRETTY("[env][start] planning_link pose:   xyz: %0.3f %0.3f %0.3f  rpy: %0.3f %0.3f %0.3f", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
   //check joint limits of starting configuration but plan anyway
   if(!rmodel_->checkJointLimits(angles))
@@ -605,7 +606,7 @@ bool EnvironmentROBARM3D::setStartConfiguration(const std::vector<double> angles
   pdata_.start_entry->xyz[0] = (int)x;
   pdata_.start_entry->xyz[1] = (int)y;
   pdata_.start_entry->xyz[2] = (int)z;
-  ROS_INFO("[env][start]              coord: %d %d %d %d %d %d %d   pose: %d %d %d", pdata_.start_entry->coord[0], pdata_.start_entry->coord[1], pdata_.start_entry->coord[2], pdata_.start_entry->coord[3], pdata_.start_entry->coord[4], pdata_.start_entry->coord[5], pdata_.start_entry->coord[6], x, y, z);
+  ROS_INFO_PRETTY("[env][start]              coord: %d %d %d %d %d %d %d   pose: %d %d %d", pdata_.start_entry->coord[0], pdata_.start_entry->coord[1], pdata_.start_entry->coord[2], pdata_.start_entry->coord[3], pdata_.start_entry->coord[4], pdata_.start_entry->coord[5], pdata_.start_entry->coord[6], x, y, z);
   return true;
 }
 
@@ -703,13 +704,13 @@ bool EnvironmentROBARM3D::setGoalPosition(
   }
 
   double set_walls_time = (ros::WallTime::now() - start).toSec();
-  ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))", set_walls_time, walls, double(walls)/double(dimX*dimY*dimZ));
+  ROS_INFO_PRETTY("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))", set_walls_time, walls, double(walls)/double(dimX*dimY*dimZ));
 
   /*
   start = ros::WallTime::now();
   ROS_ERROR("sphere radius: %0.3fm  %dcells", prm_->planning_link_sphere_radius_, int(prm_->planning_link_sphere_radius_/grid_->getResolution() + 0.5));
   setDistanceField(bfs_, grid_->getDistanceFieldPtr(), int(prm_->planning_link_sphere_radius_/grid_->getResolution() + 0.5));
-  ROS_INFO("[env] %0.5fsec to set walls in bfs.", (ros::WallTime::now() - start).toSec());
+  ROS_INFO_PRETTY("[env] %0.5fsec to set walls in bfs.", (ros::WallTime::now() - start).toSec());
   */
   if((pdata_.goal_entry->xyz[0] < 0) || (pdata_.goal_entry->xyz[1] < 0) || (pdata_.goal_entry->xyz[2] < 0))
   {
@@ -820,7 +821,7 @@ void EnvironmentROBARM3D::computeCostPerCell()
 
   prm_->cost_per_meter_ = int(prm_->cost_per_cell_ / gridcell_size);
 
-  ROS_INFO("[env] max_dist_traveled_per_smp: %0.3fm  cost per cell: %d  cost per meter: %d  (type: jointspace)", max_dist, prm_->cost_per_cell_,prm_->cost_per_meter_);
+  ROS_INFO_PRETTY("[env] max_dist_traveled_per_smp: %0.3fm  cost per cell: %d  cost per meter: %d  (type: jointspace)", max_dist, prm_->cost_per_cell_,prm_->cost_per_meter_);
   */
 }
 
