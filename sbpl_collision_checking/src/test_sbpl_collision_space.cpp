@@ -96,11 +96,11 @@ bool TestSBPLCollisionSpace::init()
 
   resolution_ = 0.01;
 
-  ROS_INFO_PRETTY("[test] Creating the grid.");
+  ROS_INFO("[test] Creating the grid.");
   const double max_dist_m = 0.40;
   grid_ = new sbpl_arm_planner::OccupancyGrid(sizeX_, sizeY_, sizeZ_, resolution_, originX_, originY_, originZ_, max_dist_m);
   
-  ROS_INFO_PRETTY("[test] Creating the collision space."); 
+  ROS_INFO("[test] Creating the collision space."); 
   cspace_ = new sbpl_arm_planner::SBPLCollisionSpace(grid_);
 
   if(arm_name_.compare("right_arm") == 0)
@@ -108,7 +108,7 @@ bool TestSBPLCollisionSpace::init()
   else
     cspace_->setPlanningJoints(ljoint_names_);
 
-  ROS_INFO_PRETTY("[test] Initializing the collision space for the %s.", arm_name_.c_str());
+  ROS_INFO("[test] Initializing the collision space for the %s.", arm_name_.c_str());
   cspace_->init(arm_name_);
 
   aviz_ = new sbpl_arm_planner::VisualizeArm(arm_name_);
@@ -119,7 +119,7 @@ bool TestSBPLCollisionSpace::init()
 
   joint_states_subscriber_ = root_handle_.subscribe("joint_states", 1, &TestSBPLCollisionSpace::jointStatesCallback,this);
 
-  ROS_INFO_PRETTY("[test] Initialization complete.");
+  ROS_INFO("[test] Initialization complete.");
   return true;
 }
 
@@ -184,13 +184,13 @@ void TestSBPLCollisionSpace::jointStatesCallback(const sensor_msgs::JointStateCo
   if(!cspace_->checkCollision(angles_, true, false, dist))
   {
     dist_m = double(int(dist)*resolution_);
-    ROS_INFO_PRETTY("dist = %0.3fm  COLLISION (%d spheres)", dist_m, int(cspace_->collision_spheres_.size()));
+    ROS_INFO("dist = %0.3fm  COLLISION (%d spheres)", dist_m, int(cspace_->collision_spheres_.size()));
     in_collision = true;
   }
   else
   {
     dist_m = double(int(dist)*resolution_);
-    ROS_INFO_PRETTY("dist = %0.3fm", dist_m);
+    ROS_INFO("dist = %0.3fm", dist_m);
   }
 
   std::vector<std::vector<double> > path(1,std::vector<double> (7,0)), spheres;
@@ -241,7 +241,7 @@ void TestSBPLCollisionSpace::collisionObjectCallback(const moveit_msgs::Collisio
     object_mutex_.unlock();
   }
 
-  ROS_INFO_PRETTY("[collisionObjectCallback] %s", collision_object->id.c_str());
+  ROS_INFO("[collisionObjectCallback] %s", collision_object->id.c_str());
   cspace_->processCollisionObjectMsg((*collision_object));
 
   visualizeCollisionObjects();
@@ -276,7 +276,7 @@ int main(int argc, char **argv)
 
   if(!test.init())
   {
-    ROS_INFO_PRETTY("Something is fucked");
+    ROS_INFO("Something is fucked");
     return 0;
   }
 

@@ -32,10 +32,10 @@ void SBPLCollisionStatistics::resetSphereCollisionLogs()
 
 void SBPLCollisionStatistics::printSphereCollisionStats(std::string text)
 {
-  ROS_INFO_PRETTY("[cstats] [%s] Number of Collisions per Collision Sphere:", text.c_str());
+  ROS_INFO("[cstats] [%s] Number of Collisions per Collision Sphere:", text.c_str());
   for(std::map<sbpl_arm_planner::Sphere*, int>::const_iterator iter = col_sph_map_.begin(); iter != col_sph_map_.end(); iter++)
   {
-    ROS_INFO_PRETTY("[cstats] [%s] name: %5s  radius: %0.3f  collisions: %6d", text.c_str(), iter->first->name.c_str(), iter->first->radius, iter->second); 
+    ROS_INFO("[cstats] [%s] name: %5s  radius: %0.3f  collisions: %6d", text.c_str(), iter->first->name.c_str(), iter->first->radius, iter->second); 
   }
 
   // count number of collisions per link
@@ -73,15 +73,15 @@ void SBPLCollisionStatistics::printSphereCollisionStats(std::string text)
 
   // print out the collisions per link
   for(unsigned int i = 0; i < group_->links_.size(); ++i)
-    ROS_INFO_PRETTY("[cstats]  link: %18s  collisions: %6d (%2.1f%%)", group_->links_[i].name_.c_str(), num_col_per_link[i], double(num_col_per_link[i])/double(num_col) * 100.0);
+    ROS_INFO("[cstats]  link: %18s  collisions: %6d (%2.1f%%)", group_->links_[i].name_.c_str(), num_col_per_link[i], double(num_col_per_link[i])/double(num_col) * 100.0);
 
   // print out the collisions for the entire gripper
   int all_gripper = 0;
   for(unsigned int i = 3; i < num_col_per_link.size(); ++i)
     all_gripper += num_col_per_link[i];
-  ROS_INFO_PRETTY("[cstats]  link: %18s  collisions: %6d (% 2.1f%%)", "all_gripper_links", all_gripper, double(all_gripper)/double(num_col)*100.0);
+  ROS_INFO("[cstats]  link: %18s  collisions: %6d (% 2.1f%%)", "all_gripper_links", all_gripper, double(all_gripper)/double(num_col)*100.0);
 
   // print out the total number of collisions
-  ROS_INFO_PRETTY("[cstats]  link: %18s  collisions: %6d", "all_collisions", num_col);
+  ROS_INFO("[cstats]  link: %18s  collisions: %6d", "all_collisions", num_col);
 }
 

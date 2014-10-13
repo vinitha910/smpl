@@ -28,22 +28,22 @@ int main(int argc, char **argv)
   std::vector<double> angles(7,0);
   unsigned char dist = 100;
 
-  ROS_INFO_PRETTY("Starting %d collision checks.", num_checks);
+  ROS_INFO("Starting %d collision checks.", num_checks);
   clock_t start = clock();
   for(int i = 0; i < num_checks; ++i)
   {
     if(!cspace_->checkCollision(angles, false, false, dist))
     {
-      ROS_INFO_PRETTY("In Collision");
+      ROS_INFO("In Collision");
       break;
     }
   }
   double total_time = (clock()-start)/double(CLOCKS_PER_SEC);
-  ROS_INFO_PRETTY("       total time: %0.8fsec", total_time);
-  ROS_INFO_PRETTY("   time per check: %0.8fsec", total_time/double(num_checks));
-  ROS_INFO_PRETTY("checks per second: %0.8fsec", 1.0 / (total_time/double(num_checks)));
+  ROS_INFO("       total time: %0.8fsec", total_time);
+  ROS_INFO("   time per check: %0.8fsec", total_time/double(num_checks));
+  ROS_INFO("checks per second: %0.8fsec", 1.0 / (total_time/double(num_checks)));
 
-  ROS_INFO_PRETTY("[sanity check] # calls: %d   # calls not in collision: %d", cspace_->num_collision_checks_, cspace_->num_false_collision_checks_);
+  ROS_INFO("[sanity check] # calls: %d   # calls not in collision: %d", cspace_->num_collision_checks_, cspace_->num_false_collision_checks_);
 
   delete cspace_; 
   delete grid_;

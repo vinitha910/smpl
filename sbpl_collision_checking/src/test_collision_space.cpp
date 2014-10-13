@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     ROS_ERROR("No planning joints found on param server.");
     return 0;
   }
-  ROS_INFO_PRETTY("Retrieved %d planning joints from param server.", int(joint_names.size()));
+  ROS_INFO("Retrieved %d planning joints from param server.", int(joint_names.size()));
 
   distance_field::PropagationDistanceField *df = new distance_field::PropagationDistanceField(dims[0], dims[1], dims[2], 0.02, origin[0], origin[1], origin[2], 0.4);
   df->reset();
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
   if(!cspace->init(urdf_string, group_name))
     return false;
-  ROS_INFO_PRETTY("Initialized the collision space.");
+  ROS_INFO("Initialized the collision space.");
 
   if(!cspace->setPlanningJoints(joint_names))
     return false;
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
   ros::spinOnce();
   sleep(1);
 
-  ROS_INFO_PRETTY("Done");
+  ROS_INFO("Done");
   delete cspace;
   delete grid;
   delete df;

@@ -1,6 +1,7 @@
 add_library(sbpl_collision_checking
             src/group.cpp
             src/sbpl_collision_model.cpp
+            src/collision_model_impl.cpp
             src/sbpl_collision_space.cpp)
 target_link_libraries(sbpl_collision_checking sbpl_manipulation_components ${catkin_LIBRARIES})
 set_target_properties(sbpl_collision_checking PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")

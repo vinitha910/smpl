@@ -32,6 +32,7 @@
 #include <angles/angles.h>
 #include <leatherman/viz.h>
 #include <sbpl_geometry_utils/interpolation.h>
+#include <sbpl_geometry_utils/utils.h>
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
 namespace sbpl_arm_planner
@@ -78,7 +79,7 @@ bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint
         return false;
     }
 
-    inc_.resize(joint_names.size(), 0.0348);
+    inc_.resize(joint_names.size(), sbpl::utils::ToRadians(2.0));
     min_limits_.resize(joint_names.size(), 0.0);
     max_limits_.resize(joint_names.size(), 0.0);
     continuous_.resize(joint_names.size(), false);
@@ -796,7 +797,9 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
         model_.setJointPosition(scene.robot_state.joint_state.name[i], scene.robot_state.joint_state.position[i]);
     }
 
-    if (!model_.setModelToWorldTransform(scene.robot_state.multi_dof_joint_state, scene.world.collision_map.header.frame_id)) {
+    const std::string& world_frame = scene.world.collision_map.header.frame_id;
+
+    if (!model_.setModelToWorldTransform(scene.robot_state, world_frame)) {
         ROS_ERROR("Failed to set the model-to-world transform. The collision model's frame is different from the collision map's frame.");
         return false;
     }
