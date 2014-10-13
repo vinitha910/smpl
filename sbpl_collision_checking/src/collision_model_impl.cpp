@@ -48,11 +48,11 @@ bool CollisionModelImpl::readGroups()
   ph_.getParam(spheres_name, all_spheres);
 
   if(all_spheres.getType() != XmlRpc::XmlRpcValue::TypeArray)
-    ROS_WARN("Spheres is not an array.");
+    ROS_WARN_PRETTY("Spheres is not an array.");
 
   if(all_spheres.size() == 0)
   {
-    ROS_WARN("No spheres in spheres");
+    ROS_WARN_PRETTY("No spheres in spheres");
     return false;
   }
 
@@ -66,11 +66,11 @@ bool CollisionModelImpl::readGroups()
   ph_.getParam(group_name, all_groups);
 
   if(all_groups.getType() != XmlRpc::XmlRpcValue::TypeArray)
-    ROS_WARN("Groups is not an array.");
+    ROS_WARN_PRETTY("Groups is not an array.");
 
   if(all_groups.size() == 0)
   {
-    ROS_WARN("No groups in groups");
+    ROS_WARN_PRETTY("No groups in groups");
     return false;
   }
 
@@ -78,7 +78,7 @@ bool CollisionModelImpl::readGroups()
   {
     if(!all_groups[i].hasMember("name"))
     {
-      ROS_WARN("All groups must have a name.");
+      ROS_WARN_PRETTY("All groups must have a name.");
       return false;
     }
     std::string gname = all_groups[i]["name"];
@@ -93,11 +93,11 @@ bool CollisionModelImpl::readGroups()
     group_config_map_[gname] = gc;
     if(!group_config_map_[gname]->getParams(all_groups[i], all_spheres))
     {
-      ROS_ERROR("Failed to get all params for %s", gname.c_str());
+      ROS_ERROR_PRETTY("Failed to get all params for %s", gname.c_str());
       return false;
     }
   }
-  ROS_INFO("Successfully parsed collision model");
+  ROS_INFO_PRETTY("Successfully parsed collision model");
   return true;
 }
 
@@ -123,7 +123,7 @@ void CollisionModelImpl::printGroups()
 {
   if(group_config_map_.begin() == group_config_map_.end())
   {
-    ROS_ERROR("No groups found.");
+    ROS_ERROR_PRETTY("No groups found.");
     return;
   }
 
@@ -131,11 +131,11 @@ void CollisionModelImpl::printGroups()
   {
     if(!iter->second->init_)
     {
-      ROS_ERROR("Failed to print %s group information because has not yet been initialized.", iter->second->getName().c_str());
+      ROS_ERROR_PRETTY("Failed to print %s group information because has not yet been initialized.", iter->second->getName().c_str());
       continue;
     }
     iter->second->print();
-    ROS_INFO("----------------------------------");
+    ROS_INFO_PRETTY("----------------------------------");
   }
 }
 
@@ -267,7 +267,7 @@ bool CollisionModelImpl::setWorldToModelTransform(
         }
     
         if (!found_world_pose) {
-            ROS_ERROR("Failed to find 6-DoF joint state 'world_pose' from MultiDOFJointState");
+            ROS_ERROR_PRETTY("Failed to find 6-DoF joint state 'world_pose' from MultiDOFJointState");
             return false;
         }
     }
@@ -276,7 +276,7 @@ bool CollisionModelImpl::setWorldToModelTransform(
     for (auto iter = group_config_map_.begin(); iter != group_config_map_.end(); ++iter) {
         const std::string& group_frame = iter->second->getReferenceFrame();
         if (!robot_state_->knowsFrameTransform(iter->second->getReferenceFrame())) {
-            ROS_ERROR("Robot Model does not contain transform from robot frame '%s' to group frame '%s'", robot_model_->getModelFrame().c_str(), group_frame.c_str());
+            ROS_ERROR_PRETTY("Robot Model does not contain transform from robot frame '%s' to group frame '%s'", robot_model_->getModelFrame().c_str(), group_frame.c_str());
             return false;
         }
         else {
@@ -294,7 +294,7 @@ bool CollisionModelImpl::initURDF(const std::string &urdf_string)
 {
     urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
     if (!urdf_->initString(urdf_string)) {
-        ROS_WARN("Failed to parse the URDF");
+        ROS_WARN_PRETTY("Failed to parse the URDF");
         return false;
     }
 
@@ -305,7 +305,7 @@ bool CollisionModelImpl::initRobotModel(const std::string &urdf_string)
 {
     std::string srdf_string;
     if (!nh_.getParam("robot_description_semantic", srdf_string)) {
-        ROS_ERROR("Failed to retrieve 'robot_description_semantic' from the param server");
+        ROS_ERROR_PRETTY("Failed to retrieve 'robot_description_semantic' from the param server");
         return false;
     }
 
@@ -319,19 +319,19 @@ bool CollisionModelImpl::initRobotModel(const std::string &urdf_string)
 
     rm_loader_.reset(new robot_model_loader::RobotModelLoader(ops));
     if (!rm_loader_) {
-        ROS_ERROR("Failed to instantiate Robot Model Loader");
+        ROS_ERROR_PRETTY("Failed to instantiate Robot Model Loader");
         return false;
     }
 
     robot_model_ = rm_loader_->getModel();
     if (!robot_model_) {
-        ROS_ERROR("Failed to retrieve valid Robot Model");
+        ROS_ERROR_PRETTY("Failed to retrieve valid Robot Model");
         return false;
     }
 
     robot_state_.reset(new robot_state::RobotState(robot_model_));
     if (!robot_state_) {
-        ROS_ERROR("Failed to instantiate Robot State");
+        ROS_ERROR_PRETTY("Failed to instantiate Robot State");
         return false;
     }
 

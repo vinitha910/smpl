@@ -89,7 +89,7 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 
   if(!as_->init(sbpl_arm_env_))
   {
-    ROS_ERROR("Failed to initialize the action set.");
+    ROS_ERROR_PRETTY("Failed to initialize the action set.");
     return false;
   }
   //as_->print();
@@ -100,14 +100,14 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
   //initialize arm planner environment
   if(!sbpl_arm_env_->initEnvironment())
   {
-    ROS_ERROR("ERROR: initEnvironment failed");
+    ROS_ERROR_PRETTY("ERROR: initEnvironment failed");
     return false;
   }
 
   //initialize MDP
   if(!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_))
   {
-    ROS_ERROR("ERROR: InitializeMDPCfg failed");
+    ROS_ERROR_PRETTY("ERROR: InitializeMDPCfg failed");
     return false;
   }
 
@@ -139,7 +139,7 @@ bool SBPLArmPlannerInterface::solve(const moveit_msgs::PlanningSceneConstPtr& pl
   res.motion_plan_response.trajectory_start = planning_scene->robot_state;
 
   if(req.motion_plan_request.goal_constraints.size() == 0){
-    ROS_ERROR("No goal constraints in request!");
+    ROS_ERROR_PRETTY("No goal constraints in request!");
     return false;
   } 
   if(req.motion_plan_request.goal_constraints.front().position_constraints.size() > 0){
@@ -151,7 +151,7 @@ bool SBPLArmPlannerInterface::solve(const moveit_msgs::PlanningSceneConstPtr& pl
     if(!planToConfiguration(req,res))
       return false;
   } else {
-    ROS_ERROR("Both position and joint constraints empty!");
+    ROS_ERROR_PRETTY("Both position and joint constraints empty!");
     return false;
   }
 
@@ -166,24 +166,20 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
   std::vector<double> initial_positions;
   if(!leatherman::getJointPositions(state, prm_->planning_joints_, initial_positions))
   {
-    ROS_ERROR("Start state does not contain the positions of the planning joints.");
+    ROS_ERROR_PRETTY("Start state does not contain the positions of the planning joints.");
     return false;
   }
 
-  printf("Setting env start config..."); fflush(stdout);
   if(sbpl_arm_env_->setStartConfiguration(initial_positions) == 0)
   {
-    ROS_ERROR("Environment failed to set start state. Not Planning.");
+    ROS_ERROR_PRETTY("Environment failed to set start state. Not Planning.");
     return false;
   }
-  printf("done!\n"); fflush(stdout);
-  printf("Setting planner start state id (%d)...", mdp_cfg_.startstateid); fflush(stdout);
   if(planner_->set_start(mdp_cfg_.startstateid) == 0)
   {
-    ROS_ERROR("Failed to set start state. Not Planning.");
+    ROS_ERROR_PRETTY("Failed to set start state. Not Planning.");
     return false;
   }
-  printf("done!\n"); fflush(stdout);
   ROS_INFO_PRETTY("start: %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f", initial_positions[0],initial_positions[1],initial_positions[2],initial_positions[3],initial_positions[4],initial_positions[5],initial_positions[6]);
   return true;
 }
@@ -195,12 +191,12 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(const moveit_msgs::Constraint
 
   if (goal_constraints.joint_constraints.size() < 7)
   {
-      ROS_WARN("All 7 arm joint constraints must be specified for goal!");
+      ROS_WARN_PRETTY("All 7 arm joint constraints must be specified for goal!");
       return false;
   }
   if (goal_constraints.joint_constraints.size() > 7)
   {
-      ROS_WARN("%d joint constraints specified! Using the first 7!", (int)goal_constraints.joint_constraints.size());
+      ROS_WARN_PRETTY("%d joint constraints specified! Using the first 7!", (int)goal_constraints.joint_constraints.size());
       return false;
   }
   for(int i = 0; i < (int)std::min(goal_constraints.joint_constraints.size(), sbpl_angle_goal.size()); i++){
@@ -212,14 +208,14 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(const moveit_msgs::Constraint
   // set sbpl environment goal
   if (!sbpl_arm_env_->setGoalConfiguration(sbpl_angle_goal, sbpl_angle_tolerance))
   {
-    ROS_ERROR("Failed to set goal state. Exiting.");
+    ROS_ERROR_PRETTY("Failed to set goal state. Exiting.");
     return false;
   }
 
   //set planner goal
   if (planner_->set_goal(mdp_cfg_.goalstateid) == 0)
   {
-    ROS_ERROR("Failed to set goal state. Exiting.");
+    ROS_ERROR_PRETTY("Failed to set goal state. Exiting.");
     return false;
   }
 
@@ -233,13 +229,13 @@ bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints& go
 
   if (goal_constraints.position_constraints.empty() || goal_constraints.orientation_constraints.empty())
   {
-      ROS_WARN("Cannot convert goal constraints without position constraints into goal pose");
+      ROS_WARN_PRETTY("Cannot convert goal constraints without position constraints into goal pose");
       return false;
   }
 
   if (goal_constraints.position_constraints.front().constraint_region.primitive_poses.empty())
   {
-      ROS_WARN("At least one primitive shape pose for goal position constraint regions is required");
+      ROS_WARN_PRETTY("At least one primitive shape pose for goal position constraint regions is required");
       return false;
   }
 
@@ -284,14 +280,14 @@ bool SBPLArmPlannerInterface::setGoalPosition(const moveit_msgs::Constraints& go
   // set sbpl environment goal
   if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_tolerance))
   {
-    ROS_ERROR("Failed to set goal state. Perhaps goal position is out of reach. Exiting.");
+    ROS_ERROR_PRETTY("Failed to set goal state. Perhaps goal position is out of reach. Exiting.");
     return false;
   }
 
   //set planner goal
   if (planner_->set_goal(mdp_cfg_.goalstateid) == 0)
   {
-    ROS_ERROR("Failed to set goal state. Exiting.");
+    ROS_ERROR_PRETTY("Failed to set goal state. Exiting.");
     return false;
   }
 
@@ -304,7 +300,7 @@ bool SBPLArmPlannerInterface::planKinematicPath(
 {
   if (!planner_initialized_)
   {
-    ROS_ERROR("Hold up a second...the planner isn't initialized yet. Try again in a second or two.");
+    ROS_ERROR_PRETTY("Hold up a second...the planner isn't initialized yet. Try again in a second or two.");
     return false;
   }
 
@@ -318,7 +314,7 @@ bool SBPLArmPlannerInterface::planKinematicPath(
 
 bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
 {
-  ROS_WARN("Planning!!!!!");
+  ROS_WARN_PRETTY("Planning!!!!!");
   bool b_ret = false;
   std::vector<int> solution_state_ids;
 
@@ -338,7 +334,7 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
   //check if an empty plan was received.
   if(b_ret && solution_state_ids.size() <= 0)
   {
-    ROS_WARN("Path returned by the planner is empty?");
+    ROS_WARN_PRETTY("Path returned by the planner is empty?");
     b_ret = false;
   }
 
@@ -368,7 +364,7 @@ bool SBPLArmPlannerInterface::planToPosition(
   // transform goal pose into reference_frame
   const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.motion_plan_request.goal_constraints;
   if (goal_constraints_v.empty()) {
-      ROS_WARN("Received a motion plan request without any goal constraints");
+      ROS_WARN_PRETTY("Received a motion plan request without any goal constraints");
       return false;
   }
 
@@ -376,11 +372,11 @@ bool SBPLArmPlannerInterface::planToPosition(
 
   bool use6dofgoal = true;
   if (goal_constraints.position_constraints.empty() || goal_constraints.orientation_constraints.empty()) {
-      ROS_WARN("Received a motion plan request without position or orientation constraints on the goal constraints");
+      ROS_WARN_PRETTY("Received a motion plan request without position or orientation constraints on the goal constraints");
       use6dofgoal = false;
   }
   if ((!use6dofgoal) && goal_constraints.joint_constraints.empty()){
-      ROS_WARN("Received a motion plan request without joint constraints. Giving up!");
+      ROS_WARN_PRETTY("Received a motion plan request without joint constraints. Giving up!");
       return false;
   }
 
@@ -390,7 +386,7 @@ bool SBPLArmPlannerInterface::planToPosition(
   if(!setStart(req.motion_plan_request.start_state.joint_state))
   {
     status = -1;
-    ROS_ERROR("Failed to set initial configuration of robot.");
+    ROS_ERROR_PRETTY("Failed to set initial configuration of robot.");
   }
 
   if(use6dofgoal){
@@ -399,14 +395,14 @@ bool SBPLArmPlannerInterface::planToPosition(
     if(!setGoalPosition(goal_constraints) && status == 0)
     {
       status = -2;
-      ROS_ERROR("Failed to set goal position.");
+      ROS_ERROR_PRETTY("Failed to set goal position.");
     }
   } else {
     ROS_INFO_PRETTY("Setting goal 7dof goal.");
     if(!setGoalConfiguration(goal_constraints) && status == 0)
     {
       status = -2;
-      ROS_ERROR("Failed to set goal position.");
+      ROS_ERROR_PRETTY("Failed to set goal position.");
     }
   }
 
@@ -432,7 +428,7 @@ bool SBPLArmPlannerInterface::planToPosition(
     {
       trajectory_msgs::JointTrajectory straj;
       if(!interpolateTrajectory(cc_, res.motion_plan_response.trajectory.joint_trajectory.points, straj.points))
-        ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
+        ROS_WARN_PRETTY("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
 
       shortcutTrajectory(cc_, straj.points,res.motion_plan_response.trajectory.joint_trajectory.points);
     }
@@ -451,7 +447,7 @@ bool SBPLArmPlannerInterface::planToPosition(
   else
   {
     status = -3;
-    ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_->allowed_time_);
+    ROS_ERROR_PRETTY("Failed to plan within alotted time frame (%0.2f seconds).", prm_->allowed_time_);
   }
 
   if(status == 0)
@@ -475,7 +471,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
   // transform goal pose into reference_frame
   const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.motion_plan_request.goal_constraints;
   if (goal_constraints_v.empty()) {
-      ROS_WARN("Received a motion plan request without any goal constraints");
+      ROS_WARN_PRETTY("Received a motion plan request without any goal constraints");
       return false;
   }
 
@@ -483,11 +479,11 @@ bool SBPLArmPlannerInterface::planToConfiguration(
 
   bool use6dofgoal = true;
   if (goal_constraints.position_constraints.empty() || goal_constraints.orientation_constraints.empty()) {
-      ROS_WARN("Received a motion plan request without position or orientation constraints on the goal constraints");
+      ROS_WARN_PRETTY("Received a motion plan request without position or orientation constraints on the goal constraints");
       use6dofgoal = false;
   }
   if ((!use6dofgoal) && goal_constraints.joint_constraints.empty()){
-      ROS_WARN("Received a motion plan request without joint constraints. Giving up!");
+      ROS_WARN_PRETTY("Received a motion plan request without joint constraints. Giving up!");
       return false;
   }
 
@@ -497,7 +493,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
   if(!setStart(req.motion_plan_request.start_state.joint_state))
   {
     status = -1;
-    ROS_ERROR("Failed to set initial configuration of robot.");
+    ROS_ERROR_PRETTY("Failed to set initial configuration of robot.");
   }
 
   if(use6dofgoal){
@@ -506,14 +502,14 @@ bool SBPLArmPlannerInterface::planToConfiguration(
     if(!setGoalPosition(goal_constraints) && status == 0)
     {
       status = -2;
-      ROS_ERROR("Failed to set goal position.");
+      ROS_ERROR_PRETTY("Failed to set goal position.");
     }
   } else {
     ROS_INFO_PRETTY("Setting goal 7dof goal.");
     if(!setGoalConfiguration(goal_constraints) && status == 0)
     {
       status = -2;
-      ROS_ERROR("Failed to set goal position.");
+      ROS_ERROR_PRETTY("Failed to set goal position.");
     }
   }
 
@@ -539,7 +535,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
     {
       trajectory_msgs::JointTrajectory straj;
       if(!interpolateTrajectory(cc_, res.motion_plan_response.trajectory.joint_trajectory.points, straj.points))
-        ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
+        ROS_WARN_PRETTY("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
 
       shortcutTrajectory(cc_, straj.points,res.motion_plan_response.trajectory.joint_trajectory.points);
     }
@@ -558,7 +554,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
   else
   {
     status = -3;
-    ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_->allowed_time_);
+    ROS_ERROR_PRETTY("Failed to plan within alotted time frame (%0.2f seconds).", prm_->allowed_time_);
   }
 
   if(status == 0)
@@ -572,12 +568,12 @@ bool SBPLArmPlannerInterface::canServiceRequest(const moveit_msgs::GetMotionPlan
   // check for an empty start state
   if(req.motion_plan_request.start_state.joint_state.position.empty())
   {
-    ROS_ERROR("No start state given. Unable to plan.");
+    ROS_ERROR_PRETTY("No start state given. Unable to plan.");
     return false;
   }
 
   if (req.motion_plan_request.goal_constraints.empty()) {
-      ROS_ERROR("Goal constraints are empty. Expecting at least one goal constraints with pose and orientation constraints");
+      ROS_ERROR_PRETTY("Goal constraints are empty. Expecting at least one goal constraints with pose and orientation constraints");
       return false;
   }
 
@@ -586,15 +582,15 @@ bool SBPLArmPlannerInterface::canServiceRequest(const moveit_msgs::GetMotionPlan
 
   if((goal_constraints.position_constraints.empty() || goal_constraints.orientation_constraints.empty()) && goal_constraints.joint_constraints.empty())
   {
-    ROS_ERROR("Position or orientation constraint is empty.");
-    ROS_ERROR("Joint constraint is empty.");
-    ROS_ERROR("Expecting a 6D end effector pose constraint or 7D joint constraint. Exiting.");
+    ROS_ERROR_PRETTY("Position or orientation constraint is empty.");
+    ROS_ERROR_PRETTY("Joint constraint is empty.");
+    ROS_ERROR_PRETTY("Expecting a 6D end effector pose constraint or 7D joint constraint. Exiting.");
     return false;
   }
 
   // check if there is more than one goal constraint
   if(goal_constraints.position_constraints.size() > 1 || goal_constraints.orientation_constraints.size() > 1) {
-    ROS_WARN("The planning request message contains %zd position and %zd orientation constraints. Currently the planner only supports one position & orientation constraint pair at a time. Planning to the first goal may not satisfy move_arm.", goal_constraints.position_constraints.size(), goal_constraints.orientation_constraints.size());
+    ROS_WARN_PRETTY("The planning request message contains %zd position and %zd orientation constraints. Currently the planner only supports one position & orientation constraint pair at a time. Planning to the first goal may not satisfy move_arm.", goal_constraints.position_constraints.size(), goal_constraints.orientation_constraints.size());
   }
 
   return true;
@@ -621,7 +617,7 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getCollisionModelTrajec
 
   if(res_.motion_plan_response.trajectory.joint_trajectory.points.empty())
   {
-    ROS_ERROR("No trajectory found to visualize yet. Plan a path first.");
+    ROS_ERROR_PRETTY("No trajectory found to visualize yet. Plan a path first.");
     return ma;
   }
 
@@ -661,7 +657,7 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(std::s
     const moveit_msgs::Constraints& goal_constraints = req_.goal_constraints.front();
     if(goal_constraints.position_constraints.empty())
     {
-      ROS_WARN("Failed to get visualization marker for goals because no position constraints found.");
+      ROS_WARN_PRETTY("Failed to get visualization marker for goals because no position constraints found.");
       return visualization_msgs::MarkerArray();
     }
 
@@ -707,7 +703,7 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(std::s
       colors[0][3] = 1;
       colors[1][1] = 1;
       colors[1][3] = 1;
-      ROS_ERROR("Expansions visualization %d expands, %s frame", int(expanded_states.size()), prm_->planning_frame_.c_str());
+      ROS_ERROR_PRETTY("Expansions visualization %d expands, %s frame", int(expanded_states.size()), prm_->planning_frame_.c_str());
       ma = viz::getCubesMarkerArray(expanded_states, 0.01, colors, prm_->planning_frame_, "expansions", 0);
     }
   }

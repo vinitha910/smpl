@@ -1,3 +1,4 @@
+#include <leatherman/print.h>
 #include <sbpl_collision_checking/group.h>
 #include <sbpl_geometry_utils/Voxelizer.h>
 #include <geometric_shapes/shapes.h>
@@ -53,16 +54,16 @@ bool Group::initKinematics()
 
   if (!kdl_parser::treeFromUrdfModel(*urdf_, tree))
   {
-    ROS_ERROR("Failed to parse tree from robot description.");
+    ROS_ERROR_PRETTY("Failed to parse tree from robot description.");
     return false;
   }
 
   // loop until all links are included in a single kdl chain
   while(unincluded_links && cnt < 100)
   {
-    ROS_INFO("--------------------------------------");
-    ROS_INFO("-------- %s:  %d ------------------", name_.c_str(), cnt);
-    ROS_INFO("--------------------------------------");
+    ROS_INFO_PRETTY("--------------------------------------");
+    ROS_INFO_PRETTY("-------- %s:  %d ------------------", name_.c_str(), cnt);
+    ROS_INFO_PRETTY("--------------------------------------");
     cnt++;
     std::vector<int> num_links_per_tip(links_.size(),0);
 
@@ -76,14 +77,14 @@ bool Group::initKinematics()
       // link i is same as root link, set as identity
       if(root_name_.compare(links_[i].root_name_) == 0)
       {
-        ROS_ERROR("The group root matches the link root. Creating an empty chain. {root: %s, tip: %s}", root_name_.c_str(), links_[i].root_name_.c_str());
+        ROS_ERROR_PRETTY("The group root matches the link root. Creating an empty chain. {root: %s, tip: %s}", root_name_.c_str(), links_[i].root_name_.c_str());
         num_links_per_tip[i]++;
       }
 
       // create chain with link i as the tip
       if (!tree.getChain(root_name_, links_[i].root_name_, chain))
       {
-        ROS_ERROR("Error: Failed to fetch the KDL chain. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i].root_name_.c_str());
+        ROS_ERROR_PRETTY("Error: Failed to fetch the KDL chain. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i].root_name_.c_str());
         continue;
       }
 
@@ -105,16 +106,16 @@ bool Group::initKinematics()
     int i_max = 0;
     for(size_t i = 0; i < num_links_per_tip.size(); ++i)
     {
-      ROS_INFO("[%d]  chain_tip: %25s  included_links %d", int(i), links_[i].root_name_.c_str(), num_links_per_tip[i]);
+      ROS_INFO_PRETTY("[%d]  chain_tip: %25s  included_links %d", int(i), links_[i].root_name_.c_str(), num_links_per_tip[i]);
       if(num_links_per_tip[i] > num_links_per_tip[i_max])
         i_max = i;
     }
-    ROS_INFO("[cnt %d] Creating a chain for %s group with %s as the tip.", cnt, name_.c_str(), links_[i_max].root_name_.c_str());
+    ROS_INFO_PRETTY("[cnt %d] Creating a chain for %s group with %s as the tip.", cnt, name_.c_str(), links_[i_max].root_name_.c_str());
 
     // create chain with link i_max as the tip
     if (!tree.getChain(root_name_, links_[i_max].root_name_, chain))
     {
-      ROS_ERROR("Error: could not fetch the KDL chain for the desired manipulator. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i_max].root_name_.c_str());
+      ROS_ERROR_PRETTY("Error: could not fetch the KDL chain for the desired manipulator. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i_max].root_name_.c_str());
       continue;
     }
 
@@ -135,11 +136,11 @@ bool Group::initKinematics()
 
       if(root_name_.compare(links_[i].root_name_) == 0)
       {
-        ROS_ERROR("Checking which links are included in the single link chain.");
+        ROS_ERROR_PRETTY("Checking which links are included in the single link chain.");
         link_included[i] = chains_.size()-1;
         links_[i].i_chain_ = chains_.size()-1;
         included_links++;
-        ROS_INFO("[one_link-chain: %s] [%d] includes: %s", links_[i_max].root_name_.c_str(), included_links, links_[i].root_name_.c_str());
+        ROS_INFO_PRETTY("[one_link-chain: %s] [%d] includes: %s", links_[i_max].root_name_.c_str(), included_links, links_[i].root_name_.c_str());
       }
 
       // check if link i is included in this chain
@@ -170,10 +171,10 @@ bool Group::initKinematics()
   for(size_t i = 0; i < chains_.size(); ++i)
   {
     solvers_[i] = new KDL::ChainFkSolverPos_recursive(chains_[i]);
-    ROS_INFO("[%s] Instantiated a forward kinematics solver for chain #%d for the %s with %d joints.", name_.c_str(), int(i), name_.c_str(), chains_[i].getNrOfJoints());
+    ROS_INFO_PRETTY("[%s] Instantiated a forward kinematics solver for chain #%d for the %s with %d joints.", name_.c_str(), int(i), name_.c_str(), chains_[i].getNrOfJoints());
   }
 
-  ROS_INFO("Initialized %d chains for the %s group.", int(chains_.size()), name_.c_str());
+  ROS_INFO_PRETTY("Initialized %d chains for the %s group.", int(chains_.size()), name_.c_str());
   return true;
 }
 
@@ -182,14 +183,14 @@ bool Group::getParams(XmlRpc::XmlRpcValue grp, XmlRpc::XmlRpcValue spheres)
 {
   if(!grp.hasMember("name"))
   {
-    ROS_WARN("All groups must have a name.");
+    ROS_WARN_PRETTY("All groups must have a name.");
     return false;
   }
   name_ = std::string(grp["name"]);
 
   if(!grp.hasMember("type"))
   {
-    ROS_WARN("All groups must have a type. (voxels or spheres)");
+    ROS_WARN_PRETTY("All groups must have a type. (voxels or spheres)");
     return false;
   }
   if(std::string(grp["type"]).compare("voxels") == 0)
@@ -198,20 +199,20 @@ bool Group::getParams(XmlRpc::XmlRpcValue grp, XmlRpc::XmlRpcValue spheres)
     type_ = sbpl_arm_planner::Group::SPHERES;
   else
   {
-    ROS_ERROR("Illegal group type. (voxels or spheres)");
+    ROS_ERROR_PRETTY("Illegal group type. (voxels or spheres)");
     return false;
   }
 
   if(!grp.hasMember("root_name"))
   {
-    ROS_WARN("All groups must have a root_name.");
+    ROS_WARN_PRETTY("All groups must have a root_name.");
     return false;
   }
   root_name_ = std::string(grp["root_name"]);
 
   if(!grp.hasMember("tip_name"))
   {
-    ROS_WARN("All groups must have a tip_name.");
+    ROS_WARN_PRETTY("All groups must have a tip_name.");
     return false;
   }
   tip_name_ = std::string(grp["tip_name"]);
@@ -222,13 +223,13 @@ bool Group::getParams(XmlRpc::XmlRpcValue grp, XmlRpc::XmlRpcValue spheres)
 
     if(all_links.getType() != XmlRpc::XmlRpcValue::TypeArray)
     {
-      ROS_WARN("Collision links is not an array.");
+      ROS_WARN_PRETTY("Collision links is not an array.");
       return false;
     }
 
     if(all_links.size() == 0) 
     {
-      ROS_WARN("No links in collision links");
+      ROS_WARN_PRETTY("No links in collision links");
       return false;
     }
 
@@ -241,7 +242,7 @@ bool Group::getParams(XmlRpc::XmlRpcValue grp, XmlRpc::XmlRpcValue spheres)
       if(all_links[j].hasMember("root"))
         link.root_name_ = std::string(all_links[j]["root"]);
       else
-        ROS_WARN("No root name");
+        ROS_WARN_PRETTY("No root name");
 
       if(type_ == sbpl_arm_planner::Group::SPHERES)
       {
@@ -267,7 +268,7 @@ bool Group::getParams(XmlRpc::XmlRpcValue grp, XmlRpc::XmlRpcValue spheres)
           }
           if(i == spheres.size())
           {
-            ROS_ERROR("Failed to find sphere %s in the sphere list.", sphere_name.c_str());
+            ROS_ERROR_PRETTY("Failed to find sphere %s in the sphere list.", sphere_name.c_str());
             return false;
           }
         }
@@ -283,16 +284,16 @@ void Group::printSpheres()
 {
   if(!init_)
   {
-    ROS_ERROR("Failed to print the collision spheres because the %s group is not initialized.", name_.c_str());
+    ROS_ERROR_PRETTY("Failed to print the collision spheres because the %s group is not initialized.", name_.c_str());
     return;
   }
 
-  ROS_INFO("\n%s", name_.c_str());
+  ROS_INFO_PRETTY("\n%s", name_.c_str());
   for(size_t i = 0; i < spheres_.size(); ++i)
   {
-    ROS_INFO("[%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[i]->name.c_str(), spheres_[i]->v.x(), spheres_[i]->v.y(), spheres_[i]->v.z(), spheres_[i]->radius, spheres_[i]->priority);
+    ROS_INFO_PRETTY("[%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[i]->name.c_str(), spheres_[i]->v.x(), spheres_[i]->v.y(), spheres_[i]->v.z(), spheres_[i]->radius, spheres_[i]->priority);
   }
-  ROS_INFO(" ");
+  ROS_INFO_PRETTY(" ");
 }
 
 bool Group::initSpheres()
@@ -374,14 +375,14 @@ bool Group::initVoxels()
   {
     if(!getLinkVoxels(links_[i].root_name_, links_[i].voxels_.v))
     {
-      ROS_ERROR("Failed to retrieve voxels for link '%s' in group '%s'", links_[i].root_name_.c_str(), name_.c_str());
+      ROS_ERROR_PRETTY("Failed to retrieve voxels for link '%s' in group '%s'", links_[i].root_name_.c_str(), name_.c_str());
       return false;
     }
     ROS_DEBUG("Retrieved %d voxels for link '%s'", int(links_[i].voxels_.v.size()), links_[i].root_name_.c_str());
     int seg = 0;
     if(!leatherman::getSegmentIndex(chains_[links_[i].i_chain_], links_[i].root_name_, seg))
     {
-      ROS_ERROR("When retrieving group voxels, getSegmentIndex() failed. The group root must be the same as the link root. {root: %s, tips: %s}", root_name_.c_str(),  links_[i].root_name_.c_str());
+      ROS_ERROR_PRETTY("When retrieving group voxels, getSegmentIndex() failed. The group root must be the same as the link root. {root: %s, tips: %s}", root_name_.c_str(),  links_[i].root_name_.c_str());
       seg = -1;
       //return false;
     }
@@ -435,7 +436,7 @@ bool Group::computeFK(const std::vector<double> &angles, int chain, int segment,
 {
   if(segment == 0)
   {
-    ROS_ERROR("segment is 0!");
+    ROS_ERROR_PRETTY("segment is 0!");
     frame = KDL::Frame::Identity();
   }
   else
@@ -450,7 +451,7 @@ bool Group::computeFK(const std::vector<double> &angles, int chain, int segment,
 
     if(solvers_[chain]->JntToCart(joint_positions_[chain], frame, segment) < 0)
     {
-      ROS_ERROR("JntToCart returned < 0. Exiting.");
+      ROS_ERROR_PRETTY("JntToCart returned < 0. Exiting.");
       return false;
     }
   }
@@ -461,7 +462,7 @@ bool Group::computeFK(const std::vector<double> &angles, int chain, int segment,
 
 bool Group::computeFK(const std::vector<double> &angles, std::vector<std::vector<KDL::Frame> > &frames)
 {
-  //ROS_ERROR("Chains_ size: %d  frames_.size(): %d", chains_.size(), frames_.size()); fflush(stdout);
+  //ROS_ERROR_PRETTY("Chains_ size: %d  frames_.size(): %d", chains_.size(), frames_.size()); fflush(stdout);
   frames.resize(chains_.size());
   for(int i = 0; i < int(frames_.size()); ++i)
   {
@@ -502,7 +503,7 @@ void Group::setOrderOfJointPositions(const std::vector<std::string> &joint_names
       }
     }
     if(!matched)
-      ROS_ERROR("%s was not found in either chain. Why do you send it to the forward kinematics solver?", joint_names[i].c_str());
+      ROS_ERROR_PRETTY("%s was not found in either chain. Why do you send it to the forward kinematics solver?", joint_names[i].c_str());
   }
 
   for(size_t i = 0; i < angles_to_jntarray_.size(); ++i)
@@ -540,17 +541,17 @@ bool Group::getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels)
   boost::shared_ptr<const urdf::Link> link = urdf_->getLink(name);
   if(link == NULL)
   {
-    ROS_ERROR("Failed to find link '%s' in URDF.", name.c_str());
+    ROS_ERROR_PRETTY("Failed to find link '%s' in URDF.", name.c_str());
     return false;
   }
   if(link->collision == NULL)
   {
-    ROS_ERROR("Failed to find collision field for link '%s' in URDF.", link->name.c_str());
+    ROS_ERROR_PRETTY("Failed to find collision field for link '%s' in URDF.", link->name.c_str());
     return false;
   }
   if(link->collision->geometry == NULL)
   {
-    ROS_ERROR("Failed to find geometry for link '%s' in URDF. (group: %s)", name.c_str(), link->collision->group_name.c_str());
+    ROS_ERROR_PRETTY("Failed to find geometry for link '%s' in URDF. (group: %s)", name.c_str(), link->collision->group_name.c_str());
     return false;
   }
 
@@ -586,7 +587,7 @@ bool Group::getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels)
     urdf::Mesh* mesh = (urdf::Mesh*) geom.get();
     if(!leatherman::getMeshComponentsFromResource(mesh->filename, scale, triangles, vertices))
     {
-      ROS_ERROR("Failed to get mesh from file. (%s)", mesh->filename.c_str());
+      ROS_ERROR_PRETTY("Failed to get mesh from file. (%s)", mesh->filename.c_str());
       return false;
     }
     ROS_DEBUG("mesh: %s  triangles: %u  vertices: %u", name.c_str(), int(triangles.size()), int(vertices.size()));
@@ -605,7 +606,7 @@ bool Group::getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels)
     std::vector<std::vector<double> > v;
     urdf::Box* box = (urdf::Box*) geom.get();
     sbpl::Voxelizer::voxelizeBox(box->dim.x, box->dim.y, box->dim.z, p, RESOLUTION, v, false); 
-    ROS_INFO("box: %s  voxels: %u   {dims: %0.2f %0.2f %0.2f}", name.c_str(), int(v.size()), box->dim.x, box->dim.y, box->dim.z);
+    ROS_INFO_PRETTY("box: %s  voxels: %u   {dims: %0.2f %0.2f %0.2f}", name.c_str(), int(v.size()), box->dim.x, box->dim.y, box->dim.z);
     voxels.resize(v.size());
     for(size_t i = 0; i < v.size(); ++i)
     {
@@ -619,7 +620,7 @@ bool Group::getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels)
     std::vector<std::vector<double> > v;
     urdf::Cylinder* cyl = (urdf::Cylinder*) geom.get();
     sbpl::Voxelizer::voxelizeCylinder(cyl->radius, cyl->length, p, RESOLUTION, v, true); 
-    ROS_INFO("cylinder: %s  voxels: %u", name.c_str(), int(v.size()));
+    ROS_INFO_PRETTY("cylinder: %s  voxels: %u", name.c_str(), int(v.size()));
     voxels.resize(v.size());
     for(size_t i = 0; i < v.size(); ++i)
     {
@@ -633,7 +634,7 @@ bool Group::getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels)
     std::vector<std::vector<double> > v;
     urdf::Sphere* sph = (urdf::Sphere*) geom.get();
     sbpl::Voxelizer::voxelizeSphere(sph->radius, p, RESOLUTION, v, true); 
-    ROS_INFO("sphere: %s  voxels: %u", name.c_str(), int(v.size()));
+    ROS_INFO_PRETTY("sphere: %s  voxels: %u", name.c_str(), int(v.size()));
     voxels.resize(v.size());
     for(size_t i = 0; i < v.size(); ++i)
     {
@@ -644,13 +645,13 @@ bool Group::getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels)
   }
   else
   {
-    ROS_ERROR("Failed to get voxels for link '%s'.", name.c_str());
+    ROS_ERROR_PRETTY("Failed to get voxels for link '%s'.", name.c_str());
     return false;
   }
 
   if(voxels.empty())
   {
-    ROS_ERROR("Problem voxeling '%s' link. It resulted in 0 voxels.", name.c_str()); 
+    ROS_ERROR_PRETTY("Problem voxeling '%s' link. It resulted in 0 voxels.", name.c_str()); 
   }
 
   return true;
@@ -677,66 +678,66 @@ void Group::print()
 {
   if(!init_)
   {
-    ROS_ERROR("Failed to print %s group information because has not yet been initialized.", name_.c_str());
+    ROS_ERROR_PRETTY("Failed to print %s group information because has not yet been initialized.", name_.c_str());
     return;
   }
 
-  ROS_INFO("name: %s", name_.c_str());
-  ROS_INFO("type: %d", type_);
-  ROS_INFO("root name: %s", root_name_.c_str());
-  ROS_INFO(" tip name: %s", tip_name_.c_str());
-  ROS_INFO("collision links: ");
+  ROS_INFO_PRETTY("name: %s", name_.c_str());
+  ROS_INFO_PRETTY("type: %d", type_);
+  ROS_INFO_PRETTY("root name: %s", root_name_.c_str());
+  ROS_INFO_PRETTY(" tip name: %s", tip_name_.c_str());
+  ROS_INFO_PRETTY("collision links: ");
   for(std::size_t i = 0; i < links_.size(); ++i)
   {
-    ROS_INFO("  name: %s", links_[i].name_.c_str());
-    ROS_INFO("  root: %s", links_[i].root_name_.c_str());
-    ROS_INFO(" chain: %d", links_[i].i_chain_);
+    ROS_INFO_PRETTY("  name: %s", links_[i].name_.c_str());
+    ROS_INFO_PRETTY("  root: %s", links_[i].root_name_.c_str());
+    ROS_INFO_PRETTY(" chain: %d", links_[i].i_chain_);
     if(type_ == sbpl_arm_planner::Group::SPHERES)
     {
-      ROS_INFO(" spheres: %d", int(links_[i].spheres_.size()));
+      ROS_INFO_PRETTY(" spheres: %d", int(links_[i].spheres_.size()));
       for(std::size_t j = 0; j < links_[i].spheres_.size(); ++j)
-        ROS_INFO("  [%s] x: %0.3f y: %0.3f z: %0.3f radius: %0.3f priority: %d chain: %d segment: %d", links_[i].spheres_[j].name.c_str(), links_[i].spheres_[j].v.x(), links_[i].spheres_[j].v.y(), links_[i].spheres_[j].v.z(), links_[i].spheres_[j].radius, links_[i].spheres_[j].priority, links_[i].spheres_[j].kdl_chain, links_[i].spheres_[j].kdl_segment);
+        ROS_INFO_PRETTY("  [%s] x: %0.3f y: %0.3f z: %0.3f radius: %0.3f priority: %d chain: %d segment: %d", links_[i].spheres_[j].name.c_str(), links_[i].spheres_[j].v.x(), links_[i].spheres_[j].v.y(), links_[i].spheres_[j].v.z(), links_[i].spheres_[j].radius, links_[i].spheres_[j].priority, links_[i].spheres_[j].kdl_chain, links_[i].spheres_[j].kdl_segment);
     }
     else if(type_ == sbpl_arm_planner::Group::VOXELS)
     {
-      ROS_INFO(" voxels: %d chain: %d segment: %d", int(links_[i].voxels_.v.size()), links_[i].voxels_.kdl_chain, links_[i].voxels_.kdl_segment);
+      ROS_INFO_PRETTY(" voxels: %d chain: %d segment: %d", int(links_[i].voxels_.v.size()), links_[i].voxels_.kdl_chain, links_[i].voxels_.kdl_segment);
       for(std::size_t j = 0; j < links_[i].voxels_.v.size(); ++j)
         ROS_DEBUG("  [%d] x: %0.3f y: %0.3f z: %0.3f", int(j), links_[i].voxels_.v[j].x(), links_[i].voxels_.v[j].y(), links_[i].voxels_.v[j].z());
     }
     if(i < links_.size()-1)
-      ROS_INFO(" ---");
+      ROS_INFO_PRETTY(" ---");
   }
-  ROS_INFO(" ");
+  ROS_INFO_PRETTY(" ");
   if(type_ == sbpl_arm_planner::Group::SPHERES)
   {
-    ROS_INFO("sorted spheres: ");
+    ROS_INFO_PRETTY("sorted spheres: ");
     for(std::size_t j = 0; j < spheres_.size(); ++j)
     {
-      ROS_INFO("  [%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[j]->name.c_str(), spheres_[j]->v.x(), spheres_[j]->v.y(), spheres_[j]->v.z(), spheres_[j]->radius, spheres_[j]->priority);
+      ROS_INFO_PRETTY("  [%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[j]->name.c_str(), spheres_[j]->v.x(), spheres_[j]->v.y(), spheres_[j]->v.z(), spheres_[j]->radius, spheres_[j]->priority);
     }
-    ROS_INFO(" ");
+    ROS_INFO_PRETTY(" ");
   }
-  ROS_INFO("kinematic chain(s): ");
+  ROS_INFO_PRETTY("kinematic chain(s): ");
   for(std::size_t j = 0; j < chains_.size(); ++j)
     leatherman::printKDLChain(chains_[j], "chain " + boost::lexical_cast<std::string>(j));
-  ROS_INFO(" ");
+  ROS_INFO_PRETTY(" ");
 }
 
 void Group::printDebugInfo()
 {
-  ROS_INFO("[name] %s", name_.c_str());
-  ROS_INFO("[chains] %d", int(chains_.size()));
-  ROS_INFO("[solvers] %d", int(solvers_.size()));
-  ROS_INFO("[joint_positions] %d", int(joint_positions_.size()));
-  ROS_INFO("[frames] %d", int(frames_.size()));
+  ROS_INFO_PRETTY("[name] %s", name_.c_str());
+  ROS_INFO_PRETTY("[chains] %d", int(chains_.size()));
+  ROS_INFO_PRETTY("[solvers] %d", int(solvers_.size()));
+  ROS_INFO_PRETTY("[joint_positions] %d", int(joint_positions_.size()));
+  ROS_INFO_PRETTY("[frames] %d", int(frames_.size()));
   for(size_t i = 0; i < frames_.size(); ++i)
-    ROS_INFO("[frames] [%d] %d", int(i), int(frames_[i].size()));
-  ROS_INFO("[jntarray_names] %d", int(jntarray_names_.size()));
+    ROS_INFO_PRETTY("[frames] [%d] %d", int(i), int(frames_[i].size()));
+  ROS_INFO_PRETTY("[jntarray_names] %d", int(jntarray_names_.size()));
   for(size_t i = 0; i < jntarray_names_.size(); ++i)
-    ROS_INFO("[jntarray_names] [%d] %d", int(i), int(jntarray_names_[i].size()));
-  ROS_INFO("[angles_to_jntarray] %d", int(angles_to_jntarray_.size()));
+    ROS_INFO_PRETTY("[jntarray_names] [%d] %d", int(i), int(jntarray_names_[i].size()));
+  ROS_INFO_PRETTY("[angles_to_jntarray] %d", int(angles_to_jntarray_.size()));
   for(size_t i = 0; i < angles_to_jntarray_.size(); ++i)
-    ROS_INFO("[angles_to_jntarray] [%d] %d", int(i), int(angles_to_jntarray_[i].size()));
+    ROS_INFO_PRETTY("[angles_to_jntarray] [%d] %d", int(i), int(angles_to_jntarray_[i].size()));
 }
 
 }
