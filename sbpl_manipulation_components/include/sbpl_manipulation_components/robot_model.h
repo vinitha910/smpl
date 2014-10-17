@@ -84,6 +84,8 @@ class RobotModel {
     /* Inverse Kinematics */
     virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
 
+    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector< std::vector<double> > &solutions, int option=0);
+
     virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
 
     /* Debug Output */

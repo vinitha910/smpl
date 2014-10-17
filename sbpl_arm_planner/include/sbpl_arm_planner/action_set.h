@@ -62,7 +62,7 @@ class ActionSet
 
     bool applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action);
 
-    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, Action &action);
+    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, std::vector<Action> &actions);
 };
 
 }

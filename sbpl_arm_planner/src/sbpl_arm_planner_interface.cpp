@@ -127,9 +127,11 @@ bool SBPLArmPlannerInterface::solve(const moveit_msgs::PlanningSceneConstPtr& pl
   if(!planner_initialized_)
     return false;
 
+  ROS_INFO("Got octomap in %s frame", planning_scene->world.octomap.header.frame_id.c_str());
+  ROS_INFO("Current prm_->planning_frame_ is %s", prm_->planning_frame_.c_str());
   // preprocess
   clock_t t_preprocess = clock();
-  prm_->planning_frame_ = planning_scene->world.octomap.header.frame_id;
+  //prm_->planning_frame_ = planning_scene->world.octomap.header.frame_id;
   grid_->setReferenceFrame(prm_->planning_frame_);
   // TODO: set kinematics to planning frame
   double preprocess_time = (clock() - t_preprocess) / (double)CLOCKS_PER_SEC;

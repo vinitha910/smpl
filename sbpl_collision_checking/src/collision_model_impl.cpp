@@ -112,8 +112,15 @@ void CollisionModelImpl::getGroupNames(std::vector<std::string> &names)
 
 bool CollisionModelImpl::setDefaultGroup(const std::string &group_name)
 {
-  if(group_config_map_.find(group_name) == group_config_map_.end())
+  if(group_config_map_.find(group_name) == group_config_map_.end()){
+    ROS_ERROR("Failed to find group '%s' in group_config_map_", group_name.c_str());
+    ROS_ERROR("Expecting one of the following group names:");
+    for(auto it = group_config_map_.cbegin(); it != group_config_map_.cend(); ++it)
+    {
+      ROS_ERROR("%s", it->first.c_str());
+    }
     return false;
+  }
 
   dgroup_ = group_config_map_[group_name];
   return true;

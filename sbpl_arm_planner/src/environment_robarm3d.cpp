@@ -42,7 +42,7 @@ using namespace std;
 namespace sbpl_arm_planner
 {
 
-EnvironmentROBARM3D::EnvironmentROBARM3D(OccupancyGrid *grid, RobotModel *rmodel, CollisionChecker *cc, ActionSet* as, PlanningParams *pm) : bfs_(NULL)
+EnvironmentROBARM3D::EnvironmentROBARM3D(OccupancyGrid *grid, RobotModel *rmodel, CollisionChecker *cc, ActionSet* as, PlanningParams *pm) : bfs_(NULL), nh_()
 {
   grid_ = grid;
   rmodel_ = rmodel;
@@ -50,6 +50,7 @@ EnvironmentROBARM3D::EnvironmentROBARM3D(OccupancyGrid *grid, RobotModel *rmodel
   as_ = as;
   prm_ = pm;
   getHeuristic_ = &sbpl_arm_planner::EnvironmentROBARM3D::getXYZHeuristic;
+  pub_ = nh_.advertise<visualization_msgs::MarkerArray>("visualization_markers", 1);
 }
 
 EnvironmentROBARM3D::~EnvironmentROBARM3D()
@@ -182,6 +183,14 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
 
   //used for interpolated collision check
   coordToAngles(scoord, source_angles);
+
+  visualization_msgs::MarkerArray ma;
+  ma = cc_->getCollisionModelVisualization(source_angles);
+  for(int i = 0; i < (int) ma.markers.size(); i++){
+    ma.markers[i].ns = "expansion";
+    ma.markers[i].id = i;
+  }
+  pub_.publish(ma);
 
   ROS_DEBUG_NAMED(prm_->expands_log_, "\nstate %d: %.2f %.2f %.2f %.2f %.2f %.2f %.2f  endeff: %3d %3d %3d",SourceStateID, source_angles[0],source_angles[1],source_angles[2],source_angles[3],source_angles[4],source_angles[5],source_angles[6], parent_entry->xyz[0],parent_entry->xyz[1],parent_entry->xyz[2]);
 

@@ -179,6 +179,9 @@ class EnvironmentROBARM3D: virtual public DiscreteSpaceInformation
     EnvironmentPlanningData pdata_;
     PlanningParams *prm_;
 
+    ros::NodeHandle nh_;
+    ros::Publisher pub_;
+
     // function pointers for heuristic function
     int (EnvironmentROBARM3D::*getHeuristic_) (int FromStateID, int ToStateID);
 

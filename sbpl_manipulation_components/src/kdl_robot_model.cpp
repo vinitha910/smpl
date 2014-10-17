@@ -300,6 +300,17 @@ bool KDLRobotModel::computeIK(const std::vector<double> &pose, const std::vector
   return computeIKSearch(pose, start, solution, 0.005);
 }
 
+bool KDLRobotModel::computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector< std::vector<double> > &solutions, int option)
+{
+  if(option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS)
+    return false;
+  std::vector<double> solution;
+  if(computeIKSearch(pose, start, solution, 0.005)){
+    solutions.push_back(solution);
+  }
+  return (solutions.size()>0)?true:false;
+}
+
 bool KDLRobotModel::computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution)
 {
   //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
