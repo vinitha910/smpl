@@ -58,6 +58,7 @@ class PlanningParams
     bool search_mode_;
     bool shortcut_path_;
     bool interpolate_path_;
+    bool use_multiple_ik_solutions_;
     double allowed_time_;
     double waypoint_time_;
 

@@ -166,7 +166,7 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
   {
     return;
   }
-
+  int n_goal_succs = 0;
   //get X, Y, Z for the state
   EnvROBARM3DHashEntry_t* parent_entry = pdata_.StateID2CoordTable[SourceStateID];
 
@@ -281,7 +281,7 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
          (pdata_.use_7dof_goal && isGoalState(actions[i].back(), pdata_.goal_7dof )) )
     {
       succ_is_goal_state = true;
-
+      //update goal state
       for (int k = 0; k < prm_->num_joints_; k++)
       {
         pdata_.goal_entry->coord[k] = scoord[k];
@@ -292,6 +292,7 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
       pdata_.goal_entry->xyz[2] = endeff[2];
       pdata_.goal_entry->state = actions[i].back();
       pdata_.goal_entry->dist = dist;
+      n_goal_succs++;
     }
 
     //check if hash entry already exists, if not then create one
@@ -307,6 +308,9 @@ void EnvironmentROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vect
     //put successor on successor list with the proper cost
     SuccIDV->push_back(succ_entry->stateID);
     CostV->push_back(cost(parent_entry, succ_entry, succ_is_goal_state));
+  } //loop over actions
+  if(n_goal_succs > 0){
+    ROS_WARN("Got %d goal successors!", n_goal_succs);
   }
 
   pdata_.expanded_states.push_back(SourceStateID);
@@ -610,6 +614,16 @@ bool EnvironmentROBARM3D::setStartConfiguration(const std::vector<double> angles
     ROS_WARN_PRETTY("[env] The starting configuration is in collision. Attempting to plan anyway. (distance to nearest obstacle %0.2fm)", double(dist)*grid_->getResolution());
   }
 
+  visualization_msgs::MarkerArray ma;
+  ma = cc_->getCollisionModelVisualization(angles);
+  ROS_INFO("Got %zd markers for start_config visualization in frame %s!", ma.markers.size(), grid_->getReferenceFrame().c_str());
+  for(int i = 0; i < (int) ma.markers.size(); i++){
+    ma.markers[i].ns = "start_config";
+    ma.markers[i].id = i;
+    ma.markers[i].header.frame_id = grid_->getReferenceFrame();
+  }
+  pub_.publish(ma);
+
   //get arm position in environment
   anglesToCoord(angles, pdata_.start_entry->coord);
   grid_->worldToGrid(pose[0],pose[1],pose[2],x,y,z);
@@ -637,11 +651,15 @@ bool EnvironmentROBARM3D::setGoalConfiguration(const std::vector<double> goal, c
   }
   goals_6dof.push_back(pose);
   tolerances_6dof.push_back(std::vector<double>(6,0.05)); //made up goal tolerance (it should not be used in with 7dof goals anyways)
-  setGoalPosition(goals_6dof, tolerances_6dof);
+  if (!setGoalPosition(goals_6dof, tolerances_6dof)) {
+	  ROS_WARN("Faild to set goal position");
+	  return false;
+  }
 
   pdata_.goal_7dof.angles = goal;
   pdata_.goal_7dof.angle_tolerances = goal_tolerances;
   pdata_.use_7dof_goal = true;
+  return true;
 }
 
 bool EnvironmentROBARM3D::setGoalPosition(

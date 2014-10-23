@@ -666,7 +666,7 @@ bool Group::getFrameInfo(const std::string &name, int &chain, int &segment)
       if(chains_[i].getSegment(k).getName().compare(name) == 0)
       {
         chain = i;
-        segment = k;
+        segment = k + 1;
         return true;
       }
     }

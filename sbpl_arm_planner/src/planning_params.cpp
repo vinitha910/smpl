@@ -80,6 +80,7 @@ bool PlanningParams::init()
   nh.param ("planning/search_mode", search_mode_, false); //true: stop after first solution
   nh.param ("planning/shortcut_path", shortcut_path_, false);
   nh.param ("planning/interpolate_path", interpolate_path_, false);
+  nh.param ("planning/use_multiple_ik_solutions", use_multiple_ik_solutions_, false);
   nh.param ("planning/seconds_per_waypoint", waypoint_time_, 0.35);
   nh.param<std::string>("planning/planning_frame",planning_frame_,"");
   nh.param<std::string>("planning/group_name",group_name_,"");

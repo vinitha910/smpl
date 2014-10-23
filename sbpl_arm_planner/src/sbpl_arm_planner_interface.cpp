@@ -87,7 +87,7 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
   if(!sbpl_arm_env_)
     return false;
 
-  if(!as_->init(sbpl_arm_env_))
+  if(!as_->init(sbpl_arm_env_, prm_->use_multiple_ik_solutions_))
   {
     ROS_ERROR_PRETTY("Failed to initialize the action set.");
     return false;

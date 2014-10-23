@@ -32,7 +32,7 @@ class ActionSet
 
     ~ActionSet(){};
 
-    bool init(EnvironmentROBARM3D *env);
+    bool init(EnvironmentROBARM3D *env, bool use_multiple_ik_solutions = false);
 
     bool getActionSet(const RobotState &parent, std::vector<Action> &actions);
 
@@ -43,6 +43,8 @@ class ActionSet
   protected:
 
     bool use_multires_mprims_;
+
+    bool use_multiple_ik_solutions_;
 
     bool use_ik_;
 

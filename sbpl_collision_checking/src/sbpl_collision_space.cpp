@@ -44,7 +44,7 @@ SBPLCollisionSpace::SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
     grid_(grid),
     padding_(0.0),
     group_name_(),
-    object_enclosing_sphere_radius_(0.1), // TODO: ARBITRARY
+    object_enclosing_sphere_radius_(0.025), // TODO: ARBITRARY
     inc_(),
     min_limits_(),
     max_limits_(),
@@ -429,8 +429,9 @@ SBPLCollisionSpace::getCollisionSpheres(const std::vector<double> &angles, std::
             xyzr[0] = object[i][0];
             xyzr[1] = object[i][1];
             xyzr[2] = object[i][2];
-            xyzr[3] = double(object[i][3]) * grid_->getResolution();
+            xyzr[3] = double(object[i][3]);// * grid_->getResolution();
             spheres.push_back(xyzr);
+            
         }
     }
     return true;
@@ -471,19 +472,20 @@ void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose po
     // compute end points of cylinder
     KDL::Frame center;
     tf::PoseMsgToKDL(pose, center);
-    //KDL::Vector top(0.0,0.0,length/2.0), bottom(0.0,0.0,-length/2.0);
-    KDL::Vector top(center.p), bottom(center.p);
+    KDL::Vector top(0.0,0.0,length/2.0), bottom(0.0,0.0,-length/2.0);
+    //KDL::Vector top(center.p), bottom(center.p);
     std::vector<KDL::Vector> points;
 
-    top.data[2] += length / 2.0;
-    bottom.data[2] -= length / 2.0;
+    //top.data[2] += length / 2.0;
+    //bottom.data[2] -= length / 2.0;
 
     // get spheres
     leatherman::getIntermediatePoints(top, bottom, radius, points);
-    object_spheres_.resize(points.size());
-    for (size_t i = 0; i < points.size(); ++i) {
+    int start = object_spheres_.size();
+    object_spheres_.resize(object_spheres_.size() + points.size());
+    for (size_t i = start; i < start + points.size(); ++i) {
         object_spheres_[i].name = "attached_" + boost::lexical_cast<std::string>(i);
-        object_spheres_[i].v = points[i];
+        object_spheres_[i].v = center * points[i - start];
         object_spheres_[i].radius = radius;
         object_spheres_[i].kdl_chain = attached_object_chain_num_;
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
@@ -506,25 +508,33 @@ void SBPLCollisionSpace::attachCube(
     object_attached_ = true;
     std::vector<std::vector<double>> spheres;
     attached_object_frame_ = link;
-    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    if(!model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_)){
+      ROS_ERROR("Could not find frame info for attached object frame %s in group name %s", attached_object_frame_.c_str(), group_name_.c_str());
+      object_attached_ = false;
+      return;
+    }
 
     sbpl::SphereEncloser::encloseBox(x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
 
     if (spheres.size() <= 3) {
         ROS_WARN_PRETTY("[cspace] Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
     }
-
-    object_spheres_.resize(spheres.size());
-    for (size_t i = 0; i < spheres.size(); ++i) {
+    int start = object_spheres_.size();
+    object_spheres_.resize(start + spheres.size());
+    for (size_t i = start; i < start + spheres.size(); ++i) {
         object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
-        object_spheres_[i].v.x(spheres[i][0]);
-        object_spheres_[i].v.y(spheres[i][1]);
-        object_spheres_[i].v.z(spheres[i][2]);
-        object_spheres_[i].radius = spheres[i][3];
+        tf::Vector3 sph_in_object_local_(spheres[i - start][0], spheres[i - start][1], spheres[i - start][2]);
+        tf::Transform T_sph_offset;
+        tf::poseMsgToTF(pose, T_sph_offset);
+        tf::Vector3 sph_in_link_local_ = T_sph_offset * sph_in_object_local_;
+        object_spheres_[i].v.x(sph_in_link_local_.getX());
+        object_spheres_[i].v.y(sph_in_link_local_.getY());
+        object_spheres_[i].v.z(sph_in_link_local_.getZ());
+        object_spheres_[i].radius = spheres[i - start][3];
         object_spheres_[i].kdl_chain = attached_object_chain_num_;
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
-    ROS_INFO_PRETTY("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim);
+    ROS_INFO_PRETTY("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f (sphere rad: %.3f) (chain id: %d)(segment id: %d)", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, attached_object_chain_num_, attached_object_segment_num_);
 }
 
 void SBPLCollisionSpace::attachMesh(
@@ -874,7 +884,7 @@ void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject
     geometry_msgs::PoseStamped pose_in;
     std::string link_name = obj.link_name;
     moveit_msgs::CollisionObject object(obj.object);
-    ROS_INFO_PRETTY("Received a collision object message with %zd shape primitives and %zd meshes.", object.primitives.size(), object.meshes.size());
+    ROS_INFO_PRETTY("Received a collision object message with %zd shape primitives and %zd meshes attached to %s.", object.primitives.size(), object.meshes.size(), link_name.c_str());
 
     for (size_t i = 0; i < object.primitives.size(); i++) {
         pose_in.header = object.header;
@@ -888,7 +898,7 @@ void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::CYLINDER) {
             ROS_INFO_PRETTY("[cspace] Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
-            attachCylinder(link_name, object.primitive_poses[i], object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
+            attachCylinder(link_name, object.primitive_poses[i], object.primitives[i].dimensions[1], object.primitives[i].dimensions[0]);
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::BOX) {
             ROS_INFO_PRETTY("[cspace] Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
@@ -913,6 +923,8 @@ void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject
     if (!object.planes.empty()) {
         ROS_WARN_PRETTY("[cspace] [attach_object] Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
     }
+
+    ROS_WARN("Attached object has %zd spheres!", object_spheres_.size());
 }
 
 visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(std::string type)
