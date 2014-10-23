@@ -530,7 +530,7 @@ bool EnvironmentROBARM3D::isGoalState(const std::vector<double>& angles, GoalCon
       SBPL_INFO("dist to goal: %.3f", dist_to_goal);
     }
   } */
-  
+
   for(int i = 0; i < goal.angles.size(); i++){
     if (fabs(angles[i] - goal.angles[i]) > goal.angle_tolerances[i]){
       return false;
@@ -647,7 +647,7 @@ bool EnvironmentROBARM3D::setGoalConfiguration(const std::vector<double> goal, c
   std::vector<double> pose(6,0);
   if(!rmodel_->computePlanningLinkFK(goal, pose)){
     SBPL_WARN("Could not compute planning link FK for given goal configuration!");
-    return false; 
+    return false;
   }
   goals_6dof.push_back(pose);
   tolerances_6dof.push_back(std::vector<double>(6,0.05)); //made up goal tolerance (it should not be used in with 7dof goals anyways)
