@@ -32,15 +32,19 @@ class ActionSet
 
     ~ActionSet(){};
 
-    bool init(EnvironmentROBARM3D *env);
+    bool init(EnvironmentROBARM3D *env, bool use_multiple_ik_solutions = false);
 
     bool getActionSet(const RobotState &parent, std::vector<Action> &actions);
 
-    void print();
+    virtual void print();
 
-  private:
+    void addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim);
+
+  protected:
 
     bool use_multires_mprims_;
+
+    bool use_multiple_ik_solutions_;
 
     bool use_ik_;
 
@@ -56,13 +60,11 @@ class ActionSet
 
     std::vector<std::string> motion_primitive_type_names_;
 
-    bool getMotionPrimitivesFromFile(FILE* fCfg);
-
-    void addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim);
+    virtual bool getMotionPrimitivesFromFile(FILE* fCfg);
 
     bool applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action);
 
-    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, Action &action);
+    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, std::vector<Action> &actions);
 };
 
 }

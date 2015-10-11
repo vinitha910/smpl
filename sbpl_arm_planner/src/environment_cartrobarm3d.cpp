@@ -455,9 +455,9 @@ bool EnvironmentCARTROBARM3D::initEnvConfig()
   EnvROBARMCfg.coord_vals[5] = (2.0*M_PI) / prms_.rpy_resolution_ + 0.5;
   EnvROBARMCfg.coord_vals[6] = (2.0*M_PI) / prms_.fa_resolution_ + 0.5;
 
-  ROS_INFO("[env] Discretization of Cartesian Statespace:");
+  ROS_INFO_PRETTY("[env] Discretization of Cartesian Statespace:");
   for(int i = 0; i < ndof_; ++i)
-    ROS_INFO("[env] [%d] delta: %0.3f  vals: %d",i, EnvROBARMCfg.coord_delta[i],EnvROBARMCfg.coord_vals[i]);
+    ROS_INFO_PRETTY("[env] [%d] delta: %0.3f  vals: %d",i, EnvROBARMCfg.coord_delta[i],EnvROBARMCfg.coord_vals[i]);
 
   //initialize the map from Coord to StateID
   EnvROBARM.HashTableSize = 32*1024; //should be power of two
@@ -485,7 +485,7 @@ bool EnvironmentCARTROBARM3D::isGoalPosition(double *xyz, double *rpy, double fa
     {
       time_to_goal_region = (clock() - starttime) / (double)CLOCKS_PER_SEC;
       near_goal = true;
-      ROS_INFO("[env] Search is within %0.3f meters of the goal (%0.3f %0.3f %0.3f) after %.4f sec. (after %d expansions)", EnvROBARMCfg.goal.xyz_tolerance[0], EnvROBARMCfg.goal.xyz[0], EnvROBARMCfg.goal.xyz[1], EnvROBARMCfg.goal.xyz[2], time_to_goal_region, (int)expanded_states.size());
+      ROS_INFO_PRETTY("[env] Search is within %0.3f meters of the goal (%0.3f %0.3f %0.3f) after %.4f sec. (after %d expansions)", EnvROBARMCfg.goal.xyz_tolerance[0], EnvROBARMCfg.goal.xyz[0], EnvROBARMCfg.goal.xyz[1], EnvROBARMCfg.goal.xyz[2], time_to_goal_region, (int)expanded_states.size());
     }
     //check orientation
     if (fabs(angles::shortest_angular_distance(rpy[0], EnvROBARMCfg.goal.rpy[0])) <= EnvROBARMCfg.goal.rpy_tolerance[0] &&
@@ -493,7 +493,7 @@ bool EnvironmentCARTROBARM3D::isGoalPosition(double *xyz, double *rpy, double fa
         fabs(angles::shortest_angular_distance(rpy[2], EnvROBARMCfg.goal.rpy[2])) <= EnvROBARMCfg.goal.rpy_tolerance[2])
       return true;
 
-    ROS_INFO("[env] xyz goal is met. rpy isn't. rpy: %0.3f %0.3f %0.3f  diff: %1.3f %1.3f %1.3f  tolerance: %1.3f %1.3f %1.3f", rpy[0],rpy[1],rpy[2], fabs(angles::shortest_angular_distance(rpy[0], EnvROBARMCfg.goal.rpy[0])), fabs(angles::shortest_angular_distance(rpy[1], EnvROBARMCfg.goal.rpy[1])), fabs(angles::shortest_angular_distance(rpy[2], EnvROBARMCfg.goal.rpy[2])), EnvROBARMCfg.goal.rpy_tolerance[0], EnvROBARMCfg.goal.rpy_tolerance[1], EnvROBARMCfg.goal.rpy_tolerance[2]);
+    ROS_INFO_PRETTY("[env] xyz goal is met. rpy isn't. rpy: %0.3f %0.3f %0.3f  diff: %1.3f %1.3f %1.3f  tolerance: %1.3f %1.3f %1.3f", rpy[0],rpy[1],rpy[2], fabs(angles::shortest_angular_distance(rpy[0], EnvROBARMCfg.goal.rpy[0])), fabs(angles::shortest_angular_distance(rpy[1], EnvROBARMCfg.goal.rpy[1])), fabs(angles::shortest_angular_distance(rpy[2], EnvROBARMCfg.goal.rpy[2])), EnvROBARMCfg.goal.rpy_tolerance[0], EnvROBARMCfg.goal.rpy_tolerance[1], EnvROBARMCfg.goal.rpy_tolerance[2]);
   }
   return false;
 }
@@ -516,7 +516,7 @@ bool EnvironmentCARTROBARM3D::setStartConfiguration(std::vector<double> angles)
   if(!cc_->isStateValid(angles, true, false, dist))
     ROS_WARN("[env] Starting configuration is in collision. (dist: %d)", int(dist));
   else
-    ROS_INFO("[env] Starting configuration is valid. (dist: %d)", int(dist));
+    ROS_INFO_PRETTY("[env] Starting configuration is valid. (dist: %d)", int(dist));
 
   //set start position
   anglesToCoord(angles, EnvROBARM.startHashEntry->coord);
@@ -525,7 +525,7 @@ bool EnvironmentCARTROBARM3D::setStartConfiguration(std::vector<double> angles)
   EnvROBARM.startHashEntry->xyz[1] = EnvROBARM.startHashEntry->coord[1];
   EnvROBARM.startHashEntry->xyz[2] = EnvROBARM.startHashEntry->coord[2];
 
-  ROS_INFO("[env] [start_state] xyz: %d %d %d rpy: %d %d %d angle: %d",EnvROBARM.startHashEntry->coord[0],EnvROBARM.startHashEntry->coord[1],EnvROBARM.startHashEntry->coord[2],EnvROBARM.startHashEntry->coord[3],EnvROBARM.startHashEntry->coord[4],EnvROBARM.startHashEntry->coord[5],EnvROBARM.startHashEntry->coord[6]);
+  ROS_INFO_PRETTY("[env] [start_state] xyz: %d %d %d rpy: %d %d %d angle: %d",EnvROBARM.startHashEntry->coord[0],EnvROBARM.startHashEntry->coord[1],EnvROBARM.startHashEntry->coord[2],EnvROBARM.startHashEntry->coord[3],EnvROBARM.startHashEntry->coord[4],EnvROBARM.startHashEntry->coord[5],EnvROBARM.startHashEntry->coord[6]);
   return true;
 }
 
@@ -589,10 +589,10 @@ bool EnvironmentCARTROBARM3D::setGoalPosition(const std::vector<std::vector<doub
   if(!prms_.use_6d_pose_goal_)
     ROS_DEBUG("[setGoalPosition] Goal position constraint set. No goal orientation constraint requested.\n");
 
-  ROS_INFO("[goal]");
-  ROS_INFO(" xyz: %.2f %.2f %.2f (meters) (tol: %.3fm)", EnvROBARMCfg.goal.xyz[0],EnvROBARMCfg.goal.xyz[1],EnvROBARMCfg.goal.xyz[2],EnvROBARMCfg.goal.xyz_tolerance[0]);
-  ROS_INFO(" rpy: %1.2f %1.2f %1.2f (radians) (tol: %.3frad)", EnvROBARMCfg.goal.rpy[0],EnvROBARMCfg.goal.rpy[1],EnvROBARMCfg.goal.rpy[2],EnvROBARMCfg.goal.rpy_tolerance[0]);
-  ROS_INFO(" coord: %u %u %u (tol: %d)   %u %u %u (tol: %d)", EnvROBARM.goalHashEntry->coord[0], EnvROBARM.goalHashEntry->coord[1], EnvROBARM.goalHashEntry->coord[2], EnvROBARMCfg.goal.xyz_disc_tolerance, EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], EnvROBARMCfg.goal.rpy_disc_tolerance);
+  ROS_INFO_PRETTY("[goal]");
+  ROS_INFO_PRETTY(" xyz: %.2f %.2f %.2f (meters) (tol: %.3fm)", EnvROBARMCfg.goal.xyz[0],EnvROBARMCfg.goal.xyz[1],EnvROBARMCfg.goal.xyz[2],EnvROBARMCfg.goal.xyz_tolerance[0]);
+  ROS_INFO_PRETTY(" rpy: %1.2f %1.2f %1.2f (radians) (tol: %.3frad)", EnvROBARMCfg.goal.rpy[0],EnvROBARMCfg.goal.rpy[1],EnvROBARMCfg.goal.rpy[2],EnvROBARMCfg.goal.rpy_tolerance[0]);
+  ROS_INFO_PRETTY(" coord: %u %u %u (tol: %d)   %u %u %u (tol: %d)", EnvROBARM.goalHashEntry->coord[0], EnvROBARM.goalHashEntry->coord[1], EnvROBARM.goalHashEntry->coord[2], EnvROBARMCfg.goal.xyz_disc_tolerance, EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], EnvROBARMCfg.goal.rpy_disc_tolerance);
 
 
   // push obstacles into bfs grid
@@ -612,11 +612,11 @@ bool EnvironmentCARTROBARM3D::setGoalPosition(const std::vector<std::vector<doub
         }
 
   double set_walls_time = (ros::WallTime::now() - start).toSec();
-  ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))", set_walls_time, walls, double(walls)/double(dimX*dimY*dimZ));
+  ROS_INFO_PRETTY("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))", set_walls_time, walls, double(walls)/double(dimX*dimY*dimZ));
   start = ros::WallTime::now();
   bfs_->run(EnvROBARM.goalHashEntry->xyz[0], EnvROBARM.goalHashEntry->xyz[1], EnvROBARM.goalHashEntry->xyz[2]);
-  ROS_INFO("[env] COST TO GOAL OF START STATE: %d", getBFSCostToGoal(EnvROBARM.startHashEntry->xyz[0], EnvROBARM.startHashEntry->xyz[1], EnvROBARM.startHashEntry->xyz[2]));
-  ROS_INFO("[env] Time required to compute at least enough of the BFS to reach the start state: %0.4fsec", (ros::WallTime::now() - start).toSec());
+  ROS_INFO_PRETTY("[env] COST TO GOAL OF START STATE: %d", getBFSCostToGoal(EnvROBARM.startHashEntry->xyz[0], EnvROBARM.startHashEntry->xyz[1], EnvROBARM.startHashEntry->xyz[2]));
+  ROS_INFO_PRETTY("[env] Time required to compute at least enough of the BFS to reach the start state: %0.4fsec", (ros::WallTime::now() - start).toSec());
 
   stats_.resetSolverCounters();
   stats_.resetAllCheckCounters();
@@ -709,7 +709,7 @@ void EnvironmentCARTROBARM3D::computeCostPerCell()
   int cost_per_cell = prms_.cost_per_second_ * prms_.time_per_cell_;
   prms_.setCellCost(cost_per_cell);
   prms_.cost_per_meter_ = int(prms_.cost_per_cell_ / prms_.xyz_resolution_);
-  ROS_INFO("[env] cost per cell: %d, time per cell: %0.3fsec  (type: cartesian)", cost_per_cell, prms_.time_per_cell_);
+  ROS_INFO_PRETTY("[env] cost per cell: %d, time per cell: %0.3fsec  (type: cartesian)", cost_per_cell, prms_.time_per_cell_);
 }
 
 int EnvironmentCARTROBARM3D::computeMotionCost(const std::vector<double> &a, const std::vector<double> &b)
@@ -733,7 +733,7 @@ int EnvironmentCARTROBARM3D::computeMotionCost(const std::vector<double> &a, con
 
 bool EnvironmentCARTROBARM3D::convertCoordToAngles(const std::vector<int> *coord, std::vector<double> *angles)
 {
-  //ROS_INFO("[convertCoordToAngles] Converting:  xyz: %u %u %u  rpy: %u %u %u  a: %u",coord->at(0),coord->at(1),coord->at(2),coord->at(3),coord->at(4),coord->at(5),coord->at(6));
+  //ROS_INFO_PRETTY("[convertCoordToAngles] Converting:  xyz: %u %u %u  rpy: %u %u %u  a: %u",coord->at(0),coord->at(1),coord->at(2),coord->at(3),coord->at(4),coord->at(5),coord->at(6));
 
   double wxyz[3]={0}, wrpy[3]={0}, wfangle=0;
   std::vector<double> pose(6,0), seed(7,0);
@@ -890,7 +890,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToJointAnglesPath(const std::vec
   }
 
   for(size_t i = 0; i < mp_used.size(); ++i)
-    ROS_INFO("[%d] mp.type: %45s  mp.id: %d", int(i), prms_.motion_primitive_type_names_[prms_.mp_[mp_used[i]].type].c_str(), prms_.mp_[mp_used[i]].id);
+    ROS_INFO_PRETTY("[%d] mp.type: %45s  mp.id: %d", int(i), prms_.motion_primitive_type_names_[prms_.mp_[mp_used[i]].type].c_str(), prms_.mp_[mp_used[i]].id);
 }
 
 void EnvironmentCARTROBARM3D::printEnvironmentStats()
@@ -952,7 +952,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToShortenedJointAnglesPath(const
 
   //debugging
   for(size_t p = 0; p < idpath.size()-1; ++p)
-    ROS_INFO("[%d] original path: %d  mprim: %d  adjusted path %d", int(p), idpath[p], mp_path[p], idpath2[p]);
+    ROS_INFO_PRETTY("[%d] original path: %d  mprim: %d  adjusted path %d", int(p), idpath[p], mp_path[p], idpath2[p]);
 
   //get joint angles for shortened paths
   for(size_t p = 0; p < idpath2.size()-1; ++p)
@@ -983,7 +983,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToShortenedJointAnglesPath(const
       else
         ROS_ERROR("[env] Failed to convert coords to angles when attempting to construct the path.");
     }
-    ROS_INFO("[env] [%2d] stateid: %5d mp_index: %2d mp_type: %14s mp_group: %d num_waypoints: %d  heur: %d", int(p),  idpath[p], bestsucc, prms_.motion_primitive_type_names_[prms_.mp_[bestsucc].type].c_str(), prms_.mp_[bestsucc].group, int(interm_angles.size()), source_entry->heur); 
+    ROS_INFO_PRETTY("[env] [%2d] stateid: %5d mp_index: %2d mp_type: %14s mp_group: %d num_waypoints: %d  heur: %d", int(p),  idpath[p], bestsucc, prms_.motion_primitive_type_names_[prms_.mp_[bestsucc].type].c_str(), prms_.mp_[bestsucc].group, int(interm_angles.size()), source_entry->heur); 
   }
 }
 
@@ -1037,7 +1037,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToPoints(const std::vector<int> 
       path.push_back(interm_point);
     }
 
-    ROS_INFO("[%i] sourceid: %d targetid: %d mprim: %d xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f fa: %0.3f  (cell: %d %d %d)",int(p), sourceid, targetid, bestsucc,wcoord[0],wcoord[1],wcoord[2],wcoord[3],wcoord[4],wcoord[5],wcoord[6], int(EnvROBARM.StateID2CoordTable[targetid]->coord[0]),int(EnvROBARM.StateID2CoordTable[targetid]->coord[1]),int(EnvROBARM.StateID2CoordTable[targetid]->coord[2]));
+    ROS_INFO_PRETTY("[%i] sourceid: %d targetid: %d mprim: %d xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f fa: %0.3f  (cell: %d %d %d)",int(p), sourceid, targetid, bestsucc,wcoord[0],wcoord[1],wcoord[2],wcoord[3],wcoord[4],wcoord[5],wcoord[6], int(EnvROBARM.StateID2CoordTable[targetid]->coord[0]),int(EnvROBARM.StateID2CoordTable[targetid]->coord[1]),int(EnvROBARM.StateID2CoordTable[targetid]->coord[2]));
   }
 }
 
@@ -1061,7 +1061,7 @@ void EnvironmentCARTROBARM3D::convertShortStateIDPathToPoints(const std::vector<
 
     path.push_back(interm_point);
   }
-  ROS_INFO("NOTE: convertStateIDPathToPoints will only work with one waypoint motion primitives. It's temporary.");
+  ROS_INFO_PRETTY("NOTE: convertStateIDPathToPoints will only work with one waypoint motion primitives. It's temporary.");
 }
 
 void EnvironmentCARTROBARM3D::getContMotionPrims(char type, std::vector<std::vector<btVector3> > &mprims)
@@ -1509,7 +1509,7 @@ bool EnvironmentCARTROBARM3D::getMotionPrimitive(EnvROBARM3DHashEntry_t* parent,
 
   /*
   if(mp.type > ADAPTIVE)
-    ROS_INFO("   adaptive-mp: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f   rpy-coord: %d %d %d (dist: %d)",mp.m[0][0],mp.m[0][1],mp.m[0][2],mp.m[0][3],mp.m[0][4],mp.m[0][5],mp.m[0][6],  mp.coord[3], mp.coord[4], mp.coord[5], parent->heur);
+    ROS_INFO_PRETTY("   adaptive-mp: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f   rpy-coord: %d %d %d (dist: %d)",mp.m[0][0],mp.m[0][1],mp.m[0][2],mp.m[0][3],mp.m[0][4],mp.m[0][5],mp.m[0][6],  mp.coord[3], mp.coord[4], mp.coord[5], parent->heur);
   */
 
   return true;
@@ -1594,9 +1594,9 @@ bool EnvironmentCARTROBARM3D::getDistanceGradient(int &x, int &y, int &z)
   if(mp_gradient_[0] == 0 && mp_gradient_[1] == 0 && mp_gradient_[2] == 0)
     return false;
 
-  //ROS_INFO("[env] dist:  %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f  (%s)", mp_dist_[0], mp_dist_[1], mp_dist_[2], mp_dist_[3], mp_dist_[4], mp_dist_[5], cspace_->collision_name_.c_str());      
+  //ROS_INFO_PRETTY("[env] dist:  %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f  (%s)", mp_dist_[0], mp_dist_[1], mp_dist_[2], mp_dist_[3], mp_dist_[4], mp_dist_[5], cspace_->collision_name_.c_str());      
   double norm = sqrt(mp_gradient_[0]*mp_gradient_[0] + mp_gradient_[1]*mp_gradient_[1] + mp_gradient_[2]*mp_gradient_[2]);
-  ROS_INFO("[env] gradient_x: %2.2f   gradient_y: %2.2f   gradient_z: %2.2f  norm: %2.2f", mp_gradient_[0], mp_gradient_[1], mp_gradient_[2], norm);
+  ROS_INFO_PRETTY("[env] gradient_x: %2.2f   gradient_y: %2.2f   gradient_z: %2.2f  norm: %2.2f", mp_gradient_[0], mp_gradient_[1], mp_gradient_[2], norm);
   return true;
 }
 
@@ -1627,7 +1627,7 @@ void EnvironmentCARTROBARM3D::computeGradient(const MotionPrimitive &mp, unsigne
       aviz_->visualizeText(pose, cspace_->collision_name_, "mp_gradient_"+boost::lexical_cast<std::string>(mp.id), 3, color, 0.02);
       //aviz_->visualizeText(pose, cspace_->collision_name_, "collision_sphere", 3, color, 0.02);
     //}
-    //ROS_INFO("[env] %s %d", cspace_->collision_name_.c_str(), int(d)); 
+    //ROS_INFO_PRETTY("[env] %s %d", cspace_->collision_name_.c_str(), int(d)); 
     */
   }
 }

@@ -30,6 +30,7 @@
 
 #include <sbpl_arm_planner/planning_params.h>
 #include <leatherman/utils.h>
+#include <leatherman/print.h>
  
 namespace sbpl_arm_planner {
 
@@ -79,6 +80,7 @@ bool PlanningParams::init(std::string ns)
   nh.param ("planning/search_mode", search_mode_, false); //true: stop after first solution
   nh.param ("planning/shortcut_path", shortcut_path_, false);
   nh.param ("planning/interpolate_path", interpolate_path_, false);
+  nh.param ("planning/use_multiple_ik_solutions", use_multiple_ik_solutions_, false);
   nh.param ("planning/seconds_per_waypoint", waypoint_time_, 0.35);
   nh.param<std::string>("planning/planning_frame",planning_frame_,"");
   nh.param<std::string>("planning/group_name",group_name_,"");
@@ -139,25 +141,25 @@ bool PlanningParams::init(std::string ns)
 
 void PlanningParams::printParams(std::string stream)
 {
-  ROS_INFO_NAMED(stream," ");
-  ROS_INFO_NAMED(stream,"Manipulation Environment Parameters:");
-  ROS_INFO_NAMED(stream,"%40s: %.2f", "epsilon",epsilon_);
-  ROS_INFO_NAMED(stream,"%40s: %s", "use dijkstra heuristic", use_bfs_heuristic_ ? "yes" : "no");
-  ROS_INFO_NAMED(stream,"%40s: %s", "sbpl search mode", search_mode_ ? "stop_after_first_sol" : "run_until_timeout");
-  ROS_INFO_NAMED(stream,"%40s: %s", "postprocessing: shortcut", shortcut_path_ ? "yes" : "no");
-  ROS_INFO_NAMED(stream,"%40s: %s", "postprocessing: interpolate", interpolate_path_ ? "yes" : "no");
-  ROS_INFO_NAMED(stream,"%40s: %0.3fsec", "time_per_waypoint", waypoint_time_);
+  ROS_INFO_PRETTY_NAMED(stream," ");
+  ROS_INFO_PRETTY_NAMED(stream,"Manipulation Environment Parameters:");
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %.2f", "epsilon",epsilon_);
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %s", "use dijkstra heuristic", use_bfs_heuristic_ ? "yes" : "no");
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %s", "sbpl search mode", search_mode_ ? "stop_after_first_sol" : "run_until_timeout");
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %s", "postprocessing: shortcut", shortcut_path_ ? "yes" : "no");
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %s", "postprocessing: interpolate", interpolate_path_ ? "yes" : "no");
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %0.3fsec", "time_per_waypoint", waypoint_time_);
   
-  ROS_INFO_NAMED(stream,"%40s: %d", "cost per cell", cost_per_cell_);
-  ROS_INFO_NAMED(stream,"%40s: %s", "reference frame", planning_frame_.c_str());
-  ROS_INFO_NAMED(stream,"%40s: %s", "group name", group_name_.c_str());
-  ROS_INFO_NAMED(stream,"planning joints: ");
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %d", "cost per cell", cost_per_cell_);
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %s", "reference frame", planning_frame_.c_str());
+  ROS_INFO_PRETTY_NAMED(stream,"%40s: %s", "group name", group_name_.c_str());
+  ROS_INFO_PRETTY_NAMED(stream,"planning joints: ");
   for(size_t i = 0; i < planning_joints_.size(); ++i)
-    ROS_INFO_NAMED(stream,"   [%d] %30s", int(i), planning_joints_[i].c_str());
-  ROS_INFO_NAMED(stream,"discretization: ");
+    ROS_INFO_PRETTY_NAMED(stream,"   [%d] %30s", int(i), planning_joints_[i].c_str());
+  ROS_INFO_PRETTY_NAMED(stream,"discretization: ");
   for(size_t i = 0; i < coord_vals_.size(); ++i)
-    ROS_INFO_NAMED(stream,"   [%d] val: %d  delta: %0.3f", int(i), coord_vals_[i], coord_delta_[i]);
-  ROS_INFO_NAMED(stream," ");
+    ROS_INFO_PRETTY_NAMED(stream,"   [%d] val: %d  delta: %0.3f", int(i), coord_vals_[i], coord_delta_[i]);
+  ROS_INFO_PRETTY_NAMED(stream," ");
 }
 
 }

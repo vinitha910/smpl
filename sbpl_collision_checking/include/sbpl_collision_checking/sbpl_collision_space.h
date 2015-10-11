@@ -31,9 +31,9 @@
 #ifndef _SBPL_COLLISION_SPACE_
 #define _SBPL_COLLISION_SPACE_
 
-#include <ros/ros.h>
+#include <cmath>
 #include <vector>
-#include <math.h>
+#include <ros/ros.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/collision_checker.h>
 #include <sbpl_collision_checking/sbpl_collision_model.h>
@@ -44,78 +44,97 @@
 #include <leatherman/utils.h>
 #include <tf_conversions/tf_kdl.h>
 #include <angles/angles.h>
-#include <arm_navigation_msgs/CollisionObject.h>
+#include <moveit_msgs/CollisionObject.h>
+#include <moveit_msgs/PlanningScene.h>
+#include <moveit_msgs/RobotState.h>
 #include <geometry_msgs/Point.h>
-
-using namespace std;
 
 namespace sbpl_arm_planner
 {
 
 class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 {
-  public:
+public:
 
     SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid);
 
-    ~SBPLCollisionSpace(){};
+    ~SBPLCollisionSpace();
 
-    bool init(std::string group_name, std::string ns="");
+    bool init(const std::string& urdf_string, const std::string &group_name);
 
     void setPadding(double padding);
-   
-    bool setPlanningScene(const arm_navigation_msgs::PlanningScene &scene);
 
-    void setRobotState(const arm_navigation_msgs::RobotState &state);
+    bool setPlanningScene(const moveit_msgs::PlanningScene &scene);
 
     /** --------------- Collision Checking ----------- */
-    bool checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
-    bool checkPathForCollision(const std::vector<double> &start, const std::vector<double> &end, bool verbose, int &path_length, int &num_checks, double &dist);
-    inline bool isValidCell(const int x, const int y, const int z, const int radius);
-    double isValidLineSegment(const std::vector<int> a, const std::vector<int> b, const int radius);
-    bool getClearance(const std::vector<double> &angles, int num_spheres, double &avg_dist, double &min_dist);
+    /// @{ sbpl_arm_planner::CollisionChecker API
     bool isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
-    bool isStateToStateValid(const std::vector<double> &angles0, const std::vector<double> &angles1, int path_length, int num_checks, double &dist);
+    bool isStateToStateValid(
+            const std::vector<double> &angles0,
+            const std::vector<double> &angles1,
+            int &path_length,
+            int &num_checks,
+            double &dist);
+    /// @}
 
     /** ---------------- Utils ---------------- */
-    bool interpolatePath(const std::vector<double>& start, const std::vector<double>& end, std::vector<std::vector<double> >& path);
-    bool interpolatePath(const std::vector<double>& start, const std::vector<double>& end, const std::vector<double>& inc, std::vector<std::vector<double> >& path);
+    bool interpolatePath(
+            const std::vector<double>& start,
+            const std::vector<double>& end,
+            const std::vector<double>& inc,
+            std::vector<std::vector<double>>& path);
 
     /** ------------ Kinematics ----------------- */
-    std::string getGroupName() { return group_name_; };
+    const std::string& getGroupName() { return group_name_; }
     std::string getReferenceFrame() { return model_.getReferenceFrame(group_name_); };
     void setJointPosition(std::string name, double position);
     bool setPlanningJoints(const std::vector<std::string> &joint_names);
     bool getCollisionSpheres(const std::vector<double> &angles, std::vector<std::vector<double> > &spheres);
 
     /* ------------- Collision Objects -------------- */
-    void addCollisionObject(const arm_navigation_msgs::CollisionObject &object);
-    void removeCollisionObject(const arm_navigation_msgs::CollisionObject &object);
-    void processCollisionObjectMsg(const arm_navigation_msgs::CollisionObject &object);
+    void addCollisionObject(const moveit_msgs::CollisionObject &object);
+    void removeCollisionObject(const moveit_msgs::CollisionObject &object);
+    void processCollisionObjectMsg(const moveit_msgs::CollisionObject &object);
     void removeAllCollisionObjects();
     void putCollisionObjectsInGrid();
     void getCollisionObjectVoxelPoses(std::vector<geometry_msgs::Pose> &points);
-    
+
     /** --------------- Attached Objects -------------- */
-    void attachObject(const arm_navigation_msgs::AttachedCollisionObject &obj);
+    void attachObject(const moveit_msgs::AttachedCollisionObject &obj);
+
     void attachSphere(std::string name, std::string link, geometry_msgs::Pose pose, double radius);
+
     void attachCylinder(std::string link, geometry_msgs::Pose pose, double radius, double length);
-    void attachCube(std::string name, std::string link, geometry_msgs::Pose pose, double x_dim, double y_dim, double z_dim);
-    void attachMesh(std::string name, std::string link, geometry_msgs::Pose pose, const std::vector<geometry_msgs::Point> &vertices, const std::vector<int> &triangles);
+
+    void attachCube(
+            const std::string& name,
+            const std::string& link,
+            const geometry_msgs::Pose& pose,
+            double x_dim,
+            double y_dim,
+            double z_dim);
+
+    void attachMesh(
+            const std::string& name,
+            const std::string& link,
+            const geometry_msgs::Pose& pose,
+            const std::vector<geometry_msgs::Point> &vertices,
+            const std::vector<int> &triangles);
+
     void removeAttachedObject();
-    bool getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double> > &xyz);
-   
+    bool getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double>> &xyz);
+
     /** --------------- Debugging ---------------- */
     visualization_msgs::MarkerArray getVisualization(std::string type);
     visualization_msgs::MarkerArray getCollisionModelVisualization(const std::vector<double> &angles);
-    visualization_msgs::MarkerArray getMeshModelVisualization(const std::string group_name, const std::vector<double> &angles);
+    visualization_msgs::MarkerArray getMeshModelVisualization(const std::string& group_name, const std::vector<double> &angles);
 
     /** ------------- Self Collision ----------- */
     bool updateVoxelGroups();
     bool updateVoxelGroup(Group *g);
     bool updateVoxelGroup(std::string name);
 
-  private:
+private:
 
     sbpl_arm_planner::SBPLCollisionModel model_;
     sbpl_arm_planner::OccupancyGrid* grid_;
@@ -131,22 +150,36 @@ class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
     std::vector<double> max_limits_;
     std::vector<bool> continuous_;
     std::vector<Sphere*> spheres_; // temp
-    std::vector<std::vector<KDL::Frame> > frames_; // temp
+    std::vector<std::vector<KDL::Frame>> frames_; // temp
 
     /* ------------- Collision Objects -------------- */
     std::vector<std::string> known_objects_;
-    std::map<std::string, arm_navigation_msgs::CollisionObject> object_map_;
+    std::map<std::string, moveit_msgs::CollisionObject> object_map_;
     std::map<std::string, std::vector<Eigen::Vector3d> > object_voxel_map_;
 
     /** --------------- Attached Objects --------------*/
     bool object_attached_;
     int attached_object_frame_num_;
-    int attached_object_segment_num_;    
+    int attached_object_segment_num_;
     int attached_object_chain_num_;
     std::string attached_object_frame_;
     std::vector<Sphere> object_spheres_;
-    
+
     std::vector<sbpl_arm_planner::Sphere> collision_spheres_;
+
+    std::vector<int> convertToVertexIndices(const std::vector<shape_msgs::MeshTriangle>& triangles) const;
+
+    bool checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist);
+    bool checkPathForCollision(
+            const std::vector<double> &start,
+            const std::vector<double> &end,
+            bool verbose,
+            int &path_length,
+            int &num_checks,
+            double &dist);
+    inline bool isValidCell(const int x, const int y, const int z, const int radius);
+    double isValidLineSegment(const std::vector<int> a, const std::vector<int> b, const int radius);
+    bool getClearance(const std::vector<double> &angles, int num_spheres, double &avg_dist, double &min_dist);
 };
 
 inline bool SBPLCollisionSpace::isValidCell(const int x, const int y, const int z, const int radius)
@@ -156,6 +189,7 @@ inline bool SBPLCollisionSpace::isValidCell(const int x, const int y, const int 
   return true;
 }
 
-} 
+} // namespace sbpl_arm_planner
+
 #endif
 

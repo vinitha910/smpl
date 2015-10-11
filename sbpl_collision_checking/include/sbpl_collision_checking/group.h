@@ -61,7 +61,7 @@ class Group
 
     std::string getName();
 
-    std::string getReferenceFrame();
+    const std::string& getReferenceFrame() const { return root_name_; }
 
     void getSpheres(std::vector<Sphere*> &spheres);
     
@@ -73,7 +73,7 @@ class Group
 
     void setJointPosition(const std::string &name, double position);
 
-    bool getFrameInfo(std::string &name, int &chain, int &segment);
+    bool getFrameInfo(const std::string &name, int &chain, int &segment);
 
     void printSpheres();
 

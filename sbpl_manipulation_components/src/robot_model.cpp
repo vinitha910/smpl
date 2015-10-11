@@ -106,6 +106,12 @@ bool RobotModel::computeIK(const std::vector<double> &pose, const std::vector<do
   return false;
 }
 
+bool RobotModel::computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector< std::vector<double> > &solutions, int option)
+{
+  ROS_ERROR("Function not filled in."); 
+  return false;
+}
+
 bool RobotModel::computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution)
 {
   ROS_ERROR("Function not filled in.");  

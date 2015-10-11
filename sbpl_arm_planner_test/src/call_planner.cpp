@@ -1,13 +1,13 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
- * 
+ *
  *  Copyright (c) 2012, Willow Garage, Inc.
  *  All rights reserved.
- * 
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- * 
+ *
  *   * Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  *   * Neither the name of Willow Garage, Inc. nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
- * 
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -39,17 +39,17 @@
 #include <stdlib.h>
 #include <leatherman/utils.h>
 #include <leatherman/print.h>
-#include <arm_navigation_msgs/PlanningScene.h>
-#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <moveit_msgs/PlanningScene.h>
+#include <moveit_msgs/GetMotionPlan.h>
 #include <sbpl_arm_planner/sbpl_arm_planner_interface.h>
 #include <sbpl_manipulation_components/kdl_robot_model.h>
-#include <sbpl_manipulation_components_pr2/pr2_kdl_robot_model.h>
-#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
+//#include <sbpl_manipulation_components_pr2/pr2_kdl_robot_model.h>
+//#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
 using namespace sbpl_arm_planner;
 
-void fillConstraint(const std::vector<double> &pose, std::string frame_id, arm_navigation_msgs::Constraints &goals)
+void fillConstraint(const std::vector<double> &pose, std::string frame_id, moveit_msgs::Constraints &goals)
 {
 
   if(pose.size() < 6)
@@ -58,46 +58,57 @@ void fillConstraint(const std::vector<double> &pose, std::string frame_id, arm_n
   goals.position_constraints.resize(1);
   goals.orientation_constraints.resize(1);
   goals.position_constraints[0].header.frame_id = frame_id;
-  goals.position_constraints[0].position.x = pose[0];
-  goals.position_constraints[0].position.y = pose[1];
-  goals.position_constraints[0].position.z = pose[2];
+
+  goals.position_constraints[0].constraint_region.primitives.resize(1);
+  goals.position_constraints[0].constraint_region.primitive_poses.resize(1);
+  goals.position_constraints[0].constraint_region.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+  goals.position_constraints[0].constraint_region.primitive_poses[0].position.x = pose[0];
+  goals.position_constraints[0].constraint_region.primitive_poses[0].position.y = pose[1];
+  goals.position_constraints[0].constraint_region.primitive_poses[0].position.z = pose[2];
+
+//  goals.position_constraints[0].position.x = pose[0];
+//  goals.position_constraints[0].position.y = pose[1];
+//  goals.position_constraints[0].position.z = pose[2];
+
   leatherman::rpyToQuatMsg(pose[3], pose[4], pose[5], goals.orientation_constraints[0].orientation);
 
   geometry_msgs::Pose p;
-  p.position = goals.position_constraints[0].position;
+  p.position = goals.position_constraints[0].constraint_region.primitive_poses[0].position;
   p.orientation = goals.orientation_constraints[0].orientation;
   leatherman::printPoseMsg(p, "Goal");
 
-  goals.position_constraints[0].constraint_region_shape.dimensions.resize(3, 0.015);
-  goals.orientation_constraints[0].absolute_roll_tolerance = 0.05;
-  goals.orientation_constraints[0].absolute_pitch_tolerance = 0.05;
-  goals.orientation_constraints[0].absolute_yaw_tolerance = 0.05;
-  ROS_INFO("Done packing the goal constraints message.");
+  /// set tolerances
+  goals.position_constraints[0].constraint_region.primitives[0].dimensions.resize(3, 0.015);
+  goals.orientation_constraints[0].absolute_x_axis_tolerance = 0.05;
+  goals.orientation_constraints[0].absolute_y_axis_tolerance = 0.05;
+  goals.orientation_constraints[0].absolute_z_axis_tolerance = 0.05;
+
+  ROS_INFO_PRETTY("Done packing the goal constraints message.");
 }
 
-arm_navigation_msgs::CollisionObject getCollisionCube(geometry_msgs::Pose pose, std::vector<double> &dims, std::string frame_id, std::string id)
+moveit_msgs::CollisionObject getCollisionCube(geometry_msgs::Pose pose, std::vector<double> &dims, std::string frame_id, std::string id)
 {
-  arm_navigation_msgs::CollisionObject object;
+  moveit_msgs::CollisionObject object;
   object.id = id;
-  object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+  object.operation = moveit_msgs::CollisionObject::ADD;
   object.header.frame_id = frame_id;
   object.header.stamp = ros::Time::now();
 
-  arm_navigation_msgs::Shape box_object;
-  box_object.type = arm_navigation_msgs::Shape::BOX;
+  shape_msgs::SolidPrimitive box_object;
+  box_object.type = shape_msgs::SolidPrimitive::BOX;
   box_object.dimensions.resize(3);
   box_object.dimensions[0] = dims[0];
   box_object.dimensions[1] = dims[1];
   box_object.dimensions[2] = dims[2];
 
-  object.shapes.push_back(box_object);
-  object.poses.push_back(pose);
+  object.primitives.push_back(box_object);
+  object.primitive_poses.push_back(pose);
   return object;
 }
 
-std::vector<arm_navigation_msgs::CollisionObject> getCollisionCubes(std::vector<std::vector<double> > &objects, std::vector<std::string> &object_ids, std::string frame_id)
+std::vector<moveit_msgs::CollisionObject> getCollisionCubes(std::vector<std::vector<double> > &objects, std::vector<std::string> &object_ids, std::string frame_id)
 {
-  std::vector<arm_navigation_msgs::CollisionObject> objs;
+  std::vector<moveit_msgs::CollisionObject> objs;
   std::vector<double> dims(3,0);
   geometry_msgs::Pose pose;
   pose.orientation.x = 0;
@@ -107,7 +118,7 @@ std::vector<arm_navigation_msgs::CollisionObject> getCollisionCubes(std::vector<
 
   if(object_ids.size() != objects.size())
   {
-    ROS_INFO("object id list is not same length as object list. exiting.");
+    ROS_INFO_PRETTY("object id list is not same length as object list. exiting.");
     return objs;
   }
 
@@ -125,13 +136,13 @@ std::vector<arm_navigation_msgs::CollisionObject> getCollisionCubes(std::vector<
   return objs;
 }
 
-std::vector<arm_navigation_msgs::CollisionObject> getCollisionObjects(std::string filename, std::string frame_id)
+std::vector<moveit_msgs::CollisionObject> getCollisionObjects(std::string filename, std::string frame_id)
 {
   char sTemp[1024];
   int num_obs = 0;
   std::vector<std::string> object_ids;
   std::vector<std::vector<double> > objects;
-  std::vector<arm_navigation_msgs::CollisionObject> objs;
+  std::vector<moveit_msgs::CollisionObject> objs;
 
   char* file = new char[filename.length()+1];
   filename.copy(file, filename.length(),0);
@@ -140,7 +151,7 @@ std::vector<arm_navigation_msgs::CollisionObject> getCollisionObjects(std::strin
 
   if(fCfg == NULL)
   {
-    ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
+    ROS_INFO_PRETTY("ERROR: unable to open objects file. Exiting.\n");
     return objs;
   }
 
@@ -150,7 +161,7 @@ std::vector<arm_navigation_msgs::CollisionObject> getCollisionObjects(std::strin
 
   num_obs = atoi(sTemp);
 
-  ROS_INFO("%i objects in file",num_obs);
+  ROS_INFO_PRETTY("%i objects in file",num_obs);
 
   //get {x y z dimx dimy dimz} for each object
   objects.resize(num_obs);
@@ -174,7 +185,7 @@ std::vector<arm_navigation_msgs::CollisionObject> getCollisionObjects(std::strin
   return getCollisionCubes(objects, object_ids, frame_id);
 }
 
-bool getInitialConfiguration(ros::NodeHandle &nh, arm_navigation_msgs::RobotState &state)
+bool getInitialConfiguration(ros::NodeHandle &nh, moveit_msgs::RobotState &state)
 {
   XmlRpc::XmlRpcValue xlist;
 
@@ -211,7 +222,7 @@ bool getInitialConfiguration(ros::NodeHandle &nh, arm_navigation_msgs::RobotStat
     ROS_ERROR("initial_configuration/joint_state is not on the param server.");
     return false;
   }
-  
+
   //multi_dof_joint_state
   if(nh.hasParam("initial_configuration/multi_dof_joint_state"))
   {
@@ -223,15 +234,23 @@ bool getInitialConfiguration(ros::NodeHandle &nh, arm_navigation_msgs::RobotStat
     if(xlist.size() != 0)
     {
       geometry_msgs::Pose pose;
+      state.multi_dof_joint_state.header.frame_id = std::string(xlist[0]["frame_id"]);
+      state.multi_dof_joint_state.joint_names.resize(xlist.size());
+      state.multi_dof_joint_state.joint_transforms.resize(xlist.size());
       for(int i = 0; i < xlist.size(); ++i)
       {
-        state.multi_dof_joint_state.frame_ids.push_back(xlist[i]["frame_id"]);
-        state.multi_dof_joint_state.child_frame_ids.push_back(xlist[i]["child_frame_id"]);
+        state.multi_dof_joint_state.joint_names[i] = "world_pose";
         pose.position.x = xlist[i]["x"];
         pose.position.y = xlist[i]["y"];
         pose.position.z = xlist[i]["z"];
         leatherman::rpyToQuatMsg(xlist[i]["roll"], xlist[i]["pitch"], xlist[i]["yaw"], pose.orientation);
-        state.multi_dof_joint_state.poses.push_back(pose);
+        state.multi_dof_joint_state.joint_transforms[i].translation.x = pose.position.x;
+        state.multi_dof_joint_state.joint_transforms[i].translation.y = pose.position.y;
+        state.multi_dof_joint_state.joint_transforms[i].translation.z = pose.position.z;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.w = pose.orientation.w;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.x = pose.orientation.x;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.y = pose.orientation.y;
+        state.multi_dof_joint_state.joint_transforms[i].rotation.z = pose.orientation.z;
       }
     }
   }
@@ -290,11 +309,11 @@ int main(int argc, char **argv)
 
   // robot model
   RobotModel *rm;
-  if(group_name.compare("right_arm") == 0)
-    rm = new sbpl_arm_planner::PR2KDLRobotModel();
-  else if(group_name.compare("arm") == 0)
-    rm = new sbpl_arm_planner::UBR1KDLRobotModel();
-  else
+//  if(group_name.compare("right_arm") == 0)
+//    rm = new sbpl_arm_planner::PR2KDLRobotModel(); // should take in "pr2"
+//  else if(group_name.compare("arm") == 0)
+//    rm = new sbpl_arm_planner::UBR1KDLRobotModel();
+//  else
     rm  = new sbpl_arm_planner::KDLRobotModel(kinematics_frame, chain_tip_link);
   if(!rm->init(urdf, planning_joints))
   {
@@ -324,8 +343,7 @@ int main(int argc, char **argv)
   // collision checker
   sbpl_arm_planner::OccupancyGrid *grid = new sbpl_arm_planner::OccupancyGrid(df);
   grid->setReferenceFrame(planning_frame);
-  sbpl_arm_planner::CollisionChecker *cc;
-  cc = new sbpl_arm_planner::SBPLCollisionSpace(grid);
+  sbpl_arm_planner::SBPLCollisionSpace *cc = new sbpl_arm_planner::SBPLCollisionSpace(grid);
 
   if(!cc->init(group_name))
     return false;
@@ -340,41 +358,65 @@ int main(int argc, char **argv)
 
   if(!planner->init())
     return false;
-  
+
   // collision objects
-  arm_navigation_msgs::PlanningScenePtr scene(new arm_navigation_msgs::PlanningScene);
+  moveit_msgs::PlanningScenePtr scene(new moveit_msgs::PlanningScene);
   if(!object_filename.empty())
-    scene->collision_objects = getCollisionObjects(object_filename, planning_frame);
+    scene->world.collision_objects = getCollisionObjects(object_filename, planning_frame);
 
   // create goal
-  arm_navigation_msgs::GetMotionPlan::Request req;
-  arm_navigation_msgs::GetMotionPlan::Response res;
-  scene->collision_map.header.frame_id = planning_frame;
+  moveit_msgs::GetMotionPlan::Request req;
+  moveit_msgs::GetMotionPlan::Response res;
+  scene->world.collision_map.header.frame_id = planning_frame;
 
   // fill goal state
-  fillConstraint(goal, planning_frame, req.motion_plan_request.goal_constraints);
-  req.motion_plan_request.allowed_planning_time.fromSec(5.0);
+  req.motion_plan_request.goal_constraints.resize(1);
+  fillConstraint(goal, planning_frame, req.motion_plan_request.goal_constraints[0]);
+  req.motion_plan_request.allowed_planning_time = 60.0;
 
-  // fill start state 
+  // fill start state
   if(!getInitialConfiguration(ph, scene->robot_state))
   {
     ROS_ERROR("Failed to get initial configuration.");
     return 0;
   }
-  scene->robot_state.joint_state.header.frame_id = planning_frame;  
+  scene->robot_state.joint_state.header.frame_id = planning_frame;
   req.motion_plan_request.start_state = scene->robot_state;
 
   // set planning scene
   //cc->setPlanningScene(*scene);
- 
+
   // plan
-  ROS_INFO("Calling solve...");
+  ROS_INFO_PRETTY("Calling solve...");
   if(!planner->solve(scene, req, res))
   {
     ROS_ERROR("Failed to plan.");
   }
   else
+  {
     ma_pub.publish(planner->getCollisionModelTrajectoryMarker());
+  }
+
+  std::vector<std::string> statistic_names = { "initial solution planning time",
+                                               "initial epsilon",
+                                               "initial solution expansions",
+                                               "final epsilon planning time",
+                                               "final epsilon",
+                                               "solution epsilon",
+                                               "expansions",
+                                               "solution cost" };
+  std::map<std::string, double> planning_stats = planner->getPlannerStats();
+
+  ROS_INFO_PRETTY("Planning statistics");
+  for (const auto& statistic : statistic_names) {
+      auto it = planning_stats.find(statistic);
+      if (it != planning_stats.end()) {
+          ROS_INFO_PRETTY("    %s: %0.3f", statistic.c_str(), it->second);
+      }
+      else {
+          ROS_WARN("Did not find planning statistic \"%s\"", statistic.c_str());
+      }
+  }
 
   // visualizations
   ros::spinOnce();
@@ -389,7 +431,7 @@ int main(int argc, char **argv)
   ros::spinOnce();
 
   sleep(1);
-  ROS_INFO("Done");
+  ROS_INFO_PRETTY("Done");
   return 0;
 }
 

@@ -30,11 +30,10 @@
 #ifndef _KDL_ROBOT_MODEL_
 #define _KDL_ROBOT_MODEL_
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <ros/console.h>
 #include <angles/angles.h>
-#include <urdf/model.h>
 #include <kdl/frames.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/jntarray.hpp>
@@ -42,43 +41,70 @@
 #include <kdl/chain.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>
+#include <ros/console.h>
 #include <sbpl_geometry_utils/interpolation.h>
+#include <urdf/model.h>
 #include <sbpl_manipulation_components/robot_model.h>
 
+namespace sbpl_arm_planner
+{
 
-using namespace std;
+class KDLRobotModel : public RobotModel
+{
+public:
 
-namespace sbpl_arm_planner {
+    static const int DEFAULT_FREE_ANGLE_INDEX = 2;
 
-class KDLRobotModel : public RobotModel {
-
-  public:
-
+    /// @brief Construct a KDL Robot Model with values from the ROS param server.
+    ///
+    /// Expects ROS Parameters:
+    ///     robot_model/chain_root_link : string
+    ///     robot_model/chain_tip_link : string
+    ///     robot_model/free_angle : int (defualt: 2)
     KDLRobotModel();
-    KDLRobotModel(std::string chain_root_link, std::string chain_tip_link);
-    ~KDLRobotModel();
-   
-    /* Initialization */
-    virtual bool init(std::string robot_description, std::vector<std::string> &planning_joints);
 
-    //bool getJointLimits();
+    /// @brief Construct a KDL Robot Model.
+    KDLRobotModel(
+            const std::string &chain_root_link,
+            const std::string &chain_tip_link,
+            int free_angle = DEFAULT_FREE_ANGLE_INDEX);
+
+    virtual ~KDLRobotModel();
+
+    /* Initialization */
+    virtual bool init(const std::string &robot_description, const std::vector<std::string> &planning_joints);
 
     /* Joint Limits */
     virtual bool checkJointLimits(const std::vector<double> &angles);
-   
+
     /* Forward Kinematics */
     virtual bool computeFK(const std::vector<double> &angles, std::string name, KDL::Frame &f);
-
     virtual bool computeFK(const std::vector<double> &angles, std::string name, std::vector<double> &pose);
-
     virtual bool computePlanningLinkFK(const std::vector<double> &angles, std::vector<double> &pose);
 
     /* Inverse Kinematics */
-    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
+    virtual bool computeIK(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector<double> &solution,
+            int option = 0);
 
-    virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
+    virtual bool computeIK(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector< std::vector<double> > &solutions,
+            int option = 0);
 
-    bool computeIKSearch(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, double timeout);
+    virtual bool computeFastIK(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector<double> &solution);
+
+    bool computeIKSearch(
+            const std::vector<double> &pose,
+            const std::vector<double> &start,
+            std::vector<double> &solution,
+            double timeout);
 
     /* Debug Output */
     virtual void printRobotModelInformation();
@@ -95,9 +121,10 @@ class KDLRobotModel : public RobotModel {
     KDL::JntArray jnt_pos_in_;
     KDL::JntArray jnt_pos_out_;
     KDL::Frame p_out_;
-    KDL::ChainIkSolverPos_NR_JL *ik_solver_;
-    KDL::ChainIkSolverVel_pinv *ik_vel_solver_;
-    KDL::ChainFkSolverPos_recursive *fk_solver_;
+
+    std::unique_ptr<KDL::ChainIkSolverPos_NR_JL>        ik_solver_;
+    std::unique_ptr<KDL::ChainIkSolverVel_pinv>         ik_vel_solver_;
+    std::unique_ptr<KDL::ChainFkSolverPos_recursive>    fk_solver_;
 
     std::vector<bool> continuous_;
     std::vector<double> min_limits_;
@@ -106,11 +133,10 @@ class KDLRobotModel : public RobotModel {
     std::map<std::string, int> link_map_;
 
     bool getJointLimits(std::vector<std::string> &joint_names, std::vector<double> &min_limits, std::vector<double> &max_limits, std::vector<bool> &continuous);
-    
     bool getJointLimits(std::string joint_name, double &min_limit, double &max_limit, bool &continuous);
-
     bool getCount(int &count, const int &max_count, const int &min_count);
 };
 
-}
+} // namespace sbpl_arm_planner
+
 #endif

@@ -34,76 +34,81 @@
 #include <ros/ros.h>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <urdf/model.h>
 #include <sbpl_collision_checking/group.h>
-#include <arm_navigation_msgs/MultiDOFJointState.h>
+#include <moveit_msgs/MultiDOFJointState.h>
+#include <moveit_msgs/RobotState.h>
+
+namespace sbpl
+{
+namespace manipulation
+{
+
+class CollisionModelImpl;
+
+} // namespace manipulation
+} // namespace sbpl
 
 namespace sbpl_arm_planner
 {
 
+/// @brief Represents the collision model of the robot used for planning.
 class SBPLCollisionModel
 {
-  public:
-    
-    SBPLCollisionModel();
+public:
 
+    SBPLCollisionModel();
     ~SBPLCollisionModel();
 
-    bool init(std::string ns="");
+    bool init(const std::string& urdf_string);
 
     bool initAllGroups();
 
     void getGroupNames(std::vector<std::string> &names);
 
-    bool getJointLimits(std::string group_name, std::string joint_name, double &min_limit, double &max_limit, bool &continuous);
+    bool getJointLimits(
+        const std::string &group_name,
+        const std::string &joint_name,
+        double &min_limit,
+        double &max_limit,
+        bool &continuous);
 
-    bool setDefaultGroup(std::string group_name);
+    bool setDefaultGroup(const std::string &group_name);
 
     void getDefaultGroupSpheres(std::vector<Sphere*> &spheres);
 
     void getVoxelGroups(std::vector<Group*> &vg);
 
-    bool computeDefaultGroupFK(const std::vector<double> &angles, std::vector<std::vector<KDL::Frame> > &frames);
+    bool computeDefaultGroupFK(const std::vector<double> &angles, std::vector<std::vector<KDL::Frame>> &frames);
 
-    bool computeGroupFK(const std::vector<double> &angles, Group* group, std::vector<std::vector<KDL::Frame> > &frames);
+    bool computeGroupFK(const std::vector<double> &angles, Group *group, std::vector<std::vector<KDL::Frame>> &frames);
 
-    void setOrderOfJointPositions(const std::vector<std::string> &joint_names, std::string group_name);
+    void setOrderOfJointPositions(const std::vector<std::string> &joint_names, const std::string &group_name);
 
     void setJointPosition(const std::string &name, double position);
 
-    bool getFrameInfo(std::string &name, std::string group_name, int &chain, int &segment);
+    bool getFrameInfo(const std::string &name, const std::string &group_name, int &chain, int &segment);
 
-    bool doesLinkExist(std::string name, std::string group_name);
+    bool doesLinkExist(const std::string &name, const std::string &group_name);
 
-    std::string getReferenceFrame(std::string group_name);
+    std::string getReferenceFrame(const std::string &group_name);
 
-    Group* getGroup(std::string name);
+    Group* getGroup(const std::string &name);
 
     void printGroups();
-    
-    void printDebugInfo(std::string group_name);
 
-    bool setModelToWorldTransform(const arm_navigation_msgs::MultiDOFJointState &state, std::string world_frame);
+    void printDebugInfo(const std::string &group_name);
 
-  private:
+    bool setModelToWorldTransform(const moveit_msgs::RobotState &state, const std::string &world_frame);
 
-    ros::NodeHandle nh_, ph_;
+private:
 
-    std::map<std::string, Group*> group_config_map_;
-    
-    boost::shared_ptr<urdf::Model> urdf_;
-    
-    Group* dgroup_;
-
-    bool getRobotModel();
-
-    bool readGroups(std::string ns="");
-   
-    bool computeFK(const std::vector<double> &angles, Group* group, int chain, int segment, KDL::Frame &frame);
+    std::unique_ptr<sbpl::manipulation::CollisionModelImpl> impl_;
 };
 
-}
-#endif
+} // namespace sbpl_arm_planner
 
+#endif

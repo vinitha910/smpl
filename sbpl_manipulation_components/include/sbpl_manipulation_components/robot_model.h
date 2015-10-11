@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -53,9 +53,9 @@ class RobotModel {
   public:
 
     RobotModel();
-    
+
     ~RobotModel(){};
-   
+
     /* Initialization */
     virtual bool init(std::string robot_description, std::vector<std::string> &planning_joints);
 
@@ -73,10 +73,6 @@ class RobotModel {
 
     /* Joint Limits */
     virtual bool checkJointLimits(const std::vector<double> &angles);
-   
-    double getMaxJointLimit(std::string name);
-
-    double getMinJointLimit(std::string name);
 
     /* Forward Kinematics */
     virtual bool computeFK(const std::vector<double> &angles, std::string name, KDL::Frame &f);
@@ -88,11 +84,13 @@ class RobotModel {
     /* Inverse Kinematics */
     virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
 
+    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector< std::vector<double> > &solutions, int option=0);
+
     virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
 
     /* Debug Output */
     virtual void printRobotModelInformation();
-    
+
     void setLoggerName(std::string name);
 
     /* Transform between Kinematics frame <-> Planning frame */
@@ -118,10 +116,10 @@ class RobotModel {
     std::vector<std::string> planning_joints_;
 
     KDL::Frame T_kinematics_to_planning_;
-    
+
     KDL::Frame T_planning_to_kinematics_;
-   
-    /** \brief ROS logger stream name */ 
+
+    /** \brief ROS logger stream name */
     std::string logger_;
 };
 
