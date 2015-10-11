@@ -8,7 +8,7 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
-#include <moveit_msgs/MultiDOFJointState.h>
+#include <sensor_msgs/MultiDOFJointState.h>
 #include <moveit_msgs/RobotState.h>
 #include <ros/ros.h>
 #include <sbpl_collision_checking/group.h>

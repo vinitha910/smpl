@@ -39,7 +39,7 @@
 #include <boost/shared_ptr.hpp>
 #include <urdf/model.h>
 #include <sbpl_collision_checking/group.h>
-#include <moveit_msgs/MultiDOFJointState.h>
+#include <sensor_msgs/MultiDOFJointState.h>
 #include <moveit_msgs/RobotState.h>
 
 namespace sbpl

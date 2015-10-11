@@ -86,9 +86,10 @@ void OccupancyGrid::getOrigin(double &wx, double &wy, double &wz) const
     grid_->gridToWorld(0, 0, 0, wx, wy, wz);
 }
 
-void OccupancyGrid::updateFromCollisionMap(const moveit_msgs::CollisionMap &collision_map)
+void OccupancyGrid::updateFromCollisionMap(
+    const moveit_msgs::CollisionObject &collision_map)
 {
-    if (collision_map.boxes.empty()) {
+    if (collision_map.primitives.empty()) {
         ROS_DEBUG("[grid] collision map received is empty.");
         return;
     }

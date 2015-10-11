@@ -38,7 +38,7 @@
 #include <Eigen/Geometry>
 #include <moveit/distance_field/voxel_grid.h>
 #include <moveit/distance_field/propagation_distance_field.h>
-#include <moveit_msgs/CollisionMap.h>
+#include <moveit_msgs/CollisionObject.h>
 #include <ros/console.h>
 #include <sys/stat.h>
 #include <tf/LinearMath/Vector3.h>
@@ -175,7 +175,7 @@ public:
     /**@{*/
 
     /** @brief Update the distance field from a CollisionMap. */
-    void updateFromCollisionMap(const moveit_msgs::CollisionMap &collision_map);
+    void updateFromCollisionMap(const moveit_msgs::CollisionObject &collision_map);
 
     /**
      * @brief Manually add a cuboid to the collision map.

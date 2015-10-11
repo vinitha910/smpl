@@ -259,7 +259,7 @@ bool CollisionModelImpl::setWorldToModelTransform(
     std::map<std::string, double> joint_value_map;
     for (size_t i = 0; i < state.joint_state.name.size(); ++i)
         joint_value_map[state.joint_state.name[i]] = state.joint_state.position[i];
-    robot_state_->setStateValues(joint_value_map);
+    robot_state_->setVariablePositions(joint_value_map);
     robot_state_->updateLinkTransforms();
 
     // check for robot_pose joint variables
@@ -269,7 +269,7 @@ bool CollisionModelImpl::setWorldToModelTransform(
         for (size_t i = 0; i < state.multi_dof_joint_state.joint_names.size(); ++i) {
             if (state.multi_dof_joint_state.joint_names[i] == robot_pose_joint_name) {
                 found_world_pose = true;
-                tf::transformMsgToEigen(state.multi_dof_joint_state.joint_transforms[i], T_world_robot);
+                tf::transformMsgToEigen(state.multi_dof_joint_state.transforms[i], T_world_robot);
             }
         }
     

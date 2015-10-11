@@ -812,7 +812,7 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
         model_.setJointPosition(scene.robot_state.joint_state.name[i], scene.robot_state.joint_state.position[i]);
     }
 
-    const std::string& world_frame = scene.world.collision_map.header.frame_id;
+    const std::string& world_frame = scene.world.octomap.header.frame_id;
 
     if (!model_.setModelToWorldTransform(scene.robot_state, world_frame)) {
         ROS_ERROR_PRETTY("Failed to set the model-to-world transform. The collision model's frame is different from the collision map's frame.");
@@ -865,13 +865,13 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
     // collision map
     ////////////////////////////////////////////////////////////////////////////////
 
-    if (scene.world.collision_map.header.frame_id != grid_->getReferenceFrame()) {
-        ROS_WARN_ONCE("collision_map_occ is in %s not in %s", scene.world.collision_map.header.frame_id.c_str(), grid_->getReferenceFrame().c_str());
-    }
-
-    if (!scene.world.collision_map.boxes.empty()) {
-        grid_->updateFromCollisionMap(scene.world.collision_map);
-    }
+//    if (scene.world.collision_map.header.frame_id != grid_->getReferenceFrame()) {
+//        ROS_WARN_ONCE("collision_map_occ is in %s not in %s", scene.world.collision_map.header.frame_id.c_str(), grid_->getReferenceFrame().c_str());
+//    }
+//
+//    if (!scene.world.collision_map.boxes.empty()) {
+//        grid_->updateFromCollisionMap(scene.world.collision_map);
+//    }
 
     // self collision
     // todo: move this up if possible
