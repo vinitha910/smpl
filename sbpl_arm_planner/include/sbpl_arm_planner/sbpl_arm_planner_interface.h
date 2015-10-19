@@ -56,7 +56,11 @@ class SBPLArmPlannerInterface
 {
   public:
 
-    SBPLArmPlannerInterface(RobotModel *rmodel, CollisionChecker *cc, ActionSet* as, distance_field::PropagationDistanceField* df);
+    SBPLArmPlannerInterface(
+        RobotModel *rmodel,
+        CollisionChecker *cc,
+        ActionSet* as,
+        distance_field::PropagationDistanceField* df);
 
     ~SBPLArmPlannerInterface();
 

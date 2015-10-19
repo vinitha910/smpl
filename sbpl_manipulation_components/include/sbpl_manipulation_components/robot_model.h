@@ -36,68 +36,104 @@
 #include <angles/angles.h>
 #include <kdl/frames.hpp>
 
-using namespace std;
-
 namespace sbpl_arm_planner {
 
 namespace ik_option {
-  enum
-  {
+
+enum
+{
     UNRESTRICTED,
     RESTRICT_XYZ_JOINTS
-  };
-}
+};
 
-class RobotModel {
+} // namespace ik_option
 
-  public:
+class RobotModel
+{
+public:
 
     RobotModel();
 
-    ~RobotModel(){};
+    virtual ~RobotModel() { };
 
-    /* Initialization */
-    virtual bool init(std::string robot_description, std::vector<std::string> &planning_joints);
+    /// \brief Initialize the Robot Model
 
-    void setPlanningJoints(const std::vector<std::string> &joints);
+    virtual bool init(
+        std::string robot_description,
+        std::vector<std::string>& planning_joints);
 
+    void setPlanningJoints(const std::vector<std::string>& joints);
     void setPlanningLink(std::string name);
-
-    std::string getPlanningLink();
-
     void setPlanningFrame(std::string name);
+
+    /// \name Configuration
+    /// @{
+    std::string getPlanningLink();
 
     std::string getPlanningFrame();
 
-    void getKinematicsFrame(std::string &name);
+    void getKinematicsFrame(std::string& name);
 
-    /* Joint Limits */
-    virtual bool checkJointLimits(const std::vector<double> &angles);
+    ///@}
 
-    /* Forward Kinematics */
-    virtual bool computeFK(const std::vector<double> &angles, std::string name, KDL::Frame &f);
+    /// \brief Joint Limits
+    virtual bool checkJointLimits(const std::vector<double>& angles);
 
-    virtual bool computeFK(const std::vector<double> &angles, std::string name, std::vector<double> &pose);
+    /// \name Forward Kinematics
+    ///@{
 
-    virtual bool computePlanningLinkFK(const std::vector<double> &angles, std::vector<double> &pose);
+    virtual bool computeFK(
+        const std::vector<double>& angles,
+        std::string name,
+        KDL::Frame& f);
 
-    /* Inverse Kinematics */
-    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
+    virtual bool computeFK(
+        const std::vector<double>& angles,
+        std::string name,
+        std::vector<double>& pose);
 
-    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector< std::vector<double> > &solutions, int option=0);
+    virtual bool computePlanningLinkFK(
+        const std::vector<double>& angles,
+        std::vector<double>& pose);
 
-    virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
+    ///@}
 
-    /* Debug Output */
+    /// \name Inverse Kinematics
+    ///@{
+
+    virtual bool computeIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution,
+        int option = 0);
+
+    virtual bool computeIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<std::vector<double> >& solutions,
+        int option = 0);
+
+    virtual bool computeFastIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution);
+
+    /// @}
+
+    /// \name Debug Output
+    /// @{
+
     virtual void printRobotModelInformation();
 
     void setLoggerName(std::string name);
 
-    /* Transform between Kinematics frame <-> Planning frame */
-    void setKinematicsToPlanningTransform(const KDL::Frame &f, std::string name);
+    ///@}
 
+    /// \brief Transform between Kinematics frame <-> Planning frame
+    void setKinematicsToPlanningTransform(
+        const KDL::Frame& f, std::string name);
 
-  protected:
+protected:
 
     bool initialized_;
 
@@ -123,5 +159,6 @@ class RobotModel {
     std::string logger_;
 };
 
-}
+} // namespace sbpl_arm_planner
+
 #endif
