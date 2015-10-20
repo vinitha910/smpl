@@ -927,7 +927,8 @@ void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject
     ROS_WARN("Attached object has %zd spheres!", object_spheres_.size());
 }
 
-visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(std::string type)
+visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(
+    const std::string& type)
 {
     visualization_msgs::MarkerArray ma;
 

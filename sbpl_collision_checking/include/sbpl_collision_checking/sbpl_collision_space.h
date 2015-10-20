@@ -125,7 +125,7 @@ public:
     bool getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double>> &xyz);
 
     /** --------------- Debugging ---------------- */
-    visualization_msgs::MarkerArray getVisualization(std::string type);
+    visualization_msgs::MarkerArray getVisualization(const std::string& type);
     visualization_msgs::MarkerArray getCollisionModelVisualization(const std::vector<double> &angles);
     visualization_msgs::MarkerArray getMeshModelVisualization(const std::string& group_name, const std::vector<double> &angles);
 

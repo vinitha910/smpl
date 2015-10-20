@@ -34,6 +34,7 @@
 
 #include <iostream>
 #include <map>
+#include <time.h>
 #include <ros/ros.h>
 #include <tf/transform_datatypes.h>
 #include <kdl/frames.hpp>
@@ -50,15 +51,15 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
-namespace sbpl_arm_planner{
+namespace sbpl_arm_planner {
 
 class SBPLArmPlannerInterface
 {
-  public:
+public:
 
     SBPLArmPlannerInterface(
-        RobotModel *rmodel,
-        CollisionChecker *cc,
+        RobotModel* rmodel,
+        CollisionChecker* cc,
         ActionSet* as,
         distance_field::PropagationDistanceField* df);
 
@@ -66,13 +67,16 @@ class SBPLArmPlannerInterface
 
     bool init();
 
-    bool getParams();
+    virtual bool planKinematicPath(
+        const moveit_msgs::GetMotionPlan::Request& req,
+        moveit_msgs::GetMotionPlan::Response& res);
 
-    virtual bool planKinematicPath(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
+    virtual bool solve(
+        const moveit_msgs::PlanningSceneConstPtr& planning_scene,
+        const moveit_msgs::GetMotionPlan::Request& req,
+        moveit_msgs::GetMotionPlan::Response& res);
 
-    virtual bool solve(const moveit_msgs::PlanningSceneConstPtr& planning_scene, const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
-
-    bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request &req);
+    bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request& req);
 
     /// @brief Return planning statistics from the last call to solve.
     ///
@@ -87,22 +91,22 @@ class SBPLArmPlannerInterface
     ///     "solution cost"
     ///
     /// @return The statistics
-    virtual std::map<std::string, double>  getPlannerStats();
+    virtual std::map<std::string, double> getPlannerStats();
 
-    visualization_msgs::MarkerArray getVisualization(std::string type);
+    visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
     visualization_msgs::MarkerArray getCollisionModelTrajectoryMarker();
 
-  protected:
+protected:
 
     ros::NodeHandle nh_;
 
-    /* params */
+    // params
     bool planner_initialized_;
     int num_joints_;
     int solution_cost_;
 
-    /* planner & environment */
+    // planner & environment
     MDPConfig mdp_cfg_;
     SBPLPlanner *planner_;
     sbpl_arm_planner::EnvironmentROBARM3D *sbpl_arm_env_;
@@ -117,31 +121,42 @@ class SBPLArmPlannerInterface
     moveit_msgs::GetMotionPlan::Response res_;
     moveit_msgs::PlanningScene pscene_;
 
-    /** \brief Initialize the SBPL planner and the sbpl_arm_planner environment */
+    clock_t m_starttime;
+
+    // Initialize the SBPL planner and the sbpl_arm_planner environment
     virtual bool initializePlannerAndEnvironment();
 
-    /** \brief Set start configuration */
+    // Set start configuration
     virtual bool setStart(const sensor_msgs::JointState &state);
 
-    /** \brief Set goal(s) */
+    // Set goal(s)
     virtual bool setGoalPosition(const moveit_msgs::Constraints &goals);
 
-    virtual bool setGoalConfiguration(const moveit_msgs::Constraints& goal_constraints); //use this to set a 7dof goal!
+    // use this to set a 7dof goal!
+    virtual bool setGoalConfiguration(
+        const moveit_msgs::Constraints& goal_constraints);
 
-    /** \brief Plan a path to a cartesian goal(s) */
-    virtual bool planToPosition(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
-    virtual bool planToConfiguration(const moveit_msgs::GetMotionPlan::Request &req, moveit_msgs::GetMotionPlan::Response &res);
+    // Plan a path to a cartesian goal(s)
+    virtual bool planToPosition(
+        const moveit_msgs::GetMotionPlan::Request &req,
+        moveit_msgs::GetMotionPlan::Response &res);
+    virtual bool planToConfiguration(
+        const moveit_msgs::GetMotionPlan::Request &req,
+        moveit_msgs::GetMotionPlan::Response &res);
 
-    /** \brief Retrieve plan from sbpl */
+    // Retrieve plan from sbpl
     virtual bool plan(trajectory_msgs::JointTrajectory &traj);
 
-    void extractGoalPoseFromGoalConstraints(const moveit_msgs::Constraints& goal_constraints,
-                                            geometry_msgs::Pose& goal_pose_out) const;
+    void extractGoalPoseFromGoalConstraints(
+        const moveit_msgs::Constraints& goal_constraints,
+        geometry_msgs::Pose& goal_pose_out) const;
 
     // extract tolerance as an array of 6 doubles: x, y, z, roll, pitch, yaw
-    void extractGoalToleranceFromGoalConstraints(const moveit_msgs::Constraints& goal_constraints, double* tolerance_out);
+    void extractGoalToleranceFromGoalConstraints(
+        const moveit_msgs::Constraints& goal_constraints,
+        double* tolerance_out);
 };
 
-}
+} // namespace sbpl_arm_planner
 
 #endif
