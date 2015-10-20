@@ -56,23 +56,25 @@ public:
 
     virtual ~RobotModel() { };
 
-    /// \brief Initialize the Robot Model
-
+    /// \brief Initialize the Robot Model from a URDF string
+    /// \param robot_description The URDF string representing the robot
+    /// \param planning_joints The joints to be planned for
     virtual bool init(
-        std::string robot_description,
-        std::vector<std::string>& planning_joints);
-
-    void setPlanningJoints(const std::vector<std::string>& joints);
-    void setPlanningLink(std::string name);
-    void setPlanningFrame(std::string name);
+        const std::string& robot_description,
+        const std::vector<std::string>& planning_joints);
 
     /// \name Configuration
     /// @{
-    std::string getPlanningLink();
 
-    std::string getPlanningFrame();
+    void setPlanningJoints(const std::vector<std::string>& joints);
 
-    void getKinematicsFrame(std::string& name);
+    void setPlanningLink(const std::string& name);
+    const std::string& getPlanningLink() const;
+
+    void setPlanningFrame(const std::string& name);
+    const std::string& getPlanningFrame() const;
+
+    const std::string& getKinematicsFrame() const;
 
     ///@}
 
@@ -84,12 +86,12 @@ public:
 
     virtual bool computeFK(
         const std::vector<double>& angles,
-        std::string name,
+        const std::string& name,
         KDL::Frame& f);
 
     virtual bool computeFK(
         const std::vector<double>& angles,
-        std::string name,
+        const std::string& name,
         std::vector<double>& pose);
 
     virtual bool computePlanningLinkFK(

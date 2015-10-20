@@ -72,15 +72,27 @@ public:
     virtual ~KDLRobotModel();
 
     /* Initialization */
-    virtual bool init(const std::string &robot_description, const std::vector<std::string> &planning_joints);
+    virtual bool init(
+        const std::string& robot_description,
+        const std::vector<std::string>& planning_joints);
 
     /* Joint Limits */
     virtual bool checkJointLimits(const std::vector<double> &angles);
 
     /* Forward Kinematics */
-    virtual bool computeFK(const std::vector<double> &angles, std::string name, KDL::Frame &f);
-    virtual bool computeFK(const std::vector<double> &angles, std::string name, std::vector<double> &pose);
-    virtual bool computePlanningLinkFK(const std::vector<double> &angles, std::vector<double> &pose);
+    virtual bool computeFK(
+        const std::vector<double>& angles,
+        const std::string& name,
+        KDL::Frame& f);
+
+    virtual bool computeFK(
+        const std::vector<double>& angles,
+        const std::string& name,
+        std::vector<double>& pose);
+
+    virtual bool computePlanningLinkFK(
+        const std::vector<double>& angles,
+        std::vector<double>& pose);
 
     /* Inverse Kinematics */
     virtual bool computeIK(

@@ -36,68 +36,73 @@ namespace sbpl_arm_planner {
 
 RobotModel::RobotModel()
 {
-  logger_ = "kinematic_model";
-  initialized_ = false;
+    logger_ = "kinematic_model";
+    initialized_ = false;
 }
 
-bool RobotModel::init(std::string robot_description, std::vector<std::string> &planning_joints)
+bool RobotModel::init(
+    const std::string& robot_description,
+    const std::vector<std::string>& planning_joints)
 {
-  planning_joints_ = planning_joints;
-  initialized_ = true;
-  return true;
+    planning_joints_ = planning_joints;
+    initialized_ = true;
+    return true;
 }
 
-void RobotModel::setLoggerName(std::string name)
+void RobotModel::setPlanningJoints(const std::vector<std::string>& joints)
 {
-  logger_ = name;
+    planning_joints_ = joints;
 }
 
-void RobotModel::setPlanningJoints(const std::vector<std::string> &joints)
+void RobotModel::setPlanningLink(const std::string& name)
 {
-  planning_joints_ = joints;
+    planning_link_ = name;
 }
 
-void RobotModel::setPlanningLink(std::string name)
+const std::string& RobotModel::getPlanningLink() const
 {
-  planning_link_ = name;
+    return planning_link_;
 }
 
-std::string RobotModel::getPlanningLink()
+void RobotModel::setPlanningFrame(const std::string& name)
 {
-  return planning_link_;
+    planning_frame_ = name;
 }
 
-void RobotModel::setPlanningFrame(std::string name)
+const std::string& RobotModel::getPlanningFrame() const
 {
-  planning_frame_ = name;
+    return planning_frame_;
 }
 
-std::string RobotModel::getPlanningFrame()
+const std::string& RobotModel::getKinematicsFrame() const
 {
-  return planning_frame_;
+    return kinematics_frame_;
 }
 
-void RobotModel::getKinematicsFrame(std::string &name)
+bool RobotModel::computeFK(
+    const std::vector<double> &angles,
+    const std::string& name,
+    KDL::Frame& f)
 {
-  name = kinematics_frame_;
+    ROS_ERROR("Function not filled in.");  
+    return false;
 }
 
-bool RobotModel::computeFK(const std::vector<double> &angles, std::string name, KDL::Frame &f)
+bool RobotModel::computeFK(
+    const std::vector<double> &angles,
+    const std::string& name,
+    std::vector<double>& pose)
 {
-  ROS_ERROR("Function not filled in.");  
-  return false;
+    ROS_ERROR("Function not filled in.");  
+    return false;
 }
 
-bool RobotModel::computeFK(const std::vector<double> &angles, std::string name, std::vector<double> &pose)
+bool RobotModel::computePlanningLinkFK(
+    const std::vector<double>& angles,
+    std::vector<double>& pose)
 {
-  ROS_ERROR("Function not filled in.");  
-  return false;
-}
-
-bool RobotModel::computePlanningLinkFK(const std::vector<double> &angles, std::vector<double> &pose)
-{
-  ROS_ERROR("Function not filled in.");  
-  return false;
+    ROS_ERROR("Function not filled in.");  
+    return false;
 }
 
 bool RobotModel::computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option)
@@ -121,6 +126,11 @@ bool RobotModel::computeFastIK(const std::vector<double> &pose, const std::vecto
 void RobotModel::printRobotModelInformation()
 {
   ROS_ERROR("Function not filled in.");  
+}
+
+void RobotModel::setLoggerName(std::string name)
+{
+    logger_ = name;
 }
 
 bool RobotModel::checkJointLimits(const std::vector<double> &angles)

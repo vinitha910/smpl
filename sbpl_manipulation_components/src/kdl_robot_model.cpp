@@ -68,7 +68,9 @@ KDLRobotModel::~KDLRobotModel()
 {
 }
 
-bool KDLRobotModel::init(const std::string &robot_description, const std::vector<std::string> &planning_joints)
+bool KDLRobotModel::init(
+    const std::string& robot_description,
+    const std::vector<std::string>& planning_joints)
 {
     urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
     if (!urdf_->initString(robot_description)) {
@@ -224,7 +226,10 @@ bool KDLRobotModel::checkJointLimits(const std::vector<double> &angles)
   return true;
 }
 
-bool KDLRobotModel::computeFK(const std::vector<double> &angles, std::string name, KDL::Frame &f)
+bool KDLRobotModel::computeFK(
+    const std::vector<double>& angles,
+    const std::string& name,
+    KDL::Frame& f)
 {
   for(size_t i = 0; i < angles.size(); ++i)
     jnt_pos_in_(i) = angles::normalize_angle(angles[i]);
@@ -255,7 +260,10 @@ bool KDLRobotModel::computeFK(const std::vector<double> &angles, std::string nam
   return true;
 }
 
-bool KDLRobotModel::computeFK(const std::vector<double> &angles, std::string name, std::vector<double> &pose)
+bool KDLRobotModel::computeFK(
+    const std::vector<double>& angles,
+    const std::string& name,
+    std::vector<double>& pose)
 {
   KDL::Frame f;
   pose.resize(6,0);
@@ -270,7 +278,9 @@ bool KDLRobotModel::computeFK(const std::vector<double> &angles, std::string nam
   return false;
 }
 
-bool KDLRobotModel::computePlanningLinkFK(const std::vector<double> &angles, std::vector<double> &pose)
+bool KDLRobotModel::computePlanningLinkFK(
+    const std::vector<double>& angles,
+    std::vector<double>& pose)
 {
   KDL::Frame f, f1;
   pose.resize(6,0);
