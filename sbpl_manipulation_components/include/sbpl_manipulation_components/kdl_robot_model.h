@@ -123,6 +123,8 @@ public:
 
   protected:
 
+    bool initialized_;
+
     boost::shared_ptr<urdf::Model> urdf_;
     int free_angle_;
     std::string chain_root_name_;

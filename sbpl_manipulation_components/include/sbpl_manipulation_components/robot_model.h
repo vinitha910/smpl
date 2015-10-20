@@ -1,38 +1,40 @@
-/*
- * Copyright (c) 2010, Maxim Likhachev
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the University of Pennsylvania nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010, Maxim Likhachev
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the University of Pennsylvania nor the names of its
+//       contributors may be used to endorse or promote products derived from
+//       this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Benjamin Cohen
 
 #ifndef _ROBOT_MODEL_
 #define _ROBOT_MODEL_
 
 #include <string>
 #include <vector>
-#include <ros/console.h>
+
 #include <angles/angles.h>
 #include <kdl/frames.hpp>
 
@@ -42,8 +44,8 @@ namespace ik_option {
 
 enum
 {
-    UNRESTRICTED,
-    RESTRICT_XYZ_JOINTS
+    UNRESTRICTED = 0,
+    RESTRICT_XYZ_JOINTS = 1
 };
 
 } // namespace ik_option
@@ -56,17 +58,11 @@ public:
 
     virtual ~RobotModel() { };
 
-    /// \brief Initialize the Robot Model from a URDF string
-    /// \param robot_description The URDF string representing the robot
-    /// \param planning_joints The joints to be planned for
-    virtual bool init(
-        const std::string& robot_description,
-        const std::vector<std::string>& planning_joints);
-
     /// \name Configuration
     /// @{
 
     void setPlanningJoints(const std::vector<std::string>& joints);
+    const std::vector<std::string>& getPlanningJoints() const;
 
     void setPlanningLink(const std::string& name);
     const std::string& getPlanningLink() const;
@@ -107,13 +103,13 @@ public:
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<double>& solution,
-        int option = 0);
+        int option = ik_option::UNRESTRICTED);
 
     virtual bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<std::vector<double> >& solutions,
-        int option = 0);
+        int option = ik_option::UNRESTRICTED);
 
     virtual bool computeFastIK(
         const std::vector<double>& pose,
@@ -127,20 +123,16 @@ public:
 
     virtual void printRobotModelInformation();
 
-    void setLoggerName(std::string name);
+    void setLoggerName(const std::string& name);
 
     ///@}
 
     /// \brief Transform between Kinematics frame <-> Planning frame
     void setKinematicsToPlanningTransform(
-        const KDL::Frame& f, std::string name);
+        const KDL::Frame& f,
+        const std::string& name);
 
 protected:
-
-    bool initialized_;
-
-    /** \brief a string containing the URDF that describes the robot arm */
-    std::string robot_description_;
 
     /** \brief frame that the planning is done in (i.e. map) */
     std::string planning_frame_;

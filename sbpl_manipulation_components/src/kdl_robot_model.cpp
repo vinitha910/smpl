@@ -40,6 +40,7 @@ using namespace std;
 namespace sbpl_arm_planner {
 
 KDLRobotModel::KDLRobotModel() :
+    initialized_(false),
     ik_solver_(),
     ik_vel_solver_(),
     fk_solver_()
@@ -55,6 +56,7 @@ KDLRobotModel::KDLRobotModel(
     const std::string &chain_tip_link,
     int free_angle)
 :
+    initialized_(false),
     ik_solver_(),
     ik_vel_solver_(),
     fk_solver_(),
