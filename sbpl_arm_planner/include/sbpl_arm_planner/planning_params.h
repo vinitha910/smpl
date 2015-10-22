@@ -42,17 +42,41 @@ namespace sbpl_arm_planner {
 
 class PlanningParams
 {
-  public:
+public:
+
+    static const bool DefaultSearchMode;
+    static const bool DefaultShortcutPath;
+    static const bool DefaultInterpolatePath;
+    static const bool DefaultUseMultipleIkSolutions;
+    static const double DefaultAllowedTime;
+    static const double DefaultWaypointTime;
+
+    static const bool DefaultUseBfsHeuristic;
+    static const double DefaultEpsilon;
+    static const double DefaultPlanningLinkSphereRadius;
+
+    static const int DefaultCostMultiplier;
+    static const int DefaultCostPerCell;
+    static const int DefaultCostPerMeter;
+    static const int DefaultCostPerSecond;
+    static const double DefaultTimePerCell;
+    static const double DefaultMaxMprimOffset;
+
+    static const std::string DefaultExpandsLog;
+    static const std::string DefaultExpands2Log;
+    static const std::string DefaultIkLog;
+    static const std::string DefaultRobotModelLog;
+    static const std::string DefaultCspaceLog;
+    static const std::string DefaultSolutionLog;
 
     PlanningParams();
-    ~PlanningParams(){};
 
-    bool init(std::string ns="~");
+    bool init(const std::string& ns = "~");
 
-    void printParams(std::string stream);
+    void printParams(const std::string& stream) const;
 
     /* Search */
-    bool search_mode_;
+    bool search_mode_; // true => stop after first solution
     bool shortcut_path_;
     bool interpolate_path_;
     bool use_multiple_ik_solutions_;
@@ -90,12 +114,14 @@ class PlanningParams
     bool verbose_;
     bool verbose_heuristics_;
     bool verbose_collisions_;
+
     std::string expands_log_;
     std::string expands2_log_;
     std::string ik_log_;
     std::string rmodel_log_;
     std::string cspace_log_;
     std::string solution_log_;
+
     std::string expands_log_level_;
     std::string expands2_log_level_;
     std::string ik_log_level_;
@@ -104,6 +130,7 @@ class PlanningParams
     std::string solution_log_level_;
 };
 
-}
+} // namespace sbpl_arm_planner
+
 #endif
 

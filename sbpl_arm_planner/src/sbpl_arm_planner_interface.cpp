@@ -45,7 +45,6 @@
 #include <trajectory_msgs/JointTrajectory.h>
 
 #include <sbpl_arm_planner/environment_robarm3d.h>
-#include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/post_processing.h>
 
@@ -58,17 +57,23 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     distance_field::PropagationDistanceField* df)
 :
     nh_("~"),
+    planner_initialized_(false),
+    num_joints_(0),
+    solution_cost_(INFINITECOST),
+    prm_(),
+    mdp_cfg_(),
     planner_(NULL),
     sbpl_arm_env_(NULL),
-    cc_(NULL),
+    cc_(cc),
     grid_(NULL),
-    prm_(NULL)
+    rm_(rm),
+    as_(as),
+    df_(df),
+    req_(),
+    res_(),
+    pscene_(),
+    m_starttime()
 {
-    rm_ = rm;
-    cc_ = cc;
-    as_ = as;
-    df_ = df;
-    planner_initialized_ = false;
 }
 
 SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
@@ -78,9 +83,6 @@ SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
     }
     if (sbpl_arm_env_ != NULL) {
         delete sbpl_arm_env_;
-    }
-    if (prm_ != NULL) {
-        delete prm_;
     }
 }
 
@@ -95,21 +97,25 @@ bool SBPLArmPlannerInterface::init()
     return true;
 }
 
+bool SBPLArmPlannerInterface::init(const PlanningParams& params)
+{
+    prm_ = params;
+}
+
 bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 {
-    prm_ = new sbpl_arm_planner::PlanningParams();
-    if (!prm_->init()) {
+    if (!prm_.init()) {
         return false;
     }
     
     grid_ = new sbpl_arm_planner::OccupancyGrid(df_);
-    sbpl_arm_env_ = new sbpl_arm_planner::EnvironmentROBARM3D(grid_, rm_, cc_, as_, prm_);
+    sbpl_arm_env_ = new sbpl_arm_planner::EnvironmentROBARM3D(grid_, rm_, cc_, as_, &prm_);
     
     if (!sbpl_arm_env_) {
         return false;
     }
     
-    if (!as_->init(sbpl_arm_env_, prm_->use_multiple_ik_solutions_)) {
+    if (!as_->init(sbpl_arm_env_, prm_.use_multiple_ik_solutions_)) {
         ROS_ERROR_PRETTY("Failed to initialize the action set.");
         return false;
     }
@@ -134,7 +140,7 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
     planner_->set_initialsolution_eps(100.0);
     
     //set search mode (true - settle with first solution)
-    planner_->set_search_mode(prm_->search_mode_);
+    planner_->set_search_mode(prm_.search_mode_);
     ROS_INFO_PRETTY("Initialized sbpl arm planning environment.");
     return true;
 }
@@ -149,11 +155,11 @@ bool SBPLArmPlannerInterface::solve(
     }
     
     ROS_INFO("Got octomap in %s frame", planning_scene->world.octomap.header.frame_id.c_str());
-    ROS_INFO("Current prm_->planning_frame_ is %s", prm_->planning_frame_.c_str());
+    ROS_INFO("Current prm_.planning_frame_ is %s", prm_.planning_frame_.c_str());
     // preprocess
     clock_t t_preprocess = clock();
-    //prm_->planning_frame_ = planning_scene->world.octomap.header.frame_id;
-    grid_->setReferenceFrame(prm_->planning_frame_);
+    //prm_.planning_frame_ = planning_scene->world.octomap.header.frame_id;
+    grid_->setReferenceFrame(prm_.planning_frame_);
     // TODO: set kinematics to planning frame
     double preprocess_time = (clock() - t_preprocess) / (double)CLOCKS_PER_SEC;
     
@@ -191,7 +197,7 @@ bool SBPLArmPlannerInterface::solve(
 bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
 {
     std::vector<double> initial_positions;
-    if (!leatherman::getJointPositions(state, prm_->planning_joints_, initial_positions)) {
+    if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions)) {
         ROS_ERROR_PRETTY("Start state does not contain the positions of the planning joints.");
         return false;
     }
@@ -295,7 +301,7 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     sbpl_tolerance[0][5] = tolerance[5];
     
     ROS_INFO_PRETTY("goal xyz(%s): %.3f %.3f %.3f (tol: %.3fm) rpy: %.3f %.3f %.3f (tol: %.3frad)  (quat: %0.3f %0.3f %0.3f %0.3f)",
-    prm_->planning_frame_.c_str(), sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2], sbpl_tolerance[0][0], sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5], sbpl_tolerance[0][1],
+            prm_.planning_frame_.c_str(), sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2], sbpl_tolerance[0][0], sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5], sbpl_tolerance[0][1],
     goal_constraints.orientation_constraints[0].orientation.x, goal_constraints.orientation_constraints[0].orientation.y, goal_constraints.orientation_constraints[0].orientation.z, goal_constraints.orientation_constraints[0].orientation.w);
     
     // set sbpl environment goal
@@ -339,12 +345,12 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
     planner_->force_planning_from_scratch();
     
     //plan
-    ReplanParams replan_params(prm_->allowed_time_);
+    ReplanParams replan_params(prm_.allowed_time_);
     replan_params.initial_eps = 100.0;
     replan_params.final_eps = 1.0;
     replan_params.dec_eps = 0.2;
     replan_params.return_first_solution = false;
-    // replan_params.max_time = prm_->allowed_time_;
+    // replan_params.max_time = prm_.allowed_time_;
     replan_params.repair_time = 1.0;
     b_ret = planner_->replan(&solution_state_ids, replan_params, &solution_cost_);
     
@@ -371,7 +377,7 @@ bool SBPLArmPlannerInterface::planToPosition(
 {
     m_starttime = clock();
     int status = 0;
-    prm_->allowed_time_ = req.motion_plan_request.allowed_planning_time;
+    prm_.allowed_time_ = req.motion_plan_request.allowed_planning_time;
     req_ = req.motion_plan_request;
 
     if (!canServiceRequest(req)) {
@@ -431,16 +437,16 @@ bool SBPLArmPlannerInterface::planToPosition(
         res.motion_plan_response.trajectory.joint_trajectory.header.stamp = ros::Time::now();
         
         // fill in the waypoint times (not very intelligently)
-        res.motion_plan_response.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_->waypoint_time_);
+        res.motion_plan_response.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_.waypoint_time_);
         for (size_t i = 1; i < res.motion_plan_response.trajectory.joint_trajectory.points.size(); i++) {
             const double prev_time_s = res.motion_plan_response.trajectory.joint_trajectory.points[i - 1].time_from_start.toSec();
-            res.motion_plan_response.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_->waypoint_time_);
+            res.motion_plan_response.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
         }
         
         res.motion_plan_response.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         
         // shortcut path
-        if (prm_->shortcut_path_) {
+        if (prm_.shortcut_path_) {
             trajectory_msgs::JointTrajectory straj;
             if(!interpolateTrajectory(cc_, res.motion_plan_response.trajectory.joint_trajectory.points, straj.points))
             ROS_WARN_PRETTY("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
@@ -449,18 +455,18 @@ bool SBPLArmPlannerInterface::planToPosition(
         }
         
         // interpolate path
-        if (prm_->interpolate_path_) {
+        if (prm_.interpolate_path_) {
             trajectory_msgs::JointTrajectory itraj = res.motion_plan_response.trajectory.joint_trajectory;
             interpolateTrajectory(cc_, itraj.points, res.motion_plan_response.trajectory.joint_trajectory.points);
         }
         
-        if (prm_->print_path_) {
+        if (prm_.print_path_) {
             leatherman::printJointTrajectory(res.motion_plan_response.trajectory.joint_trajectory, "path");
         }
     }
     else {
         status = -3;
-        ROS_ERROR_PRETTY("Failed to plan within alotted time frame (%0.2f seconds).", prm_->allowed_time_);
+        ROS_ERROR_PRETTY("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
     }
     
     if (status == 0) {
@@ -476,7 +482,7 @@ bool SBPLArmPlannerInterface::planToConfiguration(
 {
     m_starttime = clock();
     int status = 0;
-    prm_->allowed_time_ = req.motion_plan_request.allowed_planning_time;
+    prm_.allowed_time_ = req.motion_plan_request.allowed_planning_time;
     req_ = req.motion_plan_request;
 
     if (!canServiceRequest(req)) {
@@ -537,16 +543,16 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         res.motion_plan_response.trajectory.joint_trajectory.header.stamp = ros::Time::now();
         
         // fill in the waypoint times (not very intelligently)
-        res.motion_plan_response.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_->waypoint_time_);
+        res.motion_plan_response.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_.waypoint_time_);
         for (size_t i = 1; i < res.motion_plan_response.trajectory.joint_trajectory.points.size(); i++) {
             const double prev_time_s = res.motion_plan_response.trajectory.joint_trajectory.points[i - 1].time_from_start.toSec();
-            res.motion_plan_response.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_->waypoint_time_);
+            res.motion_plan_response.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
         }
         
         res.motion_plan_response.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         
         // shortcut path
-        if (prm_->shortcut_path_) {
+        if (prm_.shortcut_path_) {
             trajectory_msgs::JointTrajectory straj;
             if (!interpolateTrajectory(cc_, res.motion_plan_response.trajectory.joint_trajectory.points, straj.points)) {
                 ROS_WARN_PRETTY("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
@@ -556,18 +562,18 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         }
         
         // interpolate path
-        if (prm_->interpolate_path_) {
+        if (prm_.interpolate_path_) {
             trajectory_msgs::JointTrajectory itraj = res.motion_plan_response.trajectory.joint_trajectory;
             interpolateTrajectory(cc_, itraj.points, res.motion_plan_response.trajectory.joint_trajectory.points);
         }
         
-        if (prm_->print_path_) {
+        if (prm_.print_path_) {
             leatherman::printJointTrajectory(res.motion_plan_response.trajectory.joint_trajectory, "path");
         }
     }
     else {
         status = -3;
-        ROS_ERROR_PRETTY("Failed to plan within alotted time frame (%0.2f seconds).", prm_->allowed_time_);
+        ROS_ERROR_PRETTY("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
     }
 
     if (status == 0) {
@@ -718,8 +724,8 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
             colors[0][3] = 1;
             colors[1][1] = 1;
             colors[1][3] = 1;
-            ROS_ERROR_PRETTY("Expansions visualization %d expands, %s frame", int(expanded_states.size()), prm_->planning_frame_.c_str());
-            ma = viz::getCubesMarkerArray(expanded_states, 0.01, colors, prm_->planning_frame_, "expansions", 0);
+            ROS_ERROR_PRETTY("Expansions visualization %d expands, %s frame", int(expanded_states.size()), prm_.planning_frame_.c_str());
+            ma = viz::getCubesMarkerArray(expanded_states, 0.01, colors, prm_.planning_frame_, "expansions", 0);
         }
     }
     else {

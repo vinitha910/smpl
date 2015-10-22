@@ -46,6 +46,7 @@
 
 // project includes
 #include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_manipulation_components/collision_checker.h>
 #include <sbpl_manipulation_components/robot_model.h>
 
@@ -68,6 +69,7 @@ public:
     ~SBPLArmPlannerInterface();
 
     bool init();
+    bool init(const PlanningParams& params);
 
     virtual bool planKinematicPath(
         const moveit_msgs::GetMotionPlan::Request& req,
@@ -108,6 +110,8 @@ protected:
     int num_joints_;
     int solution_cost_;
 
+    sbpl_arm_planner::PlanningParams prm_;
+
     // planner & environment
     MDPConfig mdp_cfg_;
     SBPLPlanner *planner_;
@@ -116,7 +120,6 @@ protected:
     sbpl_arm_planner::OccupancyGrid *grid_;
     sbpl_arm_planner::RobotModel *rm_;
     sbpl_arm_planner::ActionSet *as_;
-    sbpl_arm_planner::PlanningParams *prm_;
     distance_field::PropagationDistanceField* df_;
 
     moveit_msgs::MotionPlanRequest req_;
