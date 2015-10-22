@@ -134,26 +134,21 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         return false;
     }
     
-    //initialize environment
     planner_.reset(new ARAPlanner(sbpl_arm_env_.get(), true));
     
-    //initialize arm planner environment
     if (!sbpl_arm_env_->initEnvironment()) {
-        ROS_ERROR("ERROR: initEnvironment failed");
+        ROS_ERROR("initEnvironment failed");
         return false;
     }
     
-    //initialize MDP
     if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
-        ROS_ERROR("ERROR: InitializeMDPCfg failed");
+        ROS_ERROR("InitializeMDPCfg failed");
         return false;
     }
     
-    //set epsilon
-    planner_->set_initialsolution_eps(100.0);
-    
-    //set search mode (true - settle with first solution)
+    planner_->set_initialsolution_eps(prm_.epsilon_);
     planner_->set_search_mode(prm_.search_mode_);
+
     ROS_INFO("Initialized sbpl arm planning environment.");
     return true;
 }
