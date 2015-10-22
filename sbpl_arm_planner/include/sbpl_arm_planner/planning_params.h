@@ -38,10 +38,7 @@
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 
-using namespace std;
-
 namespace sbpl_arm_planner {
-
 
 class PlanningParams
 {
