@@ -27,18 +27,20 @@ enum {
 
 class ActionSet
 {
-  public:
-    ActionSet(std::string action_file);
+public:
 
-    ~ActionSet(){};
+    ActionSet(const std::string& action_file);
 
-    bool init(EnvironmentROBARM3D *env, bool use_multiple_ik_solutions = false);
+    bool init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions = false);
 
-    bool getActionSet(const RobotState &parent, std::vector<Action> &actions);
+    bool getActionSet(const RobotState& parent, std::vector<Action>& actions);
 
-    virtual void print();
+    void print();
 
-    void addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim);
+    void addMotionPrim(
+        const std::vector<double>& mprim,
+        bool add_converse,
+        bool short_dist_mprim);
 
   protected:
 
@@ -60,11 +62,18 @@ class ActionSet
 
     std::vector<std::string> motion_primitive_type_names_;
 
-    virtual bool getMotionPrimitivesFromFile(FILE* fCfg);
+    bool getMotionPrimitivesFromFile(FILE* fCfg);
 
-    bool applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action);
+    bool applyMotionPrimitive(
+        const RobotState &state,
+        MotionPrimitive &mp,
+        Action &action);
 
-    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, std::vector<Action> &actions);
+    bool getAction(
+        const RobotState& parent,
+        double dist_to_goal,
+        MotionPrimitive& mp,
+        std::vector<Action>& actions);
 };
 
 }

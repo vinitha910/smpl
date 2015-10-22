@@ -36,328 +36,338 @@
 
 namespace sbpl_arm_planner {
 
-ActionSet::ActionSet(std::string action_file)
+ActionSet::ActionSet(const std::string& action_file)
 {
-  env_ = NULL;
-  use_multires_mprims_ = true;
-  use_ik_ = true;
-  short_dist_mprims_thresh_m_ = 0.2;
-  ik_amp_dist_thresh_m_= 0.20;
-  action_file_ = action_file;
-
-  motion_primitive_type_names_.push_back("long_distance");
-  motion_primitive_type_names_.push_back("short_distance");
-  motion_primitive_type_names_.push_back("adaptive");
-  motion_primitive_type_names_.push_back("snap_to_rpy");
-  motion_primitive_type_names_.push_back("snap_to_xyzrpy");
-  motion_primitive_type_names_.push_back("snap_to_rpy_then_to_xyz");
-  motion_primitive_type_names_.push_back("snap_to_xyz_then_to_rpy");
-  motion_primitive_type_names_.push_back("snap_to_rpy_at_start");
-  motion_primitive_type_names_.push_back("retract_then_snap_to_rpy_then_snap_to_xyz");
-  motion_primitive_type_names_.push_back("retract_then_towards_rpy_then_towards_xyz");
+    env_ = NULL;
+    use_multires_mprims_ = true;
+    use_ik_ = true;
+    short_dist_mprims_thresh_m_ = 0.2;
+    ik_amp_dist_thresh_m_= 0.20;
+    action_file_ = action_file;
+    
+    motion_primitive_type_names_.push_back("long_distance");
+    motion_primitive_type_names_.push_back("short_distance");
+    motion_primitive_type_names_.push_back("adaptive");
+    motion_primitive_type_names_.push_back("snap_to_rpy");
+    motion_primitive_type_names_.push_back("snap_to_xyzrpy");
+    motion_primitive_type_names_.push_back("snap_to_rpy_then_to_xyz");
+    motion_primitive_type_names_.push_back("snap_to_xyz_then_to_rpy");
+    motion_primitive_type_names_.push_back("snap_to_rpy_at_start");
+    motion_primitive_type_names_.push_back("retract_then_snap_to_rpy_then_snap_to_xyz");
+    motion_primitive_type_names_.push_back("retract_then_towards_rpy_then_towards_xyz");
 }
 
-bool ActionSet::init(EnvironmentROBARM3D *env, bool use_multiple_ik_solutions)
+bool ActionSet::init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions)
 {
-  env_ = env;
-  use_multiple_ik_solutions_ = use_multiple_ik_solutions;
-  FILE* file=NULL;
-  if((file=fopen(action_file_.c_str(),"r")) == NULL)
-  {
-    ROS_ERROR("Failed to open action set file. (file: '%s')", action_file_.c_str());
-    return false;
-  }
-
-  return getMotionPrimitivesFromFile(file);
+    env_ = env;
+    use_multiple_ik_solutions_ = use_multiple_ik_solutions;
+    FILE* file = NULL;
+    if ((file = fopen(action_file_.c_str(), "r")) == NULL) {
+        ROS_ERROR("Failed to open action set file. (file: '%s')", action_file_.c_str());
+        return false;
+    }
+    
+    return getMotionPrimitivesFromFile(file);
 }
 
 bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
 {
-  char sTemp[1024];
-  int nrows=0,ncols=0, short_mprims=0;
-
-
-  if(fCfg == NULL)
-  {
-    ROS_ERROR("ERROR: unable to open the params file. Exiting.");
-    return false;
-  }
-
-  if(fscanf(fCfg,"%s",sTemp) < 1)
-    ROS_WARN("Parsed string has length < 1."); 
-  if(strcmp(sTemp, "Motion_Primitives(degrees):") != 0)
-  {
-    ROS_ERROR("ERROR: First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
-    return false;
-  }
-
-  //number of actions
-  if(fscanf(fCfg,"%s",sTemp) < 1) 
-  {
-    ROS_WARN("Parsed string has length < 1.");
-    return false;
-  }
-  else
-    nrows = atoi(sTemp);
-  
-  //length of joint array
-  if(fscanf(fCfg,"%s",sTemp) < 1)
-  {
-    ROS_WARN("Parsed string has length < 1.");
-    return false;
-  }
-  else
-    ncols = atoi(sTemp);
-
-  //number of short distance motion primitives
-  if(fscanf(fCfg,"%s",sTemp) < 1)
-  { 
-    ROS_WARN("Parsed string has length < 1.");
-    return false;
-  }
-  else
-    short_mprims = atoi(sTemp);
-
-  if(short_mprims == nrows)
-    ROS_ERROR("Error: # of motion prims == # of short distance motion prims. No long distance motion prims set.");
-
-  std::vector<double> mprim(ncols,0);
-
-  for (int i=0; i < nrows; ++i)
-  {
-    for(int j=0; j < ncols; ++j)
-    {
-      if(fscanf(fCfg,"%s",sTemp) < 1) 
-        ROS_WARN("Parsed string has length < 1.");
-      if(!feof(fCfg) && strlen(sTemp) != 0){
-        mprim[j] = angles::from_degrees(atof(sTemp));
-        ROS_INFO_PRETTY("Got %s deg -> %.3f rad", sTemp, mprim[j]);
-      }
-      else
-      {
-        ROS_ERROR("ERROR: End of parameter file reached prematurely. Check for newline.");
+    char sTemp[1024];
+    int nrows = 0, ncols = 0, short_mprims = 0;
+    
+    if (fCfg == NULL) {
+        ROS_ERROR("ERROR: unable to open the params file. Exiting.");
         return false;
-      }
     }
-    if(i < (nrows-short_mprims))
-      addMotionPrim(mprim,true,false);
-    else
-      addMotionPrim(mprim,true,true);
-  }
+    
+    if(fscanf(fCfg,"%s",sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1."); 
+    }
 
-  // add amps (will be added to MP file format)
-  MotionPrimitive m;
-  m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY;
-  m.group = 2;
-  m.id =  mp_.size();
-  m.action.push_back(mprim);
-  mp_.push_back(m);
-  
-  /*
-  m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY;
-  m.group = 2;
-  m.id =  mp_.size();
-  m.action.push_back(mprim);
-  mp_.push_back(m);
-  */
-  return true;
+    if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
+        ROS_ERROR("ERROR: First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
+        return false;
+    }
+    
+    // number of actions
+    if (fscanf(fCfg,"%s",sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1.");
+        return false;
+    }
+    else {
+        nrows = atoi(sTemp);
+    }
+    
+    // length of joint array
+    if (fscanf(fCfg,"%s",sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1.");
+        return false;
+    }
+    else {
+        ncols = atoi(sTemp);
+    }
+    
+    //number of short distance motion primitives
+    if (fscanf(fCfg,"%s",sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1.");
+        return false;
+    }
+    else {
+        short_mprims = atoi(sTemp);
+    }
+    
+    if (short_mprims == nrows) {
+        ROS_ERROR("Error: # of motion prims == # of short distance motion prims. No long distance motion prims set.");
+    }
+    
+    std::vector<double> mprim(ncols, 0);
+
+    for (int i = 0; i < nrows; ++i) {
+        for (int j = 0; j < ncols; ++j) {
+            if (fscanf(fCfg,"%s",sTemp) < 1)  {
+                ROS_WARN("Parsed string has length < 1.");
+            }
+            if (!feof(fCfg) && strlen(sTemp) != 0) {
+                mprim[j] = angles::from_degrees(atof(sTemp));
+                ROS_INFO_PRETTY("Got %s deg -> %.3f rad", sTemp, mprim[j]);
+            }
+            else {
+                ROS_ERROR("ERROR: End of parameter file reached prematurely. Check for newline.");
+                return false;
+            }
+        }
+        if (i < (nrows-short_mprims)) {
+            addMotionPrim(mprim, true, false);
+        }
+        else {
+            addMotionPrim(mprim, true, true);
+        }
+    }
+    
+    // add amps (will be added to MP file format)
+    MotionPrimitive m;
+    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY;
+    m.group = 2;
+    m.id =  mp_.size();
+    m.action.push_back(mprim);
+    mp_.push_back(m);
+    
+    /*
+    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY;
+    m.group = 2;
+    m.id =  mp_.size();
+    m.action.push_back(mprim);
+    mp_.push_back(m);
+    */
+    return true;
 }
 
-void ActionSet::addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim)
+void ActionSet::addMotionPrim(
+    const std::vector<double>& mprim,
+    bool add_converse,
+    bool short_dist_mprim)
 {
-  MotionPrimitive m;
-
-  if(short_dist_mprim)
-  {
-    m.type = sbpl_arm_planner::MotionPrimitiveType::SHORT_DISTANCE;
-    m.group = 1;
-  }
-  else
-  {
-    m.type = sbpl_arm_planner::MotionPrimitiveType::LONG_DISTANCE;
-    m.group = 0;
-  }
-
-  m.id =  mp_.size();
-  m.action.push_back(mprim);    
-  mp_.push_back(m);
-
-  if(add_converse)
-  {
-    Action a;
-    a.resize(1);
-    a[0] = mprim;
-    for(int i = 0; i < int(mprim.size()); ++i)
-    {
-      if(mprim[i] != 0)
-        a[0][i] *= -1;
+    MotionPrimitive m;
+    
+    if (short_dist_mprim) {
+        m.type = sbpl_arm_planner::MotionPrimitiveType::SHORT_DISTANCE;
+        m.group = 1;
     }
-    m.action = a;
+    else {
+        m.type = sbpl_arm_planner::MotionPrimitiveType::LONG_DISTANCE;
+        m.group = 0;
+    }
+    
     m.id =  mp_.size();
+    m.action.push_back(mprim);    
     mp_.push_back(m);
-  }
+    
+    if (add_converse) {
+        Action a;
+        a.resize(1);
+        a[0] = mprim;
+        for (int i = 0; i < int(mprim.size()); ++i) {
+            if (mprim[i] != 0) {
+                a[0][i] *= -1;
+            }
+        }
+        m.action = a;
+        m.id =  mp_.size();
+        mp_.push_back(m);
+    }
 }
 
 void ActionSet::print()
 {
-  for(size_t i = 0; i < mp_.size(); ++i)
-   mp_[i].print(); 
-}
-
-bool ActionSet::getActionSet(const RobotState &parent, std::vector<Action> &actions)
-{
-  std::vector<double> pose;
-  if(!env_->getRobotModel()->computePlanningLinkFK(parent, pose))
-    return false;
-
-  // get distance to the goal pose
-  double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
-  std::vector<Action> act;
-  Action a;
-  for(size_t i = 0; i < mp_.size(); ++i)
-  {
-    if(getAction(parent, d, mp_[i], act)){ //new set of actions for the mp_[i] motion primitive
-      //act will have size 1 for all static actions!
-      //only dynamic actions using IK can produce multiple actions in act
-      if(act.size() > 0){
-        actions.insert(actions.end(), act.begin(), act.end());
-      }
+    for (size_t i = 0; i < mp_.size(); ++i) {
+        mp_[i].print(); 
     }
-  }
-
-  if(actions.empty())
-    return false;
-
-  return true;
 }
 
-bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, std::vector<Action> &actions)
+bool ActionSet::getActionSet(
+    const RobotState& parent,
+    std::vector<Action>& actions)
 {
-  std::vector<double> goal = env_->getGoal();
-
-  if(mp.type == sbpl_arm_planner::MotionPrimitiveType::LONG_DISTANCE)
-  {
-    if(dist_to_goal <= short_dist_mprims_thresh_m_ && use_multires_mprims_)
-      return false;
-    actions.resize(1);
-    return applyMotionPrimitive(parent, mp, actions[0]);
-  }
-  else if(mp.type == sbpl_arm_planner::MotionPrimitiveType::SHORT_DISTANCE)
-  {
-    if(dist_to_goal > short_dist_mprims_thresh_m_ && use_multires_mprims_)
-      return false;
-    actions.resize(1);
-    return applyMotionPrimitive(parent, mp, actions[0]);
-  }
-  else if(mp.type == sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY)
-  {
-    if (dist_to_goal > ik_amp_dist_thresh_m_)
-    {
-      return false;
+    std::vector<double> pose;
+    if (!env_->getRobotModel()->computePlanningLinkFK(parent, pose)) {
+        return false;
     }
     
-    if(!env_->use7DOFGoal()){
-      //not a 7dof goal -- use the usual IK method
-      if(use_multiple_ik_solutions_){
-        //get actions for multiple ik solutions
-        std::vector<std::vector<double> > ik_solutions;
-        if(!env_->getRobotModel()->computeIK(goal, parent, ik_solutions))
-        {
-          ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-          return false;
+    // get distance to the goal pose
+    double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
+    std::vector<Action> act;
+    Action a;
+    for (size_t i = 0; i < mp_.size(); ++i) {
+        // new set of actions for the mp_[i] motion primitive
+        if (getAction(parent, d, mp_[i], act)) { 
+            // act will have size 1 for all static actions!
+            // only dynamic actions using IK can produce multiple actions in act
+            if (act.size() > 0) {
+                actions.insert(actions.end(), act.begin(), act.end());
+            }
         }
-        actions.resize(ik_solutions.size());
-        for(size_t a = 0; a < actions.size(); a++){
-          actions[a].resize(1);
-          actions[a][0] = ik_solutions[a];
-        }
-      } else {
-        //get single action for single ik solution
-        std::vector<double> ik_sol;
-        if(!env_->getRobotModel()->computeIK(goal, parent, ik_sol))
-        {
-          ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-          return false;
-        }
-        actions.resize(1);
-        actions[0].resize(1);
-        actions[0][0] = ik_sol;
-      }
-    } else {
-      //goal is 7dof -- instead of computing  IK, use the goal itself as the IK solution
-      actions.resize(1);
-      actions[0].resize(1);
-      actions[0][0] = env_->getGoalConfiguration();
     }
-  }
-  else if(mp.type == sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY)
-  {
-    if(dist_to_goal > 0.02)
-      return false;
-    if(use_multiple_ik_solutions_){
-      std::vector<std::vector<double> > ik_solutions;
-      if(!env_->getRobotModel()->computeIK(goal, parent, ik_solutions, sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS))
-      {
-        ROS_WARN("RPY-solver failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+    
+    if (actions.empty()) {
         return false;
-      }
-      actions.resize(ik_solutions.size());
-      for(size_t a = 0; a < actions.size(); a++){
-        actions[a].resize(1);
-        actions[a][0] = ik_solutions[a];
-      }
-    } else {
-        //get single action for single ik solution
-        std::vector<double> ik_sol;
-        if(!env_->getRobotModel()->computeIK(goal, parent, ik_sol))
+    }
+    
+    return true;
+}
+
+bool ActionSet::getAction(
+    const RobotState& parent,
+    double dist_to_goal,
+    MotionPrimitive& mp,
+    std::vector<Action>& actions)
+{
+    std::vector<double> goal = env_->getGoal();
+    
+    if (mp.type == sbpl_arm_planner::MotionPrimitiveType::LONG_DISTANCE) {
+        if (dist_to_goal <= short_dist_mprims_thresh_m_ &&
+            use_multires_mprims_)
         {
-          ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-          return false;
+            return false;
         }
         actions.resize(1);
-        actions[0].resize(1);
-        actions[0][0] = ik_sol;
-      }
-  }
-  else
-  {
-    ROS_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
-    return false; 
-  }
-  ROS_INFO("IK success!");
-#if VERIFY_KINEMATICS
-  std::vector<double> p(6,0);
-  for(size_t a = 0; a < actions.size(); a++){
-    env_->getRobotModel()->computeFK(actions[a][0], env_->getRobotModel()->getPlanningLink(), p);
-    for(size_t i = 0; i < p.size(); ++i)
-    {
-      if(fabs(goal[i]-p[i]) > 0.0001)
-      {
-        ROS_WARN("[ik] Found a potential problem with the kinematics.");
-        ROS_WARN("[ik] goal:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-        ROS_WARN("[ik]   fk:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", p[0], p[1], p[2], p[3], p[4], p[5]);
-        ROS_WARN("[ik] diff:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", fabs(goal[0]-p[0]), fabs(goal[1]-p[1]), fabs(goal[2]-p[2]), fabs(goal[3]-p[3]), fabs(goal[4]-p[4]), fabs(goal[5]-p[5]));
-      }
+        return applyMotionPrimitive(parent, mp, actions[0]);
     }
-  } //loop over actions
+    else if (mp.type == sbpl_arm_planner::MotionPrimitiveType::SHORT_DISTANCE) {
+        if (dist_to_goal > short_dist_mprims_thresh_m_ &&
+            use_multires_mprims_)
+        {
+            return false;
+        }
+        actions.resize(1);
+        return applyMotionPrimitive(parent, mp, actions[0]);
+    }
+    else if (mp.type == sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY) {
+        if (dist_to_goal > ik_amp_dist_thresh_m_) {
+            return false;
+        }
+        
+        if (!env_->use7DOFGoal()) {
+            // not a 7dof goal -- use the usual IK method
+            if (use_multiple_ik_solutions_) {
+                //get actions for multiple ik solutions
+                std::vector<std::vector<double>> ik_solutions;
+                if (!env_->getRobotModel()->computeIK(goal, parent, ik_solutions)) {
+                    ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+                    return false;
+                }
+                actions.resize(ik_solutions.size());
+                for (size_t a = 0; a < actions.size(); a++){
+                    actions[a].resize(1);
+                    actions[a][0] = ik_solutions[a];
+                }
+            }
+            else {
+                //get single action for single ik solution
+                std::vector<double> ik_sol;
+                if (!env_->getRobotModel()->computeIK(goal, parent, ik_sol)) {
+                    ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+                    return false;
+                }
+                actions.resize(1);
+                actions[0].resize(1);
+                actions[0][0] = ik_sol;
+            }
+        }
+        else {
+            //goal is 7dof -- instead of computing  IK, use the goal itself as the IK solution
+            actions.resize(1);
+            actions[0].resize(1);
+            actions[0][0] = env_->getGoalConfiguration();
+        }
+    }
+    else if (mp.type == sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY) {
+        if (dist_to_goal > 0.02) {
+            return false;
+        }
+        if (use_multiple_ik_solutions_) {
+            std::vector<std::vector<double> > ik_solutions;
+            if (!env_->getRobotModel()->computeIK(goal, parent, ik_solutions, sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS)) {
+                ROS_WARN("RPY-solver failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+                return false;
+            }
+            actions.resize(ik_solutions.size());
+            for (size_t a = 0; a < actions.size(); a++) {
+                actions[a].resize(1);
+                actions[a][0] = ik_solutions[a];
+            }
+        }
+        else {
+            //get single action for single ik solution
+            std::vector<double> ik_sol;
+            if (!env_->getRobotModel()->computeIK(goal, parent, ik_sol)) {
+                ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+                return false;
+            }
+            actions.resize(1);
+            actions[0].resize(1);
+            actions[0][0] = ik_sol;
+        }
+    }
+    else {
+        ROS_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
+        return false; 
+    }
+
+    ROS_INFO("IK success!");
+#if VERIFY_KINEMATICS
+    std::vector<double> p(6,0);
+    for (size_t a = 0; a < actions.size(); a++) {
+        env_->getRobotModel()->computeFK(actions[a][0], env_->getRobotModel()->getPlanningLink(), p);
+        for (size_t i = 0; i < p.size(); ++i) {
+            if (fabs(goal[i]-p[i]) > 0.0001) {
+                ROS_WARN("[ik] Found a potential problem with the kinematics.");
+                ROS_WARN("[ik] goal:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+                ROS_WARN("[ik]   fk:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", p[0], p[1], p[2], p[3], p[4], p[5]);
+                ROS_WARN("[ik] diff:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", fabs(goal[0]-p[0]), fabs(goal[1]-p[1]), fabs(goal[2]-p[2]), fabs(goal[3]-p[3]), fabs(goal[4]-p[4]), fabs(goal[5]-p[5]));
+            }
+        }
+    } //loop over actions
 #endif
 
-  return true;
+    return true;
 }
 
-bool ActionSet::applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action)
+bool ActionSet::applyMotionPrimitive(
+    const RobotState& state,
+    MotionPrimitive& mp,
+    Action& action)
 {
-  action = mp.action;
-  for(size_t i = 0; i < action.size(); ++i)
-  {
-    if(action[i].size() != state.size())
-      return false;
-
-    for(size_t j = 0; j < action[i].size(); ++j)
-      action[i][j] =  angles::normalize_angle(action[i][j] + state[j]);
-  }
-  return true;
+    action = mp.action;
+    for (size_t i = 0; i < action.size(); ++i) {
+        if (action[i].size() != state.size()) {
+            return false;
+        }
+    
+        for (size_t j = 0; j < action[i].size(); ++j) {
+            action[i][j] =  angles::normalize_angle(action[i][j] + state[j]);
+        }
+    }
+    return true;
 }
 
-
-}
+} // namespace sbpl_arm_planner
