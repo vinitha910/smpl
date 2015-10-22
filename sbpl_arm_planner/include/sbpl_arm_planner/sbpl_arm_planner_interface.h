@@ -128,6 +128,8 @@ protected:
 
     clock_t m_starttime;
 
+    bool initializeParamsFromParamServer();
+
     // Initialize the SBPL planner and the sbpl_arm_planner environment
     virtual bool initializePlannerAndEnvironment();
 

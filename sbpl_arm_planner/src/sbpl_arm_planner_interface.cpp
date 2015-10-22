@@ -88,6 +88,14 @@ SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
 
 bool SBPLArmPlannerInterface::init()
 {
+    if (!initializeParamsFromParamServer()) {
+        return false;
+    }
+
+    if (!checkParams(prm_)) {
+        return false;
+    }
+
     if (!initializePlannerAndEnvironment()) {
         return false;
     }
@@ -100,14 +108,30 @@ bool SBPLArmPlannerInterface::init()
 bool SBPLArmPlannerInterface::init(const PlanningParams& params)
 {
     prm_ = params;
+    
+    if (!checkParams(prm_)) {
+        return false;
+    }
+
+    if (!initializePlannerAndEnvironment()) {
+        return false;
+    }
+    
+    planner_initialized_ = true;
+    ROS_INFO_PRETTY("The SBPL arm planner node initialized succesfully.");
+    return true;
 }
 
-bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
+bool SBPLArmPlannerInterface::initializeParamsFromParamServer()
 {
     if (!prm_.init()) {
         return false;
     }
-    
+    return true;
+}
+
+bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
+{
     grid_ = new sbpl_arm_planner::OccupancyGrid(df_);
     sbpl_arm_env_ = new sbpl_arm_planner::EnvironmentROBARM3D(grid_, rm_, cc_, as_, &prm_);
     
