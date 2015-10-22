@@ -34,6 +34,7 @@
 
 // standard includes
 #include <map>
+#include <memory>
 #include <string>
 
 // system includes
@@ -54,7 +55,6 @@ namespace sbpl_arm_planner {
 
 class EnvironmentROBARM3D;
 class OccupancyGrid;
-class PlanningParams;
 
 class SBPLArmPlannerInterface
 {
@@ -112,15 +112,17 @@ protected:
 
     sbpl_arm_planner::PlanningParams prm_;
 
+    // planner components
+    sbpl_arm_planner::RobotModel *rm_;
+    sbpl_arm_planner::CollisionChecker *cc_;
+    distance_field::PropagationDistanceField* df_;
+    sbpl_arm_planner::ActionSet *as_;
+
     // planner & environment
     MDPConfig mdp_cfg_;
-    SBPLPlanner *planner_;
-    sbpl_arm_planner::EnvironmentROBARM3D *sbpl_arm_env_;
-    sbpl_arm_planner::CollisionChecker *cc_;
-    sbpl_arm_planner::OccupancyGrid *grid_;
-    sbpl_arm_planner::RobotModel *rm_;
-    sbpl_arm_planner::ActionSet *as_;
-    distance_field::PropagationDistanceField* df_;
+    std::unique_ptr<sbpl_arm_planner::OccupancyGrid> grid_;
+    std::unique_ptr<sbpl_arm_planner::EnvironmentROBARM3D> sbpl_arm_env_;
+    std::unique_ptr<SBPLPlanner> planner_;
 
     moveit_msgs::MotionPlanRequest req_;
     moveit_msgs::GetMotionPlan::Response res_;
