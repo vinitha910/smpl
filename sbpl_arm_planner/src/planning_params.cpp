@@ -69,7 +69,6 @@ PlanningParams::PlanningParams() :
     planning_frame_(),
     group_name_(),
     planner_name_(),
-    statespace_type_(),
     planning_joints_(),
 
     use_bfs_heuristic_(DefaultUseBfsHeuristic),
@@ -151,11 +150,11 @@ bool PlanningParams::init(const std::string& ns)
     if (nh.hasParam("planning/discretization")) {
         nh.getParam("planning/discretization", xlist);
         std::stringstream ss(xlist);
-        while(ss >> p) {
+        while (ss >> p) {
             coord_vals_.push_back(atof(p.c_str()));
         }
     
-        coord_delta_.resize(coord_vals_.size(),0);
+        coord_delta_.resize(coord_vals_.size(), 0);
         for (int i = 0; i < num_joints_; ++i) {
             coord_delta_[i] = (2.0 * M_PI) / coord_vals_[i];
         }

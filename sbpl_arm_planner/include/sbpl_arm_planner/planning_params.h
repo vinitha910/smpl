@@ -89,7 +89,6 @@ public:
     std::string planning_frame_;
     std::string group_name_;
     std::string planner_name_;
-    std::string statespace_type_;
     std::vector<std::string> planning_joints_;
 
     /* Options */

@@ -131,6 +131,8 @@ protected:
     // Initialize the SBPL planner and the sbpl_arm_planner environment
     virtual bool initializePlannerAndEnvironment();
 
+    bool checkParams(const sbpl_arm_planner::PlanningParams& params) const;
+
     // Set start configuration
     virtual bool setStart(const sensor_msgs::JointState &state);
 

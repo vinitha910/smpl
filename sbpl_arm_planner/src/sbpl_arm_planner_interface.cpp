@@ -194,6 +194,73 @@ bool SBPLArmPlannerInterface::solve(
     return true;
 }
 
+bool SBPLArmPlannerInterface::checkParams(
+    const sbpl_arm_planner::PlanningParams& params) const
+{
+    if (params.allowed_time_ < 0.0) {
+        return false;
+    }
+
+    if (params.waypoint_time_ < 0.0) {
+        return false;
+    }
+
+    if (params.num_joints_ != (int)params.planning_joints_.size()) {
+        return false;
+    }
+
+    // TODO: check for frame in robot model
+    if (params.planning_frame_.empty()) {
+        return false;
+    }
+
+    // TODO: check for group in robot model/collision checker
+    if (params.group_name_.empty()) {
+        return false;
+    }
+
+    // TODO: check for search algorithm availability
+    if (params.planner_name_.empty()) {
+        return false;
+    }
+
+    // TODO: check for existence of planning joints in robot model
+
+    if (params.epsilon_ < 1.0) {
+        return false;
+    }
+
+    if (params.num_joints_ != (int)params.coord_vals_.size()) {
+        return false;
+    }
+
+    if (params.num_joints_ != (int)params.coord_delta_.size()) {
+        return false;
+    }
+
+    if (params.cost_multiplier_ < 0) {
+        return false;
+    }
+
+    if (params.cost_per_cell_ < 0) {
+        return false;
+    }
+
+    if (params.cost_per_meter_ < 0) {
+        return false;
+    }
+
+    if (params.cost_per_second_ < 0) {
+        return false;
+    }
+
+    if (params.time_per_cell_ < 0.0) {
+        return false;
+    }
+
+    return true;
+}
+
 bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
 {
     std::vector<double> initial_positions;
@@ -364,7 +431,9 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
     if (b_ret && (solution_state_ids.size() > 0)) {
         ROS_INFO_PRETTY("Initial Epsilon: %0.3f   Final Epsilon: %0.3f  Solution Cost: %d", planner_->get_initial_eps(),planner_->get_final_epsilon(), solution_cost_);
         
-        if (!sbpl_arm_env_->convertStateIDPathToJointTrajectory(solution_state_ids, traj)) {
+        if (!sbpl_arm_env_->convertStateIDPathToJointTrajectory(
+                solution_state_ids, traj))
+        {
             return false;
         }
     }
