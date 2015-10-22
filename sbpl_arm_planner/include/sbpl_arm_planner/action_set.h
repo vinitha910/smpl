@@ -2,6 +2,7 @@
 #define _ACTION_SET_
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 #include <iterator>
@@ -27,11 +28,17 @@ enum {
 
 } // namespace MotionPrimitiveType
 
+class ActionSet;
+typedef std::shared_ptr<ActionSet> ActionSetPtr;
+typedef std::shared_ptr<ActionSet> ActionSetConstPtr;
+
 class ActionSet
 {
 public:
 
-    ActionSet(const std::string& action_file);
+    static ActionSetPtr Load(const std::string& action_file);
+
+    ActionSet();
 
     bool init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions = false);
 
@@ -56,15 +63,11 @@ protected:
 
     double ik_amp_dist_thresh_m_;
 
-    std::string action_file_;
-
     EnvironmentROBARM3D *env_;
 
     std::vector<MotionPrimitive> mp_;
 
     std::vector<std::string> motion_primitive_type_names_;
-
-    bool getMotionPrimitivesFromFile(FILE* fCfg);
 
     bool applyMotionPrimitive(
         const RobotState &state,

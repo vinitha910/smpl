@@ -36,15 +36,118 @@
 
 namespace sbpl_arm_planner {
 
-ActionSet::ActionSet(const std::string& action_file)
+ActionSetPtr ActionSet::Load(const std::string& action_file)
 {
-    env_ = NULL;
-    use_multires_mprims_ = true;
-    use_ik_ = true;
-    short_dist_mprims_thresh_m_ = 0.2;
-    ik_amp_dist_thresh_m_= 0.20;
-    action_file_ = action_file;
+    ActionSetPtr action_set(new ActionSet);
+
+    FILE* fCfg = NULL;
+    if ((fCfg = fopen(action_file.c_str(), "r")) == NULL) {
+        ROS_ERROR("Failed to open action set file. (file: '%s')", action_file.c_str());
+        return action_set;
+    }
+
+    char sTemp[1024];
+    int nrows = 0, ncols = 0, short_mprims = 0;
     
+    if (fCfg == NULL) {
+        ROS_ERROR("unable to open the params file. Exiting.");
+        return action_set;
+    }
+    
+    if (fscanf(fCfg, "%s", sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1."); 
+    }
+
+    if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
+        ROS_ERROR("First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
+        return action_set;
+    }
+    
+    // number of actions
+    if (fscanf(fCfg, "%s", sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1.");
+        return action_set;
+    }
+    else {
+        nrows = atoi(sTemp);
+    }
+    
+    // length of joint array
+    if (fscanf(fCfg, "%s", sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1.");
+        return action_set;
+    }
+    else {
+        ncols = atoi(sTemp);
+    }
+    
+    // number of short distance motion primitives
+    if (fscanf(fCfg, "%s", sTemp) < 1) {
+        ROS_WARN("Parsed string has length < 1.");
+        return action_set;
+    }
+    else {
+        short_mprims = atoi(sTemp);
+    }
+    
+    if (short_mprims == nrows) {
+        ROS_ERROR("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
+    }
+    
+    std::vector<double> mprim(ncols, 0);
+
+    for (int i = 0; i < nrows; ++i) {
+        for (int j = 0; j < ncols; ++j) {
+            if (fscanf(fCfg, "%s", sTemp) < 1)  {
+                ROS_WARN("Parsed string has length < 1.");
+            }
+            if (!feof(fCfg) && strlen(sTemp) != 0) {
+                mprim[j] = angles::from_degrees(atof(sTemp));
+                ROS_INFO("Got %s deg -> %.3f rad", sTemp, mprim[j]);
+            }
+            else {
+                ROS_ERROR("End of parameter file reached prematurely. Check for newline.");
+                action_set.reset();
+                return action_set;
+            }
+        }
+        if (i < (nrows - short_mprims)) {
+            action_set->addMotionPrim(mprim, true, false);
+        }
+        else {
+            action_set->addMotionPrim(mprim, true, true);
+        }
+    }
+    
+    // add amps (will be added to MP file format)
+    MotionPrimitive m;
+    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY;
+    m.group = 2;
+    m.id =  action_set->mp_.size();
+    m.action.push_back(mprim);
+    action_set->mp_.push_back(m);
+    
+    /*
+    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY;
+    m.group = 2;
+    m.id =  action_set->mp_.size();
+    m.action.push_back(mprim);
+    action_set->mp_.push_back(m);
+    */
+
+    return action_set;
+}
+
+ActionSet::ActionSet() :
+    use_multires_mprims_(true),
+    use_multiple_ik_solutions_(false),
+    use_ik_(true),
+    short_dist_mprims_thresh_m_(0.2),
+    ik_amp_dist_thresh_m_(0.2),
+    env_(NULL),
+    mp_(),
+    motion_primitive_type_names_()
+{
     motion_primitive_type_names_.push_back("long_distance");
     motion_primitive_type_names_.push_back("short_distance");
     motion_primitive_type_names_.push_back("adaptive");
@@ -61,104 +164,7 @@ bool ActionSet::init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions)
 {
     env_ = env;
     use_multiple_ik_solutions_ = use_multiple_ik_solutions;
-    FILE* file = NULL;
-    if ((file = fopen(action_file_.c_str(), "r")) == NULL) {
-        ROS_ERROR("Failed to open action set file. (file: '%s')", action_file_.c_str());
-        return false;
-    }
-    
-    return getMotionPrimitivesFromFile(file);
-}
 
-bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
-{
-    char sTemp[1024];
-    int nrows = 0, ncols = 0, short_mprims = 0;
-    
-    if (fCfg == NULL) {
-        ROS_ERROR("ERROR: unable to open the params file. Exiting.");
-        return false;
-    }
-    
-    if(fscanf(fCfg,"%s",sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1."); 
-    }
-
-    if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
-        ROS_ERROR("ERROR: First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
-        return false;
-    }
-    
-    // number of actions
-    if (fscanf(fCfg,"%s",sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
-        return false;
-    }
-    else {
-        nrows = atoi(sTemp);
-    }
-    
-    // length of joint array
-    if (fscanf(fCfg,"%s",sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
-        return false;
-    }
-    else {
-        ncols = atoi(sTemp);
-    }
-    
-    //number of short distance motion primitives
-    if (fscanf(fCfg,"%s",sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
-        return false;
-    }
-    else {
-        short_mprims = atoi(sTemp);
-    }
-    
-    if (short_mprims == nrows) {
-        ROS_ERROR("Error: # of motion prims == # of short distance motion prims. No long distance motion prims set.");
-    }
-    
-    std::vector<double> mprim(ncols, 0);
-
-    for (int i = 0; i < nrows; ++i) {
-        for (int j = 0; j < ncols; ++j) {
-            if (fscanf(fCfg,"%s",sTemp) < 1)  {
-                ROS_WARN("Parsed string has length < 1.");
-            }
-            if (!feof(fCfg) && strlen(sTemp) != 0) {
-                mprim[j] = angles::from_degrees(atof(sTemp));
-                ROS_INFO_PRETTY("Got %s deg -> %.3f rad", sTemp, mprim[j]);
-            }
-            else {
-                ROS_ERROR("ERROR: End of parameter file reached prematurely. Check for newline.");
-                return false;
-            }
-        }
-        if (i < (nrows-short_mprims)) {
-            addMotionPrim(mprim, true, false);
-        }
-        else {
-            addMotionPrim(mprim, true, true);
-        }
-    }
-    
-    // add amps (will be added to MP file format)
-    MotionPrimitive m;
-    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY;
-    m.group = 2;
-    m.id =  mp_.size();
-    m.action.push_back(mprim);
-    mp_.push_back(m);
-    
-    /*
-    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_RPY;
-    m.group = 2;
-    m.id =  mp_.size();
-    m.action.push_back(mprim);
-    mp_.push_back(m);
-    */
     return true;
 }
 
@@ -364,7 +370,7 @@ bool ActionSet::applyMotionPrimitive(
         }
     
         for (size_t j = 0; j < action[i].size(); ++j) {
-            action[i][j] =  angles::normalize_angle(action[i][j] + state[j]);
+            action[i][j] = angles::normalize_angle(action[i][j] + state[j]);
         }
     }
     return true;
