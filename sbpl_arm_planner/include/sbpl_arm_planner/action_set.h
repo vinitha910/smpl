@@ -16,14 +16,16 @@ namespace sbpl_arm_planner {
 class EnvironmentROBARM3D;
 
 namespace MotionPrimitiveType {
+
 enum {
-  LONG_DISTANCE,
-  SHORT_DISTANCE,
-  SNAP_TO_RPY,
-  SNAP_TO_XYZ_RPY,
-  NUMBER_OF_MPRIM_TYPES
+    LONG_DISTANCE,
+    SHORT_DISTANCE,
+    SNAP_TO_RPY,
+    SNAP_TO_XYZ_RPY,
+    NUMBER_OF_MPRIM_TYPES
 };
-}
+
+} // namespace MotionPrimitiveType
 
 class ActionSet
 {
@@ -42,7 +44,7 @@ public:
         bool add_converse,
         bool short_dist_mprim);
 
-  protected:
+protected:
 
     bool use_multires_mprims_;
 
@@ -76,6 +78,7 @@ public:
         std::vector<Action>& actions);
 };
 
-}
+} // namespace sbpl_arm_planner
+
 #endif
 
