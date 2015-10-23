@@ -48,86 +48,84 @@
 #include <sbpl_arm_planner/planning_params.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
 enum GoalType
 {
-  XYZ_GOAL,
-  XYZ_RPY_GOAL,
-  NUMBER_OF_GOAL_TYPES
+    XYZ_GOAL,
+    XYZ_RPY_GOAL,
+    NUMBER_OF_GOAL_TYPES
 };
 
 struct GoalConstraint
 {
-  int type;
-  std::vector<double> pose;
-  double xyz_tolerance[3];
-  double rpy_tolerance[3];
+    int type;
+    std::vector<double> pose;
+    double xyz_tolerance[3];
+    double rpy_tolerance[3];
 };
 
 struct GoalConstraint7DOF
 {
-  std::vector<double> angles;
-  std::vector<double> angle_tolerances;
+    std::vector<double> angles;
+    std::vector<double> angle_tolerances;
 };
 
 struct EnvROBARM3DHashEntry_t
 {
-  int stateID;             // hash entry ID number
-  int heur;
-  int xyz[3];              // planning link pos (xyz)
-  double dist;
-  std::vector<int> coord;
-  RobotState state;
+    int stateID;             // hash entry ID number
+    int heur;
+    int xyz[3];              // planning link pos (xyz)
+    double dist;
+    std::vector<int> coord;
+    RobotState state;
 };
 
 /** main structure that stores environment data used in planning */
-typedef struct EnvironmentPlanningData
+struct EnvironmentPlanningData
 {
-  bool near_goal;
-  clock_t t_start;
-  double time_to_goal_region;
-  GoalConstraint goal;
+    bool near_goal;
+    clock_t t_start;
+    double time_to_goal_region;
+    GoalConstraint goal;
 
-  bool use_7dof_goal;
-  GoalConstraint7DOF goal_7dof;
+    bool use_7dof_goal;
+    GoalConstraint7DOF goal_7dof;
 
-  EnvROBARM3DHashEntry_t* goal_entry;
-  EnvROBARM3DHashEntry_t* start_entry;
+    EnvROBARM3DHashEntry_t* goal_entry;
+    EnvROBARM3DHashEntry_t* start_entry;
 
-  // maps from coords to stateID
-  int HashTableSize;
-  std::vector<EnvROBARM3DHashEntry_t*>* Coord2StateIDHashTable;
+    // maps from coords to stateID
+    int HashTableSize;
+    std::vector<EnvROBARM3DHashEntry_t*>* Coord2StateIDHashTable;
 
-  // maps from stateID to coords	
-  std::vector<EnvROBARM3DHashEntry_t*> StateID2CoordTable;
+    // maps from stateID to coords	
+    std::vector<EnvROBARM3DHashEntry_t*> StateID2CoordTable;
 
-  // stateIDs of expanded states
-  std::vector<int> expanded_states;
+    // stateIDs of expanded states
+    std::vector<int> expanded_states;
 
-  EnvironmentPlanningData()
-  {
-    near_goal = false;
-    use_7dof_goal = false;
-    start_entry = NULL;
-    goal_entry = NULL;
-    Coord2StateIDHashTable = NULL;
-  }
+    EnvironmentPlanningData()
+    {
+        near_goal = false;
+        use_7dof_goal = false;
+        start_entry = NULL;
+        goal_entry = NULL;
+        Coord2StateIDHashTable = NULL;
+    }
 
-  void init()
-  {
-    HashTableSize = 32*1024; //should be power of two
-    Coord2StateIDHashTable = new std::vector<EnvROBARM3DHashEntry_t*>[HashTableSize];
-    StateID2CoordTable.clear();
-  }
-} EnvironmentPlanningData;
-
+    void init()
+    {
+        HashTableSize = 32*1024; //should be power of two
+        Coord2StateIDHashTable = new std::vector<EnvROBARM3DHashEntry_t*>[HashTableSize];
+        StateID2CoordTable.clear();
+    }
+};
 
 /** Environment to be used when planning for a Robotic Arm using the SBPL. */
-class EnvironmentROBARM3D: virtual public DiscreteSpaceInformation 
+class EnvironmentROBARM3D : virtual public DiscreteSpaceInformation 
 {
-  public:
+public:
 
     EnvironmentROBARM3D(
         OccupancyGrid *grid,
@@ -207,7 +205,7 @@ class EnvironmentROBARM3D: virtual public DiscreteSpaceInformation
 
     visualization_msgs::MarkerArray getVisualization(std::string type);
 
-  protected:
+protected:
 
     OccupancyGrid *grid_;
     RobotModel *rmodel_;
@@ -280,26 +278,27 @@ class EnvironmentROBARM3D: virtual public DiscreteSpaceInformation
 
 inline unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
 {
-  key += (key << 12); 
-  key ^= (key >> 22);
-  key += (key << 4);
-  key ^= (key >> 9);
-  key += (key << 10);
-  key ^= (key >> 2);
-  key += (key << 7);
-  key ^= (key >> 12);
-  return key;
+    key += (key << 12); 
+    key ^= (key >> 22);
+    key += (key << 4);
+    key ^= (key >> 9);
+    key += (key << 10);
+    key ^= (key >> 2);
+    key += (key << 7);
+    key ^= (key >> 12);
+    return key;
 }
 
 inline unsigned int EnvironmentROBARM3D::getHashBin(
     const std::vector<int> &coord)
 {
-  int val = 0;
+    int val = 0;
 
-  for(size_t i = 0; i < coord.size(); i++)
-    val += intHash(coord[i]) << i;
+    for (size_t i = 0; i < coord.size(); i++) {
+        val += intHash(coord[i]) << i;
+    }
 
-  return intHash(val) & (pdata_.HashTableSize-1);
+    return intHash(val) & (pdata_.HashTableSize-1);
 }
 
 //angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin 0, ...
@@ -307,36 +306,37 @@ inline void EnvironmentROBARM3D::coordToAngles(
     const std::vector<int> &coord,
     std::vector<double> &angles)
 {
-  angles.resize(coord.size());
-  for(size_t i = 0; i < coord.size(); i++) {
-    angles[i] = coord[i] * prm_->coord_delta_[i];
-  }
+    angles.resize(coord.size());
+    for (size_t i = 0; i < coord.size(); i++) {
+        angles[i] = coord[i] * prm_->coord_delta_[i];
+    }
 }
 
 inline void EnvironmentROBARM3D::anglesToCoord(
     const std::vector<double> &angle,
     std::vector<int> &coord)
 {
-  double pos_angle;
+    double pos_angle;
 
-  for(int i = 0; i < int(angle.size()); i++)
-  {
-    pos_angle = angle[i];
-    if(pos_angle < 0.0)
-      pos_angle += 2*M_PI;
-
-    coord[i] = (int)((pos_angle + prm_->coord_delta_[i]*0.5)/prm_->coord_delta_[i]);
-
-    if(coord[i] == prm_->coord_vals_[i])
-      coord[i] = 0;
-  }
+    for (int i = 0; i < int(angle.size()); i++) {
+        pos_angle = angle[i];
+        if (pos_angle < 0.0) {
+            pos_angle += 2 * M_PI;
+        }
+    
+        coord[i] = (int)((pos_angle + prm_->coord_delta_[i] * 0.5) / prm_->coord_delta_[i]);
+    
+        if (coord[i] == prm_->coord_vals_[i]) {
+            coord[i] = 0;
+        }
+    }
 }
 
 inline double EnvironmentROBARM3D::getEuclideanDistance(
     double x1, double y1, double z1,
     double x2, double y2, double z2) const
 {
-  return sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2));
+    return sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2));
 }
 
 } // namespace sbpl_arm_planner
