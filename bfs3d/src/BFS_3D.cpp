@@ -1,17 +1,21 @@
 #include <bfs3d/BFS_3D.h>
 #include <boost/thread.hpp>
 
-namespace sbpl_arm_planner{
+namespace sbpl_arm_planner {
 
-inline int BFS_3D::getNode(int x, int y, int z) {
-    if (x < 0 || y < 0 || z < 0 || x >= dim_x - 2 || y >= dim_y - 2 || z >= dim_z - 2) {
+inline int BFS_3D::getNode(int x, int y, int z)
+{
+    if (x < 0 || y < 0 || z < 0 ||
+        x >= dim_x - 2 || y >= dim_y - 2 || z >= dim_z - 2)
+    {
         //error "Invalid coordinates"
         return -1;
     }
     return (z + 1) * dim_xy + (y + 1) * dim_x + (x + 1);
 }
 
-BFS_3D::BFS_3D(int width, int height, int length) {
+BFS_3D::BFS_3D(int width, int height, int length)
+{
     if (width <= 0 || height <= 0 || length <= 0) {
         //error "Invalid dimensions"
         return;
@@ -29,27 +33,35 @@ BFS_3D::BFS_3D(int width, int height, int length) {
 
     for (int node = 0; node < dim_xyz; node++) {
         int x = node % dim_x, y = node / dim_x % dim_y, z = node / dim_xy;
-        if (x == 0 || x == dim_x - 1 || y == 0 || y == dim_y - 1 || z == 0 || z == dim_z - 1)
+        if (x == 0 || x == dim_x - 1 ||
+            y == 0 || y == dim_y - 1 ||
+            z == 0 || z == dim_z - 1)
+        {
             distance_grid[node] = WALL;
-        else
+        }
+        else {
             distance_grid[node] = UNDISCOVERED;
+        }
     }
 
     running = false;
 }
 
-BFS_3D::~BFS_3D() {
+BFS_3D::~BFS_3D()
+{
     delete[] distance_grid;
     delete[] queue;
 }
 
-void BFS_3D::getDimensions(int* width, int* height, int* length) {
+void BFS_3D::getDimensions(int* width, int* height, int* length)
+{
 	*width = dim_x - 2;
 	*height = dim_y - 2;
 	*length = dim_z - 2;
 }
 
-void BFS_3D::setWall(int x, int y, int z) {
+void BFS_3D::setWall(int x, int y, int z)
+{
     if (running) {
         //error "Cannot modify grid while search is running"
         return;
@@ -59,20 +71,24 @@ void BFS_3D::setWall(int x, int y, int z) {
     distance_grid[node] = WALL;
 }
 
-bool BFS_3D::isWall(int x, int y, int z) {
+bool BFS_3D::isWall(int x, int y, int z)
+{
     int node = getNode(x, y, z);
     return distance_grid[node] == WALL;
 }
 
-void BFS_3D::run(int x, int y, int z) {
+void BFS_3D::run(int x, int y, int z)
+{
     if (running) {
         //error "Search already running"
         return;
     }
 
-    for (int i = 0; i < dim_xyz; i++)
-        if (distance_grid[i] != WALL)
+    for (int i = 0; i < dim_xyz; i++) {
+        if (distance_grid[i] != WALL) {
             distance_grid[i] = UNDISCOVERED;
+        }
+    }
 
     origin = getNode(x, y, z);
 
@@ -86,11 +102,11 @@ void BFS_3D::run(int x, int y, int z) {
     running = true;
 }
 
-int BFS_3D::getDistance(int x, int y, int z) {
+int BFS_3D::getDistance(int x, int y, int z)
+{
     int node = getNode(x, y, z);
-    while (running && distance_grid[node] < 0)
-        ;
+    while (running && distance_grid[node] < 0);
     return distance_grid[node];
 }
 
-}
+} // namespace sbpl_arm_planner

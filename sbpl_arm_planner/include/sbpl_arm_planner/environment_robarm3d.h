@@ -105,25 +105,31 @@ struct EnvironmentPlanningData
     // stateIDs of expanded states
     std::vector<int> expanded_states;
 
-    EnvironmentPlanningData()
+    EnvironmentPlanningData() :
+        near_goal(false),
+        t_start(),
+        time_to_goal_region(),
+        goal(),
+        use_7dof_goal(false),
+        goal_7dof(),
+        goal_entry(NULL),
+        start_entry(NULL),
+        HashTableSize(32 * 1024),
+        Coord2StateIDHashTable(NULL),
+        StateID2CoordTable(),
+        expanded_states()
     {
-        near_goal = false;
-        use_7dof_goal = false;
-        start_entry = NULL;
-        goal_entry = NULL;
-        Coord2StateIDHashTable = NULL;
     }
 
     void init()
     {
-        HashTableSize = 32*1024; //should be power of two
         Coord2StateIDHashTable = new std::vector<EnvROBARM3DHashEntry_t*>[HashTableSize];
         StateID2CoordTable.clear();
     }
 };
 
 /** Environment to be used when planning for a Robotic Arm using the SBPL. */
-class EnvironmentROBARM3D : virtual public DiscreteSpaceInformation 
+class EnvironmentROBARM3D : public DiscreteSpaceInformation 
 {
 public:
 
@@ -138,24 +144,23 @@ public:
 
     virtual bool AreEquivalent(int StateID1, int StateID2);
 
-    virtual bool setStartConfiguration(std::vector<double> angles);
+    virtual bool setStartConfiguration(const std::vector<double>& angles);
 
     virtual bool setGoalPosition(
-        const std::vector <std::vector<double> > &goals,
-        const std::vector<std::vector<double> > &tolerances);
+        const std::vector<std::vector<double>>& goals,
+        const std::vector<std::vector<double>>& tolerances);
 
     /* used to set 7-DoF goals */
     virtual bool setGoalConfiguration(
-        std::vector<double> angles,
-        std::vector<double> angle_tolerances);
+        const std::vector<double>& angles,
+        const std::vector<double>& angle_tolerances);
 
     virtual void getExpandedStates(
-        std::vector<std::vector<double> >* ara_states);
+        std::vector<std::vector<double>>* ara_states);
 
     virtual void convertStateIDPathToJointAnglesPath(
-        const std::vector<int> &idpath,
-        std::vector<std::vector<double> > &path)
-    { }
+        const std::vector<int>& idpath,
+        std::vector<std::vector<double>>& path);
 
     virtual bool convertStateIDPathToJointTrajectory(
         const std::vector<int> &idpath,
@@ -164,19 +169,19 @@ public:
     virtual void convertStateIDPathToShortenedJointAnglesPath(
         const std::vector<int> &idpath,
         std::vector<std::vector<double> > &path,
-        std::vector<int> &idpath_short){};
+        std::vector<int> &idpath_short);
 
     virtual void GetSuccs(
         int SourceStateID,
         std::vector<int>* SuccIDV,
         std::vector<int>* CostV);
 
-    virtual void StateID2Angles(int stateID, std::vector<double> &angles);
+    virtual void StateID2Angles(int stateID, std::vector<double>& angles);
 
-    virtual int getXYZRPYHeuristic(int FromStateID, int ToStateID) { return 0; }
+    virtual int getXYZRPYHeuristic(int FromStateID, int ToStateID);
 
     bool initEnvironment();
-    bool InitializeMDPCfg(MDPConfig *MDPCfg);
+    bool InitializeMDPCfg(MDPConfig* MDPCfg);
     inline bool InitializeEnv(const char* sEnvFile) { return false; }
     int GetFromToHeuristic(int FromStateID, int ToStateID);
     int GetGoalHeuristic(int stateID);
@@ -203,7 +208,7 @@ public:
     std::vector<double> getStart();
     double getDistanceToGoal(double x, double y, double z);
 
-    visualization_msgs::MarkerArray getVisualization(std::string type);
+    visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
 protected:
 
@@ -224,28 +229,28 @@ protected:
 
     /** hash table */
     unsigned int intHash(unsigned int key);
-    unsigned int getHashBin(const std::vector<int> &coord);
+    unsigned int getHashBin(const std::vector<int>& coord);
     virtual EnvROBARM3DHashEntry_t* getHashEntry(
-        const std::vector<int> &coord,
+        const std::vector<int>& coord,
         bool bIsGoal);
     virtual EnvROBARM3DHashEntry_t* createHashEntry(
-        const std::vector<int> &coord,
+        const std::vector<int>& coord,
         int endeff[3]);
 
     /** coordinate frame/angle functions */
     virtual void coordToAngles(
-        const std::vector<int> &coord,
-        std::vector<double> &angles);
+        const std::vector<int>& coord,
+        std::vector<double>& angles);
     virtual void anglesToCoord(
-        const std::vector<double> &angle,
-        std::vector<int> &coord);
+        const std::vector<double>& angle,
+        std::vector<int>& coord);
 
     /** planning */
     virtual bool isGoalState(
-        const std::vector<double> &pose,
-        GoalConstraint &goal);
+        const std::vector<double>& pose,
+        GoalConstraint& goal);
     virtual bool isGoalState(
-        const std::vector<double> &angles,
+        const std::vector<double>& angles,
         GoalConstraint7DOF& goal);
 
     /** costs */
@@ -256,8 +261,8 @@ protected:
     int getEdgeCost(int FromStateID, int ToStateID);
     virtual void computeCostPerCell();
     int getActionCost(
-        const std::vector<double> &from_config,
-        const std::vector<double> &to_config,
+        const std::vector<double>& from_config,
+        const std::vector<double>& to_config,
         int dist);
 
     /** output */
@@ -290,7 +295,7 @@ inline unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
 }
 
 inline unsigned int EnvironmentROBARM3D::getHashBin(
-    const std::vector<int> &coord)
+    const std::vector<int>& coord)
 {
     int val = 0;
 
@@ -303,8 +308,8 @@ inline unsigned int EnvironmentROBARM3D::getHashBin(
 
 //angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin 0, ...
 inline void EnvironmentROBARM3D::coordToAngles(
-    const std::vector<int> &coord,
-    std::vector<double> &angles)
+    const std::vector<int>& coord,
+    std::vector<double>& angles)
 {
     angles.resize(coord.size());
     for (size_t i = 0; i < coord.size(); i++) {
@@ -313,8 +318,8 @@ inline void EnvironmentROBARM3D::coordToAngles(
 }
 
 inline void EnvironmentROBARM3D::anglesToCoord(
-    const std::vector<double> &angle,
-    std::vector<int> &coord)
+    const std::vector<double>& angle,
+    std::vector<int>& coord)
 {
     double pos_angle;
 

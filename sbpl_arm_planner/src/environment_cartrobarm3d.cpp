@@ -36,44 +36,50 @@ namespace sbpl_arm_planner {
 
 bool isEqual(const std::vector<int> &v1, const std::vector<int> &v2)
 {
-  if(v1.size() != v2.size())
-    return false;
-  for(size_t i = 0; i < v1.size(); ++i)
-  {
-    if(v1[i] != v2[i])
-      return false;
-  }
-  return true;
+    if (v1.size() != v2.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < v1.size(); ++i) {
+        if (v1[i] != v2[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool isEqualDouble(const std::vector<double> &v1, const std::vector<double> &v2)
 {
-  if(v1.size() != v2.size())
-    return false;
-  for(size_t i = 0; i < v1.size(); ++i)
-  {
-    if(v1[i] != v2[i])
-      return false;
-  }
-  return true;
+    if (v1.size() != v2.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < v1.size(); ++i) {
+        if (v1[i] != v2[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
-EnvironmentCARTROBARM3D::EnvironmentCARTROBARM3D(OccupancyGrid *grid, SBPLKinematicModel *kmodel, CollisionChecker *cc)
+EnvironmentCARTROBARM3D::EnvironmentCARTROBARM3D(
+    OccupancyGrid *grid,
+    SBPLKinematicModel *kmodel,
+    CollisionChecker *cc)
 {
-  grid_ = grid;
-  kmodel_ = kmodel;
-  cc_ = cc;
-
-  EnvROBARMCfg.bInitialized = false;
-  save_expanded_states = true;
-  using_short_mprims_ = false;
-  free_angle_index_ = 2;
-  ndof_ = 7;
-
-  mp_dist_.resize(6);
-  mp_gradient_.resize(3);
-
-  prms_.environment_type_ = "cartesian";
+    grid_ = grid;
+    kmodel_ = kmodel;
+    cc_ = cc;
+    
+    EnvROBARMCfg.bInitialized = false;
+    save_expanded_states = true;
+    using_short_mprims_ = false;
+    free_angle_index_ = 2;
+    ndof_ = 7;
+    
+    mp_dist_.resize(6);
+    mp_gradient_.resize(3);
+    
+    prms_.environment_type_ = "cartesian";
 }
 
 /*
@@ -1651,5 +1657,4 @@ int EnvironmentCARTROBARM3D::getXYZRPYHeuristic(int FromStateID, int ToStateID)
   return xyz_heur + rpy_heur;
 }
 
-}
-
+} // namespace sbpl_arm_planner

@@ -4,22 +4,26 @@
 #include <vector>
 #include <sbpl_collision_checking/sbpl_collision_model.h>
 
-
 class SBPLCollisionStatistics
 {
-  public:
+public:
 
-    SBPLCollisionStatistics(sbpl_arm_planner::Group *group);
+    SBPLCollisionStatistics(sbpl_arm_planner::Group* group);
 
     ~SBPLCollisionStatistics(){};
 
-    void logSphereCollision(sbpl_arm_planner::Sphere *s, int &x, int &y, int &z, unsigned char &dist_temp);
+    void logSphereCollision(
+        sbpl_arm_planner::Sphere* s,
+        int& x,
+        int& y,
+        int& z,
+        unsigned char& dist_temp);
 
     void resetSphereCollisionLogs();
 
     void printSphereCollisionStats(std::string text);
 
-  private:
+private:
 
     sbpl_arm_planner::Group *group_;
 
@@ -28,7 +32,6 @@ class SBPLCollisionStatistics
             
     /** \brief log the number of collisions per cell **/
     std::map<KDL::Vector, int> col_cell_map_;
-
 };
 
 #endif

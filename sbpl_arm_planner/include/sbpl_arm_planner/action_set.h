@@ -18,7 +18,8 @@ class EnvironmentROBARM3D;
 
 namespace MotionPrimitiveType {
 
-enum {
+enum
+{
     LONG_DISTANCE,
     SHORT_DISTANCE,
     SNAP_TO_RPY,

@@ -13,10 +13,8 @@
 #include <ros/ros.h>
 #include <sbpl_collision_checking/group.h>
 
-namespace sbpl
-{
-namespace manipulation
-{
+namespace sbpl {
+namespace manipulation {
 
 class CollisionModelImpl
 {

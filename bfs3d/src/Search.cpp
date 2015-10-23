@@ -1,6 +1,6 @@
 #include <bfs3d/BFS_3D.h>
 
-namespace sbpl_arm_planner{
+namespace sbpl_arm_planner {
 
 #define EXPAND_NEIGHBOR(offset)                            \
     if (distance_grid[currentNode + offset] < 0) {         \
@@ -42,4 +42,5 @@ void BFS_3D::search(int width, int planeSize, int volatile* distance_grid, int* 
     }
     running = false;
 }
-}
+
+} // namespace sbpl_arm_planner

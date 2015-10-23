@@ -42,20 +42,17 @@
 #include <sensor_msgs/MultiDOFJointState.h>
 #include <moveit_msgs/RobotState.h>
 
-namespace sbpl
-{
-namespace manipulation
-{
+namespace sbpl {
+namespace manipulation {
 
 class CollisionModelImpl;
 
 } // namespace manipulation
 } // namespace sbpl
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
-/// @brief Represents the collision model of the robot used for planning.
+/// \brief Represents the collision model of the robot used for planning.
 class SBPLCollisionModel
 {
 public:
@@ -67,42 +64,55 @@ public:
 
     bool initAllGroups();
 
-    void getGroupNames(std::vector<std::string> &names);
+    void getGroupNames(std::vector<std::string>& names);
 
     bool getJointLimits(
-        const std::string &group_name,
-        const std::string &joint_name,
-        double &min_limit,
-        double &max_limit,
-        bool &continuous);
+        const std::string& group_name,
+        const std::string& joint_name,
+        double& min_limit,
+        double& max_limit,
+        bool& continuous);
 
-    bool setDefaultGroup(const std::string &group_name);
+    bool setDefaultGroup(const std::string& group_name);
 
-    void getDefaultGroupSpheres(std::vector<Sphere*> &spheres);
+    void getDefaultGroupSpheres(std::vector<Sphere*>& spheres);
 
-    void getVoxelGroups(std::vector<Group*> &vg);
+    void getVoxelGroups(std::vector<Group*>& vg);
 
-    bool computeDefaultGroupFK(const std::vector<double> &angles, std::vector<std::vector<KDL::Frame>> &frames);
+    bool computeDefaultGroupFK(
+        const std::vector<double>& angles,
+        std::vector<std::vector<KDL::Frame>>& frames);
 
-    bool computeGroupFK(const std::vector<double> &angles, Group *group, std::vector<std::vector<KDL::Frame>> &frames);
+    bool computeGroupFK(
+        const std::vector<double>& angles,
+        Group* group,
+        std::vector<std::vector<KDL::Frame>>& frames);
 
-    void setOrderOfJointPositions(const std::vector<std::string> &joint_names, const std::string &group_name);
+    void setOrderOfJointPositions(
+        const std::vector<std::string>& joint_names,
+        const std::string& group_name);
 
-    void setJointPosition(const std::string &name, double position);
+    void setJointPosition(const std::string& name, double position);
 
-    bool getFrameInfo(const std::string &name, const std::string &group_name, int &chain, int &segment);
+    bool getFrameInfo(
+        const std::string& name,
+        const std::string& group_name,
+        int& chain,
+        int& segment);
 
-    bool doesLinkExist(const std::string &name, const std::string &group_name);
+    bool doesLinkExist(const std::string& name, const std::string& group_name);
 
-    std::string getReferenceFrame(const std::string &group_name);
+    std::string getReferenceFrame(const std::string& group_name);
 
-    Group* getGroup(const std::string &name);
+    Group* getGroup(const std::string& name);
 
     void printGroups();
 
-    void printDebugInfo(const std::string &group_name);
+    void printDebugInfo(const std::string& group_name);
 
-    bool setModelToWorldTransform(const moveit_msgs::RobotState &state, const std::string &world_frame);
+    bool setModelToWorldTransform(
+        const moveit_msgs::RobotState& state,
+        const std::string& world_frame);
 
 private:
 

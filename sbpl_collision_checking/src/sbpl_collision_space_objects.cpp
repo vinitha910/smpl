@@ -31,180 +31,174 @@
 
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
 void SBPLCollisionSpace::removeAttachedObject()
 {
-  object_attached_ = false;
-  object_spheres_.clear();
-  ROS_DEBUG("[cspace] Removed attached object.");
+    object_attached_ = false;
+    object_spheres_.clear();
+    ROS_DEBUG("[cspace] Removed attached object.");
 }
 
 void SBPLCollisionSpace::attachSphere(std::string name, std::string link, geometry_msgs::Pose pose, double radius)
 {
-  object_attached_ = true;
-  attached_object_frame_ = link;
-  model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
-  
-  object_spheres_.resize(1);
-  object_spheres_[0].name = name;
-  object_spheres_[0].v.x(pose.position.x);
-  object_spheres_[0].v.y(pose.position.y);
-  object_spheres_[0].v.z(pose.position.z);
-  object_spheres_[0].radius = radius;
-  object_spheres_[0].kdl_chain = attached_object_chain_num_;
-  object_spheres_[0].kdl_segment = attached_object_segment_num_;
-
-  ROS_DEBUG("[cspace] frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_); 
-  ROS_INFO("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
+    object_attached_ = true;
+    attached_object_frame_ = link;
+    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    
+    object_spheres_.resize(1);
+    object_spheres_[0].name = name;
+    object_spheres_[0].v.x(pose.position.x);
+    object_spheres_[0].v.y(pose.position.y);
+    object_spheres_[0].v.z(pose.position.z);
+    object_spheres_[0].radius = radius;
+    object_spheres_[0].kdl_chain = attached_object_chain_num_;
+    object_spheres_[0].kdl_segment = attached_object_segment_num_;
+    
+    ROS_DEBUG("[cspace] frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_); 
+    ROS_INFO("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
 }
 
 void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose pose, double radius, double length)
 {
-  object_attached_ = true;
-  attached_object_frame_ = link;
-  model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
-
-  // compute end points of cylinder
-  KDL::Frame center;
-  tf::PoseMsgToKDL(pose, center);
-  //KDL::Vector top(0.0,0.0,length/2.0), bottom(0.0,0.0,-length/2.0);
-  KDL::Vector top(center.p), bottom(center.p);
-  std::vector<KDL::Vector> points;
-
-  top.data[2] += length/2.0; 
-  bottom.data[2] -= length/2.0; 
-
-  // get spheres 
-  leatherman::getIntermediatePoints(top, bottom, radius, points);
-  object_spheres_.resize(points.size());
-  for(size_t i = 0; i < points.size(); ++i)
-  {
-    object_spheres_[i].name = "attached_" + boost::lexical_cast<std::string>(i);
-    object_spheres_[i].v = points[i];
-    object_spheres_[i].radius = radius;
-    object_spheres_[i].kdl_chain = attached_object_chain_num_;
-    object_spheres_[i].kdl_segment = attached_object_segment_num_;
-  } 
-
-  ROS_INFO("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x,pose.position.y,pose.position.z, radius, length, int(object_spheres_.size())); 
-  ROS_INFO("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_); 
-  ROS_INFO("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
-  ROS_INFO("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
+    object_attached_ = true;
+    attached_object_frame_ = link;
+    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    
+    // compute end points of cylinder
+    KDL::Frame center;
+    tf::PoseMsgToKDL(pose, center);
+    //KDL::Vector top(0.0,0.0,length/2.0), bottom(0.0,0.0,-length/2.0);
+    KDL::Vector top(center.p), bottom(center.p);
+    std::vector<KDL::Vector> points;
+    
+    top.data[2] += length/2.0; 
+    bottom.data[2] -= length/2.0; 
+    
+    // get spheres 
+    leatherman::getIntermediatePoints(top, bottom, radius, points);
+    object_spheres_.resize(points.size());
+    for (size_t i = 0; i < points.size(); ++i) {
+        object_spheres_[i].name = "attached_" + boost::lexical_cast<std::string>(i);
+        object_spheres_[i].v = points[i];
+        object_spheres_[i].radius = radius;
+        object_spheres_[i].kdl_chain = attached_object_chain_num_;
+        object_spheres_[i].kdl_segment = attached_object_segment_num_;
+    } 
+    
+    ROS_INFO("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x,pose.position.y,pose.position.z, radius, length, int(object_spheres_.size())); 
+    ROS_INFO("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_); 
+    ROS_INFO("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
+    ROS_INFO("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
 }
 
 void SBPLCollisionSpace::attachCube(std::string name, std::string link, geometry_msgs::Pose pose, double x_dim, double y_dim, double z_dim)
 {
-  object_attached_ = true;
-  std::vector<std::vector<double> > spheres;
-  attached_object_frame_  = link;
-  model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
-
-  sbpl::SphereEncloser::encloseBox(x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
-
-  if(spheres.size() <= 3)
-    ROS_WARN("[cspace] Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
-
-  // transform spheres
-  KDL::Frame center;
-  tf::PoseMsgToKDL(pose, center);
-  object_spheres_.resize(spheres.size());
-  for(size_t i = 0; i < spheres.size(); ++i)
-  {
-    object_spheres_[i].v.x(spheres[i][0]);
-    object_spheres_[i].v.y(spheres[i][1]);
-    object_spheres_[i].v.z(spheres[i][2]);
-    object_spheres_[i].v = center * object_spheres_[i].v;
-
-    object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
-    object_spheres_[i].radius = object_enclosing_sphere_radius_;
-    object_spheres_[i].kdl_chain = attached_object_chain_num_;
-    object_spheres_[i].kdl_segment = attached_object_segment_num_;
-  }
-  ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim);
+    object_attached_ = true;
+    std::vector<std::vector<double> > spheres;
+    attached_object_frame_  = link;
+    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    
+    sbpl::SphereEncloser::encloseBox(x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
+    
+    if (spheres.size() <= 3) {
+        ROS_WARN("[cspace] Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
+    }
+    
+    // transform spheres
+    KDL::Frame center;
+    tf::PoseMsgToKDL(pose, center);
+    object_spheres_.resize(spheres.size());
+    for (size_t i = 0; i < spheres.size(); ++i) {
+        object_spheres_[i].v.x(spheres[i][0]);
+        object_spheres_[i].v.y(spheres[i][1]);
+        object_spheres_[i].v.z(spheres[i][2]);
+        object_spheres_[i].v = center * object_spheres_[i].v;
+    
+        object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
+        object_spheres_[i].radius = object_enclosing_sphere_radius_;
+        object_spheres_[i].kdl_chain = attached_object_chain_num_;
+        object_spheres_[i].kdl_segment = attached_object_segment_num_;
+    }
+    ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim);
 }
 
 void SBPLCollisionSpace::attachMesh(std::string name, std::string link, geometry_msgs::Pose pose, const std::vector<geometry_msgs::Point> &vertices, const std::vector<int> &triangles)
 {
-  object_attached_ = true;  
-  std::vector<std::vector<double> > spheres;
-  attached_object_frame_  = link;
-  model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
-
-  sbpl::SphereEncloser::encloseMesh(vertices, triangles, object_enclosing_sphere_radius_, spheres);
-  
-  if(spheres.size() <= 3)
-    ROS_WARN("[cspace] Attached mesh is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
-
-  object_spheres_.resize(spheres.size());
-  for(size_t i = 0; i < spheres.size(); ++i)
-  {
-    object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
-    object_spheres_[i].v.x(spheres[i][0]);
-    object_spheres_[i].v.y(spheres[i][1]);
-    object_spheres_[i].v.z(spheres[i][2]);
-    object_spheres_[i].radius = spheres[i][3];
-    object_spheres_[i].kdl_chain = attached_object_chain_num_;
-    object_spheres_[i].kdl_segment = attached_object_segment_num_;
-  }
-
-  ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
+    object_attached_ = true;  
+    std::vector<std::vector<double> > spheres;
+    attached_object_frame_  = link;
+    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    
+    sbpl::SphereEncloser::encloseMesh(vertices, triangles, object_enclosing_sphere_radius_, spheres);
+    
+    if (spheres.size() <= 3) {
+        ROS_WARN("[cspace] Attached mesh is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
+    }
+    
+    object_spheres_.resize(spheres.size());
+    for (size_t i = 0; i < spheres.size(); ++i) {
+        object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
+        object_spheres_[i].v.x(spheres[i][0]);
+        object_spheres_[i].v.y(spheres[i][1]);
+        object_spheres_[i].v.z(spheres[i][2]);
+        object_spheres_[i].radius = spheres[i][3];
+        object_spheres_[i].kdl_chain = attached_object_chain_num_;
+        object_spheres_[i].kdl_segment = attached_object_segment_num_;
+    }
+    
+    ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
 }
 
 bool SBPLCollisionSpace::getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double> > &xyz)
 {
-  KDL::Vector v;
-  int x,y,z;
-  xyz.clear();
+    KDL::Vector v;
+    int x,y,z;
+    xyz.clear();
 
-  if(!object_attached_)
-    return false;
+    if (!object_attached_) {
+        return false;
+    }
 
-  // compute forward kinematics
-  if(!model_.computeDefaultGroupFK(angles, frames_))
-  {
-    ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-    return false;
-  }
+    // compute forward kinematics
+    if (!model_.computeDefaultGroupFK(angles, frames_)) {
+        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
+        return false;
+    }
 
-  xyz.resize(object_spheres_.size(), std::vector<double>(4,0));
-  for(size_t i = 0; i < object_spheres_.size(); ++i)
-  {
-    v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
+    xyz.resize(object_spheres_.size(), std::vector<double>(4,0));
+    for (size_t i = 0; i < object_spheres_.size(); ++i) {
+        v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
+    
+        // snap to grid
+        grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z); 
+        grid_->gridToWorld(x, y, z, xyz[i][0], xyz[i][1], xyz[i][2]);
+    
+        xyz[i][3] = object_spheres_[i].radius;
+    }
 
-    // snap to grid
-    grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z); 
-    grid_->gridToWorld(x, y, z, xyz[i][0], xyz[i][1], xyz[i][2]);
-
-    xyz[i][3] = object_spheres_[i].radius;
-  }
-
-  return true;
+    return true;
 }
 
 void SBPLCollisionSpace::processCollisionObjectMsg(const arm_navigation_msgs::CollisionObject &object)
 {
-  if(object.id.compare("all") == 0) // ignoring the operation type
-  {
-    removeAllCollisionObjects();
-  }
-  else if(object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::ADD)
-  {
-    object_map_[object.id] = object;
-    addCollisionObject(object);
-  }
-  else if(object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::REMOVE)
-  {
-    removeCollisionObject(object);
-  }
-  else
-    ROS_ERROR("[cspace] Collision object operation '%d' isn't supported yet.", object.operation.operation);
+    if (object.id.compare("all") == 0) { // ignoring the operation type
+        removeAllCollisionObjects();
+    }
+    else if (object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::ADD) {
+        object_map_[object.id] = object;
+        addCollisionObject(object);
+    }
+    else if (object.operation.operation == arm_navigation_msgs::CollisionObjectOperation::REMOVE) {
+        removeCollisionObject(object);
+    }
+    else {
+        ROS_ERROR("[cspace] Collision object operation '%d' isn't supported yet.", object.operation.operation);
+    }
 }
 
 void SBPLCollisionSpace::addCollisionObject(const arm_navigation_msgs::CollisionObject &object)
 {
-
   for(size_t i = 0; i < object.shapes.size(); ++i)
   {
     if(object.shapes[i].type == arm_navigation_msgs::Shape::BOX)
@@ -370,5 +364,4 @@ void SBPLCollisionSpace::attachObject(const arm_navigation_msgs::AttachedCollisi
   }
 }
 
-}
-
+} // namespace sbpl_arm_planner

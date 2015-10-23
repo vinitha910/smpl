@@ -48,6 +48,7 @@ EnvironmentROBARM3D::EnvironmentROBARM3D(
     ActionSet* as,
     PlanningParams* pm)
 :
+    DiscreteSpaceInformation(),
     bfs_(NULL),
     nh_()
 {
@@ -379,7 +380,7 @@ void EnvironmentROBARM3D::printHashTableHist()
 }
 
 EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
-    const std::vector<int> &coord,
+    const std::vector<int>& coord,
     bool bIsGoal)
 {
     // if it is goal
@@ -415,7 +416,7 @@ EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
 }
 
 EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::createHashEntry(
-    const std::vector<int> &coord,
+    const std::vector<int>& coord,
     int endeff[3])
 {
     int i;
@@ -543,8 +544,8 @@ bool EnvironmentROBARM3D::isGoalState(
 }
 
 int EnvironmentROBARM3D::getActionCost(
-    const std::vector<double> &from_config,
-    const std::vector<double> &to_config,
+    const std::vector<double>& from_config,
+    const std::vector<double>& to_config,
     int dist)
 {
     int num_prims = 0, cost = 0;
@@ -595,7 +596,7 @@ int EnvironmentROBARM3D::getEdgeCost(int FromStateID, int ToStateID)
 }
 
 bool EnvironmentROBARM3D::setStartConfiguration(
-    const std::vector<double> angles)
+    const std::vector<double>& angles)
 {
     double dist = 0;
     int x,y,z;
@@ -644,8 +645,8 @@ bool EnvironmentROBARM3D::setStartConfiguration(
 }
 
 bool EnvironmentROBARM3D::setGoalConfiguration(
-    const std::vector<double> goal,
-    const std::vector<double> goal_tolerances)
+    const std::vector<double>& goal,
+    const std::vector<double>& goal_tolerances)
 {
     if (!prm_->ready_to_plan_) {
         ROS_ERROR_PRETTY("Cannot set goal position because environment is not initialized.");
@@ -674,8 +675,8 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
 }
 
 bool EnvironmentROBARM3D::setGoalPosition(
-  const std::vector<std::vector<double>>& goals,
-  const std::vector<std::vector<double>>& tolerances)
+    const std::vector<std::vector<double>>& goals,
+    const std::vector<std::vector<double>>& tolerances)
 {
     // goals: {{x1,y1,z1,r1,p1,y1,is_6dof},{x2,y2,z2,r2,p2,y2,is_6dof}...}
 
@@ -766,6 +767,11 @@ void EnvironmentROBARM3D::StateID2Angles(
         if(angles[i] >= M_PI)
         angles[i] = -2.0*M_PI + angles[i];
     }
+}
+
+int EnvironmentROBARM3D::getXYZRPYHeuristic(int FromStateID, int ToStateID)
+{ 
+    return 0;
 }
 
 void EnvironmentROBARM3D::printJointArray(
@@ -892,9 +898,16 @@ int EnvironmentROBARM3D::getXYZHeuristic(int FromStateID, int ToStateID)
     return FromHashEntry->heur;
 }
 
+void EnvironmentROBARM3D::convertStateIDPathToJointAnglesPath(
+    const std::vector<int>& idpath,
+    std::vector<std::vector<double>>& path)
+{
+    
+}
+
 bool EnvironmentROBARM3D::convertStateIDPathToJointTrajectory(
-    const std::vector<int> &idpath,
-    trajectory_msgs::JointTrajectory &traj)
+    const std::vector<int>& idpath,
+    trajectory_msgs::JointTrajectory& traj)
 {
     if (idpath.empty()) {
         return false;
@@ -913,6 +926,13 @@ bool EnvironmentROBARM3D::convertStateIDPathToJointTrajectory(
         traj.points[i].positions[p] = angles::normalize_angle(angles[p]);
     }
     return true;
+}
+
+void EnvironmentROBARM3D::convertStateIDPathToShortenedJointAnglesPath(
+    const std::vector<int>& idpath,
+    std::vector<std::vector<double>>& path,
+    std::vector<int>& idpath_short)
+{
 }
 
 double EnvironmentROBARM3D::getDistanceToGoal(double x, double y, double z)
@@ -950,7 +970,7 @@ std::vector<double> EnvironmentROBARM3D::getStart()
 }
 
 visualization_msgs::MarkerArray EnvironmentROBARM3D::getVisualization(
-    std::string type)
+    const std::string& type)
 {
     visualization_msgs::MarkerArray ma;
 

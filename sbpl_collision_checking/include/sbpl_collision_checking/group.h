@@ -15,39 +15,38 @@
 #include <leatherman/utils.h>
 #include <leatherman/print.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
 struct Sphere
 {
-  std::string name;
-  KDL::Vector v;
-  double radius;
-  int priority;
-  int kdl_chain;
-  int kdl_segment;
+    std::string name;
+    KDL::Vector v;
+    double radius;
+    int priority;
+    int kdl_chain;
+    int kdl_segment;
 };
 
 struct Voxels
 {
-  int kdl_chain;
-  int kdl_segment;
-  std::vector<KDL::Vector> v;
+    int kdl_chain;
+    int kdl_segment;
+    std::vector<KDL::Vector> v;
 };
 
 struct Link
 {
-  int type;   // spheres or voxels
-  int i_chain_;
-  Voxels voxels_;
-  std::string name_;
-  std::string root_name_;
-  std::vector<Sphere> spheres_;
+    int type;   // spheres or voxels
+    int i_chain_;
+    Voxels voxels_;
+    std::string name_;
+    std::string root_name_;
+    std::vector<Sphere> spheres_;
 };
 
 class Group
 {
-  public:
+public:
 
     Group(std::string name);
     
@@ -63,32 +62,38 @@ class Group
 
     const std::string& getReferenceFrame() const { return root_name_; }
 
-    void getSpheres(std::vector<Sphere*> &spheres);
+    void getSpheres(std::vector<Sphere*>& spheres);
     
-    bool computeFK(const std::vector<double> &angles, int chain, int segment, KDL::Frame &frame);
+    bool computeFK(
+        const std::vector<double>& angles,
+        int chain,
+        int segment,
+        KDL::Frame& frame);
 
-    bool computeFK(const std::vector<double> &angles, std::vector<std::vector<KDL::Frame> > &frames);
+    bool computeFK(
+        const std::vector<double>& angles,
+        std::vector<std::vector<KDL::Frame>>& frames);
 
-    void setOrderOfJointPositions(const std::vector<std::string> &joint_names);
+    void setOrderOfJointPositions(const std::vector<std::string>& joint_names);
 
-    void setJointPosition(const std::string &name, double position);
+    void setJointPosition(const std::string& name, double position);
 
-    bool getFrameInfo(const std::string &name, int &chain, int &segment);
+    bool getFrameInfo(const std::string& name, int& chain, int& segment);
 
     void printSpheres();
 
     void printDebugInfo();
 
-    void setGroupToWorldTransform(const KDL::Frame &f);
+    void setGroupToWorldTransform(const KDL::Frame& f);
 
     KDL::Frame getGroupToWorldTransform();
 
     bool init_;
-    enum {SPHERES, VOXELS} type_;
+    enum { SPHERES, VOXELS } type_;
     std::string tip_name_;
     std::vector<Link> links_;
 
-  private:
+private:
 
     boost::shared_ptr<urdf::Model> urdf_;
 
@@ -99,9 +104,9 @@ class Group
     std::vector<KDL::Chain> chains_;
     std::vector<KDL::ChainFkSolverPos_recursive*> solvers_;
     std::vector<KDL::JntArray> joint_positions_;
-    std::vector<std::vector<int> > frames_;
-    std::vector<std::vector<std::string> > jntarray_names_;
-    std::vector<std::vector<int> > angles_to_jntarray_;
+    std::vector<std::vector<int>> frames_;
+    std::vector<std::vector<std::string>> jntarray_names_;
+    std::vector<std::vector<int>> angles_to_jntarray_;
     std::vector<std::string> joint_names_;
     std::vector<std::string> order_of_input_angles_;
     std::vector<Sphere*> spheres_;
@@ -112,19 +117,19 @@ class Group
   
     bool initKinematics();
 
-    bool getLinkVoxels(std::string name, std::vector<KDL::Vector> &voxels);
+    bool getLinkVoxels(std::string name, std::vector<KDL::Vector>& voxels);
 };
 
-inline void Group::setGroupToWorldTransform(const KDL::Frame &f)
+inline void Group::setGroupToWorldTransform(const KDL::Frame& f)
 {
-  T_root_to_world_ = f;
+    T_root_to_world_ = f;
 }
 
 inline KDL::Frame Group::getGroupToWorldTransform()
 {
-  return T_root_to_world_;
+    return T_root_to_world_;
 }
 
-}
+} // namespace sbpl_arm_planner
 
 #endif

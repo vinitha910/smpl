@@ -1,11 +1,10 @@
-
 #ifndef _SBPL_DEBUG_CODES_
 #define _SBPL_DEBUG_CODES_
 
-namespace sbpl_arm_planner
+namespace sbpl_arm_planner {
+
+enum DebugCode 
 {
-  enum DebugCode 
-  {
     SUCCESS,
     COLLISION_BETWEEN_ARMS,
     RIGHT_ARM_IN_COLLISION,
@@ -30,7 +29,7 @@ namespace sbpl_arm_planner
     INVALID_LEFT_WRIST_PITCH_ANGLE,
     INVALID_LEFT_WRIST_ROLL_ANGLE,
     NUM_DEBUG_CODES
-  };
+};
 
 /*
   static const char* DebugCodeNames[] =
@@ -58,7 +57,8 @@ namespace sbpl_arm_planner
         "left arm in collision",
         "attached object in collision"}; 
  */
-}
+
+} // namespace sbpl_arm_planner
 
 #endif
 

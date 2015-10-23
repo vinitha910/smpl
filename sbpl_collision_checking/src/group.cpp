@@ -5,177 +5,172 @@
 
 #define RESOLUTION 0.02
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
 bool sortSphere(sbpl_arm_planner::Sphere* a, sbpl_arm_planner::Sphere* b)
 {
-  return a->priority < b->priority;
+    return a->priority < b->priority;
 }
 
-Group::Group(std::string name) : name_(name)
+Group::Group(std::string name) :
+    name_(name)
 {
-  init_ = false;
+    init_ = false;
 }
 
 Group::~Group()
 {
-  for(std::size_t i = 0; i < solvers_.size(); i++)
-  {
-    if(solvers_[i] != NULL)
-    {
-      delete solvers_[i];
-      solvers_[i] = NULL;
+    for (std::size_t i = 0; i < solvers_.size(); i++) {
+        if (solvers_[i] != NULL) {
+            delete solvers_[i];
+            solvers_[i] = NULL;
+        }
     }
-  }
 }
 
 bool Group::init(boost::shared_ptr<urdf::Model> urdf)
 {
-  urdf_ = urdf;
-  if(!initKinematics())
-    return false;
-
-  if(type_ == sbpl_arm_planner::Group::VOXELS)
-    init_ = initVoxels();
-  else
-    init_ = initSpheres();
-  
-  return init_;
+    urdf_ = urdf;
+    if (!initKinematics()) {
+        return false;
+    }
+    
+    if (type_ == sbpl_arm_planner::Group::VOXELS) {
+        init_ = initVoxels();
+    }
+    else {
+        init_ = initSpheres();
+    }
+    
+    return init_;
 }
 
 bool Group::initKinematics()
 {
-  bool unincluded_links = true;
-  int cnt = 0;
-  std::vector<int> link_included(links_.size(),-1);
-  KDL::Chain chain;
-  KDL::Tree tree;
-
-  if (!kdl_parser::treeFromUrdfModel(*urdf_, tree))
-  {
-    ROS_ERROR_PRETTY("Failed to parse tree from robot description.");
-    return false;
-  }
-
-  // loop until all links are included in a single kdl chain
-  while(unincluded_links && cnt < 100)
-  {
-    ROS_INFO_PRETTY("--------------------------------------");
-    ROS_INFO_PRETTY("-------- %s:  %d ------------------", name_.c_str(), cnt);
-    ROS_INFO_PRETTY("--------------------------------------");
-    cnt++;
-    std::vector<int> num_links_per_tip(links_.size(),0);
-
-    // compute # of links each link would include if tip of chain
-    for(size_t i = 0; i < links_.size(); ++i)
-    {
-      // link i is already included in a chain
-      if(link_included[i] > -1)
-        continue;
-
-      // link i is same as root link, set as identity
-      if(root_name_.compare(links_[i].root_name_) == 0)
-      {
-        ROS_ERROR_PRETTY("The group root matches the link root. Creating an empty chain. {root: %s, tip: %s}", root_name_.c_str(), links_[i].root_name_.c_str());
-        num_links_per_tip[i]++;
-      }
-
-      // create chain with link i as the tip
-      if (!tree.getChain(root_name_, links_[i].root_name_, chain))
-      {
-        ROS_ERROR_PRETTY("Error: Failed to fetch the KDL chain. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i].root_name_.c_str());
-        continue;
-      }
-
-      // count number of links included in this chain
-      for(size_t j = 0; j < links_.size(); ++j)
-      {
-        // link j is already included in a chain
-        if(link_included[j] > -1)
-          continue;
-
-        // check if link is included in this chain
-        int seg;
-        if(leatherman::getSegmentIndex(chain, links_[j].root_name_, seg))
-          num_links_per_tip[i]++;
-      }
+    bool unincluded_links = true;
+    int cnt = 0;
+    std::vector<int> link_included(links_.size(),-1);
+    KDL::Chain chain;
+    KDL::Tree tree;
+    
+    if (!kdl_parser::treeFromUrdfModel(*urdf_, tree)) {
+        ROS_ERROR_PRETTY("Failed to parse tree from robot description.");
+        return false;
     }
 
-    // get chain tip that would include the most links
-    int i_max = 0;
-    for(size_t i = 0; i < num_links_per_tip.size(); ++i)
-    {
-      ROS_INFO_PRETTY("[%d]  chain_tip: %25s  included_links %d", int(i), links_[i].root_name_.c_str(), num_links_per_tip[i]);
-      if(num_links_per_tip[i] > num_links_per_tip[i_max])
-        i_max = i;
+    // loop until all links are included in a single kdl chain
+    while (unincluded_links && cnt < 100) {
+        ROS_INFO_PRETTY("--------------------------------------");
+        ROS_INFO_PRETTY("-------- %s:  %d ------------------", name_.c_str(), cnt);
+        ROS_INFO_PRETTY("--------------------------------------");
+        cnt++;
+        std::vector<int> num_links_per_tip(links_.size(),0);
+        
+        // compute # of links each link would include if tip of chain
+        for(size_t i = 0; i < links_.size(); ++i)
+        {
+            // link i is already included in a chain
+            if (link_included[i] > -1) {
+                continue;
+            }
+        
+            // link i is same as root link, set as identity
+            if (root_name_.compare(links_[i].root_name_) == 0) {
+                ROS_ERROR_PRETTY("The group root matches the link root. Creating an empty chain. {root: %s, tip: %s}", root_name_.c_str(), links_[i].root_name_.c_str());
+                num_links_per_tip[i]++;
+            }
+            
+            // create chain with link i as the tip
+            if (!tree.getChain(root_name_, links_[i].root_name_, chain)) {
+                ROS_ERROR_PRETTY("Error: Failed to fetch the KDL chain. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i].root_name_.c_str());
+                continue;
+            }
+            
+            // count number of links included in this chain
+            for (size_t j = 0; j < links_.size(); ++j) {
+                // link j is already included in a chain
+                if (link_included[j] > -1) {
+                    continue;
+                }
+                
+                // check if link is included in this chain
+                int seg;
+                if (leatherman::getSegmentIndex(chain, links_[j].root_name_, seg)) {
+                    num_links_per_tip[i]++;
+                }
+            }
+        }
+
+        // get chain tip that would include the most links
+        int i_max = 0;
+        for (size_t i = 0; i < num_links_per_tip.size(); ++i) {
+            ROS_INFO_PRETTY("[%d]  chain_tip: %25s  included_links %d", int(i), links_[i].root_name_.c_str(), num_links_per_tip[i]);
+            if (num_links_per_tip[i] > num_links_per_tip[i_max]) {
+                i_max = i;
+            }
+        }
+        ROS_INFO_PRETTY("[cnt %d] Creating a chain for %s group with %s as the tip.", cnt, name_.c_str(), links_[i_max].root_name_.c_str());
+        
+        // create chain with link i_max as the tip
+        if (!tree.getChain(root_name_, links_[i_max].root_name_, chain)) {
+            ROS_ERROR_PRETTY("Error: could not fetch the KDL chain for the desired manipulator. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i_max].root_name_.c_str());
+            continue;
+        }
+
+        // add chain to the group
+        chains_.push_back(chain);
+    
+        // mark links that are included in this chain
+        int included_links = 0;
+        for (size_t i = 0; i < links_.size(); ++i) {
+            // link i is already included in a different chain
+            if (link_included[i] > -1) {
+                included_links++;
+                continue;
+            }
+        
+            if (root_name_.compare(links_[i].root_name_) == 0) {
+                ROS_ERROR_PRETTY("Checking which links are included in the single link chain.");
+                link_included[i] = chains_.size()-1;
+                links_[i].i_chain_ = chains_.size()-1;
+                included_links++;
+                ROS_INFO_PRETTY("[one_link-chain: %s] [%d] includes: %s", links_[i_max].root_name_.c_str(), included_links, links_[i].root_name_.c_str());
+            }
+        
+            // check if link i is included in this chain
+            int seg;
+            if (leatherman::getSegmentIndex(chains_.back(), links_[i].root_name_, seg)) {
+                link_included[i] = chains_.size()-1;
+                links_[i].i_chain_ = chains_.size()-1;
+                included_links++;
+                ROS_DEBUG("[chain: %s] [%d] includes: %s", links_[i_max].root_name_.c_str(), included_links, links_[i].root_name_.c_str());
+            }
+        }
+    
+        if (included_links == int(links_.size())) {
+            unincluded_links = false;
+        }
+    
+        ROS_DEBUG("Completed %d loops of the while loop (included_links = %d)", cnt, included_links);
     }
-    ROS_INFO_PRETTY("[cnt %d] Creating a chain for %s group with %s as the tip.", cnt, name_.c_str(), links_[i_max].root_name_.c_str());
 
-    // create chain with link i_max as the tip
-    if (!tree.getChain(root_name_, links_[i_max].root_name_, chain))
-    {
-      ROS_ERROR_PRETTY("Error: could not fetch the KDL chain for the desired manipulator. Exiting. (root: %s, tip: %s)", root_name_.c_str(), links_[i_max].root_name_.c_str());
-      continue;
+    for (size_t i = 0; i < link_included.size(); ++i) {
+        ROS_DEBUG("included link: %25s  link_root: %25s  chain: %d", links_[i].name_.c_str(), links_[i].root_name_.c_str(), link_included[i]);
     }
-
-    // add chain to the group
-    chains_.push_back(chain);
-
-    // mark links that are included in this chain
-    int included_links = 0;
-    for(size_t i = 0; i < links_.size(); ++i)
-    {
-      // link i is already included in a different chain
-      if(link_included[i] > -1)
-      {
-        included_links++;
-        continue;
-      }
-
-
-      if(root_name_.compare(links_[i].root_name_) == 0)
-      {
-        ROS_ERROR_PRETTY("Checking which links are included in the single link chain.");
-        link_included[i] = chains_.size()-1;
-        links_[i].i_chain_ = chains_.size()-1;
-        included_links++;
-        ROS_INFO_PRETTY("[one_link-chain: %s] [%d] includes: %s", links_[i_max].root_name_.c_str(), included_links, links_[i].root_name_.c_str());
-      }
-
-      // check if link i is included in this chain
-      int seg;
-      if(leatherman::getSegmentIndex(chains_.back(), links_[i].root_name_, seg))
-      {
-        link_included[i] = chains_.size()-1;
-        links_[i].i_chain_ = chains_.size()-1;
-        included_links++;
-        ROS_DEBUG("[chain: %s] [%d] includes: %s", links_[i_max].root_name_.c_str(), included_links, links_[i].root_name_.c_str());
-      }
+    
+    if (cnt >= 100) {
+        return false;
     }
-
-    if(included_links == int(links_.size()))
-      unincluded_links = false;
-
-    ROS_DEBUG("Completed %d loops of the while loop (included_links = %d)", cnt, included_links);
-  }
-
-  for(size_t i = 0; i < link_included.size(); ++i)
-    ROS_DEBUG("included link: %25s  link_root: %25s  chain: %d", links_[i].name_.c_str(), links_[i].root_name_.c_str(), link_included[i]);
-
-  if(cnt >= 100)
-    return false;
-
-  // initialize the FK solvers
-  solvers_.resize(chains_.size());
-  for(size_t i = 0; i < chains_.size(); ++i)
-  {
-    solvers_[i] = new KDL::ChainFkSolverPos_recursive(chains_[i]);
-    ROS_INFO_PRETTY("[%s] Instantiated a forward kinematics solver for chain #%d for the %s with %d joints.", name_.c_str(), int(i), name_.c_str(), chains_[i].getNrOfJoints());
-  }
-
-  ROS_INFO_PRETTY("Initialized %d chains for the %s group.", int(chains_.size()), name_.c_str());
-  return true;
+    
+    // initialize the FK solvers
+    solvers_.resize(chains_.size());
+    for (size_t i = 0; i < chains_.size(); ++i) {
+        solvers_[i] = new KDL::ChainFkSolverPos_recursive(chains_[i]);
+        ROS_INFO_PRETTY("[%s] Instantiated a forward kinematics solver for chain #%d for the %s with %d joints.", name_.c_str(), int(i), name_.c_str(), chains_[i].getNrOfJoints());
+    }
+    
+    ROS_INFO_PRETTY("Initialized %d chains for the %s group.", int(chains_.size()), name_.c_str());
+    return true;
 }
 
 
@@ -740,4 +735,4 @@ void Group::printDebugInfo()
     ROS_INFO_PRETTY("[angles_to_jntarray] [%d] %d", int(i), int(angles_to_jntarray_[i].size()));
 }
 
-}
+} // namespace sbpl_arm_planner

@@ -37,11 +37,14 @@
 
 namespace sbpl_arm_planner {
 
-class EnvironmentCARTROBARM3D: public EnvironmentROBARM3D
+class EnvironmentCARTROBARM3D : public EnvironmentROBARM3D
 {
   public:
 
-    EnvironmentCARTROBARM3D(OccupancyGrid *grid, SBPLKinematicModel *kmodel, CollisionChecker *cc);
+    EnvironmentCARTROBARM3D(
+        OccupancyGrid *grid,
+        SBPLKinematicModel *kmodel,
+        CollisionChecker *cc);
 
     ~EnvironmentCARTROBARM3D();
     
@@ -232,7 +235,7 @@ inline void EnvironmentCARTROBARM3D::coordToAngles(const std::vector<int> &coord
   angles = h->angles;
 }
 
-} //namespace
+} // namespace sbpl_arm_planner
 
 #endif
 
