@@ -50,6 +50,21 @@
 
 namespace sbpl_arm_planner {
 
+template <typename T>
+std::string vector_to_string(const std::vector<T>& v)
+{
+    std::stringstream ss;
+    ss << "[ ";
+    for (size_t i = 0; i < v.size(); ++i) {
+        ss << v[i];
+        if (i != v.size() - 1) {
+            ss << ' ';
+        }
+    }
+    ss << "]";
+    return ss.str();
+}
+
 SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     RobotModel* rm,
     CollisionChecker* cc,
@@ -274,16 +289,7 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
     std::vector<double> initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions, missing)) {
-        std::stringstream ss;
-        ss << "[ ";
-        for (size_t i = 0; i < missing.size(); ++i) {
-            ss << missing[i];
-            if (i != missing.size() - 1) {
-                ss << ' ';
-            }
-        }
-        ss << "]";
-        ROS_ERROR("Start state is missing planning joints: %s", ss.str().c_str());
+        ROS_ERROR("Start state is missing planning joints: %s", vector_to_string(missing).c_str());
         return false;
     }
     
@@ -295,7 +301,8 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
         ROS_ERROR("Failed to set start state. Not Planning.");
         return false;
     }
-    ROS_INFO("start: %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f %1.3f", initial_positions[0],initial_positions[1],initial_positions[2],initial_positions[3],initial_positions[4],initial_positions[5],initial_positions[6]);
+
+    ROS_INFO("start: %s", vector_to_string(initial_positions).c_str());
     return true;
 }
 
