@@ -272,8 +272,18 @@ bool SBPLArmPlannerInterface::checkParams(
 bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
 {
     std::vector<double> initial_positions;
-    if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions)) {
-        ROS_ERROR("Start state does not contain the positions of the planning joints.");
+    std::vector<std::string> missing;
+    if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions, missing)) {
+        std::stringstream ss;
+        ss << "[ ";
+        for (size_t i = 0; i < missing.size(); ++i) {
+            ss << missing[i];
+            if (i != missing.size() - 1) {
+                ss << ' ';
+            }
+        }
+        ss << "]";
+        ROS_ERROR("Start state is missing planning joints: %s", ss.str().c_str());
         return false;
     }
     
