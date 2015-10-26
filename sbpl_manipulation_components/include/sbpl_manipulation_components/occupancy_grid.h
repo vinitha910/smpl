@@ -44,8 +44,7 @@
 #include <tf/LinearMath/Vector3.h>
 #include <visualization_msgs/MarkerArray.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
 /**
  * @brief At this point, this is a very lightweight layer on top of the
@@ -138,7 +137,10 @@ public:
     }
 
     /** @sa PropagationDistanceField::getDistance(int, int, int) */
-    double getDistance(int x, int y, int z) const { return grid_->getDistance(x,y,z); }
+    double getDistance(int x, int y, int z) const
+    {
+        return grid_->getDistance(x,y,z);
+    }
 
     /** @sa PropagationDistanceField::getDistance(double, double, double) */
     double getDistanceFromPoint(double x, double y, double z) const
@@ -151,23 +153,25 @@ public:
     /** @brief Return whether the grid(x,y,z) is in bounds of the grid */
     bool isInBounds(int x, int y, int z) const
     {
-        return (x>=0 && x<grid_->getXNumCells() && y>=0 && y<grid_->getYNumCells() && z>=0 && z<grid_->getZNumCells());
+        return (x >= 0 && x < grid_->getXNumCells() &&
+            y >= 0 && y < grid_->getYNumCells() &&
+            z >= 0 && z < grid_->getZNumCells());
     }
 
     void getOccupiedVoxels(std::vector<geometry_msgs::Point> &voxels) const;
 
     void getOccupiedVoxels(
-            const geometry_msgs::Pose &pose,
-            const std::vector<double> &dim,
-            std::vector<Eigen::Vector3d> &voxels) const;
+        const geometry_msgs::Pose &pose,
+        const std::vector<double> &dim,
+        std::vector<Eigen::Vector3d> &voxels) const;
 
     void getOccupiedVoxels(
-            double x_center,
-            double y_center,
-            double z_center,
-            double radius,
-            std::string text,
-            std::vector<geometry_msgs::Point> &voxels) const;
+        double x_center,
+        double y_center,
+        double z_center,
+        double radius,
+        std::string text,
+        std::vector<geometry_msgs::Point> &voxels) const;
 
     /**@}*/
 
@@ -186,10 +190,14 @@ public:
      * @param size_y along the Y dimension (meters)
      * @param size_z along the Z dimension (meters)
     */
-    void addCube(double origin_x, double origin_y, double origin_z, double size_x, double size_y, double size_z);
+    void addCube(
+        double origin_x, double origin_y, double origin_z,
+        double size_x, double size_y, double size_z);
 
     void addPointsToField(const std::vector<Eigen::Vector3d> &points);
-    void updatePointsInField(const std::vector<Eigen::Vector3d> &points, bool iterative = false);
+    void updatePointsInField(
+        const std::vector<Eigen::Vector3d> &points,
+        bool iterative = false);
 
     /** @sa PropagationDistanceField::reset */
     void reset();
@@ -215,6 +223,6 @@ private:
     distance_field::PropagationDistanceField* grid_;
 };
 
-}
+} // namespace sbpl_arm_planner
 
 #endif

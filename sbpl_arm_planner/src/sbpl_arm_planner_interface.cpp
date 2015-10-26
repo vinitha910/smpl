@@ -50,21 +50,6 @@
 
 namespace sbpl_arm_planner {
 
-template <typename T>
-std::string vector_to_string(const std::vector<T>& v)
-{
-    std::stringstream ss;
-    ss << "[ ";
-    for (size_t i = 0; i < v.size(); ++i) {
-        ss << v[i];
-        if (i != v.size() - 1) {
-            ss << ' ';
-        }
-    }
-    ss << "]";
-    return ss.str();
-}
-
 SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     RobotModel* rm,
     CollisionChecker* cc,
@@ -179,6 +164,7 @@ bool SBPLArmPlannerInterface::solve(
     
     ROS_INFO("Got octomap in %s frame", planning_scene->world.octomap.header.frame_id.c_str());
     ROS_INFO("Current prm_.planning_frame_ is %s", prm_.planning_frame_.c_str());
+    
     // preprocess
     clock_t t_preprocess = clock();
     //prm_.planning_frame_ = planning_scene->world.octomap.header.frame_id;
@@ -289,7 +275,7 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
     std::vector<double> initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions, missing)) {
-        ROS_ERROR("Start state is missing planning joints: %s", vector_to_string(missing).c_str());
+        ROS_ERROR("Start state is missing planning joints: %s", leatherman::vectorToString(missing).c_str());
         return false;
     }
     
@@ -302,7 +288,7 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
         return false;
     }
 
-    ROS_INFO("start: %s", vector_to_string(initial_positions).c_str());
+    ROS_INFO("start: %s", leatherman::vectorToString(initial_positions).c_str());
     return true;
 }
 
