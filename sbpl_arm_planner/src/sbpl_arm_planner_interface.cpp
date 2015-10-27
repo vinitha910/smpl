@@ -329,8 +329,8 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(const moveit_msgs::Constraint
 bool SBPLArmPlannerInterface::setGoalPosition(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    std::vector<std::vector <double> > sbpl_goal(1, std::vector<double> (11,0));  //Changed to include Quaternion
-    std::vector<std::vector <double> > sbpl_tolerance(1, std::vector<double> (12,0));
+    std::vector<std::vector<double>> sbpl_goal(1, std::vector<double>(11, 0));  //Changed to include Quaternion
+    std::vector<std::vector<double>> sbpl_tolerance(1, std::vector<double>(12, 0));
     
     if (goal_constraints.position_constraints.empty() ||
         goal_constraints.orientation_constraints.empty())
@@ -378,9 +378,18 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     sbpl_tolerance[0][4] = tolerance[4];
     sbpl_tolerance[0][5] = tolerance[5];
     
-    ROS_INFO("goal xyz(%s): %.3f %.3f %.3f (tol: %.3fm) rpy: %.3f %.3f %.3f (tol: %.3frad)  (quat: %0.3f %0.3f %0.3f %0.3f)",
-            prm_.planning_frame_.c_str(), sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2], sbpl_tolerance[0][0], sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5], sbpl_tolerance[0][1],
-    goal_constraints.orientation_constraints[0].orientation.x, goal_constraints.orientation_constraints[0].orientation.y, goal_constraints.orientation_constraints[0].orientation.z, goal_constraints.orientation_constraints[0].orientation.w);
+    ROS_INFO("Goal(%s)", prm_.planning_frame_.c_str());
+    ROS_INFO("    pose: (%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f)",
+            sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2],
+            sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5]);
+    ROS_INFO("    tolerance: (%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f)",
+            sbpl_tolerance[0][0], sbpl_tolerance[0][1], sbpl_tolerance[0][2],
+            sbpl_tolerance[0][3], sbpl_tolerance[0][4], sbpl_tolerance[0][5]);
+    ROS_INFO("    quaternion: (%0.3f, %0.3f, %0.3f, %0.3f)",
+            goal_constraints.orientation_constraints[0].orientation.w,
+            goal_constraints.orientation_constraints[0].orientation.x,
+            goal_constraints.orientation_constraints[0].orientation.y,
+            goal_constraints.orientation_constraints[0].orientation.z);
     
     // set sbpl environment goal
     if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_tolerance)) {
