@@ -148,6 +148,14 @@ ActionSet::ActionSet() :
     mp_(),
     motion_primitive_type_names_()
 {
+    // add amps (will be added to MP file format)
+    MotionPrimitive m;
+    m.type = sbpl_arm_planner::MotionPrimitiveType::SNAP_TO_XYZ_RPY;
+    m.group = 2;
+    m.id =  mp_.size();
+    m.action.push_back(std::vector<double>());
+    mp_.push_back(m);
+
     motion_primitive_type_names_.push_back("long_distance");
     motion_primitive_type_names_.push_back("short_distance");
     motion_primitive_type_names_.push_back("adaptive");
