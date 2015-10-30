@@ -83,7 +83,7 @@ void fillConstraint(const std::vector<double> &pose, std::string frame_id, movei
   goals.orientation_constraints[0].absolute_y_axis_tolerance = 0.05;
   goals.orientation_constraints[0].absolute_z_axis_tolerance = 0.05;
 
-  ROS_INFO_PRETTY("Done packing the goal constraints message.");
+  ROS_INFO("Done packing the goal constraints message.");
 }
 
 moveit_msgs::CollisionObject getCollisionCube(geometry_msgs::Pose pose, std::vector<double> &dims, std::string frame_id, std::string id)
@@ -118,7 +118,7 @@ std::vector<moveit_msgs::CollisionObject> getCollisionCubes(std::vector<std::vec
 
   if(object_ids.size() != objects.size())
   {
-    ROS_INFO_PRETTY("object id list is not same length as object list. exiting.");
+    ROS_INFO("object id list is not same length as object list. exiting.");
     return objs;
   }
 
@@ -151,7 +151,7 @@ std::vector<moveit_msgs::CollisionObject> getCollisionObjects(std::string filena
 
   if(fCfg == NULL)
   {
-    ROS_INFO_PRETTY("ERROR: unable to open objects file. Exiting.\n");
+    ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
     return objs;
   }
 
@@ -161,7 +161,7 @@ std::vector<moveit_msgs::CollisionObject> getCollisionObjects(std::string filena
 
   num_obs = atoi(sTemp);
 
-  ROS_INFO_PRETTY("%i objects in file",num_obs);
+  ROS_INFO("%i objects in file",num_obs);
 
   //get {x y z dimx dimy dimz} for each object
   objects.resize(num_obs);
@@ -387,7 +387,7 @@ int main(int argc, char **argv)
   //cc->setPlanningScene(*scene);
 
   // plan
-  ROS_INFO_PRETTY("Calling solve...");
+  ROS_INFO("Calling solve...");
   if(!planner->solve(scene, req, res))
   {
     ROS_ERROR("Failed to plan.");
@@ -407,11 +407,11 @@ int main(int argc, char **argv)
                                                "solution cost" };
   std::map<std::string, double> planning_stats = planner->getPlannerStats();
 
-  ROS_INFO_PRETTY("Planning statistics");
+  ROS_INFO("Planning statistics");
   for (const auto& statistic : statistic_names) {
       auto it = planning_stats.find(statistic);
       if (it != planning_stats.end()) {
-          ROS_INFO_PRETTY("    %s: %0.3f", statistic.c_str(), it->second);
+          ROS_INFO("    %s: %0.3f", statistic.c_str(), it->second);
       }
       else {
           ROS_WARN("Did not find planning statistic \"%s\"", statistic.c_str());
@@ -431,7 +431,7 @@ int main(int argc, char **argv)
   ros::spinOnce();
 
   sleep(1);
-  ROS_INFO_PRETTY("Done");
+  ROS_INFO("Done");
   return 0;
 }
 

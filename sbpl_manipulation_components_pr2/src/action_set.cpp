@@ -276,7 +276,7 @@ bool ActionSet::applyMotionPrimitive(const RobotState &state, MotionPrimitive &m
     if(action[i].size() != state.size())
       return false;
     /*
-    ROS_INFO_PRETTY("[action_set] state: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", state[0], state[1], state[2], state[3], state[4], state[5], state[6]);
+    ROS_INFO("[action_set] state: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", state[0], state[1], state[2], state[3], state[4], state[5], state[6]);
     mp.print();
     */
     for(size_t j = 0; j < action[i].size(); ++j)

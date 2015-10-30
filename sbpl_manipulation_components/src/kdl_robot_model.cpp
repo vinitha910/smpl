@@ -419,13 +419,13 @@ void KDLRobotModel::printRobotModelInformation()
 {
   leatherman::printKDLChain(kchain_, "robot_model");
 
-  ROS_INFO_PRETTY("Joint<->Index Map:");
+  ROS_INFO("Joint<->Index Map:");
   for(std::map<std::string, int>::const_iterator iter = joint_map_.begin(); iter != joint_map_.end(); ++iter)
-     ROS_INFO_PRETTY("%22s: %d", iter->first.c_str(), iter->second);
+     ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
 
-  ROS_INFO_PRETTY("Link<->KDL_Index Map:");
+  ROS_INFO("Link<->KDL_Index Map:");
   for(std::map<std::string, int>::const_iterator iter = link_map_.begin(); iter != link_map_.end(); ++iter)
-     ROS_INFO_PRETTY("%22s: %d", iter->first.c_str(), iter->second);
+     ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
 }
 
 

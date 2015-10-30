@@ -12,7 +12,7 @@ void sbpl_arm_planner::shortcutPath(sbpl_arm_planner::CollisionChecker *cc, std:
 
   if(pin.size() <= 2)
   {
-    ROS_INFO_PRETTY("Path has 2 waypoints or less. Can't shortcut.");
+    ROS_INFO("Path has 2 waypoints or less. Can't shortcut.");
     pout = pin;
     return;
   }
@@ -43,7 +43,7 @@ void sbpl_arm_planner::shortcutPath(sbpl_arm_planner::CollisionChecker *cc, std:
   if(pout.size() == 2)
     ROS_ERROR("Does it make sense that the shortcutted path length is 2? Is it freespace?");
 
-  ROS_INFO_PRETTY("Original path length: %d   Shortcutted path length: %d", int(pin.size()), int(pout.size()));
+  ROS_INFO("Original path length: %d   Shortcutted path length: %d", int(pin.size()), int(pout.size()));
 }
 
 void sbpl_arm_planner::shortcutTrajectory(sbpl_arm_planner::CollisionChecker *cc, std::vector<trajectory_msgs::JointTrajectoryPoint> &traj_in, std::vector<trajectory_msgs::JointTrajectoryPoint> &traj_out)
@@ -125,7 +125,7 @@ bool sbpl_arm_planner::interpolateTrajectory(sbpl_arm_planner::CollisionChecker 
       traj_out[i].positions[j] = path[i][j];
     traj_out[i].time_from_start.fromSec(double(i+1) * (traj.back().time_from_start.toSec()/double(path.size())));
   }
-  ROS_INFO_PRETTY("Original path length: %d   Interpolated path length: %d", int(traj.size()), int(traj_out.size()));
+  ROS_INFO("Original path length: %d   Interpolated path length: %d", int(traj.size()), int(traj_out.size()));
   return true;
 }
 

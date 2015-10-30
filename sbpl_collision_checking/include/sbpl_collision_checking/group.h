@@ -1,5 +1,5 @@
-#ifndef _GROUP_
-#define _GROUP_
+#ifndef sbpl_arm_planner_Group_h
+#define sbpl_arm_planner_Group_h
 
 #include <ros/ros.h>
 #include <vector>

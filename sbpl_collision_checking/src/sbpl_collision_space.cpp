@@ -93,9 +93,9 @@ bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint
         continuous_[i] = cont;
     }
 
-    ROS_INFO_PRETTY("[min_limits] %s", leatherman::getString(min_limits_).c_str());
-    ROS_INFO_PRETTY("[max_limits] %s", leatherman::getString(max_limits_).c_str());
-    ROS_INFO_PRETTY("[continuous] %s", leatherman::getString(continuous_, "yes", "no").c_str());
+    ROS_INFO("[min_limits] %s", leatherman::getString(min_limits_).c_str());
+    ROS_INFO("[max_limits] %s", leatherman::getString(max_limits_).c_str());
+    ROS_INFO("[continuous] %s", leatherman::getString(continuous_, "yes", "no").c_str());
 
     // set the order of the planning joints
     model_.setOrderOfJointPositions(joint_names, group_name_);
@@ -161,7 +161,7 @@ bool SBPLCollisionSpace::checkCollision(const std::vector<double> &angles, bool 
             // check bounds
             if (!grid_->isInBounds(x, y, z)) {
                 if (verbose) {
-                    ROS_INFO_PRETTY("[cspace] Sphere %d %d %d is out of bounds.", x, y, z);
+                    ROS_INFO("[cspace] Sphere %d %d %d is out of bounds.", x, y, z);
                 }
                 return false;
             }
@@ -195,7 +195,7 @@ bool SBPLCollisionSpace::checkCollision(const std::vector<double> &angles, bool 
         // check bounds
         if (!grid_->isInBounds(x, y, z)) {
             if (verbose) {
-                ROS_INFO_PRETTY("[cspace] Sphere '%s' with center at {%0.2f %0.2f %0.2f} (%d %d %d) is out of bounds.", spheres_[i]->name.c_str(), v.x(), v.y(), v.z(), x, y, z);
+                ROS_INFO("[cspace] Sphere '%s' with center at {%0.2f %0.2f %0.2f} (%d %d %d) is out of bounds.", spheres_[i]->name.c_str(), v.x(), v.y(), v.z(), x, y, z);
             }
             return false;
         }
@@ -204,7 +204,7 @@ bool SBPLCollisionSpace::checkCollision(const std::vector<double> &angles, bool 
         if ((dist_temp = grid_->getDistance(x, y, z)) <= (spheres_[i]->radius + padding_)) {
             dist = dist_temp;
             if (verbose) {
-                ROS_INFO_PRETTY("    [sphere %zd] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*", i, spheres_[i]->name.c_str(), x, y, z, spheres_[i]->radius + padding_, grid_->getDistance(x, y, z));
+                ROS_INFO("    [sphere %zd] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*", i, spheres_[i]->name.c_str(), x, y, z, spheres_[i]->radius + padding_, grid_->getDistance(x, y, z));
             }
 
             if (visualize) {
@@ -268,7 +268,7 @@ bool SBPLCollisionSpace::updateVoxelGroup(Group *g)
         pts.clear();
         pts.resize(l->voxels_.v.size());
 
-        ROS_INFO_PRETTY("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size()));
+        ROS_INFO("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size()));
         for (size_t j = 0; j < l->voxels_.v.size(); ++j) {
             v = frames[l->voxels_.kdl_chain][l->voxels_.kdl_segment] * l->voxels_.v[j];
             pts[j].x() = v.x();
@@ -460,7 +460,7 @@ void SBPLCollisionSpace::attachSphere(std::string name, std::string link, geomet
     object_spheres_[0].kdl_segment = attached_object_segment_num_;
 
     ROS_DEBUG("[cspace] frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
-    ROS_INFO_PRETTY("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
+    ROS_INFO("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
 }
 
 void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose pose, double radius, double length)
@@ -491,10 +491,10 @@ void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose po
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
 
-    ROS_INFO_PRETTY("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x, pose.position.y, pose.position.z, radius, length, int(object_spheres_.size()));
-    ROS_INFO_PRETTY("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
-    ROS_INFO_PRETTY("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
-    ROS_INFO_PRETTY("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
+    ROS_INFO("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x, pose.position.y, pose.position.z, radius, length, int(object_spheres_.size()));
+    ROS_INFO("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
+    ROS_INFO("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
+    ROS_INFO("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
 }
 
 void SBPLCollisionSpace::attachCube(
@@ -517,7 +517,7 @@ void SBPLCollisionSpace::attachCube(
     sbpl::SphereEncloser::encloseBox(x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
 
     if (spheres.size() <= 3) {
-        ROS_WARN_PRETTY("[cspace] Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
+        ROS_WARN("[cspace] Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
     }
     int start = object_spheres_.size();
     object_spheres_.resize(start + spheres.size());
@@ -534,7 +534,7 @@ void SBPLCollisionSpace::attachCube(
         object_spheres_[i].kdl_chain = attached_object_chain_num_;
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
-    ROS_INFO_PRETTY("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f (sphere rad: %.3f) (chain id: %d)(segment id: %d)", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, attached_object_chain_num_, attached_object_segment_num_);
+    ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f (sphere rad: %.3f) (chain id: %d)(segment id: %d)", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, attached_object_chain_num_, attached_object_segment_num_);
 }
 
 void SBPLCollisionSpace::attachMesh(
@@ -552,7 +552,7 @@ void SBPLCollisionSpace::attachMesh(
     sbpl::SphereEncloser::encloseMesh(vertices, triangles, object_enclosing_sphere_radius_, spheres);
 
     if (spheres.size() <= 3) {
-        ROS_WARN_PRETTY("[cspace] Attached mesh is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
+        ROS_WARN("[cspace] Attached mesh is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
     }
 
     object_spheres_.resize(spheres.size());
@@ -566,7 +566,7 @@ void SBPLCollisionSpace::attachMesh(
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
 
-    ROS_INFO_PRETTY("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
+    ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
 }
 
 bool SBPLCollisionSpace::getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double>> &xyz)
@@ -651,7 +651,7 @@ void SBPLCollisionSpace::addCollisionObject(const moveit_msgs::CollisionObject &
             }
         }
         else {
-            ROS_WARN_PRETTY("[cspace] Collision objects of type %d are not yet supported.", object.primitives[i].type);
+            ROS_WARN("[cspace] Collision objects of type %d are not yet supported.", object.primitives[i].type);
         }
     }
 
@@ -700,7 +700,7 @@ void SBPLCollisionSpace::removeCollisionObject(const moveit_msgs::CollisionObjec
     for (size_t i = 0; i < known_objects_.size(); ++i) {
         if (known_objects_[i].compare(object.id) == 0) {
             known_objects_.erase(known_objects_.begin() + i);
-            ROS_INFO_PRETTY("[cspace] Removing %s from list of known collision objects.", object.id.c_str());
+            ROS_INFO("[cspace] Removing %s from list of known collision objects.", object.id.c_str());
         }
     }
 }
@@ -712,10 +712,10 @@ void SBPLCollisionSpace::removeAllCollisionObjects()
 
 void SBPLCollisionSpace::putCollisionObjectsInGrid()
 {
-    ROS_WARN_PRETTY("[cspace] Putting %d known objects in grid.", int(known_objects_.size()));
+    ROS_WARN("[cspace] Putting %d known objects in grid.", int(known_objects_.size()));
     for (size_t i = 0; i < known_objects_.size(); ++i) {
         grid_->addPointsToField(object_voxel_map_[known_objects_[i]]);
-        ROS_INFO_PRETTY("[cspace] [%d] Added %s to grid with %d voxels.", int(i), known_objects_[i].c_str(), int(object_voxel_map_[known_objects_[i]].size()));
+        ROS_INFO("[cspace] [%d] Added %s to grid with %d voxels.", int(i), known_objects_[i].c_str(), int(object_voxel_map_[known_objects_[i]].size()));
     }
 }
 
@@ -797,14 +797,14 @@ bool SBPLCollisionSpace::isStateToStateValid(
 
 bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scene)
 {
-    ROS_INFO_PRETTY("Setting the Planning Scene");
+    ROS_INFO("Setting the Planning Scene");
 
     ////////////////////////////////////////////////////////////////////////////////
     // robot state
     ////////////////////////////////////////////////////////////////////////////////
 
     if (scene.robot_state.joint_state.name.size() != scene.robot_state.joint_state.position.size()) {
-        ROS_ERROR_PRETTY("Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
+        ROS_ERROR("Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
         return false;
     }
 
@@ -815,7 +815,7 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
     const std::string& world_frame = scene.world.octomap.header.frame_id;
 
     if (!model_.setModelToWorldTransform(scene.robot_state, world_frame)) {
-        ROS_ERROR_PRETTY("Failed to set the model-to-world transform. The collision model's frame is different from the collision map's frame.");
+        ROS_ERROR("Failed to set the model-to-world transform. The collision model's frame is different from the collision map's frame.");
         return false;
     }
 
@@ -830,7 +830,7 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
          scene.robot_state.attached_collision_objects)
     {
         if (!model_.doesLinkExist(attached_collision_object.link_name, group_name_)) {
-            ROS_WARN_PRETTY("[cspace] This attached object is not intended for the planning joints of the robot.");
+            ROS_WARN("[cspace] This attached object is not intended for the planning joints of the robot.");
         }
         else if (attached_collision_object.object.operation == moveit_msgs::CollisionObject::ADD) {
             // add object
@@ -843,7 +843,7 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
             removeAttachedObject();
         }
         else {
-            ROS_WARN_PRETTY("Received a collision object with an unknown operation");
+            ROS_WARN("Received a collision object with an unknown operation");
         }
     }
 
@@ -884,28 +884,28 @@ void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject
     geometry_msgs::PoseStamped pose_in;
     std::string link_name = obj.link_name;
     moveit_msgs::CollisionObject object(obj.object);
-    ROS_INFO_PRETTY("Received a collision object message with %zd shape primitives and %zd meshes attached to %s.", object.primitives.size(), object.meshes.size(), link_name.c_str());
+    ROS_INFO("Received a collision object message with %zd shape primitives and %zd meshes attached to %s.", object.primitives.size(), object.meshes.size(), link_name.c_str());
 
     for (size_t i = 0; i < object.primitives.size(); i++) {
         pose_in.header = object.header;
         pose_in.header.stamp = ros::Time();
         pose_in.pose = object.primitive_poses[i];
-        ROS_WARN_PRETTY("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
+        ROS_WARN("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
 
         if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
-            ROS_INFO_PRETTY("[cspace] Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
+            ROS_INFO("[cspace] Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
             attachSphere(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0]);
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::CYLINDER) {
-            ROS_INFO_PRETTY("[cspace] Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
+            ROS_INFO("[cspace] Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
             attachCylinder(link_name, object.primitive_poses[i], object.primitives[i].dimensions[1], object.primitives[i].dimensions[0]);
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::BOX) {
-            ROS_INFO_PRETTY("[cspace] Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
+            ROS_INFO("[cspace] Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
             attachCube(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
         }
         else {
-            ROS_WARN_PRETTY("[cspace] Currently attaching objects of type '%d' aren't supported.", object.primitives[i].type);
+            ROS_WARN("[cspace] Currently attaching objects of type '%d' aren't supported.", object.primitives[i].type);
         }
     }
 
@@ -914,14 +914,14 @@ void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject
         pose_in.header.stamp = ros::Time();
         pose_in.pose = object.mesh_poses[i];
 
-        ROS_WARN_PRETTY("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
+        ROS_WARN("[cspace] [attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
 
-        ROS_INFO_PRETTY("[cspace] Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size() / 3), int(object.meshes[i].vertices.size()));
+        ROS_INFO("[cspace] Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size() / 3), int(object.meshes[i].vertices.size()));
         attachMesh(object.id, link_name, object.mesh_poses[i], object.meshes[i].vertices, convertToVertexIndices(object.meshes[i].triangles));
     }
 
     if (!object.planes.empty()) {
-        ROS_WARN_PRETTY("[cspace] [attach_object] Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
+        ROS_WARN("[cspace] [attach_object] Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
     }
 
     ROS_WARN("Attached object has %zd spheres!", object_spheres_.size());
@@ -1045,7 +1045,7 @@ SBPLCollisionSpace::getMeshModelVisualization(const std::string& group_name, con
             continue;
         }
 
-        ROS_INFO_PRETTY("Got the mesh! (%s)", mesh_resource.c_str());
+        ROS_INFO("Got the mesh! (%s)", mesh_resource.c_str());
         // TODO: Has to be a spheres group
         leatherman::msgFromPose(frames_[g->links_[i].spheres_[0].kdl_chain][g->links_[i].spheres_[0].kdl_segment], fpose);
         leatherman::multiply(fpose, lpose.pose, mpose.pose);

@@ -49,8 +49,7 @@
 #include <moveit_msgs/RobotState.h>
 #include <geometry_msgs/Point.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl_arm_planner {
 
 class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 {
@@ -84,10 +83,10 @@ public:
 
     /** ---------------- Utils ---------------- */
     bool interpolatePath(
-            const std::vector<double>& start,
-            const std::vector<double>& end,
-            const std::vector<double>& inc,
-            std::vector<std::vector<double>>& path);
+        const std::vector<double>& start,
+        const std::vector<double>& end,
+        const std::vector<double>& inc,
+        std::vector<std::vector<double>>& path);
 
     /** ------------ Kinematics ----------------- */
     const std::string& getGroupName() { return group_name_; }
@@ -127,19 +126,19 @@ public:
         double length);
 
     void attachCube(
-            const std::string& name,
-            const std::string& link,
-            const geometry_msgs::Pose& pose,
-            double x_dim,
-            double y_dim,
-            double z_dim);
+        const std::string& name,
+        const std::string& link,
+        const geometry_msgs::Pose& pose,
+        double x_dim,
+        double y_dim,
+        double z_dim);
 
     void attachMesh(
-            const std::string& name,
-            const std::string& link,
-            const geometry_msgs::Pose& pose,
-            const std::vector<geometry_msgs::Point>& vertices,
-            const std::vector<int>& triangles);
+        const std::string& name,
+        const std::string& link,
+        const geometry_msgs::Pose& pose,
+        const std::vector<geometry_msgs::Point>& vertices,
+        const std::vector<int>& triangles);
 
     void removeAttachedObject();
 

@@ -5,7 +5,7 @@ namespace sbpl_arm_planner
 {
 
 SBPLCollisionModel::SBPLCollisionModel() :
-    impl_(new sbpl::manipulation::CollisionModelImpl)
+    impl_(new sbpl::manip::CollisionModelImpl)
 {
 }
 

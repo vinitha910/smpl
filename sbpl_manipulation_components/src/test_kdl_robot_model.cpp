@@ -59,16 +59,16 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  ROS_INFO_PRETTY(" ");
+  ROS_INFO(" ");
   ROS_WARN("FK-IK Test 1 (kinematics_frame == planning_frame)");
-  ROS_INFO_PRETTY("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
       fka[0], fka[1], fka[2], fka[3], fka[4], fka[5], fka[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
-  ROS_INFO_PRETTY("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
   */
 
   /****** Test 2: Translate Robot on map *****
-  ROS_INFO_PRETTY(" ");
+  ROS_INFO(" ");
   ROS_WARN("FK-IK Test 2 (kinematics_frame: on robot body  planning_frame: map)");
 
   f.p.x(10.0); f.p.y(3.0); f.p.z(5.0);
@@ -88,15 +88,15 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  ROS_INFO_PRETTY("[robot pose] xyz: 10.0 3.0 5.0  rpy: 0.0 0.0 0.0");
-  ROS_INFO_PRETTY("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[robot pose] xyz: 10.0 3.0 5.0  rpy: 0.0 0.0 0.0");
+  ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
       fka[0], fka[1], fka[2], fka[3], fka[4], fka[5], fka[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
-  ROS_INFO_PRETTY("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
   */
 
   /****** Test 3: FK/IK matching? ******/
-  ROS_INFO_PRETTY(" ");
+  ROS_INFO(" ");
   ROS_WARN("IK-FK Test 3 (kinematics_frame == planning_frame)");
 
   f.p.x(-0.05); f.p.y(0.0); f.p.z(0.801);
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  ROS_INFO_PRETTY("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
   // FK
@@ -126,10 +126,10 @@ int main(int argc, char **argv)
     return 0;
   }
 
-    ROS_INFO_PRETTY("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+    ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], posef[0], posef[1], posef[2], posef[3], posef[4], posef[5]);
 
-  ROS_INFO_PRETTY("done");
+  ROS_INFO("done");
   return 1;
 }
 

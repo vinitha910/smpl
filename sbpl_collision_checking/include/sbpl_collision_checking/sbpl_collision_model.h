@@ -43,11 +43,11 @@
 #include <moveit_msgs/RobotState.h>
 
 namespace sbpl {
-namespace manipulation {
+namespace manip {
 
 class CollisionModelImpl;
 
-} // namespace manipulation
+} // namespace manip
 } // namespace sbpl
 
 namespace sbpl_arm_planner {
@@ -116,7 +116,7 @@ public:
 
 private:
 
-    std::unique_ptr<sbpl::manipulation::CollisionModelImpl> impl_;
+    std::unique_ptr<sbpl::manip::CollisionModelImpl> impl_;
 };
 
 } // namespace sbpl_arm_planner
