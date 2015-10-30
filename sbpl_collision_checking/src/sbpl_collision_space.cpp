@@ -1,43 +1,46 @@
-/*
- * Copyright (c) 2011, Maxim Likhachev
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the University of Pennsylvania nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
-*/
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2011, Maxim Likhachev
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the University of Pennsylvania nor the names of its
+//       contributors may be used to endorse or promote products derived from
+//       this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
 
-/** \author Benjamin Cohen */
+/// \author Benjamin Cohen
 
-#include <angles/angles.h>
-#include <leatherman/viz.h>
-#include <leatherman/print.h>
-#include <sbpl_geometry_utils/interpolation.h>
-#include <sbpl_geometry_utils/utils.h>
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
-namespace sbpl_arm_planner
-{
+#include <limits>
+
+#include <angles/angles.h>
+#include <leatherman/print.h>
+#include <leatherman/viz.h>
+#include <sbpl_geometry_utils/interpolation.h>
+#include <sbpl_geometry_utils/utils.h>
+
+namespace sbpl {
+namespace collision {
 
 SBPLCollisionSpace::SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
     model_(),
@@ -73,7 +76,8 @@ void SBPLCollisionSpace::setPadding(double padding)
     padding_ = padding;
 }
 
-bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint_names)
+bool SBPLCollisionSpace::setPlanningJoints(
+    const std::vector<std::string>& joint_names)
 {
     if (group_name_.empty()) {
         ROS_ERROR("[cspace] Default group name is not set. Please set it before setting planning joints.");
@@ -102,18 +106,16 @@ bool SBPLCollisionSpace::setPlanningJoints(const std::vector<std::string> &joint
     return true;
 }
 
-bool SBPLCollisionSpace::init(const std::string& urdf_string, const std::string &group_name)
+bool SBPLCollisionSpace::init(
+    const std::string& urdf_string,
+    const std::string& group_name,
+    const CollisionModelConfig& config)
 {
     group_name_ = group_name;
 
     // initialize the collision model
-    if (!model_.init(urdf_string)) {
+    if (!model_.init(urdf_string, config)) {
         ROS_ERROR("[cspace] The robot's collision model failed to initialize.");
-        return false;
-    }
-
-    if (!model_.initAllGroups()) {
-        ROS_ERROR("Failed to initialize all groups.");
         return false;
     }
 
@@ -133,7 +135,11 @@ bool SBPLCollisionSpace::init(const std::string& urdf_string, const std::string 
     return true;
 }
 
-bool SBPLCollisionSpace::checkCollision(const std::vector<double> &angles, bool verbose, bool visualize, double &dist)
+bool SBPLCollisionSpace::checkCollision(
+    const std::vector<double>& angles,
+    bool verbose,
+    bool visualize,
+    double& dist)
 {
     double dist_temp = 100.0;
     dist = 100.0;
@@ -251,7 +257,7 @@ bool SBPLCollisionSpace::updateVoxelGroup(std::string name)
     return updateVoxelGroup(g);
 }
 
-bool SBPLCollisionSpace::updateVoxelGroup(Group *g)
+bool SBPLCollisionSpace::updateVoxelGroup(Group* g)
 {
     KDL::Vector v;
     std::vector<double> angles;
@@ -282,12 +288,12 @@ bool SBPLCollisionSpace::updateVoxelGroup(Group *g)
 }
 
 bool SBPLCollisionSpace::checkPathForCollision(
-    const std::vector<double> &start,
-    const std::vector<double> &end,
+    const std::vector<double>& start,
+    const std::vector<double>& end,
     bool verbose,
-    int &path_length,
-    int &num_checks,
-    double &dist)
+    int& path_length,
+    int& num_checks,
+    double& dist)
 {
     int inc_cc = 5;
     double dist_temp = 0;
@@ -348,7 +354,10 @@ bool SBPLCollisionSpace::checkPathForCollision(
     return true;
 }
 
-double SBPLCollisionSpace::isValidLineSegment(const std::vector<int> a, const std::vector<int> b, const int radius)
+double SBPLCollisionSpace::isValidLineSegment(
+    const std::vector<int> a,
+    const std::vector<int> b,
+    const int radius)
 {
     leatherman::bresenham3d_param_t params;
     int nXYZ[3], retvalue = 1;
@@ -400,7 +409,9 @@ double SBPLCollisionSpace::isValidLineSegment(const std::vector<int> a, const st
 }
 
 bool
-SBPLCollisionSpace::getCollisionSpheres(const std::vector<double> &angles, std::vector<std::vector<double>> &spheres)
+SBPLCollisionSpace::getCollisionSpheres(
+    const std::vector<double>& angles,
+    std::vector<std::vector<double>>& spheres)
 {
     std::vector<double> xyzr(4, 0);
     std::vector<std::vector<double> > object;
@@ -444,7 +455,11 @@ void SBPLCollisionSpace::removeAttachedObject()
     ROS_DEBUG("[cspace] Removed attached object.");
 }
 
-void SBPLCollisionSpace::attachSphere(std::string name, std::string link, geometry_msgs::Pose pose, double radius)
+void SBPLCollisionSpace::attachSphere(
+    std::string name,
+    std::string link,
+    geometry_msgs::Pose pose,
+    double radius)
 {
     object_attached_ = true;
     attached_object_frame_ = link;
@@ -463,7 +478,11 @@ void SBPLCollisionSpace::attachSphere(std::string name, std::string link, geomet
     ROS_INFO("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
 }
 
-void SBPLCollisionSpace::attachCylinder(std::string link, geometry_msgs::Pose pose, double radius, double length)
+void SBPLCollisionSpace::attachCylinder(
+    std::string link,
+    geometry_msgs::Pose pose,
+    double radius,
+    double length)
 {
     object_attached_ = true;
     attached_object_frame_ = link;
@@ -541,8 +560,8 @@ void SBPLCollisionSpace::attachMesh(
     const std::string& name,
     const std::string& link,
     const geometry_msgs::Pose& pose,
-    const std::vector<geometry_msgs::Point> &vertices,
-    const std::vector<int> &triangles)
+    const std::vector<geometry_msgs::Point>& vertices,
+    const std::vector<int>& triangles)
 {
     object_attached_ = true;
     std::vector<std::vector<double>> spheres;
@@ -569,7 +588,9 @@ void SBPLCollisionSpace::attachMesh(
     ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
 }
 
-bool SBPLCollisionSpace::getAttachedObject(const std::vector<double> &angles, std::vector<std::vector<double>> &xyz)
+bool SBPLCollisionSpace::getAttachedObject(
+    const std::vector<double>& angles,
+    std::vector<std::vector<double>>& xyz)
 {
     KDL::Vector v;
     int x, y, z;
@@ -599,7 +620,8 @@ bool SBPLCollisionSpace::getAttachedObject(const std::vector<double> &angles, st
     return true;
 }
 
-void SBPLCollisionSpace::processCollisionObjectMsg(const moveit_msgs::CollisionObject &object)
+void SBPLCollisionSpace::processCollisionObjectMsg(
+    const moveit_msgs::CollisionObject& object)
 {
     if (object.id.compare("all") == 0) { // ignoring the operation type
         removeAllCollisionObjects();
@@ -616,7 +638,8 @@ void SBPLCollisionSpace::processCollisionObjectMsg(const moveit_msgs::CollisionO
     }
 }
 
-void SBPLCollisionSpace::addCollisionObject(const moveit_msgs::CollisionObject &object)
+void SBPLCollisionSpace::addCollisionObject(
+    const moveit_msgs::CollisionObject& object)
 {
     for (size_t i = 0; i < object.primitives.size(); ++i) {
         if (object.primitives[i].type == shape_msgs::SolidPrimitive::BOX) {
@@ -695,7 +718,8 @@ void SBPLCollisionSpace::addCollisionObject(const moveit_msgs::CollisionObject &
     grid_->addPointsToField(object_voxel_map_[object.id]);
 }
 
-void SBPLCollisionSpace::removeCollisionObject(const moveit_msgs::CollisionObject &object)
+void SBPLCollisionSpace::removeCollisionObject(
+    const moveit_msgs::CollisionObject& object)
 {
     for (size_t i = 0; i < known_objects_.size(); ++i) {
         if (known_objects_[i].compare(object.id) == 0) {
@@ -719,7 +743,8 @@ void SBPLCollisionSpace::putCollisionObjectsInGrid()
     }
 }
 
-void SBPLCollisionSpace::getCollisionObjectVoxelPoses(std::vector<geometry_msgs::Pose> &points)
+void SBPLCollisionSpace::getCollisionObjectVoxelPoses(
+    std::vector<geometry_msgs::Pose>& points)
 {
     geometry_msgs::Pose pose;
     pose.orientation.w = 1;
@@ -736,20 +761,24 @@ void SBPLCollisionSpace::getCollisionObjectVoxelPoses(std::vector<geometry_msgs:
 
 void SBPLCollisionSpace::setJointPosition(std::string name, double position)
 {
-  ROS_DEBUG("[cspace] Setting %s with position = %0.3f.", name.c_str(), position);
-  model_.setJointPosition(name, position);
+    ROS_DEBUG("[cspace] Setting %s with position = %0.3f.", name.c_str(), position);
+    model_.setJointPosition(name, position);
 }
 
 bool SBPLCollisionSpace::interpolatePath(
-    const std::vector<double> &start,
-    const std::vector<double> &end,
-    const std::vector<double> &inc,
-    std::vector<std::vector<double>> &path)
+    const std::vector<double>& start,
+    const std::vector<double>& end,
+    const std::vector<double>& inc,
+    std::vector<std::vector<double>>& path)
 {
     return sbpl::interp::InterpolatePath(start, end, min_limits_, max_limits_, inc, path);
 }
 
-bool SBPLCollisionSpace::getClearance(const std::vector<double> &angles, int num_spheres, double &avg_dist, double &min_dist)
+bool SBPLCollisionSpace::getClearance(
+    const std::vector<double>& angles,
+    int num_spheres,
+    double& avg_dist,
+    double& min_dist)
 {
     KDL::Vector v;
     int x, y, z;
@@ -780,7 +809,11 @@ bool SBPLCollisionSpace::getClearance(const std::vector<double> &angles, int num
     return true;
 }
 
-bool SBPLCollisionSpace::isStateValid(const std::vector<double> &angles, bool verbose, bool visualize, double &dist)
+bool SBPLCollisionSpace::isStateValid(
+    const std::vector<double> &angles,
+    bool verbose,
+    bool visualize,
+    double &dist)
 {
     return checkCollision(angles, verbose, visualize, dist);
 }
@@ -795,7 +828,8 @@ bool SBPLCollisionSpace::isStateToStateValid(
     return checkPathForCollision(angles0, angles1, false, path_length, num_checks, dist);
 }
 
-bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scene)
+bool SBPLCollisionSpace::setPlanningScene(
+    const moveit_msgs::PlanningScene &scene)
 {
     ROS_INFO("Setting the Planning Scene");
 
@@ -879,7 +913,8 @@ bool SBPLCollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene &scen
     return true;
 }
 
-void SBPLCollisionSpace::attachObject(const moveit_msgs::AttachedCollisionObject &obj)
+void SBPLCollisionSpace::attachObject(
+    const moveit_msgs::AttachedCollisionObject &obj)
 {
     geometry_msgs::PoseStamped pose_in;
     std::string link_name = obj.link_name;
@@ -991,7 +1026,9 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(
     return ma;
 }
 
-visualization_msgs::MarkerArray SBPLCollisionSpace::getCollisionModelVisualization(const std::vector<double> &angles)
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getCollisionModelVisualization(
+    const std::vector<double> &angles)
 {
     std::vector<double> rad;
     std::vector<std::vector<double> > sph;
@@ -1018,7 +1055,9 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getCollisionModelVisualizati
 }
 
 visualization_msgs::MarkerArray
-SBPLCollisionSpace::getMeshModelVisualization(const std::string& group_name, const std::vector<double> &angles)
+SBPLCollisionSpace::getMeshModelVisualization(
+    const std::string& group_name,
+    const std::vector<double> &angles)
 {
     visualization_msgs::MarkerArray ma;
     geometry_msgs::Pose fpose;
@@ -1056,7 +1095,8 @@ SBPLCollisionSpace::getMeshModelVisualization(const std::string& group_name, con
 }
 
 std::vector<int>
-SBPLCollisionSpace::convertToVertexIndices(const std::vector<shape_msgs::MeshTriangle>& triangles) const
+SBPLCollisionSpace::convertToVertexIndices(
+    const std::vector<shape_msgs::MeshTriangle>& triangles) const
 {
     std::vector<int> triangle_indices(3 * triangles.size());
     for (int j = 0; j < triangles.size(); ++j) {
@@ -1067,5 +1107,5 @@ SBPLCollisionSpace::convertToVertexIndices(const std::vector<shape_msgs::MeshTri
     return triangle_indices;
 }
 
-}
-
+} // namespace collision
+} // namespace sbpl

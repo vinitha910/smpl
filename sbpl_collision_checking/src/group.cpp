@@ -1,13 +1,46 @@
-#include <leatherman/print.h>
-#include <sbpl_collision_checking/group.h>
-#include <sbpl_geometry_utils/Voxelizer.h>
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2015, Benjamin Cohen
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the University of Pennsylvania nor the names of its
+//       contributors may be used to endorse or promote products derived from
+//       this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Benjamin Cohen
+
 #include <geometric_shapes/shapes.h>
+#include <leatherman/print.h>
+#include <sbpl_geometry_utils/Voxelizer.h>
+
+#include <sbpl_collision_checking/group.h>
 
 #define RESOLUTION 0.02
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace collision {
 
-bool sortSphere(sbpl_arm_planner::Sphere* a, sbpl_arm_planner::Sphere* b)
+bool sortSphere(Sphere* a, Sphere* b)
 {
     return a->priority < b->priority;
 }
@@ -35,7 +68,7 @@ bool Group::init(boost::shared_ptr<urdf::Model> urdf)
         return false;
     }
     
-    if (type_ == sbpl_arm_planner::Group::VOXELS) {
+    if (type_ == Group::VOXELS) {
         init_ = initVoxels();
     }
     else {
@@ -174,115 +207,81 @@ bool Group::initKinematics()
 }
 
 
-bool Group::getParams(XmlRpc::XmlRpcValue grp, XmlRpc::XmlRpcValue spheres)
+bool Group::getParams(
+    const CollisionGroupConfig& grp,
+    const std::vector<CollisionSphereConfig>& spheres)
 {
-    if (!grp.hasMember("name")) {
-        ROS_WARN("All groups must have a name.");
-        return false;
-    }
-    name_ = std::string(grp["name"]);
+    name_ = grp.name;
     
-    if (!grp.hasMember("type")) {
-        ROS_WARN("All groups must have a type. (voxels or spheres)");
-        return false;
+    if (grp.type == "voxels") {
+        type_ = Group::VOXELS;
     }
-
-    if (std::string(grp["type"]).compare("voxels") == 0) {
-        type_ = sbpl_arm_planner::Group::VOXELS;
-    }
-    else if (std::string(grp["type"]).compare("spheres") == 0) {
-        type_ = sbpl_arm_planner::Group::SPHERES;
+    else if (grp.type == "spheres") {
+        type_ = Group::SPHERES;
     }
     else {
         ROS_ERROR("Illegal group type. (voxels or spheres)");
         return false;
     }
     
-    if (!grp.hasMember("root_name")) {
-        ROS_WARN("All groups must have a root_name.");
-        return false;
-    }
-    root_name_ = std::string(grp["root_name"]);
+    root_name_ = grp.root_name;
+    tip_name_ = grp.tip_name;
     
-    if (!grp.hasMember("tip_name")) {
-        ROS_WARN("All groups must have a tip_name.");
-        return false;
-    }
-    tip_name_ = std::string(grp["tip_name"]);
-    
-    if (grp.hasMember("collision_links")) {
-        XmlRpc::XmlRpcValue all_links = grp["collision_links"];
-    
-        if (all_links.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-            ROS_WARN("Collision links is not an array.");
-            return false;
-        }
-    
-        if (all_links.size() == 0) {
-            ROS_WARN("No links in collision links");
-            return false;
-        }
-    
-        Link link;
-        for (int j = 0; j < all_links.size(); j++) {
-            link.spheres_.clear();
-            if (all_links[j].hasMember("name")) {
-                link.name_ = std::string(all_links[j]["name"]);
-            }
-            if (all_links[j].hasMember("root")) {
-                link.root_name_ = std::string(all_links[j]["root"]);
-            }
-            else {
-                ROS_WARN("No root name");
-            }
-    
-            if (type_ == sbpl_arm_planner::Group::SPHERES) {
-                std::stringstream ss(all_links[j]["spheres"]);
-                Sphere sphere;
-                std::string sphere_name;
-                while (ss >> sphere_name) {
-                    int i;
-                    for (i = 0; i < spheres.size(); ++i) {
-                        if (std::string(spheres[i]["name"]).compare(sphere_name) == 0) {
-                            sphere.name = std::string(spheres[i]["name"]);
-                            sphere.v.x(spheres[i]["x"]);
-                            sphere.v.y(spheres[i]["y"]);
-                            sphere.v.z(spheres[i]["z"]);
-                            sphere.priority = spheres[i]["priority"];
-                            sphere.radius = spheres[i]["radius"];
-                            link.spheres_.push_back(sphere);
-                            break;
-                        }
-                    }
-                    if (i == spheres.size()) {
-                        ROS_ERROR("Failed to find sphere %s in the sphere list.", sphere_name.c_str());
-                        return false;
-                    }
+    Link link;
+    for (int j = 0; j < (int)grp.collision_links.size(); j++) {
+        link.name_ = grp.collision_links[j].name;
+        link.root_name_ = grp.collision_links[j].root;
+        link.spheres_.clear();
+
+        if (type_ == Group::SPHERES) {
+            const std::vector<std::string>& sphere_names =
+                    grp.collision_links[j].spheres;
+            for (const std::string& sphere_name : sphere_names) {
+                // find the sphere corresponding to this name
+                auto sit = std::find_if(
+                        spheres.begin(), spheres.end(),
+                        [&](const CollisionSphereConfig& config)
+                        {
+                            return config.name == sphere_name;
+                        });
+
+                if (sit == spheres.end()) {
+                    ROS_ERROR("Failed to find sphere %s in the sphere list.", sphere_name.c_str());
+                    return false;
                 }
+
+                Sphere sphere;
+                sphere.name = sit->name;
+                sphere.v.x(sit->x);
+                sphere.v.y(sit->y);
+                sphere.v.z(sit->z);
+                sphere.priority = sit->priority;
+                sphere.radius = sit->radius;
+                link.spheres_.push_back(sphere);
             }
-            links_.push_back(link);
         }
+        links_.push_back(link);
     }
     return true;
 }
 
 void Group::printSpheres()
 {
-      if (!init_) {
-            ROS_ERROR("Failed to print the collision spheres because the %s group is not initialized.", name_.c_str());
-            return;
-      }
+    if (!init_) {
+        ROS_ERROR("Failed to print the collision spheres because the %s group is not initialized.", name_.c_str());
+        return;
+    }
     
-      ROS_INFO("\n%s", name_.c_str());
-      for (size_t i = 0; i < spheres_.size(); ++i) {
-            ROS_INFO("[%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[i]->name.c_str(), spheres_[i]->v.x(), spheres_[i]->v.y(), spheres_[i]->v.z(), spheres_[i]->radius, spheres_[i]->priority);
-      }
-      ROS_INFO(" ");
+    ROS_INFO("\n%s", name_.c_str());
+    for (size_t i = 0; i < spheres_.size(); ++i) {
+        ROS_INFO("[%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[i]->name.c_str(), spheres_[i]->v.x(), spheres_[i]->v.y(), spheres_[i]->v.z(), spheres_[i]->radius, spheres_[i]->priority);
+    }
+    ROS_INFO(" ");
 }
 
 bool Group::initSpheres()
 {
-    if (type_ == sbpl_arm_planner::Group::VOXELS) {
+    if (type_ == Group::VOXELS) {
         return false;
     }
 
@@ -300,8 +299,7 @@ bool Group::initSpheres()
     }
 
     // fill the group's list of all the spheres
-    for (size_t i = 0; i < links_.size(); ++i)
-    {
+    for (size_t i = 0; i < links_.size(); ++i) {
         for (size_t j = 0; j < links_[i].spheres_.size(); ++j) {
             spheres_.push_back(&(links_[i].spheres_[j]));
         }
@@ -647,19 +645,18 @@ void Group::print()
     ROS_INFO("name: %s", name_.c_str());
     ROS_INFO("type: %d", type_);
     ROS_INFO("root name: %s", root_name_.c_str());
-    ROS_INFO(" tip name: %s", tip_name_.c_str());
     ROS_INFO("collision links: ");
     for (std::size_t i = 0; i < links_.size(); ++i) {
         ROS_INFO("  name: %s", links_[i].name_.c_str());
         ROS_INFO("  root: %s", links_[i].root_name_.c_str());
         ROS_INFO(" chain: %d", links_[i].i_chain_);
-        if (type_ == sbpl_arm_planner::Group::SPHERES) {
+        if (type_ == Group::SPHERES) {
             ROS_INFO(" spheres: %d", int(links_[i].spheres_.size()));
             for (std::size_t j = 0; j < links_[i].spheres_.size(); ++j) {
                 ROS_INFO("  [%s] x: %0.3f y: %0.3f z: %0.3f radius: %0.3f priority: %d chain: %d segment: %d", links_[i].spheres_[j].name.c_str(), links_[i].spheres_[j].v.x(), links_[i].spheres_[j].v.y(), links_[i].spheres_[j].v.z(), links_[i].spheres_[j].radius, links_[i].spheres_[j].priority, links_[i].spheres_[j].kdl_chain, links_[i].spheres_[j].kdl_segment);
             }
         }
-        else if (type_ == sbpl_arm_planner::Group::VOXELS) {
+        else if (type_ == Group::VOXELS) {
             ROS_INFO(" voxels: %d chain: %d segment: %d", int(links_[i].voxels_.v.size()), links_[i].voxels_.kdl_chain, links_[i].voxels_.kdl_segment);
             for (std::size_t j = 0; j < links_[i].voxels_.v.size(); ++j) {
                 ROS_DEBUG("  [%d] x: %0.3f y: %0.3f z: %0.3f", int(j), links_[i].voxels_.v[j].x(), links_[i].voxels_.v[j].y(), links_[i].voxels_.v[j].z());
@@ -669,7 +666,7 @@ void Group::print()
         ROS_INFO(" ---");
     }
     ROS_INFO(" ");
-    if (type_ == sbpl_arm_planner::Group::SPHERES) {
+    if (type_ == Group::SPHERES) {
         ROS_INFO("sorted spheres: ");
         for (std::size_t j = 0; j < spheres_.size(); ++j) {
             ROS_INFO("  [%s] x: %0.3f  y:%0.3f  z:%0.3f  radius: %0.3f  priority: %d", spheres_[j]->name.c_str(), spheres_[j]->v.x(), spheres_[j]->v.y(), spheres_[j]->v.z(), spheres_[j]->radius, spheres_[j]->priority);
@@ -703,4 +700,5 @@ void Group::printDebugInfo()
     }
 }
 
-} // namespace sbpl_arm_planner
+} // namespace collision
+} // namespace sbpl

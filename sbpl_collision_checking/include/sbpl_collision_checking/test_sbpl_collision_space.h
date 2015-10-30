@@ -1,36 +1,36 @@
-/*
- * Copyright (c) 2011, Willow Garage, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Willow Garage, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2011, Willow Garage, Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of Willow Garage, Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived from
+//       this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
 
-/** \author Benjamin Cohen */
+/// \author Benjamin Cohen
 
-#ifndef _TEST_SBPL_COLLISION_SPACE_H_
-#define _TEST_SBPL_COLLISION_SPACE_H_
+#ifndef sbpl_collision_TestSBPLCollisionSpace_h
+#define sbpl_collision_TestSBPLCollisionSpace_h
 
 #include <iostream>
 #include <map>
@@ -57,9 +57,13 @@
 #include <kinematics_msgs/GetPositionFK.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 
+namespace sbpl {
+namespace collision {
+
 class TestSBPLCollisionSpace
 {
-  public:
+public:
+
     /** \brief Constructor-doesn't initialize class, you need to run init() */
     TestSBPLCollisionSpace();
 
@@ -71,17 +75,18 @@ class TestSBPLCollisionSpace
     /** \brief Run the node! */
     int run();
 
-  private:
+private:
 
     ros::NodeHandle node_handle_, root_handle_;
     ros::Subscriber object_subscriber_;
     ros::Subscriber joint_states_subscriber_;
     message_filters::Subscriber<moveit_msgs::CollisionMap> collision_map_subscriber_;
-    tf::MessageFilter<moveit_msgs::CollisionMap> *collision_map_filter_;
+    tf::MessageFilter<moveit_msgs::CollisionMap>* collision_map_filter_;
 
     //remove
     ros::Subscriber collision_object_subscriber_;
-    void collisionObjectCallback(const moveit_msgs::CollisionObjectConstPtr &collision_object);
+    void collisionObjectCallback(
+        const moveit_msgs::CollisionObjectConstPtr& collision_object);
     std::vector<std::vector<double> > col_objects_;
 
     std::string left_fk_service_name_;
@@ -118,7 +123,7 @@ class TestSBPLCollisionSpace
 
     /* planner & environment */
     double resolution_;
-    sbpl_arm_planner::SBPLCollisionSpace* cspace_;
+    SBPLCollisionSpace* cspace_;
     sbpl_arm_planner::OccupancyGrid* grid_;
     sbpl_arm_planner::VisualizeArm* aviz_;
     KDL::Frame kdl_transform_;
@@ -130,13 +135,18 @@ class TestSBPLCollisionSpace
     tf::TransformListener tf_;
     tf::StampedTransform transform_;
 
-    void updateMapFromCollisionMap(const moveit_msgs::CollisionMapConstPtr &collision_map);
+    void updateMapFromCollisionMap(
+        const moveit_msgs::CollisionMapConstPtr& collision_map);
 
-    void collisionMapCallback(const moveit_msgs::CollisionMapConstPtr &collision_map);
+    void collisionMapCallback(
+        const moveit_msgs::CollisionMapConstPtr& collision_map);
 
-    void jointStatesCallback(const sensor_msgs::JointStateConstPtr &state);
+    void jointStatesCallback(const sensor_msgs::JointStateConstPtr& state);
 
     void visualizeCollisionObjects();
 };
+
+} // namespace collision
+} // namespace sbpl
 
 #endif

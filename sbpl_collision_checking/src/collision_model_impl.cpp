@@ -1,10 +1,45 @@
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2015, Andrew Dornbush
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+// 
+// 1. Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+// 
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+// 
+// 3. Neither the name of the copyright holder nor the names of its contributors
+// may be used to endorse or promote products derived from this software without
+// specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Andrew Dornbush
+
 #include "collision_model_impl.h"
 
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
 
+#include <sbpl_collision_checking/collision_model_config.h>
+
 namespace sbpl {
-namespace manip {
+namespace collision {
 
 CollisionModelImpl::CollisionModelImpl() :
     nh_(),
@@ -29,70 +64,38 @@ CollisionModelImpl::~CollisionModelImpl()
     }
 }
 
-bool CollisionModelImpl::init(const std::string& urdf_string)
+bool CollisionModelImpl::init(
+    const std::string& urdf_string,
+    const CollisionModelConfig& config)
 {
-    return initURDF(urdf_string) && initRobotModel(urdf_string) && readGroups();
+    return initURDF(urdf_string) &&
+            initRobotModel(urdf_string) &&
+            readGroups(config) &&
+            initAllGroups();
 }
 
-bool CollisionModelImpl::readGroups()
+bool CollisionModelImpl::readGroups(
+    const CollisionModelConfig& config)
 {
-    XmlRpc::XmlRpcValue all_groups;
-    XmlRpc::XmlRpcValue all_spheres;
-    
-    // collision spheres
-    std::string spheres_name = "collision_spheres";
-    if (!ph_.hasParam(spheres_name)) {
-        ROS_WARN_STREAM("No groups for planning specified in " << spheres_name);
-        return false;
-    }
+    for (const CollisionGroupConfig& group : config.collision_groups) {
+        const std::string& gname = group.name;
 
-    ph_.getParam(spheres_name, all_spheres);
-    
-    if (all_spheres.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_WARN("Spheres is not an array.");
-    }
-    
-    if (all_spheres.size() == 0) {
-        ROS_WARN("No spheres in spheres");
-        return false;
-    }
-    
-    // collision groups
-    std::string group_name = "collision_groups";
-    if (!ph_.hasParam(group_name)) {
-        ROS_WARN_STREAM("No groups for planning specified in " << group_name);
-        return false;
-    }
-    ph_.getParam(group_name, all_groups);
-    
-    if (all_groups.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_WARN("Groups is not an array.");
-    }
-    
-    if (all_groups.size() == 0) {
-        ROS_WARN("No groups in groups");
-        return false;
-    }
-    
-    for (int i = 0; i < all_groups.size(); i++) {
-        if (!all_groups[i].hasMember("name")) {
-            ROS_WARN("All groups must have a name.");
-            return false;
-        }
-        std::string gname = all_groups[i]["name"];
-        sbpl_arm_planner::Group* gc = new sbpl_arm_planner::Group(gname);
-        auto group_iterator = group_config_map_.find(gname);
-        if (group_iterator != group_config_map_.end()) {
+        // guard against duplicate groups
+        if (group_config_map_.find(gname) != group_config_map_.end()) {
             ROS_WARN_STREAM("Already have group name " << gname);
-            delete gc;
             continue;
         }
-        group_config_map_[gname] = gc;
-        if (!group_config_map_[gname]->getParams(all_groups[i], all_spheres)) {
+
+        Group* gc = new Group(gname);
+        if (!gc->getParams(group, config.collision_spheres)) {
             ROS_ERROR("Failed to get all params for %s", gname.c_str());
+            delete gc;
             return false;
         }
+
+        group_config_map_[gname] = gc;
     }
+
     ROS_INFO("Successfully parsed collision model");
     return true;
 }
@@ -176,7 +179,7 @@ bool CollisionModelImpl::computeDefaultGroupFK(
 
 bool CollisionModelImpl::computeGroupFK(
     const std::vector<double>& angles,
-    sbpl_arm_planner::Group* group,
+    Group* group,
     std::vector<std::vector<KDL::Frame>>& frames)
 {
     return group->computeFK(angles, frames);
@@ -203,12 +206,12 @@ void CollisionModelImpl::setJointPosition(
 
 void CollisionModelImpl::printDebugInfo(const std::string& group_name)
 {
-    sbpl_arm_planner::Group* group = group_config_map_[group_name];
+    Group* group = group_config_map_[group_name];
     group->printDebugInfo();
 }
 
 void CollisionModelImpl::getDefaultGroupSpheres(
-    std::vector<sbpl_arm_planner::Sphere*>& spheres)
+    std::vector<Sphere*>& spheres)
 {
     dgroup_->getSpheres(spheres);
 }
@@ -248,9 +251,9 @@ std::string CollisionModelImpl::getReferenceFrame(const std::string& group_name)
     return group_config_map_[group_name]->getReferenceFrame();
 }
 
-sbpl_arm_planner::Group* CollisionModelImpl::getGroup(const std::string& name)
+Group* CollisionModelImpl::getGroup(const std::string& name)
 {
-    sbpl_arm_planner::Group* r = NULL;
+    Group* r = NULL;
     if (group_config_map_.find(name) == group_config_map_.end()) {
         return r;
     }
@@ -258,14 +261,14 @@ sbpl_arm_planner::Group* CollisionModelImpl::getGroup(const std::string& name)
 }
 
 void CollisionModelImpl::getVoxelGroups(
-    std::vector<sbpl_arm_planner::Group*>& vg)
+    std::vector<Group*>& vg)
 {
     vg.clear();
     for (auto iter = group_config_map_.begin();
         iter != group_config_map_.end();
         ++iter)
     {
-        if (iter->second->type_ == sbpl_arm_planner::Group::VOXELS) {
+        if (iter->second->type_ == Group::VOXELS) {
             vg.push_back(iter->second);
         }
     }
@@ -377,5 +380,5 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     return true;
 }
 
-} // namespace manip
+} // namespace collision
 } // namespace sbpl

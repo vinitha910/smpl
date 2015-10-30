@@ -1,55 +1,61 @@
-/*
- * Copyright (c) 2011, Willow Garage, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Willow Garage, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/** \author Benjamin Cohen */
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2011, Willow Garage, Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of Willow Garage, Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived from
+//       this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
 
-#ifndef _SBPL_COLLISION_SPACE_
-#define _SBPL_COLLISION_SPACE_
+/// \author Benjamin Cohen
+
+#ifndef sbpl_collision_SBPLCollisionSpace_h
+#define sbpl_collision_SBPLCollisionSpace_h
 
 #include <cmath>
 #include <vector>
-#include <ros/ros.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
-#include <sbpl_manipulation_components/collision_checker.h>
-#include <sbpl_collision_checking/sbpl_collision_model.h>
-#include <sbpl_geometry_utils/Interpolator.h>
-#include <sbpl_geometry_utils/Voxelizer.h>
-#include <sbpl_geometry_utils/SphereEncloser.h>
+
+#include <angles/angles.h>
+#include <geometry_msgs/Point.h>
 #include <leatherman/bresenham.h>
 #include <leatherman/utils.h>
-#include <tf_conversions/tf_kdl.h>
-#include <angles/angles.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/RobotState.h>
-#include <geometry_msgs/Point.h>
+#include <ros/ros.h>
+#include <sbpl_geometry_utils/Interpolator.h>
+#include <sbpl_geometry_utils/SphereEncloser.h>
+#include <sbpl_geometry_utils/Voxelizer.h>
+#include <sbpl_manipulation_components/collision_checker.h>
+#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <tf_conversions/tf_kdl.h>
 
-namespace sbpl_arm_planner {
+#include <sbpl_collision_checking/sbpl_collision_model.h>
+
+#include <sbpl_collision_checking/collision_model_config.h>
+
+namespace sbpl {
+namespace collision {
 
 class SBPLCollisionSpace : public sbpl_arm_planner::CollisionChecker
 {
@@ -59,7 +65,10 @@ public:
 
     ~SBPLCollisionSpace();
 
-    bool init(const std::string& urdf_string, const std::string& group_name);
+    bool init(
+        const std::string& urdf_string,
+        const std::string& group_name,
+        const CollisionModelConfig& config);
 
     void setPadding(double padding);
 
@@ -160,7 +169,7 @@ public:
 
 private:
 
-    sbpl_arm_planner::SBPLCollisionModel model_;
+    SBPLCollisionModel model_;
     sbpl_arm_planner::OccupancyGrid* grid_;
 
     /* ----------- Parameters ------------ */
@@ -189,7 +198,7 @@ private:
     std::string attached_object_frame_;
     std::vector<Sphere> object_spheres_;
 
-    std::vector<sbpl_arm_planner::Sphere> collision_spheres_;
+    std::vector<Sphere> collision_spheres_;
 
     std::vector<int> convertToVertexIndices(
         const std::vector<shape_msgs::MeshTriangle>& triangles) const;
@@ -233,7 +242,8 @@ inline bool SBPLCollisionSpace::isValidCell(
     return true;
 }
 
-} // namespace sbpl_arm_planner
+} // namespace collision
+} // namespace sbpl 
 
 #endif
 
