@@ -64,8 +64,8 @@ bool CollisionLinkConfig::Load(
     CollisionLinkConfig& cfg)
 {
     if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        config.hasMember("name") ||
-        config.hasMember("root"))
+        !config.hasMember("name") ||
+        !config.hasMember("root"))
         // note: spheres member optional
     {
         ROS_WARN("collision_links config is malformed");
