@@ -81,7 +81,10 @@ public:
     ~OccupancyGrid();
 
     /** @brief Return a pointer to the distance field */
-    inline distance_field::PropagationDistanceField* getDistanceFieldPtr() const { return grid_; }
+    distance_field::PropagationDistanceField* getDistanceFieldPtr() const
+    {
+        return grid_;
+    }
 
     /** @name Attributes */
     /**@{*/

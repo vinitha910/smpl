@@ -1,5 +1,4 @@
 #include <bfs3d/BFS_3D.h>
-#include <boost/thread.hpp>
 
 namespace sbpl_arm_planner {
 
@@ -49,6 +48,8 @@ BFS_3D::BFS_3D(int width, int height, int length)
 
 BFS_3D::~BFS_3D()
 {
+    m_search_thread.join();
+    
     delete[] distance_grid;
     delete[] queue;
 }
@@ -98,7 +99,8 @@ void BFS_3D::run(int x, int y, int z)
 
     distance_grid[origin] = 0;
 
-    boost::thread searchThread(&BFS_3D::search, this, dim_x, dim_xy, distance_grid, queue, queue_head, queue_tail);
+    m_search_thread =
+            boost::thread(&BFS_3D::search, this, dim_x, dim_xy, distance_grid, queue, queue_head, queue_tail);
     running = true;
 }
 
