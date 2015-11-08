@@ -39,7 +39,8 @@
 
 // system includes
 #include <moveit/distance_field/propagation_distance_field.h>
-#include <moveit_msgs/GetMotionPlan.h>
+#include <moveit_msgs/MotionPlanRequest.h>
+#include <moveit_msgs/MotionPlanResponse.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <ros/ros.h>
@@ -71,16 +72,18 @@ public:
     bool init();
     bool init(const PlanningParams& params);
 
-    virtual bool planKinematicPath(
-        const moveit_msgs::GetMotionPlan::Request& req,
-        moveit_msgs::GetMotionPlan::Response& res);
+    bool planKinematicPath(
+        const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MotionPlanResponse& res);
 
-    virtual bool solve(
+    bool solve(
         const moveit_msgs::PlanningSceneConstPtr& planning_scene,
-        const moveit_msgs::GetMotionPlan::Request& req,
-        moveit_msgs::GetMotionPlan::Response& res);
+        const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MotionPlanResponse& res);
 
-    bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request& req);
+    bool canServiceRequest(
+        const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MotionPlanResponse& res) const;
 
     /// @brief Return planning statistics from the last call to solve.
     ///
@@ -95,7 +98,7 @@ public:
     ///     "solution cost"
     ///
     /// @return The statistics
-    virtual std::map<std::string, double> getPlannerStats();
+    std::map<std::string, double> getPlannerStats();
 
     visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
@@ -106,8 +109,7 @@ protected:
     ros::NodeHandle nh_;
 
     // params
-    bool planner_initialized_;
-    int num_joints_;
+    bool m_initialized;
     int solution_cost_;
 
     sbpl_arm_planner::PlanningParams prm_;
@@ -125,7 +127,7 @@ protected:
     std::unique_ptr<SBPLPlanner> planner_;
 
     moveit_msgs::MotionPlanRequest req_;
-    moveit_msgs::GetMotionPlan::Response res_;
+    moveit_msgs::MotionPlanResponse res_;
     moveit_msgs::PlanningScene pscene_;
 
     clock_t m_starttime;
@@ -149,11 +151,11 @@ protected:
 
     // Plan a path to a cartesian goal(s)
     virtual bool planToPosition(
-        const moveit_msgs::GetMotionPlan::Request &req,
-        moveit_msgs::GetMotionPlan::Response &res);
+        const moveit_msgs::MotionPlanRequest &req,
+        moveit_msgs::MotionPlanResponse &res);
     virtual bool planToConfiguration(
-        const moveit_msgs::GetMotionPlan::Request &req,
-        moveit_msgs::GetMotionPlan::Response &res);
+        const moveit_msgs::MotionPlanRequest &req,
+        moveit_msgs::MotionPlanResponse &res);
 
     // Retrieve plan from sbpl
     virtual bool plan(trajectory_msgs::JointTrajectory &traj);
@@ -166,6 +168,8 @@ protected:
     void extractGoalToleranceFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,
         double* tolerance_out);
+
+    void clearMotionPlanResponse(moveit_msgs::MotionPlanResponse& res) const;
 };
 
 } // namespace sbpl_arm_planner

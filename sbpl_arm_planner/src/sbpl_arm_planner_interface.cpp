@@ -31,6 +31,7 @@
 
 #include <sbpl_arm_planner/sbpl_arm_planner_interface.h>
 
+#include <assert.h>
 #include <time.h>
 #include <iostream>
 #include <map>
@@ -57,8 +58,7 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     distance_field::PropagationDistanceField* df)
 :
     nh_("~"),
-    planner_initialized_(false),
-    num_joints_(0),
+    m_initialized(false),
     solution_cost_(INFINITECOST),
     prm_(),
     rm_(rm),
@@ -94,8 +94,8 @@ bool SBPLArmPlannerInterface::init()
         return false;
     }
     
-    planner_initialized_ = true;
-    ROS_INFO("The SBPL arm planner node initialized succesfully.");
+    m_initialized = true;
+    ROS_INFO("The SBPL arm planner node initialized succesfully");
     return true;
 }
 
@@ -111,7 +111,7 @@ bool SBPLArmPlannerInterface::init(const PlanningParams& params)
         return false;
     }
     
-    planner_initialized_ = true;
+    m_initialized = true;
     ROS_INFO("The SBPL arm planner node initialized succesfully.");
     return true;
 }
@@ -155,13 +155,32 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 
 bool SBPLArmPlannerInterface::solve(
     const moveit_msgs::PlanningSceneConstPtr& planning_scene,
-    const moveit_msgs::GetMotionPlan::Request& req,
-    moveit_msgs::GetMotionPlan::Response& res)
+    const moveit_msgs::MotionPlanRequest& req,
+    moveit_msgs::MotionPlanResponse& res)
 {
-    if (!planner_initialized_) {
+    clearMotionPlanResponse(res);
+
+    if (!m_initialized) {
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+        return false;
+    }
+
+    if (!planning_scene) {
+        ROS_ERROR("Planning scene is null");
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
         return false;
     }
     
+    if (req.goal_constraints.empty()) {
+        ROS_WARN("No goal constraints in request!");
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
+        return true;
+    }
+
+    if (!canServiceRequest(req, res)) {
+        return false;
+    }
+
     ROS_INFO("Got octomap in %s frame", planning_scene->world.octomap.header.frame_id.c_str());
     ROS_INFO("Current prm_.planning_frame_ is %s", prm_.planning_frame_.c_str());
     
@@ -174,21 +193,17 @@ bool SBPLArmPlannerInterface::solve(
     
     // plan
     clock_t t_plan = clock();
-    res.motion_plan_response.trajectory_start = planning_scene->robot_state;
+    res.trajectory_start = planning_scene->robot_state;
     
-    if (req.motion_plan_request.goal_constraints.size() == 0) {
-        ROS_ERROR("No goal constraints in request!");
-        return false;
-    } 
-    if (req.motion_plan_request.goal_constraints.front().position_constraints.size() > 0) {
+    if (req.goal_constraints.front().position_constraints.size() > 0) {
         ROS_INFO("Planning to position!");
-        if (!planToPosition(req,res)) {
+        if (!planToPosition(req, res)) {
             return false;
         }
     } 
-    else if (req.motion_plan_request.goal_constraints.front().joint_constraints.size() > 0) {
+    else if (req.goal_constraints.front().joint_constraints.size() > 0) {
         ROS_INFO("Planning to joint configuration!");
-        if (!planToConfiguration(req,res)) {
+        if (!planToConfiguration(req, res)) {
             return false;
         }
     } 
@@ -407,11 +422,12 @@ bool SBPLArmPlannerInterface::setGoalPosition(
 }
 
 bool SBPLArmPlannerInterface::planKinematicPath(
-    const moveit_msgs::GetMotionPlan::Request &req,
-    moveit_msgs::GetMotionPlan::Response &res)
+    const moveit_msgs::MotionPlanRequest& req,
+    moveit_msgs::MotionPlanResponse& res)
 {
-    if (!planner_initialized_) {
+    if (!m_initialized) {
         ROS_ERROR("Hold up a second...the planner isn't initialized yet. Try again in a second or two.");
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
         return false;
     }
     
@@ -461,234 +477,183 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
 }
 
 bool SBPLArmPlannerInterface::planToPosition(
-    const moveit_msgs::GetMotionPlan::Request& req,
-    moveit_msgs::GetMotionPlan::Response& res)
+    const moveit_msgs::MotionPlanRequest& req,
+    moveit_msgs::MotionPlanResponse& res)
 {
-    m_starttime = clock();
-    int status = 0;
-    prm_.allowed_time_ = req.motion_plan_request.allowed_planning_time;
-    req_ = req.motion_plan_request;
+    const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.goal_constraints;
+    assert(!goal_constraints_v.empty());
 
-    if (!canServiceRequest(req)) {
-        return false;
-    }
+    m_starttime = clock();
+    prm_.allowed_time_ = req.allowed_planning_time;
+    req_ = req;
 
     // transform goal pose into reference_frame
-    const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.motion_plan_request.goal_constraints;
-    if (goal_constraints_v.empty()) {
-        ROS_WARN("Received a motion plan request without any goal constraints");
-        return false;
-    }
 
-    const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front(); // only acknowledge the first constraint
-
-    bool use6dofgoal = true;
-    if (goal_constraints.position_constraints.empty() ||
-        goal_constraints.orientation_constraints.empty())
-    {
-        ROS_WARN("Received a motion plan request without position or orientation constraints on the goal constraints");
-        use6dofgoal = false;
-    }
-    if ((!use6dofgoal) && goal_constraints.joint_constraints.empty()) {
-        ROS_WARN("Received a motion plan request without joint constraints. Giving up!");
-        return false;
-    }
+    // only acknowledge the first constraint
+    const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front(); 
 
     // set start
     ROS_INFO("Setting start.");
 
-    if (!setStart(req.motion_plan_request.start_state.joint_state)) {
-        status = -1;
+    if (!setStart(req.start_state.joint_state)) {
         ROS_ERROR("Failed to set initial configuration of robot.");
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
+        return false;
     }
 
-    if (use6dofgoal) {
-        // set goal
-        ROS_INFO("Setting goal 6dof goal.");
-        if (!setGoalPosition(goal_constraints) && status == 0) {
-            status = -2;
-            ROS_ERROR("Failed to set goal position.");
-        }
-    }
-    else {
-        ROS_INFO("Setting goal 7dof goal.");
-        if (!setGoalConfiguration(goal_constraints) && status == 0) {
-            status = -2;
-            ROS_ERROR("Failed to set goal position.");
-        }
+    // set goal
+    ROS_INFO("Setting goal 6dof goal.");
+    if (!setGoalPosition(goal_constraints)) {
+        ROS_ERROR("Failed to set goal position.");
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
+        return false;
     }
 
     // plan
     ROS_INFO("Calling planner");
-    if (status == 0 && plan(res.motion_plan_response.trajectory.joint_trajectory)) {
-        const moveit_msgs::PositionConstraint position_constraint = goal_constraints.position_constraints.front();
-        res.motion_plan_response.trajectory.joint_trajectory.header.seq = position_constraint.header.seq;
-        res.motion_plan_response.trajectory.joint_trajectory.header.stamp = ros::Time::now();
-        
-        // fill in the waypoint times (not very intelligently)
-        res.motion_plan_response.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_.waypoint_time_);
-        for (size_t i = 1; i < res.motion_plan_response.trajectory.joint_trajectory.points.size(); i++) {
-            const double prev_time_s = res.motion_plan_response.trajectory.joint_trajectory.points[i - 1].time_from_start.toSec();
-            res.motion_plan_response.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
-        }
-        
-        res.motion_plan_response.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
-        
-        // shortcut path
-        if (prm_.shortcut_path_) {
-            trajectory_msgs::JointTrajectory straj;
-            if(!interpolateTrajectory(cc_, res.motion_plan_response.trajectory.joint_trajectory.points, straj.points))
-            ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
-            
-            shortcutTrajectory(cc_, straj.points,res.motion_plan_response.trajectory.joint_trajectory.points);
-        }
-        
-        // interpolate path
-        if (prm_.interpolate_path_) {
-            trajectory_msgs::JointTrajectory itraj = res.motion_plan_response.trajectory.joint_trajectory;
-            interpolateTrajectory(cc_, itraj.points, res.motion_plan_response.trajectory.joint_trajectory.points);
-        }
-        
-        if (prm_.print_path_) {
-            leatherman::printJointTrajectory(res.motion_plan_response.trajectory.joint_trajectory, "path");
-        }
-    }
-    else {
-        status = -3;
+    if (!plan(res.trajectory.joint_trajectory)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
+        return false;
+    }
+
+    const moveit_msgs::PositionConstraint position_constraint = goal_constraints.position_constraints.front();
+    res.trajectory.joint_trajectory.header.seq = position_constraint.header.seq;
+    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
+    
+    // fill in the waypoint times (not very intelligently)
+    res.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_.waypoint_time_);
+    for (size_t i = 1; i < res.trajectory.joint_trajectory.points.size(); i++) {
+        const double prev_time_s = res.trajectory.joint_trajectory.points[i - 1].time_from_start.toSec();
+        res.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
     }
     
-    if (status == 0) {
-        return true;
+    // shortcut path
+    if (prm_.shortcut_path_) {
+        trajectory_msgs::JointTrajectory straj;
+        if (!interpolateTrajectory(cc_, res.trajectory.joint_trajectory.points, straj.points)) {
+            ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.trajectory.joint_trajectory.points.size()));
+        }
+        
+        shortcutTrajectory(cc_, straj.points,res.trajectory.joint_trajectory.points);
     }
     
-    return false;
+    // interpolate path
+    if (prm_.interpolate_path_) {
+        trajectory_msgs::JointTrajectory itraj = res.trajectory.joint_trajectory;
+        interpolateTrajectory(cc_, itraj.points, res.trajectory.joint_trajectory.points);
+    }
+    
+    if (prm_.print_path_) {
+        leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "path");
+    }
+    
+    res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+    res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
+    return true;
 }
 
 bool SBPLArmPlannerInterface::planToConfiguration(
-    const moveit_msgs::GetMotionPlan::Request& req,
-    moveit_msgs::GetMotionPlan::Response& res)
+    const moveit_msgs::MotionPlanRequest& req,
+    moveit_msgs::MotionPlanResponse& res)
 {
+    const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.goal_constraints;
+    assert(!goal_constraints_v.empty());
+
     m_starttime = clock();
-    int status = 0;
-    prm_.allowed_time_ = req.motion_plan_request.allowed_planning_time;
-    req_ = req.motion_plan_request;
+    prm_.allowed_time_ = req.allowed_planning_time;
+    req_ = req;
 
-    if (!canServiceRequest(req)) {
-        return false;
-    }
-
-    // transform goal pose into reference_frame
-    const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.motion_plan_request.goal_constraints;
-    if (goal_constraints_v.empty()) {
-        ROS_WARN("Received a motion plan request without any goal constraints");
-        return false;
-    }
-
-    const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front(); // only acknowledge the first constraint
-
-    bool use6dofgoal = true;
-    if (goal_constraints.position_constraints.empty() || 
-        goal_constraints.orientation_constraints.empty())
-    {
-        ROS_WARN("Received a motion plan request without position or orientation constraints on the goal constraints");
-        use6dofgoal = false;
-    }
-
-    if ((!use6dofgoal) && goal_constraints.joint_constraints.empty()) {
-        ROS_WARN("Received a motion plan request without joint constraints. Giving up!");
-        return false;
-    }
+    // only acknowledge the first constraint
+    const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front();
 
     // set start
     ROS_INFO("Setting start.");
 
-    if (!setStart(req.motion_plan_request.start_state.joint_state)) {
-        status = -1;
+    if (!setStart(req.start_state.joint_state)) {
         ROS_ERROR("Failed to set initial configuration of robot.");
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
+        return false;
     }
 
-    if (use6dofgoal) {
-        // set goal
-        ROS_INFO("Setting goal 6dof goal.");
-        if (!setGoalPosition(goal_constraints) && status == 0) {
-            status = -2;
-            ROS_ERROR("Failed to set goal position.");
-        }
-    }
-    else {
-        ROS_INFO("Setting goal 7dof goal.");
-        if (!setGoalConfiguration(goal_constraints) && status == 0) {
-            status = -2;
-            ROS_ERROR("Failed to set goal position.");
-        }
+    ROS_INFO("Setting goal 7dof goal.");
+    if (!setGoalConfiguration(goal_constraints)) {
+        ROS_ERROR("Failed to set goal position.");
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
+        return false;
     }
 
     // plan
     ROS_INFO("Calling planner");
-    if (status == 0 && plan(res.motion_plan_response.trajectory.joint_trajectory)) {
-        const moveit_msgs::JointConstraint joint_constraint = goal_constraints.joint_constraints.front();
-        res.motion_plan_response.trajectory.joint_trajectory.header.seq = 0;
-        res.motion_plan_response.trajectory.joint_trajectory.header.stamp = ros::Time::now();
-        
-        // fill in the waypoint times (not very intelligently)
-        res.motion_plan_response.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_.waypoint_time_);
-        for (size_t i = 1; i < res.motion_plan_response.trajectory.joint_trajectory.points.size(); i++) {
-            const double prev_time_s = res.motion_plan_response.trajectory.joint_trajectory.points[i - 1].time_from_start.toSec();
-            res.motion_plan_response.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
-        }
-        
-        res.motion_plan_response.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
-        
-        // shortcut path
-        if (prm_.shortcut_path_) {
-            trajectory_msgs::JointTrajectory straj;
-            if (!interpolateTrajectory(cc_, res.motion_plan_response.trajectory.joint_trajectory.points, straj.points)) {
-                ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.motion_plan_response.trajectory.joint_trajectory.points.size()));
-            }
-            
-            shortcutTrajectory(cc_, straj.points,res.motion_plan_response.trajectory.joint_trajectory.points);
-        }
-        
-        // interpolate path
-        if (prm_.interpolate_path_) {
-            trajectory_msgs::JointTrajectory itraj = res.motion_plan_response.trajectory.joint_trajectory;
-            interpolateTrajectory(cc_, itraj.points, res.motion_plan_response.trajectory.joint_trajectory.points);
-        }
-        
-        if (prm_.print_path_) {
-            leatherman::printJointTrajectory(res.motion_plan_response.trajectory.joint_trajectory, "path");
-        }
-    }
-    else {
-        status = -3;
+    if (!plan(res.trajectory.joint_trajectory)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
+        return false;
     }
 
-    if (status == 0) {
-        return true;
+    const moveit_msgs::JointConstraint joint_constraint = goal_constraints.joint_constraints.front();
+    res.trajectory.joint_trajectory.header.seq = 0;
+    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
+    
+    // fill in the waypoint times (not very intelligently)
+    res.trajectory.joint_trajectory.points[0].time_from_start.fromSec(prm_.waypoint_time_);
+    for (size_t i = 1; i < res.trajectory.joint_trajectory.points.size(); i++) {
+        const double prev_time_s = res.trajectory.joint_trajectory.points[i - 1].time_from_start.toSec();
+        res.trajectory.joint_trajectory.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
+    }
+    
+    // shortcut path
+    if (prm_.shortcut_path_) {
+        trajectory_msgs::JointTrajectory straj;
+        if (!interpolateTrajectory(cc_, res.trajectory.joint_trajectory.points, straj.points)) {
+            ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.trajectory.joint_trajectory.points.size()));
+        }
+        
+        shortcutTrajectory(cc_, straj.points,res.trajectory.joint_trajectory.points);
+    }
+    
+    // interpolate path
+    if (prm_.interpolate_path_) {
+        trajectory_msgs::JointTrajectory itraj = res.trajectory.joint_trajectory;
+        interpolateTrajectory(cc_, itraj.points, res.trajectory.joint_trajectory.points);
+    }
+    
+    if (prm_.print_path_) {
+        leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "path");
     }
 
-    return false;
+    res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+    res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
+    return true;
 }
 
 bool SBPLArmPlannerInterface::canServiceRequest(
-    const moveit_msgs::GetMotionPlan::Request &req)
+    const moveit_msgs::MotionPlanRequest& req,
+    moveit_msgs::MotionPlanResponse& res) const
 {
     // check for an empty start state
-    if (req.motion_plan_request.start_state.joint_state.position.empty()) {
+    // TODO: generalize this to "missing necessary state information"
+    if (req.start_state.joint_state.position.empty()) { 
         ROS_ERROR("No start state given. Unable to plan.");
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::INVALID_ROBOT_STATE;
         return false;
     }
     
-    if (req.motion_plan_request.goal_constraints.empty()) {
+    if (req.goal_constraints.empty()) {
         ROS_ERROR("Goal constraints are empty. Expecting at least one goal constraints with pose and orientation constraints");
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::INVALID_GOAL_CONSTRAINTS;
         return false;
     }
     
     // check if position & orientation constraints is empty
     const moveit_msgs::Constraints& goal_constraints =
-            req.motion_plan_request.goal_constraints.front();
+            req.goal_constraints.front();
     
     if ((
             goal_constraints.position_constraints.empty() ||
@@ -732,24 +697,24 @@ SBPLArmPlannerInterface::getCollisionModelTrajectoryMarker()
     visualization_msgs::MarkerArray ma, ma1;
     std::vector<std::vector<double> > traj;
 
-    if (res_.motion_plan_response.trajectory.joint_trajectory.points.empty()) {
+    if (res_.trajectory.joint_trajectory.points.empty()) {
         ROS_ERROR("No trajectory found to visualize yet. Plan a path first.");
         return ma;
     }
 
-    traj.resize(res_.motion_plan_response.trajectory.joint_trajectory.points.size());
-    double cinc = 1.0/double(res_.motion_plan_response.trajectory.joint_trajectory.points.size());
-    for (size_t i = 0; i < res_.motion_plan_response.trajectory.joint_trajectory.points.size(); ++i) {
-        traj[i].resize(res_.motion_plan_response.trajectory.joint_trajectory.points[i].positions.size());
-        for (size_t j = 0; j < res_.motion_plan_response.trajectory.joint_trajectory.points[i].positions.size(); j++) {
-            traj[i][j] = res_.motion_plan_response.trajectory.joint_trajectory.points[i].positions[j];
+    traj.resize(res_.trajectory.joint_trajectory.points.size());
+    double cinc = 1.0/double(res_.trajectory.joint_trajectory.points.size());
+    for (size_t i = 0; i < res_.trajectory.joint_trajectory.points.size(); ++i) {
+        traj[i].resize(res_.trajectory.joint_trajectory.points[i].positions.size());
+        for (size_t j = 0; j < res_.trajectory.joint_trajectory.points[i].positions.size(); j++) {
+            traj[i][j] = res_.trajectory.joint_trajectory.points[i].positions[j];
         }
     
         ma1 = cc_->getCollisionModelVisualization(traj[i]);
     
         for (size_t j = 0; j < ma1.markers.size(); ++j) {
             ma1.markers[j].color.r = 0.1;
-            ma1.markers[j].color.g = cinc*double(res_.motion_plan_response.trajectory.joint_trajectory.points.size()-(i+1));
+            ma1.markers[j].color.g = cinc*double(res_.trajectory.joint_trajectory.points.size()-(i+1));
             ma1.markers[j].color.b = cinc*double(i);
         }
         ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
@@ -897,6 +862,28 @@ void SBPLArmPlannerInterface::extractGoalToleranceFromGoalConstraints(
     else {
         tol[3] = tol[4] = tol[5] = 0.0;
     }
+}
+
+void SBPLArmPlannerInterface::clearMotionPlanResponse(
+    moveit_msgs::MotionPlanResponse& res) const
+{
+    res.trajectory_start.joint_state;
+    res.trajectory_start.multi_dof_joint_state;
+    res.trajectory_start.attached_collision_objects;
+    res.trajectory_start.is_diff = false;
+    res.group_name = "";
+    res.trajectory.joint_trajectory.header.seq = 0;
+    res.trajectory.joint_trajectory.header.stamp = ros::Time(0);
+    res.trajectory.joint_trajectory.header.frame_id = "";
+    res.trajectory.joint_trajectory.joint_names.clear();
+    res.trajectory.joint_trajectory.points.clear();
+    res.trajectory.multi_dof_joint_trajectory.header.seq = 0;
+    res.trajectory.multi_dof_joint_trajectory.header.stamp = ros::Time(0);
+    res.trajectory.multi_dof_joint_trajectory.header.frame_id = "";
+    res.trajectory.multi_dof_joint_trajectory.joint_names.clear();
+    res.trajectory.multi_dof_joint_trajectory.points.clear();
+    res.planning_time = 0.0;
+    res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
 }
 
 } // namespace sbpl_arm_planner
