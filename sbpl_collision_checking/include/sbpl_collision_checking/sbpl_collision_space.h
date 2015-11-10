@@ -68,7 +68,8 @@ public:
     bool init(
         const std::string& urdf_string,
         const std::string& group_name,
-        const CollisionModelConfig& config);
+        const CollisionModelConfig& config,
+        const std::vector<std::string>& planning_joints);
 
     void setPadding(double padding);
 

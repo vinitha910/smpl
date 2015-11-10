@@ -90,7 +90,10 @@ bool SBPLCollisionSpace::setPlanningJoints(
     continuous_.resize(joint_names.size(), false);
     for (size_t i = 0; i < joint_names.size(); ++i) {
         bool cont = false;
-        if (!model_.getJointLimits(group_name_, joint_names[i], min_limits_[i], max_limits_[i], cont)) {
+        if (!model_.getJointLimits(
+                group_name_, joint_names[i],
+                min_limits_[i], max_limits_[i], cont))
+        {
             ROS_ERROR("[cspace] Failed to retrieve joint limits for %s.", joint_names[i].c_str());
             return false;
         }
@@ -103,14 +106,18 @@ bool SBPLCollisionSpace::setPlanningJoints(
 
     // set the order of the planning joints
     model_.setOrderOfJointPositions(joint_names, group_name_);
+
     return true;
 }
 
 bool SBPLCollisionSpace::init(
     const std::string& urdf_string,
     const std::string& group_name,
-    const CollisionModelConfig& config)
+    const CollisionModelConfig& config,
+    const std::vector<std::string>& planning_joints)
 {
+    ROS_INFO("Initializing collision space for group '%s'", group_name.c_str());
+
     group_name_ = group_name;
 
     // initialize the collision model
@@ -128,7 +135,13 @@ bool SBPLCollisionSpace::init(
     // get the collision spheres for the robot
     spheres_ = model_.getDefaultGroupSpheres();
 
+    if (!setPlanningJoints(planning_joints)) {
+        ROS_ERROR("Failed to set planning joints");
+        return false;
+    }
+
     if (!updateVoxelGroups()) {
+        ROS_ERROR("Failed to update voxel groups");
         return false;
     }
 

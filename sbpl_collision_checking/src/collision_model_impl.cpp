@@ -209,20 +209,31 @@ bool CollisionModelImpl::getJointLimits(
     bool& continuous)
 {
     if (group_config_map_.find(group_name) == group_config_map_.end()) {
-        return false;
-    }
-    if (!group_config_map_[group_name]->init_) {
+        ROS_ERROR("Collision Model does not contain group '%s'", group_name.c_str());
         return false;
     }
 
-    return leatherman::getJointLimits(
+    if (!group_config_map_[group_name]->init_) {
+        ROS_ERROR("Collision Model Group '%s' is not initialized", group_name.c_str());
+        return false;
+    }
+
+    const std::string& root_link_name = group_config_map_[group_name]->getReferenceFrame();
+    const std::string& tip_link_name = group_config_map_[group_name]->tip_name_;
+    if (!leatherman::getJointLimits(
             urdf_.get(),
-            group_config_map_[group_name]->getReferenceFrame(),
-            group_config_map_[group_name]->tip_name_,
+            root_link_name,
+            tip_link_name,
             joint_name,
             min_limit,
             max_limit,
-            continuous);
+            continuous))
+    {
+        ROS_ERROR("Failed to find joint limits for joint '%s' between links '%s' and '%s'", joint_name.c_str(), root_link_name.c_str(), tip_link_name.c_str());
+        return false;
+    }
+
+    return true;
 }
 
 std::string CollisionModelImpl::getReferenceFrame(const std::string& group_name)

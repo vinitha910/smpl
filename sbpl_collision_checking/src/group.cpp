@@ -474,7 +474,7 @@ bool Group::computeFK(
         frames[i].resize(chains_[i].getNrOfSegments()+1);
         for (size_t j = 0; j < frames_[i].size(); ++j) {
             ROS_DEBUG("chain: %d   frame_index: %d  frame: %d  size_of_frames_vector: %d", i, int(j), int(frames_[i][j]), int(frames[i].size()));
-            if (!computeFK(angles, i, frames_[i][j]/*+1*/, frames[i][frames_[i][j]])) {
+            if (!computeFK(angles, i, frames_[i][j], frames[i][frames_[i][j]])) {
                 return false;
             }
         }
@@ -494,7 +494,7 @@ void Group::setOrderOfJointPositions(const std::vector<std::string>& joint_names
     
         ROS_DEBUG("[%s] [%d] %s", name_.c_str(), int(i), joint_names[i].c_str());
         for (size_t k = 0; k < chains_.size(); ++k) {
-            angles_to_jntarray_[k].resize(joint_names.size(),-1);
+            angles_to_jntarray_[k].resize(joint_names.size(), -1);
             for (size_t j = 0; j < jntarray_names_[k].size(); ++j) {
                 if (joint_names[i].compare(jntarray_names_[k][j]) == 0) {
                     angles_to_jntarray_[k][i] = j;

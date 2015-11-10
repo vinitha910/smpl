@@ -94,15 +94,11 @@ int main(int argc, char **argv)
     sbpl::collision::CollisionModelConfig cspace_config;
     sbpl::collision::CollisionModelConfig::Load(ros::NodeHandle(), cspace_config);
 
-    if (!cspace->init(urdf_string, group_name, cspace_config)) {
+    if (!cspace->init(urdf_string, group_name, cspace_config, joint_names)) {
         return false;
     }
 
     ROS_INFO("Initialized the collision space.");
-
-    if (!cspace->setPlanningJoints(joint_names)) {
-        return false;
-    }
 
     // add robot's pose in map
     moveit_msgs::PlanningScenePtr scene(new moveit_msgs::PlanningScene);
