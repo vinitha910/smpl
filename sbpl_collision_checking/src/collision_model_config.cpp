@@ -154,6 +154,7 @@ bool CollisionGroupConfig::Load(
     cfg.name = (std::string)name_value;
     cfg.type = (std::string)type_value;
     cfg.root_name = (std::string)root_name_value;
+    cfg.tip_name = (std::string)tip_name_value;
     cfg.collision_links.reserve(collision_links_value.size());
 
     // read in collision links
