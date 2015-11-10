@@ -651,12 +651,13 @@ void SBPLCollisionSpace::addCollisionObject(
             grid_->getOccupiedVoxels(object.primitive_poses[i], dims, object_voxel_map_[object.id]);
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
+            // voxelize sphere in object frame
             std::vector<std::vector<double>> voxels;
             sbpl::Voxelizer::voxelizeSphere(object.primitives[i].dimensions[0], object.primitive_poses[i], grid_->getResolution(), voxels, true);
             object_voxel_map_[object.id].clear();
             object_voxel_map_[object.id].resize(voxels.size());
 
-            // transform into the world frame
+            // transform voxels into parent frame
             Eigen::Affine3d m =
                     Eigen::Affine3d(
                             Eigen::Translation3d(object.primitive_poses[i].position.x, object.primitive_poses[i].position.y, object.primitive_poses[i].position.z) *
@@ -759,7 +760,9 @@ void SBPLCollisionSpace::getCollisionObjectVoxelPoses(
     }
 }
 
-void SBPLCollisionSpace::setJointPosition(std::string name, double position)
+void SBPLCollisionSpace::setJointPosition(
+    const std::string& name,
+    double position)
 {
     ROS_DEBUG("[cspace] Setting %s with position = %0.3f.", name.c_str(), position);
     model_.setJointPosition(name, position);

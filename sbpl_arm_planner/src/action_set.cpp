@@ -224,6 +224,7 @@ bool ActionSet::getActionSet(
 {
     std::vector<double> pose;
     if (!env_->getRobotModel()->computePlanningLinkFK(parent, pose)) {
+        ROS_ERROR("Failed to compute forward kinematics for planning link");
         return false;
     }
     
@@ -243,6 +244,7 @@ bool ActionSet::getActionSet(
     }
     
     if (actions.empty()) {
+        ROS_ERROR("No motion primitives specified");
         return false;
     }
     

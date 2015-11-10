@@ -105,7 +105,7 @@ public:
         return model_.getReferenceFrame(group_name_);
     }
 
-    void setJointPosition(std::string name, double position);
+    void setJointPosition(const std::string& name, double position);
     bool setPlanningJoints(const std::vector<std::string>& joint_names);
     bool getCollisionSpheres(
         const std::vector<double>& angles,

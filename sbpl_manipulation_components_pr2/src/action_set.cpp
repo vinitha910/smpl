@@ -199,26 +199,32 @@ void ActionSet::print()
    mp_[i].print(); 
 }
 
-bool ActionSet::getActionSet(const RobotState &parent, std::vector<Action> &actions)
+bool ActionSet::getActionSet(
+    const RobotState &parent,
+    std::vector<Action> &actions)
 {
-  std::vector<double> pose;
-  if(!env_->getRobotModel()->computePlanningLinkFK(parent, pose))
-    return false;
-
-  // get distance to the goal pose
-  double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
-
-  Action a;
-  for(size_t i = 0; i < mp_.size(); ++i)
-  {
-    if(getAction(parent, d, mp_[i], a))
-      actions.push_back(a);
-  }
-
-  if(actions.empty())
-    return false;
-
-  return true;
+    std::vector<double> pose;
+    if (!env_->getRobotModel()->computePlanningLinkFK(parent, pose)) {
+        ROS_ERROR("Failed to compute forward kinematics for planning link");
+        return false;
+    }
+    
+    // get distance to the goal pose
+    double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
+    
+    Action a;
+    for (size_t i = 0; i < mp_.size(); ++i) {
+        if (getAction(parent, d, mp_[i], a)) {
+            actions.push_back(a);
+        }
+    }
+    
+    if (actions.empty()) {
+        ROS_ERROR("No motion primitives specified");
+        return false;
+    }
+    
+    return true;
 }
 
 bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, Action &action)
