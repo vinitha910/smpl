@@ -126,7 +126,7 @@ bool SBPLCollisionSpace::init(
     }
 
     // get the collision spheres for the robot
-    model_.getDefaultGroupSpheres(spheres_);
+    spheres_ = model_.getDefaultGroupSpheres();
 
     if (!updateVoxelGroups()) {
         return false;

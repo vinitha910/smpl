@@ -63,8 +63,6 @@ public:
         const std::string& urdf_string,
         const CollisionModelConfig& config);
 
-    bool initAllGroups();
-
     void getGroupNames(std::vector<std::string>& names);
 
     bool getJointLimits(
@@ -76,7 +74,7 @@ public:
 
     bool setDefaultGroup(const std::string& group_name);
 
-    void getDefaultGroupSpheres(std::vector<Sphere*>& spheres);
+    const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
 
     void getVoxelGroups(std::vector<Group*>& vg);
 

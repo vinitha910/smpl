@@ -70,34 +70,7 @@ bool CollisionModelImpl::init(
 {
     return initURDF(urdf_string) &&
             initRobotModel(urdf_string) &&
-            readGroups(config) &&
-            initAllGroups();
-}
-
-bool CollisionModelImpl::readGroups(
-    const CollisionModelConfig& config)
-{
-    for (const CollisionGroupConfig& group : config.collision_groups) {
-        const std::string& gname = group.name;
-
-        // guard against duplicate groups
-        if (group_config_map_.find(gname) != group_config_map_.end()) {
-            ROS_WARN_STREAM("Already have group name " << gname);
-            continue;
-        }
-
-        Group* gc = new Group(gname);
-        if (!gc->getParams(group, config.collision_spheres)) {
-            ROS_ERROR("Failed to get all params for %s", gname.c_str());
-            delete gc;
-            return false;
-        }
-
-        group_config_map_[gname] = gc;
-    }
-
-    ROS_INFO("Successfully parsed collision model");
-    return true;
+            initAllGroups(config);
 }
 
 void CollisionModelImpl::getGroupNames(std::vector<std::string>& names)
@@ -134,7 +107,7 @@ void CollisionModelImpl::printGroups()
         ROS_ERROR("No groups found.");
         return;
     }
-    
+
     for (auto iter = group_config_map_.begin();
         iter != group_config_map_.end();
         ++iter)
@@ -157,16 +130,28 @@ bool CollisionModelImpl::getFrameInfo(
     return group_config_map_[group_name]->getFrameInfo(name, chain, segment);
 }
 
-bool CollisionModelImpl::initAllGroups()
+bool CollisionModelImpl::initAllGroups(const CollisionModelConfig& config)
 {
-    for (auto iter = group_config_map_.begin();
-        iter != group_config_map_.end();
-        ++iter)
-    {
-        if (!iter->second->init(urdf_)) {
+    for (const CollisionGroupConfig& group_config : config.collision_groups) {
+        const std::string& gname = group_config.name;
+
+        if (group_config_map_.find(gname) != group_config_map_.end()) {
+            ROS_WARN("Already have group name '%s'", gname.c_str());
+            continue;
+        }
+
+
+        Group* gc = new Group;
+        if (!gc->init(urdf_, group_config, config.collision_spheres)) {
+            ROS_ERROR("Failed to get all params for %s", gname.c_str());
+            delete gc;
             return false;
         }
+
+        group_config_map_[gname] = gc;
     }
+
+    ROS_INFO("Successfully initialized collision groups");
     return true;
 }
 
@@ -210,10 +195,10 @@ void CollisionModelImpl::printDebugInfo(const std::string& group_name)
     group->printDebugInfo();
 }
 
-void CollisionModelImpl::getDefaultGroupSpheres(
-    std::vector<Sphere*>& spheres)
+const std::vector<const Sphere*>&
+CollisionModelImpl::getDefaultGroupSpheres() const
 {
-    dgroup_->getSpheres(spheres);
+    return dgroup_->getSpheres();
 }
 
 bool CollisionModelImpl::getJointLimits(
@@ -260,8 +245,7 @@ Group* CollisionModelImpl::getGroup(const std::string& name)
     return group_config_map_[name];
 }
 
-void CollisionModelImpl::getVoxelGroups(
-    std::vector<Group*>& vg)
+void CollisionModelImpl::getVoxelGroups(std::vector<Group*>& vg)
 {
     vg.clear();
     for (auto iter = group_config_map_.begin();

@@ -75,11 +75,6 @@ bool SBPLCollisionModel::getFrameInfo(
     return impl_->getFrameInfo(name, group_name, chain, segment);
 }
 
-bool SBPLCollisionModel::initAllGroups()
-{
-    return impl_->initAllGroups();
-}
-
 bool SBPLCollisionModel::computeDefaultGroupFK(
     const std::vector<double> &angles,
     std::vector<std::vector<KDL::Frame>> &frames)
@@ -114,9 +109,10 @@ void SBPLCollisionModel::printDebugInfo(const std::string &group_name)
     return impl_->printDebugInfo(group_name);
 }
 
-void SBPLCollisionModel::getDefaultGroupSpheres(std::vector<Sphere*> &spheres)
+const std::vector<const Sphere*>&
+SBPLCollisionModel::getDefaultGroupSpheres() const
 {
-    return impl_->getDefaultGroupSpheres(spheres);
+    return impl_->getDefaultGroupSpheres();
 }
 
 bool SBPLCollisionModel::getJointLimits(

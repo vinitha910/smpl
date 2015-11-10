@@ -182,7 +182,7 @@ private:
     std::vector<double> min_limits_;
     std::vector<double> max_limits_;
     std::vector<bool> continuous_;
-    std::vector<Sphere*> spheres_; // temp
+    std::vector<const Sphere*> spheres_; // temp
     std::vector<std::vector<KDL::Frame>> frames_; // temp
 
     /* ------------- Collision Objects -------------- */

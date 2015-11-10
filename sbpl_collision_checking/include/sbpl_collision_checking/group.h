@@ -58,15 +58,15 @@ struct Sphere
     KDL::Vector v;
     double radius;
     int priority;
-    int kdl_chain;
-    int kdl_segment;
+    int kdl_chain; // index into kdl chain list used to compute sphere position
+    int kdl_segment; // segment index into kdl chain
 };
 
 struct Voxels
 {
-    int kdl_chain;
-    int kdl_segment;
     std::vector<KDL::Vector> v;
+    int kdl_chain; // index into kdl chain list used to compute sphere position
+    int kdl_segment; // segment index into kdl chain
 };
 
 struct Link
@@ -83,50 +83,43 @@ class Group
 {
 public:
 
-    Group(std::string name);
-    
+    enum GroupType
+    {
+        INVALID = -1,
+        SPHERES,
+        VOXELS
+    };
+
+    Group();
     ~Group();
 
-    bool init(boost::shared_ptr<urdf::Model> urdf);
+    bool init(
+        boost::shared_ptr<urdf::Model> urdf,
+        const CollisionGroupConfig& config,
+        const std::vector<CollisionSphereConfig>& sphere_config);
 
-    void print();
+    void setOrderOfJointPositions(const std::vector<std::string>& joint_names);
 
-    bool getParams(
-        const CollisionGroupConfig& grp,
-        const std::vector<CollisionSphereConfig>& spheres);
-
-    std::string getName();
-
+    const std::string& getName() const { return name_; }
     const std::string& getReferenceFrame() const { return root_name_; }
-
-    void getSpheres(std::vector<Sphere*>& spheres);
+    const std::vector<const Sphere*>& getSpheres() const { return spheres_; }
+    bool getFrameInfo(const std::string& name, int& chain, int& segment) const;
     
-    bool computeFK(
-        const std::vector<double>& angles,
-        int chain,
-        int segment,
-        KDL::Frame& frame);
+    void setGroupToWorldTransform(const KDL::Frame& f) { T_root_to_world_ = f; }
+    KDL::Frame getGroupToWorldTransform() const { return T_root_to_world_; }
+
+    void setJointPosition(const std::string& name, double position);
 
     bool computeFK(
         const std::vector<double>& angles,
         std::vector<std::vector<KDL::Frame>>& frames);
 
-    void setOrderOfJointPositions(const std::vector<std::string>& joint_names);
-
-    void setJointPosition(const std::string& name, double position);
-
-    bool getFrameInfo(const std::string& name, int& chain, int& segment);
-
-    void printSpheres();
-
-    void printDebugInfo();
-
-    void setGroupToWorldTransform(const KDL::Frame& f);
-
-    KDL::Frame getGroupToWorldTransform();
+    void print() const;
+    void printSpheres() const;
+    void printDebugInfo() const;
 
     bool init_;
-    enum { SPHERES, VOXELS } type_;
+    GroupType type_;
     std::string tip_name_;
     std::vector<Link> links_;
 
@@ -138,34 +131,50 @@ private:
     std::string root_name_;
     KDL::Frame T_root_to_world_;
 
-    std::vector<KDL::Chain> chains_;
-    std::vector<KDL::ChainFkSolverPos_recursive*> solvers_;
-    std::vector<KDL::JntArray> joint_positions_;
-    std::vector<std::vector<int>> frames_;
+    // decomposition of group into a set of kinematic chains beginning at group
+    // root
+    std::vector<KDL::Chain> chains_; 
+
+    // per-chain fk solvers, joint name arrays, and joint variable arrays
+    std::vector<KDL::ChainFkSolverPos_recursive*> solvers_; 
     std::vector<std::vector<std::string>> jntarray_names_;
+    std::vector<KDL::JntArray> joint_positions_;
+
+    // per-chain lists of frames we care to compute (ones that have spheres or
+    // voxels attached to them)
+    std::vector<std::vector<int>> frames_;
+
+    // Mapping from joint names to segments in each chain
+    //@{
+
+    // per-chain mapping from i'th joint to segment index
     std::vector<std::vector<int>> angles_to_jntarray_;
-    std::vector<std::string> joint_names_;
+
     std::vector<std::string> order_of_input_angles_;
-    std::vector<Sphere*> spheres_;
+    //@}
 
-    bool initSpheres();
+    // list of all spheres, sorted by priority
+    std::vector<const Sphere*> spheres_;
 
-    bool initVoxels();
-  
+    bool getParams(
+        const CollisionGroupConfig& grp,
+        const std::vector<CollisionSphereConfig>& spheres);
     bool initKinematics();
+    bool decomposeModelIntoChains();
+    bool initKinematicChains();
+    bool initSpheres();
+    bool initVoxels();
 
-    bool getLinkVoxels(std::string name, std::vector<KDL::Vector>& voxels);
+    bool getLinkVoxels(
+        const std::string& name,
+        std::vector<KDL::Vector>& voxels);
+
+    bool computeFK(
+        const std::vector<double>& angles,
+        int chain,
+        int segment,
+        KDL::Frame& frame);
 };
-
-inline void Group::setGroupToWorldTransform(const KDL::Frame& f)
-{
-    T_root_to_world_ = f;
-}
-
-inline KDL::Frame Group::getGroupToWorldTransform()
-{
-    return T_root_to_world_;
-}
 
 } // namespace collision
 } // namespace sbpl

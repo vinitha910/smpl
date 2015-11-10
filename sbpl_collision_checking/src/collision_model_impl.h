@@ -64,12 +64,9 @@ public:
         const std::string& urdf_string,
         const CollisionModelConfig& config);
 
-    bool initAllGroups();
-
     void getGroupNames(std::vector<std::string>& names);
 
-    void getDefaultGroupSpheres(
-        std::vector<Sphere*>& spheres);
+    const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
 
     bool setDefaultGroup(const std::string& group_name);
 
@@ -133,7 +130,7 @@ private:
 
     bool initURDF(const std::string &urdf_string);
     bool initRobotModel(const std::string &urdf_string);
-    bool readGroups(const CollisionModelConfig& config);
+    bool initAllGroups(const CollisionModelConfig& config);
 };
 
 } // namespace collision
