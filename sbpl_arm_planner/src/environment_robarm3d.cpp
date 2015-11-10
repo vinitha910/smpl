@@ -157,8 +157,8 @@ void EnvironmentROBARM3D::PrintEnv_Config(FILE* fOut)
 
 void EnvironmentROBARM3D::GetSuccs(
     int SourceStateID,
-    vector<int>* SuccIDV,
-    vector<int>* CostV)
+    std::vector<int>* SuccIDV,
+    std::vector<int>* CostV)
 {
     double dist = 0;
     int endeff[3] = { 0 };
@@ -196,10 +196,7 @@ void EnvironmentROBARM3D::GetSuccs(
     }
     pub_.publish(ma);
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "\nstate %d: %.2f %.2f %.2f %.2f %.2f %.2f %.2f  endeff: %3d %3d %3d",
-            SourceStateID,
-            source_angles[0], source_angles[1], source_angles[2], source_angles[3], source_angles[4], source_angles[5], source_angles[6],
-            parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "\nstate %d: %s  endeff: %3d %3d %3d", SourceStateID, to_string(source_angles).c_str(), parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
 
     int valid = 1;
     std::vector<Action> actions;
@@ -208,9 +205,9 @@ void EnvironmentROBARM3D::GetSuccs(
         return;
     }
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "[parent: %d] angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f  xyz: %3d %3d %3d  #_actions: %d  heur: %d dist: %0.3f",
+    ROS_DEBUG_NAMED(prm_->expands_log_, "[parent: %d] angles: %s xyz: %3d %3d %3d  #_actions: %d  heur: %d dist: %0.3f",
             SourceStateID,
-            source_angles[0], source_angles[1], source_angles[2], source_angles[3], source_angles[4], source_angles[5], source_angles[6],
+            to_string(source_angles[0]).c_str(),
             parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2],
             int(actions.size()),
             getXYZHeuristic(SourceStateID, 1),
@@ -220,7 +217,7 @@ void EnvironmentROBARM3D::GetSuccs(
     for (int i = 0; i < int(actions.size()); ++i) {
         valid = 1;
         for (size_t j = 0; j < actions[i].size(); ++j) {
-            ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d] angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f  %0.3f", i, actions[i][j][0], actions[i][j][1], actions[i][j][2], actions[i][j][3], actions[i][j][4], actions[i][j][5], actions[i][j][6]);
+            ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d] angles: %s", i, to_string(actions[i][j]).c_str());
             
             // check joint limits
             if (!rmodel_->checkJointLimits(actions[i][j])) {
@@ -282,7 +279,7 @@ void EnvironmentROBARM3D::GetSuccs(
         // discretize planning link pose
         grid_->worldToGrid(pose[0],pose[1],pose[2],endeff[0],endeff[1],endeff[2]);
         
-        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d]   pose: %0.3f %0.3f %0.3f   %0.3f %0.3f %0.3f", int(i), pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d]   pose: %s", int(i), to_string(pose).c_str());
         ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %d]    xyz: %d %d %d  goal: %d %d %d  (diff: %d %d %d)", int(i), endeff[0], endeff[1], endeff[2], pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2], abs(pdata_.goal_entry->xyz[0] - endeff[0]), abs(pdata_.goal_entry->xyz[1] - endeff[1]), abs(pdata_.goal_entry->xyz[2] - endeff[2]));
         
         // check if this state meets the goal criteria
@@ -581,8 +578,12 @@ int EnvironmentROBARM3D::getActionCost(
     num_prims = max_diff / prm_->max_mprim_offset_ + 0.5;
     cost = num_prims * prm_->cost_multiplier_;
     
-    ROS_DEBUG_NAMED("search", "from: %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f", angles::normalize_angle(from_config[0]), angles::normalize_angle(from_config[1]), angles::normalize_angle(from_config[2]), angles::normalize_angle(from_config[3]), angles::normalize_angle(from_config[4]), angles::normalize_angle(from_config[5]), angles::normalize_angle(from_config[6]));
-    ROS_DEBUG_NAMED("search", "  to: %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f diff: %0.2f num_prims: %d cost: %d (mprim_size: %0.3f)", to_config[0], to_config[1], to_config[2], to_config[3], to_config[4], to_config[5], to_config[6], max_diff, num_prims, cost, prm_->max_mprim_offset_);
+    std::vector<double> from_config_norm(from_config.size());
+    for (size_t i = 0; i < from_config.size(); ++i) {
+        from_config_norm[i] = angles::normalize_angle(from_config[i]);
+    }
+    ROS_DEBUG_NAMED("search", "from: %s", to_string(from_config_norm).c_str());
+    ROS_DEBUG_NAMED("search", "  to: %s diff: %0.2f num_prims: %d cost: %d (mprim_size: %0.3f)", to_string(to_config).c_str(), max_diff, num_prims, cost, prm_->max_mprim_offset_);
     
     return cost;
 }
@@ -621,8 +622,8 @@ bool EnvironmentROBARM3D::setStartConfiguration(
     if (!rmodel_->computePlanningLinkFK(angles, pose)) {
         ROS_WARN("Unable to compute forward kinematics for initial robot state. Attempting to plan anyway.");
     }
-    ROS_INFO("[env][start]             angles: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f", angles[0], angles[1], angles[2], angles[3], angles[4], angles[5], angles[6]);
-    ROS_INFO("[env][start] planning_link pose:   xyz: %0.3f %0.3f %0.3f  rpy: %0.3f %0.3f %0.3f", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
+    ROS_INFO("[env][start]             angles: %s", to_string(angles).c_str());
+    ROS_INFO("[env][start] planning_link pose:   xyzrpy: %s", to_string(pose).c_str());
 
     //check joint limits of starting configuration but plan anyway
     if (!rmodel_->checkJointLimits(angles)) {
@@ -650,7 +651,7 @@ bool EnvironmentROBARM3D::setStartConfiguration(
     pdata_.start_entry->xyz[0] = (int)x;
     pdata_.start_entry->xyz[1] = (int)y;
     pdata_.start_entry->xyz[2] = (int)z;
-    ROS_INFO("[env][start]              coord: %d %d %d %d %d %d %d   pose: %d %d %d", pdata_.start_entry->coord[0], pdata_.start_entry->coord[1], pdata_.start_entry->coord[2], pdata_.start_entry->coord[3], pdata_.start_entry->coord[4], pdata_.start_entry->coord[5], pdata_.start_entry->coord[6], x, y, z);
+    ROS_INFO("[env][start]              coord: %s pose: %d %d %d", to_string(pdata_.start_entry->coord).c_str(), x, y, z);
     return true;
 }
 
@@ -835,51 +836,14 @@ void EnvironmentROBARM3D::getExpandedStates(
         rmodel_->computePlanningLinkFK(angles,state);
         state[6] = pdata_.StateID2CoordTable[pdata_.expanded_states[i]]->heur;
         states->push_back(state);
-        ROS_DEBUG("[%d] id: %d  xyz: %0.2f %0.2f %0.2f", int(i), pdata_.expanded_states[i], state[0], state[1], state[2]);
+        ROS_DEBUG("[%d] id: %d  xyz: %s", int(i), pdata_.expanded_states[i], to_string(state).c_str());
     }
 }
 
 void EnvironmentROBARM3D::computeCostPerCell()
 {
-    ROS_ERROR("Fill in function to computeCostPerCell()");
+    ROS_WARN("Cell Cost: Uniform 100");
     prm_->cost_per_cell_ = 100;
-
-//    int largest_action=0;
-//    double gridcell_size, eucl_dist, max_dist = 0;
-//    std::vector<double> pose(6,0), start_pose(6,0), angles(prm_->num_joints_,0), start_angles(prm_->num_joints_,0);
-//
-//    gridcell_size = grid_->getResolution();
-//
-//    //starting at zeroed angles, find end effector position after each action
-//    rmodel_->computePlanningLinkFK(start_angles, start_pose);
-//
-//    //iterate through all possible actions and find the one with the minimum cost per cell
-//    for (int i = 0; i < prm_->num_mprims_; i++) {
-//        for (int j = 0; j < prm_->num_joints_; j++) {
-//            angles[j] = DEG2RAD(prm_->mprims_[i][j]);
-//        }
-//    
-//        //starting at zeroed angles, find end effector position after each action
-//        if (!rmodel_->computePlanningLinkFK(angles, pose)) {
-//            ROS_WARN("[env] Failed to compute cost per cell because forward kinematics is returning an error.");
-//            return;
-//        }
-//    
-//        eucl_dist = sqrt((start_pose[0]-pose[0])*(start_pose[0]-pose[0]) +
-//                (start_pose[1]-pose[1])*(start_pose[1]-pose[1]) +
-//                (start_pose[2]-pose[2])*(start_pose[2]-pose[2]));
-//    
-//        if (eucl_dist > max_dist) {
-//            max_dist = eucl_dist;
-//            largest_action = i;
-//        }
-//    }
-//
-//    prm_->setCellCost(int(prm_->cost_multiplier_ / (max_dist/gridcell_size)));
-//
-//    prm_->cost_per_meter_ = int(prm_->cost_per_cell_ / gridcell_size);
-//
-//    ROS_INFO("[env] max_dist_traveled_per_smp: %0.3fm  cost per cell: %d  cost per meter: %d  (type: jointspace)", max_dist, prm_->cost_per_cell_,prm_->cost_per_meter_);
 }
 
 int EnvironmentROBARM3D::getBFSCostToGoal(int x, int y, int z) const
