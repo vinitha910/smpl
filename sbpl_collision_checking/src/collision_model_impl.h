@@ -116,10 +116,25 @@ public:
 
 private:
 
+    struct KDLJointMapping;
+    {
+        std::vector<int> chain_indices;
+        std::vector<int> joint_indices;
+    };
+
     ros::NodeHandle nh_;
     ros::NodeHandle ph_;
 
     boost::shared_ptr<urdf::Model> urdf_;
+
+    std::string m_model_frame;
+    KDL::Tree m_tree;
+    // chains leading up to root links of groups
+    std::vector<KDL::Chain> m_chains;
+    std::vector<std::string> m_chain_tips;
+    std::vector<KDL::ChainFkSolverPos_recursive> m_solvers;
+    std::vector<KDL::JntArray> m_joint_arrays;
+    std::map<std::string, KDLJointMapping> m_joint_map;
 
     robot_model_loader::RobotModelLoaderPtr rm_loader_;
     robot_model::RobotModelPtr robot_model_;
@@ -129,8 +144,11 @@ private:
     Group* dgroup_;
 
     bool initURDF(const std::string &urdf_string);
-    bool initRobotModel(const std::string &urdf_string);
+    bool initKdlRobotModel();
+    bool initMoveItRobotModel(const std::string &urdf_string);
     bool initAllGroups(const CollisionModelConfig& config);
+
+    void decomposeRobotModel();
 };
 
 } // namespace collision

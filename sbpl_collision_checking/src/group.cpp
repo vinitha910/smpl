@@ -53,7 +53,7 @@ Group::Group() :
     urdf_(),
     name_(),
     root_name_(),
-    T_root_to_world_(),
+    m_T_model_group(),
     chains_(),
     solvers_(),
     jntarray_names_(),
@@ -461,7 +461,7 @@ bool Group::computeFK(
         }
     }
     
-    frame = T_root_to_world_ * frame;
+    frame = m_T_model_group * frame;
     return true;
 }
 

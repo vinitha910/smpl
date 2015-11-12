@@ -33,8 +33,11 @@
 
 #include "collision_model_impl.h"
 
+#include <queue>
+
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
+#include <kdl/tree.hpp>
 
 #include <sbpl_collision_checking/collision_model_config.h>
 
@@ -69,8 +72,9 @@ bool CollisionModelImpl::init(
     const CollisionModelConfig& config)
 {
     return initURDF(urdf_string) &&
-            initRobotModel(urdf_string) &&
-            initAllGroups(config);
+            initMoveItRobotModel(urdf_string) &&
+            initAllGroups(config) &&
+            initKdlRobotModel();
 }
 
 void CollisionModelImpl::getGroupNames(std::vector<std::string>& names) const
@@ -188,6 +192,19 @@ void CollisionModelImpl::setJointPosition(
     const std::string& name,
     double position)
 {
+    auto kjmit = m_joint_map.find(name);
+    if (kjmit == m_joint_map.end()) {
+        ROS_ERROR("Collision Robot doesn't know about joint '%s'", name.c_str());
+        return;
+    }
+
+    const KDLJointMapping& kjm = kjmit->second;
+    for (size_t i = 0; kjm.chain_indices.size(): ++i) {
+        int chidx = kjmit.chain_indices[i];
+        int jidx = kjmit.joint_indices[i];
+        m_joint_arrays[chidx][jidx] = position;
+    }
+
     for (auto iter = group_config_map_.begin();
         iter != group_config_map_.end();
         iter++)
@@ -254,13 +271,7 @@ bool CollisionModelImpl::getJointLimits(
 std::string CollisionModelImpl::getReferenceFrame(
     const std::string& group_name) const
 {
-    if (group_config_map_.find(group_name) == group_config_map_.end()) {
-        return "";
-    }
-    if (!group_config_map_.at(group_name)->init_) {
-        return "";
-    }
-    return group_config_map_.at(group_name)->getReferenceFrame();
+    return m_model_frame;
 }
 
 Group* CollisionModelImpl::getGroup(const std::string& name)
@@ -335,7 +346,7 @@ bool CollisionModelImpl::setWorldToModelTransform(
         else {
             Eigen::Affine3d T_world_group = T_world_robot * robot_state_->getFrameTransform(group_frame);
             tf::transformEigenToKDL(T_world_group, f);
-            iter->second->setGroupToWorldTransform(f);
+            iter->second->setModelToGroupTransform(f);
             leatherman::printKDLFrame(f, "group-world");
         }
     }
@@ -354,7 +365,92 @@ bool CollisionModelImpl::initURDF(const std::string& urdf_string)
     return true;
 }
 
-bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
+bool CollisionModelImpl::initKdlRobotModel()
+{
+    assert((bool)urdf_);
+
+    if (!kdl_parser::treeFromUrdfModel(*urdf_, m_tree)) {
+        ROS_ERROR("Failed to parse URDF into KDL tree");
+        return false;
+    }
+
+    m_model_frame = m_tree.getRootSegment()->first.getName();
+    ROS_INFO("Collision Robot Frame: %s", m_model_frame.c_str());
+
+    // figure out which chains we need to update the model->group transforms
+
+    m_chains.reserve(group_config_map_.size());
+    m_joint_arrays.reserve(group_config_map_.size());
+
+    for (const auto& ent : group_config_map_) {
+        const std::string& group_name = ent.first;
+        Group* group = ent.second;
+
+        // create kinematic chain
+        KDL::Chain chain;
+        if (!m_tree.getChain(
+                getReferenceFrame(), group->getReferenceFrame(), chain))
+        {
+            ROS_ERROR("Failed to get kinematic chain from reference from '%s' to group reference frame '%s'", getReferenceFrame().c_str(), gc->getReferenceFrame().c_str());
+            return false;
+        }
+        m_chains.push_back(chain);
+
+        // fill joint array with 0's
+        KDL::JntArray jarray;
+        jarray.resize(m_chains.back().getNrOfJoints());
+        m_joint_arrays.push_back(jarray);
+        KDL::SetToZero(m_joint_arrays.back());
+    }
+
+    // for every joint variable in the robot model, we need to figure out
+    // which kinematic chains it influences and at which segment indices
+    auto root_link = urdf_->getRoot();
+    std::queue<boost::shared_ptr<const urdf::Link>> links;
+    links.push_back(root_link);
+    while (!links.empty()) {
+        boost::shared_ptr<const urdf::Link> link = links.front();
+        links.pop();
+
+        // for each joint
+        for (const auto& joint : link.child_joints) {
+            const std::string& joint_name = joint->name;
+
+            // create an entry from joint name -> kdl mappings
+            auto vit = m_joint_map.insert(std::make_pair(
+                    joint_name, KDLJointMapping()));
+
+            // for each chain
+            for (size_t chidx = 0; chidx < m_chains.size(); ++chidx) {
+                // find the joint index of this joint in the chain, if any
+                const KDL::Chain& chain = m_chains[chidx];
+                int jidx = 0;
+                for (int sidx = 0; sidx < chain.getNrOfSegments(); ++sidx) {
+                    const KDL::Segment& seg = chain.getSegment(sidx);
+                    if (seg.getJoint().getName() == joint_name) {
+                        vit->second.chain_indices.push_back(chidx);
+                        vit->second.joint_indices.push_back(jidx);
+                        break;
+                    }
+
+                    if (seg.getJoint().getName() != "None") {
+                        ++jidx;
+                    }
+                }
+            }
+        }
+
+        // add all child links
+        for (const auto& child_link : link.child_links) {
+            links.push(child_link);
+        }
+    }
+
+
+    return true;
+}
+
+bool CollisionModelImpl::initMoveItRobotModel(const std::string& urdf_string)
 {
     std::string srdf_string;
     if (!nh_.getParam("robot_description_semantic", srdf_string)) {
@@ -389,6 +485,110 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     }
 
     return true;
+}
+
+void CollisionModelImpl::decomposeRobotModel()
+{
+    // std::map<std::string, TreeElement>::const_iterator
+    typedef KDL::SegmentMap::const_iterator segment_iterator;
+
+    std::queue<segment_iterator> q;
+    q.push(m_tree.getRootSegment());
+
+    ROS_INFO("Root segment: %s", q.front()->first.c_str());
+
+    // gather leaf nodes
+    std::vector<segment_iterator> leaves;
+    while (!q.empty()) {
+        segment_iterator sit = q.front();
+        q.pop();
+
+        const KDL::TreeElement& e = sit->second;
+
+        ROS_INFO("Segment %s: Joint %s, Type: %s",
+                e.segment.getName().c_str(),
+                e.segment.getJoint().getName().c_str(),
+                e.segment.getJoint().getTypeName().c_str());
+
+        if (e.children.empty()) {
+            leaves.push_back(sit);
+        }
+        else {
+            for (auto child : e.children) {
+                q.push(child);
+            }
+        }
+    }
+
+    ROS_INFO("Found %zu leaves", leaves.size());
+    for (auto leaf : leaves) {
+        const std::string& name = leaf->first;
+        ROS_INFO("  %s", name.c_str());
+    }
+
+    std::set<std::string> chain_roots;
+
+    std::vector<KDL::Chain> chains;
+
+    while (!leaves.empty()) {
+        auto liit = leaves.end(); // last leaf so we can pop_back later
+        --liit;
+        segment_iterator tit = *liit;
+
+        leaves.pop_back();
+
+        const KDL::TreeElement& e = tit->second;
+
+        auto rit = tit;
+        while (rit != m_tree.getRootSegment() &&
+            rit->second.parent->second.children.size() == 1)
+        {
+            rit = rit->second.parent;
+        }
+
+        // either we'll end at the root or we'll end at a node whose parent has
+        // children
+
+        if (rit == m_tree.getRootSegment()) {
+            if (tit == m_tree.getRootSegment()) {
+
+            }
+            else {
+                KDL::Chain chain;
+                if (!m_tree.getChain(rit->first, tit->first, chain)) {
+                    ROS_ERROR("Something went wrong getting chain");
+                    return false;
+                }
+
+                chains.push_back(chain);
+                ROS_INFO("Created chain from %s to %s with %u joints",
+                        rit->first.c_str(),
+                        tit->first.c_str(),
+                        chains.back().getNrOfJoints());
+            }
+        }
+        else {
+            auto pit = rit;
+            pit = pit->second.parent; // may be root
+
+            KDL::Chain chain;
+            if (!m_tree.getChain(pit->first, tit->first, chain)) {
+                ROS_ERROR("Something went wrong getting chain");
+                return false;
+            }
+
+            chains.push_back(chain);
+            ROS_INFO("Created chain from %s to %s with %u joints",
+                    pit->first.c_str(),
+                    tit->first.c_str(),
+                    chains.back().getNrOfJoints());
+
+            if (chain_roots.find(pit->first) == chain_roots.end()) {
+                leaves.push_back(pit);
+                chain_roots.insert(pit->first);
+            }
+        }
+    }
 }
 
 } // namespace collision

@@ -105,8 +105,8 @@ public:
     const std::vector<const Sphere*>& getSpheres() const { return spheres_; }
     bool getFrameInfo(const std::string& name, int& chain, int& segment) const;
     
-    void setGroupToWorldTransform(const KDL::Frame& f) { T_root_to_world_ = f; }
-    KDL::Frame getGroupToWorldTransform() const { return T_root_to_world_; }
+    void setModelToGroupTransform(const KDL::Frame& f) { m_T_model_group = f; }
+    const KDL::Frame& getModelToGroupTransform() const { return m_T_model_group; }
 
     void setJointPosition(const std::string& name, double position);
 
@@ -129,7 +129,7 @@ private:
 
     std::string name_;
     std::string root_name_;
-    KDL::Frame T_root_to_world_;
+    KDL::Frame m_T_model_group;
 
     // decomposition of group into a set of kinematic chains beginning at group
     // root
