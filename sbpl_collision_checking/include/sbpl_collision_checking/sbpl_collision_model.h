@@ -101,7 +101,7 @@ public:
 
     bool doesLinkExist(const std::string& name, const std::string& group_name);
 
-    std::string getReferenceFrame(const std::string& group_name);
+    std::string getReferenceFrame(const std::string& group_name) const;
 
     Group* getGroup(const std::string& name);
 

@@ -236,15 +236,16 @@ bool CollisionModelImpl::getJointLimits(
     return true;
 }
 
-std::string CollisionModelImpl::getReferenceFrame(const std::string& group_name)
+std::string CollisionModelImpl::getReferenceFrame(
+    const std::string& group_name) const
 {
     if (group_config_map_.find(group_name) == group_config_map_.end()) {
         return "";
     }
-    if (!group_config_map_[group_name]->init_) {
+    if (!group_config_map_.at(group_name)->init_) {
         return "";
     }
-    return group_config_map_[group_name]->getReferenceFrame();
+    return group_config_map_.at(group_name)->getReferenceFrame();
 }
 
 Group* CollisionModelImpl::getGroup(const std::string& name)

@@ -31,7 +31,9 @@
 
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
+#include <assert.h>
 #include <limits>
+#include <utility>
 
 #include <angles/angles.h>
 #include <leatherman/print.h>
@@ -43,10 +45,12 @@ namespace sbpl {
 namespace collision {
 
 SBPLCollisionSpace::SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
-    model_(),
     grid_(grid),
-    padding_(0.0),
+    object_map_(),
+    object_voxel_map_(),
+    model_(),
     group_name_(),
+    padding_(0.0),
     object_enclosing_sphere_radius_(0.025), // TODO: ARBITRARY
     inc_(),
     min_limits_(),
@@ -54,9 +58,6 @@ SBPLCollisionSpace::SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
     continuous_(),
     spheres_(),
     frames_(),
-    known_objects_(),
-    object_map_(),
-    object_voxel_map_(),
     object_attached_(false),
     attached_object_frame_num_(),
     attached_object_segment_num_(),
@@ -264,7 +265,7 @@ bool SBPLCollisionSpace::updateVoxelGroups()
     return ret;
 }
 
-bool SBPLCollisionSpace::updateVoxelGroup(std::string name)
+bool SBPLCollisionSpace::updateVoxelGroup(const std::string& name)
 {
     Group* g = model_.getGroup(name);
     return updateVoxelGroup(g);
@@ -469,9 +470,9 @@ void SBPLCollisionSpace::removeAttachedObject()
 }
 
 void SBPLCollisionSpace::attachSphere(
-    std::string name,
-    std::string link,
-    geometry_msgs::Pose pose,
+    const std::string& name,
+    const std::string& link,
+    const geometry_msgs::Pose& pose,
     double radius)
 {
     object_attached_ = true;
@@ -492,8 +493,8 @@ void SBPLCollisionSpace::attachSphere(
 }
 
 void SBPLCollisionSpace::attachCylinder(
-    std::string link,
-    geometry_msgs::Pose pose,
+    const std::string& link,
+    const geometry_msgs::Pose& pose,
     double radius,
     double length)
 {
@@ -540,13 +541,19 @@ void SBPLCollisionSpace::attachCube(
     object_attached_ = true;
     std::vector<std::vector<double>> spheres;
     attached_object_frame_ = link;
-    if(!model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_)){
-      ROS_ERROR("Could not find frame info for attached object frame %s in group name %s", attached_object_frame_.c_str(), group_name_.c_str());
-      object_attached_ = false;
-      return;
+    if (!model_.getFrameInfo(
+            attached_object_frame_,
+            group_name_,
+            attached_object_chain_num_,
+            attached_object_segment_num_))
+    {
+        ROS_ERROR("Could not find frame info for attached object frame %s in group name %s", attached_object_frame_.c_str(), group_name_.c_str());
+        object_attached_ = false;
+        return;
     }
 
-    sbpl::SphereEncloser::encloseBox(x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
+    sbpl::SphereEncloser::encloseBox(
+            x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
 
     if (spheres.size() <= 3) {
         ROS_WARN("[cspace] Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
@@ -579,12 +586,17 @@ void SBPLCollisionSpace::attachMesh(
     object_attached_ = true;
     std::vector<std::vector<double>> spheres;
     attached_object_frame_ = link;
-    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    model_.getFrameInfo(
+            attached_object_frame_,
+            group_name_,
+            attached_object_chain_num_,
+            attached_object_segment_num_);
 
-    sbpl::SphereEncloser::encloseMesh(vertices, triangles, object_enclosing_sphere_radius_, spheres);
+    sbpl::SphereEncloser::encloseMesh(
+            vertices, triangles, object_enclosing_sphere_radius_, spheres);
 
     if (spheres.size() <= 3) {
-        ROS_WARN("[cspace] Attached mesh is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
+        ROS_WARN("[cspace] Attached mesh is represented by %zu collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", spheres.size(), object_enclosing_sphere_radius_);
     }
 
     object_spheres_.resize(spheres.size());
@@ -633,160 +645,227 @@ bool SBPLCollisionSpace::getAttachedObject(
     return true;
 }
 
-void SBPLCollisionSpace::processCollisionObjectMsg(
+bool SBPLCollisionSpace::processCollisionObject(
     const moveit_msgs::CollisionObject& object)
 {
-    if (object.id.compare("all") == 0) { // ignoring the operation type
-        removeAllCollisionObjects();
-    }
-    else if (object.operation == moveit_msgs::CollisionObject::ADD) {
-        object_map_[object.id] = object;
-        addCollisionObject(object);
+    if (object.operation == moveit_msgs::CollisionObject::ADD) {
+        return addCollisionObject(object);
     }
     else if (object.operation == moveit_msgs::CollisionObject::REMOVE) {
-        removeCollisionObject(object);
+        return removeCollisionObject(object);
+    }
+    else if (object.operation == moveit_msgs::CollisionObject::APPEND) {
+        return appendCollisionObject(object);
+    }
+    else if (object.operation == moveit_msgs::CollisionObject::MOVE) {
+        return moveCollisionObject(object);
     }
     else {
-        ROS_ERROR("[cspace] Collision object operation '%d' isn't supported yet.", object.operation);
+        ROS_ERROR("Collision object operation '%d' is not supported", object.operation);
+        return false;
     }
 }
 
-void SBPLCollisionSpace::addCollisionObject(
-    const moveit_msgs::CollisionObject& object)
+bool SBPLCollisionSpace::checkCollisionObjectAdd(
+    const moveit_msgs::CollisionObject& object) const
 {
-    for (size_t i = 0; i < object.primitives.size(); ++i) {
-        if (object.primitives[i].type == shape_msgs::SolidPrimitive::BOX) {
-            std::vector<double> dims(3);
-            dims[0] = object.primitives[i].dimensions[0];
-            dims[1] = object.primitives[i].dimensions[1];
-            dims[2] = object.primitives[i].dimensions[2];
+    if (object_map_.find(object.id) != object_map_.end()) {
+        ROS_ERROR("Already have collision object '%s'", object.id.c_str());
+        return false;
+    }
 
-            object_voxel_map_[object.id].clear();
+    if (object.header.frame_id != grid_->getReferenceFrame()) {
+        ROS_ERROR("Collision object must be specified in the grid reference frame (%s)", grid_->getReferenceFrame().c_str());
+        return false;
+    }
 
-            std::vector<Eigen::Vector3d>& obj_voxels = object_voxel_map_[object.id];
+    if (object.primitives.size() != object.primitive_poses.size()) {
+        ROS_ERROR("Mismatched sizes of primitives and primitive poses");
+        return false;
+    }
 
-            std::vector<std::vector<double>> voxels;
-            sbpl::Voxelizer::voxelizeBox(
-                    object.primitives[i].dimensions[0],
-                    object.primitives[i].dimensions[1],
-                    object.primitives[i].dimensions[2],
-                    object.primitive_poses[i],
-                    grid_->getResolution(),
-                    voxels,
-                    false);
+    if (object.meshes.size() != object.mesh_poses.size()) {
+        ROS_ERROR("Mismatches sizes of meshes and mesh poses");
+        return false;
+    }
 
-            obj_voxels.reserve(voxels.size());
-            for (const std::vector<double>& voxel : voxels) {
-                obj_voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+    // check solid primitive for correct format
+    for (const shape_msgs::SolidPrimitive& prim : object.primitives) {
+        switch (prim.type) {
+        case shape_msgs::SolidPrimitive::BOX:
+        {
+            if (prim.dimensions.size() != 3) {
+                ROS_ERROR("Invalid number of dimensions for box of collision object '%s' (Expected: %d, Actual: %zu)",
+                        object.id.c_str(), 3, prim.dimensions.size());
+                return false;
             }
-        }
-        else if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
-            // voxelize sphere in object frame
-            std::vector<std::vector<double>> voxels;
-            sbpl::Voxelizer::voxelizeSphere(object.primitives[i].dimensions[0], object.primitive_poses[i], grid_->getResolution(), voxels, true);
-            object_voxel_map_[object.id].clear();
-            object_voxel_map_[object.id].resize(voxels.size());
-
-            // transform voxels into parent frame
-            Eigen::Affine3d m =
-                    Eigen::Affine3d(
-                            Eigen::Translation3d(object.primitive_poses[i].position.x, object.primitive_poses[i].position.y, object.primitive_poses[i].position.z) *
-                            Eigen::Quaterniond(object.primitive_poses[i].orientation.x, object.primitive_poses[i].orientation.y, object.primitive_poses[i].orientation.z, object.primitive_poses[i].orientation.w).toRotationMatrix());
-            for (size_t j = 0; j < voxels.size(); ++j) {
-                if (voxels[j].size() < 3) {
-                    ROS_ERROR("[cspace] Expected 'voxels' to have length 3.");
-                    continue;
-                }
-                object_voxel_map_[object.id][j].x() = (voxels[j][0]);
-                object_voxel_map_[object.id][j].y() = (voxels[j][1]);
-                object_voxel_map_[object.id][j].z() = (voxels[j][2]);
-                object_voxel_map_[object.id][j] = m.rotation() * object_voxel_map_[object.id][j];
-                object_voxel_map_[object.id][j] += m.translation();
+        }   break;
+        case shape_msgs::SolidPrimitive::SPHERE:
+        {
+            if (prim.dimensions.size() != 1) {
+                ROS_ERROR("Invalid number of dimensions for sphere of collision object '%s' (Expected: %d, Actual: %zu)",
+                        object.id.c_str(), 1, prim.dimensions.size());
+                return false;
             }
-        }
-        else {
-            ROS_WARN("[cspace] Collision objects of type %d are not yet supported.", object.primitives[i].type);
-        }
-    }
-
-    for (size_t i = 0; i < object.meshes.size(); ++i) {
-        std::vector<std::vector<double>> voxels;
-        sbpl::Voxelizer::voxelizeMesh(object.meshes[i].vertices, convertToVertexIndices(object.meshes[i].triangles), grid_->getResolution(), voxels, true);
-        object_voxel_map_[object.id].clear();
-        object_voxel_map_[object.id].resize(voxels.size());
-
-        // transform into the world frame
-        Eigen::Affine3d m =
-                Eigen::Affine3d(
-                        Eigen::Translation3d(object.mesh_poses[i].position.x, object.mesh_poses[i].position.y, object.mesh_poses[i].position.z) *
-                        Eigen::Quaterniond(object.mesh_poses[i].orientation.x, object.mesh_poses[i].orientation.y, object.mesh_poses[i].orientation.z, object.mesh_poses[i].orientation.w).toRotationMatrix());
-        for (size_t j = 0; j < voxels.size(); ++j) {
-            if (voxels[j].size() < 3) {
-                ROS_ERROR("[cspace] Expected 'voxels' to have length 3.");
-                continue;
+        }   break;
+        case shape_msgs::SolidPrimitive::CYLINDER:
+        {
+            if (prim.dimensions.size() != 2) {
+                ROS_ERROR("Invalid number of dimensions for cylinder of collision object '%s' (Expected: %d, Actual: %zu)",
+                        object.id.c_str(), 2, prim.dimensions.size());
+                return false;
             }
-            object_voxel_map_[object.id][j].x() = (voxels[j][0]);
-            object_voxel_map_[object.id][j].y() = (voxels[j][1]);
-            object_voxel_map_[object.id][j].z() = (voxels[j][2]);
-            object_voxel_map_[object.id][j] = m.rotation() * object_voxel_map_[object.id][j];
-            object_voxel_map_[object.id][j] += m.translation();
+        }   break;
+        case shape_msgs::SolidPrimitive::CONE:
+        {
+            if (prim.dimensions.size() != 2) {
+                ROS_ERROR("Invalid number of dimensions for cone of collision object '%s' (Expected: %d, Actual: %zu)",
+                        object.id.c_str(), 2, prim.dimensions.size());
+                return false;
+            }
+        }   break;
+        default:
+            ROS_ERROR("Unrecognized SolidPrimitive type");
+            return false;
         }
     }
 
-    // add this object to list of objects that get added to grid
-    bool new_object = true;
-    for (size_t i = 0; i < known_objects_.size(); ++i) {
-        if (known_objects_[i].compare(object.id) == 0) {
-            ROS_DEBUG("[cspace] Received %s collision object again. Not adding.", object.id.c_str());
-            new_object = false;
-            break;
-        }
-    }
-    if (new_object) {
-        known_objects_.push_back(object.id);
-    }
-
-    ROS_INFO("Adding %zu grid cells to the distance transform", object_voxel_map_[object.id].size());
-    grid_->addPointsToField(object_voxel_map_[object.id]);
+    return true;
 }
 
-void SBPLCollisionSpace::removeCollisionObject(
+bool SBPLCollisionSpace::checkCollisionObjectRemove(
+    const moveit_msgs::CollisionObject& object) const
+{
+    auto oit = object_map_.find(object.id);
+    if (oit == object_map_.end()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::checkCollisionObjectAppend(
+    const moveit_msgs::CollisionObject& object) const
+{
+    auto oit = object_map_.find(object.id);
+    if (oit == object_map_.end()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::checkCollisionObjectMove(
+    const moveit_msgs::CollisionObject& object) const
+{
+    auto oit = object_map_.find(object.id);
+    if (oit == object_map_.end()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::addCollisionObject(
     const moveit_msgs::CollisionObject& object)
 {
-    for (size_t i = 0; i < known_objects_.size(); ++i) {
-        if (known_objects_[i].compare(object.id) == 0) {
-            known_objects_.erase(known_objects_.begin() + i);
-            ROS_INFO("[cspace] Removing %s from list of known collision objects.", object.id.c_str());
-        }
+    if (!checkCollisionObjectAdd(object)) {
+        ROS_ERROR("Rejecting addition of collision object '%s'", object.id.c_str());
+        return false;
     }
+
+    if (!voxelizeCollisionObject(object)) {
+        ROS_ERROR("Failed to voxelize object '%s'", object.id.c_str());
+        return false;
+    }
+
+    object_map_.insert(std::make_pair(object.id, object));
+
+    auto vit = object_voxel_map_.find(object.id);
+    assert(vit != object_voxel_map_.end());
+
+    // add this object to the distance transform
+    ROS_INFO("Adding %zu voxels from collision object '%s' to the distance transform", vit->second.size(), object.id.c_str());
+    grid_->addPointsToField(vit->second);
+
+    return true;
+}
+
+bool SBPLCollisionSpace::removeCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    if (!checkCollisionObjectRemove(object)) {
+        ROS_ERROR("Rejecting removal of collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    auto oit = object_map_.find(object.id);
+    assert(oit != object_map_.end());
+
+    auto vit = object_voxel_map_.find(object.id);
+    assert(vit != object_voxel_map_.end());
+
+    ROS_INFO("Removing %zu grid cells from the distance transform", vit->second.size());
+    grid_->removePointsFromField(vit->second);
+
+    object_voxel_map_.erase(vit);
+    object_map_.erase(oit);
+    return true;
+}
+
+bool SBPLCollisionSpace::appendCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    if (!checkCollisionObjectAppend(object)) {
+        ROS_ERROR("Rejecting append to collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    // TODO: implement
+    ROS_ERROR("appendCollisionObject unimplemented");
+    return false;
+}
+
+bool SBPLCollisionSpace::moveCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    if (!checkCollisionObjectMove(object)) {
+        ROS_ERROR("Rejecting move of collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    // TODO: implement
+    ROS_ERROR("moveCollisionObject unimplemented");
+    return false;
 }
 
 void SBPLCollisionSpace::removeAllCollisionObjects()
 {
-    known_objects_.clear();
-}
+    for (auto oit = object_map_.begin(); oit != object_map_.end(); ++oit) {
+        auto vit = object_voxel_map_.find(oit->second.id);
+        assert(vit != object_voxel_map_.end());
 
-void SBPLCollisionSpace::putCollisionObjectsInGrid()
-{
-    ROS_WARN("[cspace] Putting %d known objects in grid.", int(known_objects_.size()));
-    for (size_t i = 0; i < known_objects_.size(); ++i) {
-        grid_->addPointsToField(object_voxel_map_[known_objects_[i]]);
-        ROS_INFO("[cspace] [%d] Added %s to grid with %d voxels.", int(i), known_objects_[i].c_str(), int(object_voxel_map_[known_objects_[i]].size()));
+        ROS_INFO("Removing %zu grid cells from the distance transform", vit->second.size());
+        grid_->removePointsFromField(vit->second);
+
+        object_voxel_map_.erase(vit);
+        object_map_.erase(oit);
     }
 }
 
-void SBPLCollisionSpace::getCollisionObjectVoxelPoses(
-    std::vector<geometry_msgs::Pose>& points)
+void SBPLCollisionSpace::getAllCollisionObjectVoxelPoses(
+    std::vector<geometry_msgs::Pose>& poses) const
 {
     geometry_msgs::Pose pose;
-    pose.orientation.w = 1;
+    pose.orientation.w = 1.0;
+    pose.orientation.x = pose.orientation.y = pose.orientation.z = 0.0;
 
-    for (size_t i = 0; i < known_objects_.size(); ++i) {
-        for (size_t j = 0; j < object_voxel_map_[known_objects_[i]].size(); ++j) {
-            pose.position.x = object_voxel_map_[known_objects_[i]][j].x();
-            pose.position.y = object_voxel_map_[known_objects_[i]][j].y();
-            pose.position.z = object_voxel_map_[known_objects_[i]][j].z();
-            points.push_back(pose);
+    for (auto vit = object_voxel_map_.begin(); vit != object_voxel_map_.end(); ++vit) {
+        for (const Eigen::Vector3d& voxel_pt : vit->second) {
+            pose.position.x = voxel_pt.x();
+            pose.position.y = voxel_pt.y();
+            pose.position.z = voxel_pt.z();
+            poses.push_back(pose);
         }
     }
 }
@@ -840,6 +919,166 @@ bool SBPLCollisionSpace::getClearance(
 
     avg_dist = sum / num_spheres;
     ROS_DEBUG("[cspace]  num_spheres: %d  avg_dist: %2.2f   min_dist: %2.2f", num_spheres, avg_dist, min_dist);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    if (object_voxel_map_.find(object.id) != object_voxel_map_.end()) {
+        ROS_INFO("Already have voxelization for object '%s'", object.id.c_str());
+        return true;
+    }
+
+    std::vector<Eigen::Vector3d> voxels;
+
+    // gather voxels from all primitives
+    for (size_t i = 0; i < object.primitives.size(); ++i) {
+        const shape_msgs::SolidPrimitive& prim = object.primitives[i];
+        const geometry_msgs::Pose& pose = object.primitive_poses[i];
+
+        switch (prim.type) {
+        case shape_msgs::SolidPrimitive::BOX:
+        {
+            if (!voxelizeBox(prim, pose, voxels)) {
+                ROS_ERROR("Failed to voxelize box of collision object '%s'", object.id.c_str());
+                return false;
+            }
+        }   break;
+        case shape_msgs::SolidPrimitive::SPHERE:
+        {
+            if (!voxelizeSphere(prim, pose, voxels)) {
+                ROS_ERROR("Failed to voxelize sphere of collision object '%s'", object.id.c_str());
+                return false;
+            }
+        }   break;
+        case shape_msgs::SolidPrimitive::CYLINDER:
+        {
+            if (!voxelizeCylinder(prim, pose, voxels)) {
+                ROS_ERROR("Failed to voxelize cylinder of collision object '%s'", object.id.c_str());
+                return false;
+            }
+        }   break;
+        case shape_msgs::SolidPrimitive::CONE:
+        {
+            if (!voxelizeCone(prim, pose, voxels)) {
+                ROS_ERROR("Failed to voxelize cone of collision object '%s'", object.id.c_str());
+                return false;
+            }
+        }   break;
+        }
+    }
+
+    // gather voxels from all meshes
+    for (size_t i = 0; i < object.meshes.size(); ++i) {
+        const shape_msgs::Mesh& mesh = object.meshes[i];
+        const geometry_msgs::Pose& pose = object.mesh_poses[i];
+        if (!voxelizeMesh(mesh, pose, voxels)) {
+            ROS_ERROR("Failed to voxelize mesh of collision object '%s'", object.id.c_str());
+            return false;
+        }
+    }
+
+    auto vit = object_voxel_map_.insert(std::make_pair(
+            object.id,
+            std::vector<Eigen::Vector3d>()));
+    vit.first->second = std::move(voxels);
+
+    assert(vit.second);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeBox(
+    const shape_msgs::SolidPrimitive& box,
+    const geometry_msgs::Pose& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double length = box.dimensions[shape_msgs::SolidPrimitive::BOX_X];
+    const double width = box.dimensions[shape_msgs::SolidPrimitive::BOX_Y];
+    const double height = box.dimensions[shape_msgs::SolidPrimitive::BOX_Z];
+    const double res = grid_->getResolution();
+
+    std::vector<std::vector<double>> sbpl_voxels;
+    sbpl::Voxelizer::voxelizeBox(
+            length, width, height, pose, res, sbpl_voxels, false);
+
+    voxels.reserve(voxels.size() + sbpl_voxels.size());
+    for (const std::vector<double>& voxel : sbpl_voxels) {
+        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeSphere(
+    const shape_msgs::SolidPrimitive& sphere,
+    const geometry_msgs::Pose& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double radius =
+            sphere.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS];
+
+    std::vector<std::vector<double>> sbpl_voxels;
+    sbpl::Voxelizer::voxelizeSphere(
+            radius, pose, grid_->getResolution(), sbpl_voxels, true);
+
+    voxels.reserve(voxels.size() + sbpl_voxels.size());
+    for (const std::vector<double>& voxel : sbpl_voxels) {
+        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeCylinder(
+    const shape_msgs::SolidPrimitive& cylinder,
+    const geometry_msgs::Pose& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double height = cylinder.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT];
+    const double radius = cylinder.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS];
+    const double res = grid_->getResolution();
+
+    std::vector<std::vector<double>> sbpl_voxels;
+    sbpl::Voxelizer::voxelizeCylinder(
+            radius, height, pose, res, sbpl_voxels, true);
+
+    voxels.reserve(voxels.size() + sbpl_voxels.size());
+    for (const std::vector<double>& voxel : sbpl_voxels) {
+        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeCone(
+    const shape_msgs::SolidPrimitive& cone,
+    const geometry_msgs::Pose& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    return false;
+}
+
+bool SBPLCollisionSpace::voxelizeMesh(
+    const shape_msgs::Mesh& mesh,
+    const geometry_msgs::Pose& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double res = grid_->getResolution();
+    std::vector<std::vector<double>> sbpl_voxels;
+    sbpl::Voxelizer::voxelizeMesh(
+            mesh.vertices,
+            convertToVertexIndices(mesh.triangles),
+            pose,
+            res,
+            sbpl_voxels,
+            true);
+
+    voxels.reserve(voxels.size() + sbpl_voxels.size());
+    for (const std::vector<double>& voxel : sbpl_voxels) {
+        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+    }
+
     return true;
 }
 
@@ -922,24 +1161,12 @@ bool SBPLCollisionSpace::setPlanningScene(
     ROS_INFO("Processing %zd collision objects", scene.world.collision_objects.size());
     for (const moveit_msgs::CollisionObject& collision_object : scene.world.collision_objects) {
         object_map_[collision_object.id] = collision_object;
-        processCollisionObjectMsg(collision_object);
+        processCollisionObject(collision_object);
     }
 
     ////////////////////////////////////////////////////////////////////////////////
     // todo: octomap
     ////////////////////////////////////////////////////////////////////////////////
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // collision map
-    ////////////////////////////////////////////////////////////////////////////////
-
-//    if (scene.world.collision_map.header.frame_id != grid_->getReferenceFrame()) {
-//        ROS_WARN_ONCE("collision_map_occ is in %s not in %s", scene.world.collision_map.header.frame_id.c_str(), grid_->getReferenceFrame().c_str());
-//    }
-//
-//    if (!scene.world.collision_map.boxes.empty()) {
-//        grid_->updateFromCollisionMap(scene.world.collision_map);
-//    }
 
     // self collision
     // todo: move this up if possible
@@ -996,68 +1223,107 @@ void SBPLCollisionSpace::attachObject(
     ROS_WARN("Attached object has %zd spheres!", object_spheres_.size());
 }
 
-visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(
-    const std::string& type)
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getCollisionObjectsVisualization() const
+{
+    visualization_msgs::MarkerArray ma;
+    visualization_msgs::MarkerArray ma1;
+    for (const auto& ent : object_map_) {
+        const moveit_msgs::CollisionObject& object = ent.second;
+        std::vector<double> hue(object.primitives.size(), 200);
+        ma1 = viz::getCollisionObjectMarkerArray(object, hue, object.id, 0);
+        ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
+    }
+    return ma;
+}
+
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getCollisionsVisualization() const
+{
+    std::vector<double> rad(collision_spheres_.size());
+    std::vector<std::vector<double>> sph(
+            collision_spheres_.size(), std::vector<double>(3, 0));
+    for (size_t i = 0; i < collision_spheres_.size(); ++i) {
+        sph[i][0] = collision_spheres_[i].v.x();
+        sph[i][1] = collision_spheres_[i].v.y();
+        sph[i][2] = collision_spheres_[i].v.z();
+        rad[i] = spheres_[i]->radius;
+    }
+    return viz::getSpheresMarkerArray(
+            sph, rad, 10, grid_->getReferenceFrame(), "collision_spheres", 0);
+}
+
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getCollisionObjectVoxelsVisualization() const
 {
     visualization_msgs::MarkerArray ma;
 
-    if (type.compare("collision_objects") == 0) {
-        visualization_msgs::MarkerArray ma1;
-        for (size_t i = 0; i < known_objects_.size(); ++i) {
-            if (object_map_.find(known_objects_[i]) != object_map_.end()) {
-                std::vector<double> hue(object_map_[known_objects_[i]].primitives.size(), 200);
-                ma1 = viz::getCollisionObjectMarkerArray(object_map_[known_objects_[i]], hue, object_map_[known_objects_[i]].id, 0);
-                ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
-            }
-        }
-    }
-    else if (type.compare("collisions") == 0) {
-        std::vector<double> rad(collision_spheres_.size());
-        std::vector<std::vector<double>> sph(collision_spheres_.size(), std::vector<double>(3, 0));
-        for (size_t i = 0; i < collision_spheres_.size(); ++i) {
-            sph[i][0] = collision_spheres_[i].v.x();
-            sph[i][1] = collision_spheres_[i].v.y();
-            sph[i][2] = collision_spheres_[i].v.z();
-            rad[i] = spheres_[i]->radius;
-        }
-        ma = viz::getSpheresMarkerArray(sph, rad, 10, grid_->getReferenceFrame(), "collision_spheres", 0);
-    }
-    else if (type.compare("collision_object_voxels") == 0) {
-        visualization_msgs::Marker marker;
-        std::vector<std::vector<double>> points(1, std::vector<double>(3, 0));
-        std::vector<double> color(4, 1);
-        color[2] = 0;
-        std::vector<geometry_msgs::Pose> vposes;
-        getCollisionObjectVoxelPoses(vposes);
+    visualization_msgs::Marker marker;
+    std::vector<std::vector<double>> points(1, std::vector<double>(3, 0));
+    std::vector<double> color(4, 1);
+    color[2] = 0;
+    std::vector<geometry_msgs::Pose> vposes;
+    getAllCollisionObjectVoxelPoses(vposes);
 
-        marker.header.seq = 0;
-        marker.header.stamp = ros::Time::now();
-        marker.header.frame_id = grid_->getReferenceFrame();
-        marker.ns = "collision_object_voxels";
-        marker.id = 1;
-        marker.type = visualization_msgs::Marker::POINTS;
-        marker.action = visualization_msgs::Marker::ADD;
-        marker.lifetime = ros::Duration(0.0);
-        marker.scale.x = 0.01;
-        marker.scale.y = 0.01;
-        marker.scale.z = 0.01;
-        marker.color.r = 1;
-        marker.color.g = 1;
-        marker.color.b = 0;
-        marker.color.a = 1;
-        marker.points.resize(vposes.size());
-        for (size_t i = 0; i < vposes.size(); ++i) {
-            marker.points[i].x = vposes[i].position.x;
-            marker.points[i].y = vposes[i].position.y;
-            marker.points[i].z = vposes[i].position.z;
-        }
-        ma.markers.push_back(marker);
+    marker.header.seq = 0;
+    marker.header.stamp = ros::Time::now();
+    marker.header.frame_id = grid_->getReferenceFrame();
+    marker.ns = "collision_object_voxels";
+    marker.id = 1;
+    marker.type = visualization_msgs::Marker::POINTS;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration(0.0);
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    marker.color.r = 1;
+    marker.color.g = 1;
+    marker.color.b = 0;
+    marker.color.a = 1;
+    marker.points.resize(vposes.size());
+    for (size_t i = 0; i < vposes.size(); ++i) {
+        marker.points[i].x = vposes[i].position.x;
+        marker.points[i].y = vposes[i].position.y;
+        marker.points[i].z = vposes[i].position.z;
     }
-    else {
-        ma = grid_->getVisualization(type);
-    }
+    ma.markers.push_back(marker);
 
     return ma;
+}
+
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getBoundingBoxVisualization() const
+{
+    return grid_->getBoundingBoxVisualization();
+}
+
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getDistanceFieldVisualization() const
+{
+    return grid_->getDistanceFieldVisualization();
+}
+
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getOccupiedVoxelsVisualization() const
+{
+    return grid_->getOccupiedVoxelsVisualization();
+}
+
+visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(
+    const std::string& type)
+{
+    if (type == "collision_objects") {
+        return getCollisionObjectsVisualization();
+    }
+    else if (type == "collisions") {
+        return getCollisionsVisualization();
+    }
+    else if (type == "collision_object_voxels") {
+        return getCollisionObjectVoxelsVisualization();
+    }
+    else {
+        return grid_->getVisualization(type);
+    }
 }
 
 visualization_msgs::MarkerArray

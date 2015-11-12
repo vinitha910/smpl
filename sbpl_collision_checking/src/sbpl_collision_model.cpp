@@ -126,7 +126,8 @@ bool SBPLCollisionModel::getJointLimits(
             group_name, joint_name, min_limit, max_limit, continuous);
 }
 
-std::string SBPLCollisionModel::getReferenceFrame(const std::string &group_name)
+std::string SBPLCollisionModel::getReferenceFrame(
+    const std::string &group_name) const
 {
     return impl_->getReferenceFrame(group_name);
 }

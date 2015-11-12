@@ -86,44 +86,10 @@ void OccupancyGrid::getOrigin(double &wx, double &wy, double &wz) const
     grid_->gridToWorld(0, 0, 0, wx, wy, wz);
 }
 
-void OccupancyGrid::updateFromCollisionMap(
-    const moveit_msgs::CollisionObject &collision_map)
-{
-    if (collision_map.primitives.empty()) {
-        ROS_DEBUG("[grid] collision map received is empty.");
-        return;
-    }
-    reference_frame_ = collision_map.header.frame_id;
-    //grid_->addCollisionMapToField(collision_map);
-}
-
-void OccupancyGrid::addCube(
-    double origin_x,
-    double origin_y,
-    double origin_z,
-    double size_x,
-    double size_y,
-    double size_z)
-{
-    int num_points = 0;
-    std::vector<tf::Vector3> pts;
-
-    for (double x = origin_x - size_x / 2.0; x <= origin_x + size_x / 2.0; x += grid_->getResolution()) {
-        for (double y = origin_y - size_y / 2.0; y <= origin_y + size_y / 2.0; y += grid_->getResolution()) {
-            for (double z = origin_z - size_z / 2.0; z <= origin_z + size_z / 2.0; z += grid_->getResolution()) {
-                pts.push_back(tf::Vector3(x, y, z));
-                ++num_points;
-            }
-        }
-    }
-
-    //grid_->addPointsToField(pts);
-}
-
 void OccupancyGrid::getOccupiedVoxels(
-    const geometry_msgs::Pose &pose,
-    const std::vector<double> &dim,
-    std::vector<Eigen::Vector3d> &voxels) const
+    const geometry_msgs::Pose& pose,
+    const std::vector<double>& dim,
+    std::vector<Eigen::Vector3d>& voxels) const
 {
     Eigen::Vector3d vin, vout, v(pose.position.x, pose.position.y, pose.position.z);
     Eigen::Matrix3d m(Eigen::Quaterniond(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z));
@@ -148,8 +114,7 @@ void OccupancyGrid::getOccupiedVoxels(
     double y_center,
     double z_center,
     double radius,
-    std::string text,
-    std::vector<geometry_msgs::Point> &voxels) const
+    std::vector<geometry_msgs::Point>& voxels) const
 {
     int x_c, y_c, z_c, radius_c;
     geometry_msgs::Point v;
@@ -168,17 +133,20 @@ void OccupancyGrid::getOccupiedVoxels(
     }
 }
 
-void OccupancyGrid::getOccupiedVoxels(std::vector<geometry_msgs::Point> &voxels) const
+void OccupancyGrid::getOccupiedVoxels(
+    std::vector<geometry_msgs::Point>& voxels) const
 {
-    geometry_msgs::Point v;
-    std::vector<double> dim(3, 0), origin(3, 0);
-    getOrigin(origin[0], origin[1], origin[2]);
+    std::vector<double> dim(3, 0);
     getWorldSize(dim[0], dim[1], dim[2]);
+
+    std::vector<double> origin(3, 0);
+    getOrigin(origin[0], origin[1], origin[2]);
 
     for (double x = origin[0]; x <= origin[0] + dim[0]; x += grid_->getResolution()) {
         for (double y = origin[1]; y <= origin[1] + dim[1]; y += grid_->getResolution()) {
             for (double z = origin[2]; z <= origin[2] + dim[2]; z += grid_->getResolution()) {
-                if (getDistanceFromPoint(x, y, z) == 0) {
+                if (getDistanceFromPoint(x, y, z) == 0.0) {
+                    geometry_msgs::Point v;
                     v.x = x;
                     v.y = y;
                     v.z = z;
@@ -189,92 +157,135 @@ void OccupancyGrid::getOccupiedVoxels(std::vector<geometry_msgs::Point> &voxels)
     }
 }
 
-visualization_msgs::MarkerArray OccupancyGrid::getVisualization(std::string type)
+visualization_msgs::MarkerArray OccupancyGrid::getVisualization(
+    const std::string& type) const
 {
-    visualization_msgs::MarkerArray ma;
-
-    if (type.compare("bounds") == 0) {
-        double dimx, dimy, dimz, originx, originy, originz;
-        std::vector<geometry_msgs::Point> pts(10);
-        getOrigin(originx, originy, originz);
-        getWorldSize(dimx,dimy,dimz);
-        pts[0].x = originx;      pts[0].y = originy;      pts[0].z = originz;
-        pts[1].x = originx+dimx; pts[1].y = originy;      pts[1].z = originz;
-        pts[2].x = originx+dimx; pts[2].y = originy+dimy; pts[2].z = originz;
-        pts[3].x = originx;      pts[3].y = originy+dimy; pts[3].z = originz;
-        pts[4].x = originx;      pts[4].y = originy;      pts[4].z = originz;
-        pts[5].x = originx;      pts[5].y = originy;      pts[5].z = originz+dimz;
-        pts[6].x = originx+dimx; pts[6].y = originy;      pts[6].z = originz+dimz;
-        pts[7].x = originx+dimx; pts[7].y = originy+dimy; pts[7].z = originz+dimz;
-        pts[8].x = originx;      pts[8].y = originy+dimy; pts[8].z = originz+dimz;
-        pts[9].x = originx;      pts[9].y = originy;      pts[9].z = originz+dimz;
-
-        ma.markers.resize(1);
-        ma.markers[0] = viz::getLineMarker(pts, 0.05, 10, getReferenceFrame(), "collision_space_bounds", 0);
+    if (type == "bounds") {
+        return getBoundingBoxVisualization();
     }
-    else if(type.compare("distance_field") == 0) {
-        visualization_msgs::Marker m;
-        grid_->getIsoSurfaceMarkers(0.01, 0.02, getReferenceFrame(), ros::Time::now(), m);
-        m.color.a += 0.2;
-        ma.markers.push_back(m);
+    else if (type == "distance_field") {
+        return getDistanceFieldVisualization();
     }
-    else if (type.compare("occupied_voxels") == 0) {
-        visualization_msgs::Marker marker;
-        std::vector<geometry_msgs::Point> voxels;
-        getOccupiedVoxels(voxels);
-        marker.header.seq = 0;
-        marker.header.stamp = ros::Time::now();
-        marker.header.frame_id = getReferenceFrame();
-        marker.ns = "occupied_voxels";
-        marker.id = 1;
-        marker.type = visualization_msgs::Marker::POINTS;
-        marker.action = visualization_msgs::Marker::ADD;
-        marker.lifetime = ros::Duration(0.0);
-        marker.scale.x = grid_->getResolution() / 2.0;
-        marker.scale.y = grid_->getResolution() / 2.0;
-        marker.scale.z = grid_->getResolution() / 2.0;
-        marker.color.r = 0.8;
-        marker.color.g = 0.3;
-        marker.color.b = 0.5;
-        marker.color.a = 1;
-        marker.points = voxels;
-        ma.markers.push_back(marker);
+    else if (type == "occupied_voxels") {
+        return getOccupiedVoxelsVisualization();
     }
     else {
-        ROS_ERROR("No visualization found of type '%s'.", type.c_str());
+        ROS_ERROR("No Occupancy Grid visualization of type '%s' found", type.c_str());
+        return visualization_msgs::MarkerArray();
     }
+}
 
+visualization_msgs::MarkerArray
+OccupancyGrid::getBoundingBoxVisualization() const
+{
+    visualization_msgs::MarkerArray ma;
+    double dimx, dimy, dimz, originx, originy, originz;
+    std::vector<geometry_msgs::Point> pts(10);
+    getOrigin(originx, originy, originz);
+    getWorldSize(dimx,dimy,dimz);
+    pts[0].x = originx;      pts[0].y = originy;      pts[0].z = originz;
+    pts[1].x = originx+dimx; pts[1].y = originy;      pts[1].z = originz;
+    pts[2].x = originx+dimx; pts[2].y = originy+dimy; pts[2].z = originz;
+    pts[3].x = originx;      pts[3].y = originy+dimy; pts[3].z = originz;
+    pts[4].x = originx;      pts[4].y = originy;      pts[4].z = originz;
+    pts[5].x = originx;      pts[5].y = originy;      pts[5].z = originz+dimz;
+    pts[6].x = originx+dimx; pts[6].y = originy;      pts[6].z = originz+dimz;
+    pts[7].x = originx+dimx; pts[7].y = originy+dimy; pts[7].z = originz+dimz;
+    pts[8].x = originx;      pts[8].y = originy+dimy; pts[8].z = originz+dimz;
+    pts[9].x = originx;      pts[9].y = originy;      pts[9].z = originz+dimz;
+
+    ma.markers.resize(1);
+
+    double thickness = 0.05;
+    int hue = 10;
+    ma.markers[0] = viz::getLineMarker(
+            pts, 0.05, 10, getReferenceFrame(), "collision_space_bounds");
     return ma;
 }
 
-void OccupancyGrid::addPointsToField(const std::vector<Eigen::Vector3d> &points)
+visualization_msgs::MarkerArray
+OccupancyGrid::getDistanceFieldVisualization() const
 {
-    /*
-     std::vector<tf::Vector3> pts(points.size());
-     for(size_t i = 0; i < points.size(); ++i)
-     pts[i] = tf::Vector3(points[i].x(), points[i].y(), points[i].z());
+    visualization_msgs::MarkerArray ma;
 
-     grid_->addPointsToField(pts);
-     */
+    visualization_msgs::Marker m;
+    grid_->getIsoSurfaceMarkers(
+            grid_->getResolution(),
+            getMaxDistance(),
+            getReferenceFrame(),
+            ros::Time::now(),
+            m);
+    m.color.a += 0.2;
+
+    ma.markers.push_back(m);
+    return ma;
+}
+
+visualization_msgs::MarkerArray
+OccupancyGrid::getOccupiedVoxelsVisualization() const
+{
+    visualization_msgs::MarkerArray ma;
+
+    visualization_msgs::Marker marker;
+
+    marker.header.seq = 0;
+    marker.header.stamp = ros::Time::now();
+    marker.header.frame_id = getReferenceFrame();
+
+    marker.ns = "occupied_voxels";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::CUBE_LIST;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration(0.0);
+
+    marker.scale.x = grid_->getResolution();
+    marker.scale.y = grid_->getResolution();
+    marker.scale.z = grid_->getResolution();
+
+    marker.color.r = 0.8f;
+    marker.color.g = 0.3f;
+    marker.color.b = 0.5f;
+    marker.color.a = 1.0f;
+
+    std::vector<geometry_msgs::Point> voxels;
+    getOccupiedVoxels(voxels);
+    marker.points = voxels;
+
+    ma.markers.push_back(marker);
+    return ma;
+}
+
+void OccupancyGrid::addPointsToField(
+    const std::vector<Eigen::Vector3d>& points)
+{
     EigenSTL::vector_Vector3d pts(points.size());
-    for (size_t i = 0; i < points.size(); ++i)
+    for (size_t i = 0; i < points.size(); ++i) {
         pts[i] = Eigen::Vector3d(points[i].x(), points[i].y(), points[i].z());
-
+    }
     grid_->addPointsToField(pts);
 }
 
-void OccupancyGrid::updatePointsInField(const std::vector<Eigen::Vector3d> &points, bool iterative)
+void OccupancyGrid::removePointsFromField(
+    const std::vector<Eigen::Vector3d>& points)
 {
-    if (points.empty())
-        return;
-    /*
-     std::vector<tf::Vector3> pts(points.size());
-     for(size_t i = 0; i < points.size(); ++i)
-     pts[i] = tf::Vector3(points[i].x(), points[i].y(), points[i].z());
+    grid_->removePointsFromField(toAlignedVector(points));
+}
 
-     grid_->updatePointsInField(pts, iterative);
-     */
-    //grid_->updatePointsInField(points, iterative);
+void OccupancyGrid::updatePointsInField(
+    const std::vector<Eigen::Vector3d>& old_points,
+    const std::vector<Eigen::Vector3d>& new_points)
+{
+    grid_->updatePointsInField(toAlignedVector(old_points), toAlignedVector(new_points));
+}
+
+EigenSTL::vector_Vector3d OccupancyGrid::toAlignedVector(
+    const std::vector<Eigen::Vector3d>& v) const
+{
+    EigenSTL::vector_Vector3d pts(v.size());
+    for (size_t i = 0; i < v.size(); ++i) {
+        pts[i] = Eigen::Vector3d(v[i].x(), v[i].y(), v[i].z());
+    }
+    return pts;
 }
 
 } // namespace sbpl_arm_planner

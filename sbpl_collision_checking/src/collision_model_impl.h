@@ -91,7 +91,7 @@ public:
         int& chain,
         int& segment);
 
-    std::string getReferenceFrame(const std::string& group_name);
+    std::string getReferenceFrame(const std::string& group_name) const;
 
     void setOrderOfJointPositions(
         const std::vector<std::string>& joint_names,
