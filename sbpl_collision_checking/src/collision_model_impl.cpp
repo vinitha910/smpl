@@ -73,7 +73,7 @@ bool CollisionModelImpl::init(
             initAllGroups(config);
 }
 
-void CollisionModelImpl::getGroupNames(std::vector<std::string>& names)
+void CollisionModelImpl::getGroupNames(std::vector<std::string>& names) const
 {
     for (auto iter = group_config_map_.begin();
         iter != group_config_map_.end();
@@ -101,7 +101,7 @@ bool CollisionModelImpl::setDefaultGroup(const std::string& group_name)
     return true;
 }
 
-void CollisionModelImpl::printGroups()
+void CollisionModelImpl::printGroups() const
 {
     if (group_config_map_.begin() == group_config_map_.end()) {
         ROS_ERROR("No groups found.");
@@ -125,9 +125,16 @@ bool CollisionModelImpl::getFrameInfo(
     const std::string& name,
     const std::string& group_name,
     int& chain,
-    int& segment)
+    int& segment) const
 {
-    return group_config_map_[group_name]->getFrameInfo(name, chain, segment);
+    auto git = group_config_map_.find(group_name);
+    if (git == group_config_map_.end()) {
+        ROS_ERROR("No group named '%s'", name.c_str());
+        return false;
+    }
+    else {
+        return git->second->getFrameInfo(name, chain, segment);
+    }
 }
 
 bool CollisionModelImpl::initAllGroups(const CollisionModelConfig& config)
@@ -189,10 +196,16 @@ void CollisionModelImpl::setJointPosition(
     }
 }
 
-void CollisionModelImpl::printDebugInfo(const std::string& group_name)
+void CollisionModelImpl::printDebugInfo(const std::string& group_name) const
 {
-    Group* group = group_config_map_[group_name];
-    group->printDebugInfo();
+    auto git = group_config_map_.find(group_name);
+    if (git == group_config_map_.end()) {
+        ROS_INFO("No group '%s' found", group_name.c_str());
+    }
+    else {
+        Group* group = git->second;
+        group->printDebugInfo();
+    }
 }
 
 const std::vector<const Sphere*>&
@@ -206,20 +219,22 @@ bool CollisionModelImpl::getJointLimits(
     const std::string& joint_name,
     double& min_limit,
     double& max_limit,
-    bool& continuous)
+    bool& continuous) const
 {
     if (group_config_map_.find(group_name) == group_config_map_.end()) {
         ROS_ERROR("Collision Model does not contain group '%s'", group_name.c_str());
         return false;
     }
 
-    if (!group_config_map_[group_name]->init_) {
+    auto git = group_config_map_.at(group_name);
+
+    if (!git->init_) {
         ROS_ERROR("Collision Model Group '%s' is not initialized", group_name.c_str());
         return false;
     }
 
-    const std::string& root_link_name = group_config_map_[group_name]->getReferenceFrame();
-    const std::string& tip_link_name = group_config_map_[group_name]->tip_name_;
+    const std::string& root_link_name = git->getReferenceFrame();
+    const std::string& tip_link_name = git->tip_name_;
     if (!leatherman::getJointLimits(
             urdf_.get(),
             root_link_name,
@@ -272,7 +287,7 @@ void CollisionModelImpl::getVoxelGroups(std::vector<Group*>& vg)
 
 bool CollisionModelImpl::doesLinkExist(
     const std::string& name,
-    const std::string& group_name)
+    const std::string& group_name) const
 {
     int chain, segment;
     return getFrameInfo(name, group_name, chain, segment);

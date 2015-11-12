@@ -519,7 +519,7 @@ void Group::setJointPosition(const std::string& name, double position)
 {
     for (std::size_t i = 0; i < jntarray_names_.size(); ++i) {
         for (std::size_t j = 0; j < jntarray_names_[i].size(); ++j) {
-            if (name.compare(jntarray_names_[i][j]) == 0) {
+            if (name == jntarray_names_[i][j]) {
                 joint_positions_[i](j) = position;
                 break;
             }

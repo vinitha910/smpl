@@ -64,55 +64,55 @@ public:
         const std::string& urdf_string,
         const CollisionModelConfig& config);
 
-    void getGroupNames(std::vector<std::string>& names);
-
-    const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
-
     bool setDefaultGroup(const std::string& group_name);
 
-    bool computeDefaultGroupFK(
-        const std::vector<double>& angles,
-        std::vector<std::vector<KDL::Frame>>& frames);
+    void setOrderOfJointPositions(
+        const std::vector<std::string>& joint_names,
+        const std::string& group_name);
 
-    Group* getGroup(const std::string& name);
+    std::string getReferenceFrame(const std::string& group_name) const;
 
-    void getVoxelGroups(std::vector<Group*>& vg);
+    void getGroupNames(std::vector<std::string>& names) const;
 
     bool getJointLimits(
         const std::string& group_name,
         const std::string& joint_name,
         double& min_limit,
         double& max_limit,
-        bool& continuous);
+        bool& continuous) const;
 
     bool getFrameInfo(
         const std::string& name,
         const std::string& group_name,
         int& chain,
-        int& segment);
+        int& segment) const;
 
-    std::string getReferenceFrame(const std::string& group_name) const;
+    bool doesLinkExist(const std::string& name, const std::string& group_name) const;
 
-    void setOrderOfJointPositions(
-        const std::vector<std::string>& joint_names,
-        const std::string& group_name);
+   const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
 
-    bool doesLinkExist(const std::string& name, const std::string& group_name);
+    bool setWorldToModelTransform(
+        const moveit_msgs::RobotState& state,
+        const std::string& world_frame);
+
+    void setJointPosition(const std::string& name, double position);
+
+    Group* getGroup(const std::string& name);
+
+    void getVoxelGroups(std::vector<Group*>& vg);
+
+    bool computeDefaultGroupFK(
+        const std::vector<double>& angles,
+        std::vector<std::vector<KDL::Frame>>& frames);
 
     bool computeGroupFK(
             const std::vector<double>& angles,
             Group* group,
             std::vector<std::vector<KDL::Frame>>& frames);
 
-    void setJointPosition(const std::string& name, double position);
+    void printGroups() const;
 
-    bool setWorldToModelTransform(
-        const moveit_msgs::RobotState& state,
-        const std::string& world_frame);
-
-    void printGroups();
-
-    void printDebugInfo(const std::string& group_name);
+    void printDebugInfo(const std::string& group_name) const;
 
 private:
 

@@ -109,7 +109,6 @@ public:
 
     const std::string& getGroupName() { return group_name_; }
     void setJointPosition(const std::string& name, double position);
-    bool setPlanningJoints(const std::vector<std::string>& joint_names);
     bool getCollisionSpheres(
         const std::vector<double>& angles,
         std::vector<std::vector<double>>& spheres);
@@ -213,6 +212,8 @@ private:
     std::vector<Sphere> object_spheres_;
 
     std::vector<Sphere> collision_spheres_;
+    
+    bool setPlanningJoints(const std::vector<std::string>& joint_names);
 
     // return whether or not to accept an incoming collision object
     bool checkCollisionObjectAdd(const moveit_msgs::CollisionObject& object) const;

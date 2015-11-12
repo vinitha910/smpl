@@ -51,7 +51,7 @@ bool SBPLCollisionModel::init(
     return impl_->init(urdf_string, config);
 }
 
-void SBPLCollisionModel::getGroupNames(std::vector<std::string> &names)
+void SBPLCollisionModel::getGroupNames(std::vector<std::string> &names) const
 {
     return impl_->getGroupNames(names);
 }
@@ -61,7 +61,7 @@ bool SBPLCollisionModel::setDefaultGroup(const std::string &group_name)
     return impl_->setDefaultGroup(group_name);
 }
 
-void SBPLCollisionModel::printGroups()
+void SBPLCollisionModel::printGroups() const
 {
     return impl_->printGroups();
 }
@@ -70,7 +70,7 @@ bool SBPLCollisionModel::getFrameInfo(
     const std::string &name,
     const std::string &group_name,
     int &chain,
-    int &segment)
+    int &segment) const
 {
     return impl_->getFrameInfo(name, group_name, chain, segment);
 }
@@ -104,7 +104,7 @@ void SBPLCollisionModel::setJointPosition(
     return impl_->setJointPosition(name, position);
 }
 
-void SBPLCollisionModel::printDebugInfo(const std::string &group_name)
+void SBPLCollisionModel::printDebugInfo(const std::string &group_name) const
 {
     return impl_->printDebugInfo(group_name);
 }
@@ -120,7 +120,7 @@ bool SBPLCollisionModel::getJointLimits(
     const std::string &joint_name,
     double &min_limit,
     double &max_limit,
-    bool &continuous)
+    bool &continuous) const
 {
     return impl_->getJointLimits(
             group_name, joint_name, min_limit, max_limit, continuous);
@@ -137,14 +137,14 @@ Group *SBPLCollisionModel::getGroup(const std::string &name)
     return impl_->getGroup(name);
 }
 
-void SBPLCollisionModel::getVoxelGroups(std::vector<Group*> &vg)
+void SBPLCollisionModel::getVoxelGroups(std::vector<Group*>& vg)
 {
     return impl_->getVoxelGroups(vg);
 }
 
 bool SBPLCollisionModel::doesLinkExist(
-    const std::string &name,
-    const std::string &group_name)
+    const std::string& name,
+    const std::string& group_name) const
 {
     return impl_->doesLinkExist(name, group_name);
 }

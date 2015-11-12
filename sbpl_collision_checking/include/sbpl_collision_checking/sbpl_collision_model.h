@@ -59,22 +59,52 @@ public:
     SBPLCollisionModel();
     ~SBPLCollisionModel();
 
+    /// \name Initialization
+    ///@{
+
     bool init(
         const std::string& urdf_string,
         const CollisionModelConfig& config);
 
-    void getGroupNames(std::vector<std::string>& names);
+    bool setDefaultGroup(const std::string& group_name);
+
+    void setOrderOfJointPositions(
+        const std::vector<std::string>& joint_names,
+        const std::string& group_name);
+
+    ///@}
+
+    std::string getReferenceFrame(const std::string& group_name) const;
+
+    void getGroupNames(std::vector<std::string>& names) const;
 
     bool getJointLimits(
         const std::string& group_name,
         const std::string& joint_name,
         double& min_limit,
         double& max_limit,
-        bool& continuous);
+        bool& continuous) const;
 
-    bool setDefaultGroup(const std::string& group_name);
+    bool getFrameInfo(
+        const std::string& name,
+        const std::string& group_name,
+        int& chain,
+        int& segment) const;
+
+    bool doesLinkExist(const std::string& name, const std::string& group_name) const;
 
     const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
+
+    /// \name Modify State of Collision Robot
+    /// @{
+
+    bool setModelToWorldTransform(
+        const moveit_msgs::RobotState& state,
+        const std::string& world_frame);
+
+    void setJointPosition(const std::string& name, double position);
+
+    Group* getGroup(const std::string& name);
 
     void getVoxelGroups(std::vector<Group*>& vg);
 
@@ -87,31 +117,11 @@ public:
         Group* group,
         std::vector<std::vector<KDL::Frame>>& frames);
 
-    void setOrderOfJointPositions(
-        const std::vector<std::string>& joint_names,
-        const std::string& group_name);
+    /// @}
 
-    void setJointPosition(const std::string& name, double position);
+    void printGroups() const;
 
-    bool getFrameInfo(
-        const std::string& name,
-        const std::string& group_name,
-        int& chain,
-        int& segment);
-
-    bool doesLinkExist(const std::string& name, const std::string& group_name);
-
-    std::string getReferenceFrame(const std::string& group_name) const;
-
-    Group* getGroup(const std::string& name);
-
-    void printGroups();
-
-    void printDebugInfo(const std::string& group_name);
-
-    bool setModelToWorldTransform(
-        const moveit_msgs::RobotState& state,
-        const std::string& world_frame);
+    void printDebugInfo(const std::string& group_name) const;
 
 private:
 

@@ -80,10 +80,10 @@ void SBPLCollisionSpace::setPadding(double padding)
 bool SBPLCollisionSpace::setPlanningJoints(
     const std::vector<std::string>& joint_names)
 {
-    if (group_name_.empty()) {
-        ROS_ERROR("[cspace] Default group name is not set. Please set it before setting planning joints.");
-        return false;
-    }
+    assert(!group_name_.empty());
+
+    // set the order of the planning joints
+    model_.setOrderOfJointPositions(joint_names, group_name_);
 
     inc_.resize(joint_names.size(), sbpl::utils::ToRadians(2.0));
     min_limits_.resize(joint_names.size(), 0.0);
@@ -95,18 +95,15 @@ bool SBPLCollisionSpace::setPlanningJoints(
                 group_name_, joint_names[i],
                 min_limits_[i], max_limits_[i], cont))
         {
-            ROS_ERROR("[cspace] Failed to retrieve joint limits for %s.", joint_names[i].c_str());
+            ROS_ERROR("Failed to retrieve joint limits for '%s'.", joint_names[i].c_str());
             return false;
         }
         continuous_[i] = cont;
     }
 
-    ROS_INFO("[min_limits] %s", leatherman::getString(min_limits_).c_str());
-    ROS_INFO("[max_limits] %s", leatherman::getString(max_limits_).c_str());
-    ROS_INFO("[continuous] %s", leatherman::getString(continuous_, "yes", "no").c_str());
-
-    // set the order of the planning joints
-    model_.setOrderOfJointPositions(joint_names, group_name_);
+    ROS_INFO("min limits: %s", leatherman::getString(min_limits_).c_str());
+    ROS_INFO("max limits: %s", leatherman::getString(max_limits_).c_str());
+    ROS_INFO("continuous: %s", leatherman::getString(continuous_, "yes", "no").c_str());
 
     return true;
 }
@@ -119,27 +116,34 @@ bool SBPLCollisionSpace::init(
 {
     ROS_INFO("Initializing collision space for group '%s'", group_name.c_str());
 
-    group_name_ = group_name;
-
     // initialize the collision model
     if (!model_.init(urdf_string, config)) {
         ROS_ERROR("[cspace] The robot's collision model failed to initialize.");
         return false;
     }
 
-    // choose the group we are planning for
-    if (!model_.setDefaultGroup(group_name_)) {
-        ROS_ERROR("Failed to set the default group to '%s'.", group_name_.c_str());
+    std::vector<std::string> group_names;
+    model_.getGroupNames(group_names);
+    if (std::find(group_names.begin(), group_names.end(), group_name) == group_names.end()) {
+        ROS_ERROR("Group '%s' was not found in collision model config", group_name.c_str());
         return false;
     }
 
-    // get the collision spheres for the robot
-    spheres_ = model_.getDefaultGroupSpheres();
+    // choose the group we are planning for
+    if (!model_.setDefaultGroup(group_name)) {
+        ROS_ERROR("Failed to set the default group to '%s'.", group_name.c_str());
+        return false;
+    }
+
+    group_name_ = group_name;
 
     if (!setPlanningJoints(planning_joints)) {
         ROS_ERROR("Failed to set planning joints");
         return false;
     }
+
+    // get the collision spheres for the robot
+    spheres_ = model_.getDefaultGroupSpheres();
 
     if (!updateVoxelGroups()) {
         ROS_ERROR("Failed to update voxel groups");
