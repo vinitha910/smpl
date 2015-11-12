@@ -660,8 +660,25 @@ void SBPLCollisionSpace::addCollisionObject(
             dims[0] = object.primitives[i].dimensions[0];
             dims[1] = object.primitives[i].dimensions[1];
             dims[2] = object.primitives[i].dimensions[2];
+
             object_voxel_map_[object.id].clear();
-            grid_->getOccupiedVoxels(object.primitive_poses[i], dims, object_voxel_map_[object.id]);
+
+            std::vector<Eigen::Vector3d>& obj_voxels = object_voxel_map_[object.id];
+
+            std::vector<std::vector<double>> voxels;
+            sbpl::Voxelizer::voxelizeBox(
+                    object.primitives[i].dimensions[0],
+                    object.primitives[i].dimensions[1],
+                    object.primitives[i].dimensions[2],
+                    object.primitive_poses[i],
+                    grid_->getResolution(),
+                    voxels,
+                    false);
+
+            obj_voxels.reserve(voxels.size());
+            for (const std::vector<double>& voxel : voxels) {
+                obj_voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+            }
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
             // voxelize sphere in object frame
@@ -729,6 +746,7 @@ void SBPLCollisionSpace::addCollisionObject(
         known_objects_.push_back(object.id);
     }
 
+    ROS_INFO("Adding %zu grid cells to the distance transform", object_voxel_map_[object.id].size());
     grid_->addPointsToField(object_voxel_map_[object.id]);
 }
 
