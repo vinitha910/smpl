@@ -192,6 +192,7 @@ void CollisionModelImpl::setJointPosition(
     const std::string& name,
     double position)
 {
+    // TODO: set model to group transform here
     auto kjmit = m_joint_map.find(name);
     if (kjmit == m_joint_map.end()) {
         ROS_ERROR("Collision Robot doesn't know about joint '%s'", name.c_str());
@@ -204,6 +205,7 @@ void CollisionModelImpl::setJointPosition(
         int jidx = kjmit.joint_indices[i];
         m_joint_arrays[chidx][jidx] = position;
     }
+    //
 
     for (auto iter = group_config_map_.begin();
         iter != group_config_map_.end();
