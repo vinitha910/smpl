@@ -149,11 +149,9 @@ bool SBPLCollisionModel::doesLinkExist(
     return impl_->doesLinkExist(name, group_name);
 }
 
-bool SBPLCollisionModel::setModelToWorldTransform(
-    const moveit_msgs::RobotState &state,
-    const std::string &world_frame)
+void SBPLCollisionModel::setWorldToModelTransform(const KDL::Frame& f)
 {
-    return impl_->setWorldToModelTransform(state, world_frame);
+    impl_->setWorldToModelTransform(f);
 }
 
 } // namespace collision

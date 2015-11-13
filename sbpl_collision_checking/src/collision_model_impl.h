@@ -70,6 +70,7 @@ public:
         const std::vector<std::string>& joint_names,
         const std::string& group_name);
 
+    const std::string& getReferenceFrame() const { return m_model_frame; }
     std::string getReferenceFrame(const std::string& group_name) const;
 
     void getGroupNames(std::vector<std::string>& names) const;
@@ -87,13 +88,18 @@ public:
         int& chain,
         int& segment) const;
 
+    const std::vector<std::string>& jointNames() const;
+    const std::vector<double>& jointPositions() const;
+
+    double getJointPosition(int joint_index) const;
+    double getJointPosition(const std::string& joint_name) const;
+
     bool doesLinkExist(const std::string& name, const std::string& group_name) const;
 
-   const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
+    const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
 
-    bool setWorldToModelTransform(
-        const moveit_msgs::RobotState& state,
-        const std::string& world_frame);
+    void setWorldToModelTransform(const KDL::Frame& f) { m_T_world_model = f; }
+    const KDL::Frame& worldToModelTransform() const { return m_T_world_model; }
 
     void setJointPosition(const std::string& name, double position);
 
@@ -116,7 +122,7 @@ public:
 
 private:
 
-    struct KDLJointMapping;
+    struct KDLJointMapping
     {
         std::vector<int> chain_indices;
         std::vector<int> joint_indices;
@@ -126,29 +132,41 @@ private:
     ros::NodeHandle ph_;
 
     boost::shared_ptr<urdf::Model> urdf_;
-
     std::string m_model_frame;
-    KDL::Tree m_tree;
-    // chains leading up to root links of groups
-    std::vector<KDL::Chain> m_chains;
-    std::vector<std::string> m_chain_tips;
-    std::vector<KDL::ChainFkSolverPos_recursive> m_solvers;
-    std::vector<KDL::JntArray> m_joint_arrays;
-    std::map<std::string, KDLJointMapping> m_joint_map;
+    std::vector<std::string> m_joint_names;
+    std::vector<double> m_joint_positions;
+    std::map<std::string, int> m_joint_to_index;
 
-    robot_model_loader::RobotModelLoaderPtr rm_loader_;
-    robot_model::RobotModelPtr robot_model_;
-    robot_state::RobotStatePtr robot_state_;
+    KDL::Tree m_tree;
+
+    // chains leading up to root links of groups
+    std::vector<KDL::Chain>                         m_chains;
+    std::vector<Group*>                             m_chain_index_to_group;
+    std::vector<KDL::ChainFkSolverPos_recursive>    m_solvers;
+    std::vector<KDL::JntArray>                      m_joint_arrays;
+
+    std::map<std::string, KDLJointMapping> m_joint_map; // joint_name -> mapping
 
     std::map<std::string, Group*> group_config_map_;
     Group* dgroup_;
 
-    bool initURDF(const std::string &urdf_string);
+    KDL::Frame m_T_world_model;
+
+    void setReferenceFrame(const std::string& frame);
+
+    bool initURDF(const std::string& urdf_string);
     bool initKdlRobotModel();
-    bool initMoveItRobotModel(const std::string &urdf_string);
     bool initAllGroups(const CollisionModelConfig& config);
 
-    void decomposeRobotModel();
+    bool decomposeRobotModel();
+
+    bool isDescendantOf(
+        const std::string& link_a_name,
+        const std::string& link_b_name) const;
+
+    bool jointInfluencesLink(
+        const std::string& joint_name,
+        const std::string& link_name) const;
 };
 
 } // namespace collision

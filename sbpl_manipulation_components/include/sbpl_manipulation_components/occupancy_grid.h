@@ -122,6 +122,9 @@ public:
 
     double getDistanceFromPoint(double x, double y, double z) const;
 
+    // TODO: this whole implicit casting nonsense makes me nervous...factor
+    // these (T, T, T) triples into point class representations
+    bool isInBounds(double x, double y, double z) const;
     bool isInBounds(int x, int y, int z) const;
 
     /// \brief Get all occupied voxels in the grid
@@ -278,6 +281,14 @@ bool OccupancyGrid::isInBounds(int x, int y, int z) const
     return (x >= 0 && x < grid_->getXNumCells() &&
             y >= 0 && y < grid_->getYNumCells() &&
             z >= 0 && z < grid_->getZNumCells());
+}
+
+inline
+bool OccupancyGrid::isInBounds(double x, double y, double z) const
+{
+    int gx, gy, gz;
+    worldToGrid(x, y, z, gx, gy, gz);
+    return isInBounds(gx, gy, gz);
 }
 
 } // namespace sbpl_arm_planner

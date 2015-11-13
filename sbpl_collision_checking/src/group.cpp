@@ -53,7 +53,7 @@ Group::Group() :
     urdf_(),
     name_(),
     root_name_(),
-    m_T_model_group(),
+    m_T_model_group(KDL::Frame::Identity()),
     chains_(),
     solvers_(),
     jntarray_names_(),
@@ -401,28 +401,30 @@ bool Group::initVoxels()
 {
     assert(type_ == Group::VOXELS);
 
-    // get link voxels && assign the kdl segment numbers to each link 
+    // get link voxels and assign the kdl segment numbers to each link 
     for (size_t i = 0; i < links_.size(); ++i) {
-        if (!getLinkVoxels(links_[i].root_name_, links_[i].voxels_.v)) {
-            ROS_ERROR("Failed to retrieve voxels for link '%s' in group '%s'", links_[i].root_name_.c_str(), name_.c_str());
+        Link& link = links_[i];
+        if (!getLinkVoxels(link.root_name_, link.voxels_.v)) {
+            ROS_ERROR("Failed to retrieve voxels for link '%s' in group '%s'", link.root_name_.c_str(), name_.c_str());
             return false;
         }
-        ROS_DEBUG("Retrieved %d voxels for link '%s'", int(links_[i].voxels_.v.size()), links_[i].root_name_.c_str());
+        ROS_DEBUG("Retrieved %d voxels for link '%s'", int(link.voxels_.v.size()), link.root_name_.c_str());
         int seg = 0;
-        if (!leatherman::getSegmentIndex(chains_[links_[i].i_chain_], links_[i].root_name_, seg)) {
-            ROS_ERROR("When retrieving group voxels, getSegmentIndex() failed. The group root must be the same as the link root. {root: %s, tips: %s}", root_name_.c_str(),  links_[i].root_name_.c_str());
+        if (!leatherman::getSegmentIndex(chains_[link.i_chain_], link.root_name_, seg)) {
+            ROS_ERROR("When retrieving group voxels, getSegmentIndex() failed. The group root must be the same as the link root. {root: %s, tips: %s}", root_name_.c_str(),  link.root_name_.c_str());
             seg = -1;
             //return false;
         }
     
-        links_[i].voxels_.kdl_segment = seg+1;
-        links_[i].voxels_.kdl_chain = links_[i].i_chain_;
+        link.voxels_.kdl_segment = seg + 1;
+        link.voxels_.kdl_chain = link.i_chain_;
     }
     
     // populate the frames vector that stores the segments in each chain 
     frames_.resize(chains_.size());
     for (size_t i = 0; i < links_.size(); ++i) {
-        frames_[links_[i].voxels_.kdl_chain].push_back(links_[i].voxels_.kdl_segment);
+        const Link& link = links_[i];
+        frames_[link.voxels_.kdl_chain].push_back(link.voxels_.kdl_segment);
     }
     
     // debug output
@@ -532,34 +534,28 @@ bool Group::getLinkVoxels(
     std::vector<KDL::Vector>& voxels)
 {
     boost::shared_ptr<const urdf::Link> link = urdf_->getLink(name);
-    if (link == NULL) {
+
+    if (!link) {
         ROS_ERROR("Failed to find link '%s' in URDF.", name.c_str());
         return false;
     }
-    if (link->collision == NULL) {
+    if (!link->collision) {
         ROS_ERROR("Failed to find collision field for link '%s' in URDF.", link->name.c_str());
         return false;
     }
-    if (link->collision->geometry == NULL) {
+    if (!link->collision->geometry) {
         ROS_ERROR("Failed to find geometry for link '%s' in URDF. (group: %s)", name.c_str(), link->collision->group_name.c_str());
         return false;
     }
 
-    //TODO: Add way to choose collision geometry or visual geometry
-        
     geometry_msgs::Pose p;
   
-    boost::shared_ptr<const urdf::Geometry> geom = link->visual->geometry;
-    p.position.x = link->visual->origin.position.x;
-    p.position.y = link->visual->origin.position.y;
-    p.position.z = link->visual->origin.position.z;
-    link->visual->origin.rotation.getQuaternion(p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
- 
-//    boost::shared_ptr<const urdf::Geometry> geom = link->collision->geometry;
-//    p.position.x = link->collision->origin.position.x;
-//    p.position.y = link->collision->origin.position.y;
-//    p.position.z = link->collision->origin.position.z;
-//    link->collision->origin.rotation.getQuaternion(p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+    boost::shared_ptr<const urdf::Geometry> geom = link->collision->geometry;
+    p.position.x = link->collision->origin.position.x;
+    p.position.y = link->collision->origin.position.y;
+    p.position.z = link->collision->origin.position.z;
+    link->collision->origin.rotation.getQuaternion(
+            p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
   
     voxels.clear();
     if (geom->type == urdf::Geometry::MESH) {
@@ -569,12 +565,15 @@ bool Group::getLinkVoxels(
         std::vector<geometry_msgs::Point> vertices;
         std::vector<std::vector<double>> v;
         urdf::Mesh* mesh = (urdf::Mesh*)geom.get();
-        if (!leatherman::getMeshComponentsFromResource(mesh->filename, scale, triangles, vertices)) {
+        if (!leatherman::getMeshComponentsFromResource(
+                mesh->filename, scale, triangles, vertices))
+        {
             ROS_ERROR("Failed to get mesh from file. (%s)", mesh->filename.c_str());
             return false;
         }
         ROS_DEBUG("mesh: %s  triangles: %u  vertices: %u", name.c_str(), int(triangles.size()), int(vertices.size()));
-        sbpl::Voxelizer::voxelizeMesh(vertices, triangles, p, RESOLUTION, v, false);
+        sbpl::Voxelizer::voxelizeMesh(
+                vertices, triangles, p, RESOLUTION, v, false);
         ROS_DEBUG("mesh: %s  voxels: %u", name.c_str(), int(v.size()));
         voxels.resize(v.size());
         for (size_t i = 0; i < v.size(); ++i) {
@@ -586,7 +585,8 @@ bool Group::getLinkVoxels(
     else if (geom->type == urdf::Geometry::BOX) {
         std::vector<std::vector<double>> v;
         urdf::Box* box = (urdf::Box*)geom.get();
-        sbpl::Voxelizer::voxelizeBox(box->dim.x, box->dim.y, box->dim.z, p, RESOLUTION, v, false); 
+        sbpl::Voxelizer::voxelizeBox(
+                box->dim.x, box->dim.y, box->dim.z, p, RESOLUTION, v, false); 
         ROS_INFO("box: %s  voxels: %u   {dims: %0.2f %0.2f %0.2f}", name.c_str(), int(v.size()), box->dim.x, box->dim.y, box->dim.z);
         voxels.resize(v.size());
         for (size_t i = 0; i < v.size(); ++i) {
@@ -598,7 +598,8 @@ bool Group::getLinkVoxels(
     else if (geom->type == urdf::Geometry::CYLINDER) {
         std::vector<std::vector<double>> v;
         urdf::Cylinder* cyl = (urdf::Cylinder*)geom.get();
-        sbpl::Voxelizer::voxelizeCylinder(cyl->radius, cyl->length, p, RESOLUTION, v, true); 
+        sbpl::Voxelizer::voxelizeCylinder(
+                cyl->radius, cyl->length, p, RESOLUTION, v, true); 
         ROS_INFO("cylinder: %s  voxels: %u", name.c_str(), int(v.size()));
         voxels.resize(v.size());
         for (size_t i = 0; i < v.size(); ++i) {

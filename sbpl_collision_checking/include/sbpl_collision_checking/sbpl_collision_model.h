@@ -98,9 +98,7 @@ public:
     /// \name Modify State of Collision Robot
     /// @{
 
-    bool setModelToWorldTransform(
-        const moveit_msgs::RobotState& state,
-        const std::string& world_frame);
+    void setWorldToModelTransform(const KDL::Frame& f);
 
     void setJointPosition(const std::string& name, double position);
 

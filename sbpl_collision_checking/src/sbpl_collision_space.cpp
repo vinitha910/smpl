@@ -36,6 +36,7 @@
 #include <utility>
 
 #include <angles/angles.h>
+#include <eigen_conversions/eigen_kdl.h>
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <sbpl_geometry_utils/interpolation.h>
@@ -145,11 +146,6 @@ bool SBPLCollisionSpace::init(
     // get the collision spheres for the robot
     spheres_ = model_.getDefaultGroupSpheres();
 
-    if (!updateVoxelGroups()) {
-        ROS_ERROR("Failed to update voxel groups");
-        return false;
-    }
-
     return true;
 }
 
@@ -160,14 +156,14 @@ bool SBPLCollisionSpace::checkCollision(
     double& dist)
 {
     double dist_temp = 100.0;
-    dist = 100.0;
-    KDL::Vector v;
-    int x, y, z;
-    Sphere s;
+    dist = dist_temp;
     bool in_collision = false;
     if (visualize) {
         collision_spheres_.clear();
     }
+
+    // TODO: check self collisions against other spheres on the robot, utilizing
+    // an allowed-collision-matrix
 
     // compute foward kinematics
     if (!model_.computeDefaultGroupFK(angles, frames_)) {
@@ -178,8 +174,10 @@ bool SBPLCollisionSpace::checkCollision(
     // check attached object
     if (object_attached_) {
         for (size_t i = 0; i < object_spheres_.size(); ++i) {
-            v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
+            const Sphere& sphere = object_spheres_[i];
+            KDL::Vector v = frames_[sphere.kdl_chain][sphere.kdl_segment] * sphere.v;
 
+            int x, y, z;
             grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
 
             // check bounds
@@ -191,12 +189,12 @@ bool SBPLCollisionSpace::checkCollision(
             }
 
             // check for collision with world
-            if ((dist_temp = grid_->getDistance(x, y, z)) <= object_spheres_[i].radius) {
+            if ((dist_temp = grid_->getDistance(x, y, z)) <= sphere.radius) {
                 dist = dist_temp;
 
                 if (visualize) {
                     in_collision = true;
-                    s = *(spheres_[i]);
+                    Sphere s = *(spheres_[i]);
                     s.v = v;
                     collision_spheres_.push_back(s);
                 }
@@ -212,8 +210,10 @@ bool SBPLCollisionSpace::checkCollision(
 
     // check robot model
     for (size_t i = 0; i < spheres_.size(); ++i) {
-        v = frames_[spheres_[i]->kdl_chain][spheres_[i]->kdl_segment] * spheres_[i]->v;
+        const Sphere* sphere = spheres_[i];
+        KDL::Vector v = frames_[sphere->kdl_chain][sphere->kdl_segment] * sphere->v;
 
+        int x, y, z;
         grid_->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
 
         // check bounds
@@ -225,7 +225,8 @@ bool SBPLCollisionSpace::checkCollision(
         }
 
         // check for collision with world
-        if ((dist_temp = grid_->getDistance(x, y, z)) <= (spheres_[i]->radius + padding_)) {
+        dist_temp = grid_->getDistance(x, y, z);
+        if (dist_temp <= spheres_[i]->radius + padding_) {
             dist = dist_temp;
             if (verbose) {
                 ROS_INFO("    [sphere %zd] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*", i, spheres_[i]->name.c_str(), x, y, z, spheres_[i]->radius + padding_, grid_->getDistance(x, y, z));
@@ -233,7 +234,7 @@ bool SBPLCollisionSpace::checkCollision(
 
             if (visualize) {
                 in_collision = true;
-                s = *(spheres_[i]);
+                Sphere s = *(spheres_[i]);
                 s.v = v;
                 collision_spheres_.push_back(s);
             }
@@ -256,6 +257,11 @@ bool SBPLCollisionSpace::checkCollision(
 
 bool SBPLCollisionSpace::updateVoxelGroups()
 {
+    grid_->reset();
+    for (auto& entry : object_voxel_map_) {
+        grid_->addPointsToField(entry.second);
+    }
+
     bool ret = true;
     std::vector<Group*> vg;
     model_.getVoxelGroups(vg);
@@ -277,29 +283,34 @@ bool SBPLCollisionSpace::updateVoxelGroup(const std::string& name)
 
 bool SBPLCollisionSpace::updateVoxelGroup(Group* g)
 {
-    KDL::Vector v;
     std::vector<double> angles;
-    std::vector<std::vector<KDL::Frame> > frames;
-    std::vector<Eigen::Vector3d> pts;
+    std::vector<std::vector<KDL::Frame>> frames;
 
     if (!model_.computeGroupFK(angles, g, frames)) {
-        ROS_ERROR("[cspace] Failed to compute foward kinematics for group '%s'.", g->getName().c_str());
+        ROS_ERROR("Failed to compute foward kinematics for group '%s'.", g->getName().c_str());
         return false;
     }
 
     for (size_t i = 0; i < g->links_.size(); ++i) {
         Link* l = &(g->links_[i]);
-        pts.clear();
+
+        std::vector<Eigen::Vector3d> pts;
         pts.resize(l->voxels_.v.size());
 
+        size_t oob_count = 0;
         ROS_INFO("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size()));
         for (size_t j = 0; j < l->voxels_.v.size(); ++j) {
-            v = frames[l->voxels_.kdl_chain][l->voxels_.kdl_segment] * l->voxels_.v[j];
+            KDL::Vector v = frames[l->voxels_.kdl_chain][l->voxels_.kdl_segment] *
+                    l->voxels_.v[j];
             pts[j].x() = v.x();
             pts[j].y() = v.y();
             pts[j].z() = v.z();
-            ROS_DEBUG("[%s] [%d] xyz: %0.2f %0.2f %0.2f", g->getName().c_str(), int(j), pts[j].x(), pts[j].y(), pts[j].z());
+
+            if (!grid_->isInBounds(pts[j].x(), pts[j].y(), pts[j].z())) {
+                ++oob_count;
+            }
         }
+
         grid_->addPointsToField(pts);
     }
     return true;
@@ -443,7 +454,8 @@ SBPLCollisionSpace::getCollisionSpheres(
 
     // robot
     for (size_t i = 0; i < spheres_.size(); ++i) {
-        v = frames_[spheres_[i]->kdl_chain][spheres_[i]->kdl_segment] * spheres_[i]->v;
+        const Sphere* sphere = spheres_[i];
+        v = frames_[sphere->kdl_chain][sphere->kdl_segment] * sphere->v;
         xyzr[0] = v.x();
         xyzr[1] = v.y();
         xyzr[2] = v.z();
@@ -458,7 +470,7 @@ SBPLCollisionSpace::getCollisionSpheres(
             xyzr[0] = object[i][0];
             xyzr[1] = object[i][1];
             xyzr[2] = object[i][2];
-            xyzr[3] = double(object[i][3]);// * grid_->getResolution();
+            xyzr[3] = (double)object[i][3];
             spheres.push_back(xyzr);
             
         }
@@ -481,7 +493,11 @@ void SBPLCollisionSpace::attachSphere(
 {
     object_attached_ = true;
     attached_object_frame_ = link;
-    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+    model_.getFrameInfo(
+            attached_object_frame_,
+            group_name_,
+            attached_object_chain_num_,
+            attached_object_segment_num_);
 
     object_spheres_.resize(1);
     object_spheres_[0].name = name;
@@ -878,8 +894,15 @@ void SBPLCollisionSpace::setJointPosition(
     const std::string& name,
     double position)
 {
-    ROS_DEBUG("[cspace] Setting %s with position = %0.3f.", name.c_str(), position);
     model_.setJointPosition(name, position);
+}
+
+void SBPLCollisionSpace::setWorldToModelTransform(
+    const Eigen::Affine3d& transform)
+{
+    KDL::Frame f;
+    tf::transformEigenToKDL(transform, f);
+    model_.setWorldToModelTransform(f);
 }
 
 bool SBPLCollisionSpace::interpolatePath(
@@ -1102,7 +1125,8 @@ bool SBPLCollisionSpace::isStateToStateValid(
     int &num_checks,
     double &dist)
 {
-    return checkPathForCollision(angles0, angles1, false, path_length, num_checks, dist);
+    return checkPathForCollision(
+            angles0, angles1, false, path_length, num_checks, dist);
 }
 
 bool SBPLCollisionSpace::setPlanningScene(
@@ -1110,28 +1134,35 @@ bool SBPLCollisionSpace::setPlanningScene(
 {
     ROS_INFO("Setting the Planning Scene");
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // robot state
-    ////////////////////////////////////////////////////////////////////////////////
+    // TODO: handle allowed collision matrix somehow?
+    // TODO: handle link padding
+    // TODO: maybe handle object colors for visualization...that could be nice
+    // TODO: handle link scale
 
-    if (scene.robot_state.joint_state.name.size() != scene.robot_state.joint_state.position.size()) {
+    if (scene.is_diff) {
+        ROS_ERROR("Collision space does not support differential planning scene updates");
+        return false;
+    }
+
+    /////////////////
+    // robot state //
+    /////////////////
+
+    const moveit_msgs::RobotState& robot_state = scene.robot_state;
+    const sensor_msgs::JointState& joint_state = robot_state.joint_state;
+    if (joint_state.name.size() != joint_state.position.size()) {
         ROS_ERROR("Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
         return false;
     }
 
-    for (size_t i = 0; i < scene.robot_state.joint_state.name.size(); ++i) {
-        model_.setJointPosition(scene.robot_state.joint_state.name[i], scene.robot_state.joint_state.position[i]);
+    for (size_t i = 0; i < joint_state.name.size(); ++i) {
+        model_.setJointPosition(joint_state.name[i], joint_state.position[i]);
     }
 
-    const std::string& world_frame = scene.world.octomap.header.frame_id;
-
-    if (!model_.setModelToWorldTransform(scene.robot_state, world_frame)) {
-        ROS_ERROR("Failed to set the model-to-world transform. The collision model's frame is different from the collision map's frame.");
-        return false;
-    }
+    // TODO: get the transform from the the reference frame to the robot model 
+    // frame and update here
 
     // reset the distance field (TODO...shouldn't have to reset everytime)
-//    grid_->reset();
 
     ////////////////////////////////////////////////////////////////////////////////
     // attached collision objects
@@ -1158,9 +1189,9 @@ bool SBPLCollisionSpace::setPlanningScene(
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////////////
+    //////////////////////
     // collision objects
-    ////////////////////////////////////////////////////////////////////////////////
+    //////////////////////
 
     ROS_INFO("Processing %zd collision objects", scene.world.collision_objects.size());
     for (const moveit_msgs::CollisionObject& collision_object : scene.world.collision_objects) {
@@ -1168,9 +1199,9 @@ bool SBPLCollisionSpace::setPlanningScene(
         processCollisionObject(collision_object);
     }
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // todo: octomap
-    ////////////////////////////////////////////////////////////////////////////////
+    ///////////////////
+    // todo: octomap //
+    ///////////////////
 
     // self collision
     // todo: move this up if possible
@@ -1334,26 +1365,21 @@ visualization_msgs::MarkerArray
 SBPLCollisionSpace::getCollisionModelVisualization(
     const std::vector<double> &angles)
 {
-    std::vector<double> rad;
-    std::vector<std::vector<double> > sph;
-    visualization_msgs::MarkerArray ma;
+    std::vector<std::vector<double>> spheres;
 
-    getCollisionSpheres(angles, sph);
+    getCollisionSpheres(angles, spheres);
 
-    if (sph.empty() || sph[0].size() < 4) {
-        return ma;
+    if (spheres.empty() || spheres[0].size() < 4) {
+        return visualization_msgs::MarkerArray();
     }
 
-    rad.resize(sph.size());
-    for (size_t i = 0; i < sph.size(); ++i) {
-        rad[i] = sph[i][3];
+    std::vector<double> rad(spheres.size());
+    for (size_t i = 0; i < spheres.size(); ++i) {
+        rad[i] = spheres[i][3];
     }
 
-    ma = viz::getSpheresMarkerArray(sph, rad, 90, grid_->getReferenceFrame(), "collision_model", 0);
-
-    // debugging
-    //visualization_msgs::MarkerArray ma2 = getMeshModelVisualization("arm", angles);
-    //ma.markers.insert(ma.markers.end(), ma2.markers.begin(), ma2.markers.end());
+    visualization_msgs::MarkerArray ma =
+            viz::getSpheresMarkerArray(spheres, rad, 90, grid_->getReferenceFrame(), "collision_model", 0);
 
     return ma;
 }

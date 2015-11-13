@@ -92,26 +92,43 @@ public:
 
     ///@}
 
+    /// \brief Initialize the collision space
+    /// \param urdf_string string description of the robot in URDF format
+    /// \param group_name The collision group for which collision detection is
+    ///         performed
+    /// \param config Configuration of the collision model
+    /// \param planning_joints The list of joint names being planned for. Just
+    ///         set this to the list of parent joints of links in the collision
+    ///         group and you will be happy.
     bool init(
         const std::string& urdf_string,
         const std::string& group_name,
         const CollisionModelConfig& config,
         const std::vector<std::string>& planning_joints);
 
-    void setPadding(double padding);
-
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
-    std::string getReferenceFrame() const
-    {
-        return model_.getReferenceFrame(group_name_);
+    const std::string& getReferenceFrame() const {
+        return grid_->getReferenceFrame();
     }
 
-    const std::string& getGroupName() { return group_name_; }
+    const std::string& getGroupName() const { return group_name_; }
+
+    /// \name Collision Robot State
+    ///@{
+
+    /// \brief Set the padding applied to the collision group model
+    void setPadding(double padding);
+
     void setJointPosition(const std::string& name, double position);
+
+    void setWorldToModelTransform(const Eigen::Affine3d& transform);
+
     bool getCollisionSpheres(
         const std::vector<double>& angles,
         std::vector<std::vector<double>>& spheres);
+
+    ///@}
 
     /// \name Collision Objects
     ///@{
@@ -166,16 +183,14 @@ public:
     ///@{
 
     bool updateVoxelGroups();
-    bool updateVoxelGroup(Group* g);
-    bool updateVoxelGroup(const std::string& name);
 
     ///@}
 
 private:
 
-    /////////////////////
-    // Collision World //
-    /////////////////////
+    //////////////////////////////
+    // Collision World Variable //
+    //////////////////////////////
 
     sbpl_arm_planner::OccupancyGrid* grid_;
 
@@ -185,9 +200,9 @@ private:
     // voxelization of objects in the grid reference frame
     std::map<std::string, std::vector<Eigen::Vector3d>> object_voxel_map_;
 
-    /////////////////////
-    // Collision Robot //
-    /////////////////////
+    ///////////////////////////////
+    // Collision Robot Variables //
+    ///////////////////////////////
 
     SBPLCollisionModel model_;
     std::string group_name_;
@@ -200,9 +215,9 @@ private:
     std::vector<const Sphere*> spheres_; // temp
     std::vector<std::vector<KDL::Frame>> frames_; // temp
 
-    //////////////////////
-    // Attached Objects //
-    //////////////////////
+    ////////////////////////////////
+    // Attached Objects Varibles //
+    ////////////////////////////////
 
     bool object_attached_;
     int attached_object_frame_num_;
@@ -211,9 +226,25 @@ private:
     std::string attached_object_frame_;
     std::vector<Sphere> object_spheres_;
 
+    // cached between collision check and visualization
     std::vector<Sphere> collision_spheres_;
     
+    ////////////////////
+    // Initialization //
+    ////////////////////
+
     bool setPlanningJoints(const std::vector<std::string>& joint_names);
+
+    ////////////////////
+    // Self Collision //
+    ////////////////////
+
+    bool updateVoxelGroup(Group* g);
+    bool updateVoxelGroup(const std::string& name);
+
+    ///////////////////////
+    // Collision Objects //
+    ///////////////////////
 
     // return whether or not to accept an incoming collision object
     bool checkCollisionObjectAdd(const moveit_msgs::CollisionObject& object) const;
@@ -227,6 +258,33 @@ private:
     bool moveCollisionObject(const moveit_msgs::CollisionObject& object);
 
     void removeAllCollisionObjects();
+
+    bool voxelizeCollisionObject(const moveit_msgs::CollisionObject& object);
+
+    bool voxelizeBox(
+        const shape_msgs::SolidPrimitive& box,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeSphere(
+        const shape_msgs::SolidPrimitive& sphere,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCylinder(
+        const shape_msgs::SolidPrimitive& cylinder,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCone(
+        const shape_msgs::SolidPrimitive& cone,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeMesh(
+        const shape_msgs::Mesh& mesh,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+
+    //////////////////////
+    // Attached Objects //
+    //////////////////////
 
     void attachSphere(
         const std::string& name,
@@ -258,6 +316,10 @@ private:
     std::vector<int> convertToVertexIndices(
         const std::vector<shape_msgs::MeshTriangle>& triangles) const;
 
+    ////////////////////////
+    // Collision Checking //
+    ////////////////////////
+
     bool checkCollision(
         const std::vector<double>& angles,
         bool verbose,
@@ -272,40 +334,18 @@ private:
         int& num_checks,
         double& dist);
 
-    inline bool isValidCell(
-        const int x, const int y, const int z, const int radius);
+    bool isValidCell(const int x, const int y, const int z, const int radius);
 
     double isValidLineSegment(
-        const std::vector<int> a, const std::vector<int> b, const int radius);
+        const std::vector<int> a,
+        const std::vector<int> b,
+        const int radius);
 
     bool getClearance(
         const std::vector<double>& angles,
         int num_spheres,
         double& avg_dist,
         double& min_dist);
-
-    bool voxelizeCollisionObject(const moveit_msgs::CollisionObject& object);
-
-    bool voxelizeBox(
-        const shape_msgs::SolidPrimitive& box,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeSphere(
-        const shape_msgs::SolidPrimitive& sphere,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeCylinder(
-        const shape_msgs::SolidPrimitive& cylinder,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeCone(
-        const shape_msgs::SolidPrimitive& cone,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeMesh(
-        const shape_msgs::Mesh& mesh,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
 };
 
 inline bool SBPLCollisionSpace::isValidCell(
