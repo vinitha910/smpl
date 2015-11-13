@@ -109,7 +109,7 @@ int EnvironmentROBARM3D::GetStartHeuristic(int stateID)
 {
 #if DEBUG_HEUR
     if (stateID >= (int)pdata_.StateID2CoordTable.size()) {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal\n");
+        ROS_ERROR("ERROR in pdata_... function: stateID illegal");
         return -1;
     }
 #endif
@@ -126,7 +126,7 @@ void EnvironmentROBARM3D::PrintState(int stateID, bool bVerbose, FILE* fOut)
 {
 #if DEBUG_HEUR
     if (stateID >= (int)pdata_.StateID2CoordTable.size()) {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal (2)\n");
+        ROS_ERROR("ERROR in pdata_... function: stateID illegal (2)");
         throw new SBPL_Exception();
     }
 #endif
@@ -151,7 +151,7 @@ void EnvironmentROBARM3D::PrintState(int stateID, bool bVerbose, FILE* fOut)
 
 void EnvironmentROBARM3D::PrintEnv_Config(FILE* fOut)
 {
-    ROS_ERROR("ERROR in pdata_... function: PrintEnv_Config is undefined\n");
+    ROS_ERROR("ERROR in pdata_... function: PrintEnv_Config is undefined");
     throw new SBPL_Exception();
 }
 
@@ -196,7 +196,7 @@ void EnvironmentROBARM3D::GetSuccs(
     }
     pub_.publish(ma);
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "\nstate %d: %s  endeff: %3d %3d %3d", SourceStateID, to_string(source_angles).c_str(), parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "state %d: %s  endeff: %3d %3d %3d", SourceStateID, to_string(source_angles).c_str(), parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
 
     int valid = 1;
     std::vector<Action> actions;
@@ -326,25 +326,25 @@ void EnvironmentROBARM3D::GetPreds(
     std::vector<int>* PredIDV,
     std::vector<int>* CostV)
 {
-    ROS_ERROR("ERROR in pdata_... function: GetPreds is undefined\n");
+    ROS_ERROR("ERROR in pdata_... function: GetPreds is undefined");
     throw new SBPL_Exception();
 }
 
 bool EnvironmentROBARM3D::AreEquivalent(int StateID1, int StateID2)
 {
-    ROS_ERROR("ERROR in pdata_... function: AreEquivalent is undefined\n");
+    ROS_ERROR("ERROR in pdata_... function: AreEquivalent is undefined");
     throw new SBPL_Exception();
 }
 
 void EnvironmentROBARM3D::SetAllActionsandAllOutcomes(CMDPSTATE* state)
 {
-    ROS_ERROR("ERROR in pdata_..function: SetAllActionsandOutcomes is undefined\n");
+    ROS_ERROR("ERROR in pdata_..function: SetAllActionsandOutcomes is undefined");
     throw new SBPL_Exception();
 }
 
 void EnvironmentROBARM3D::SetAllPreds(CMDPSTATE* state)
 {
-    ROS_ERROR("ERROR in pdata_... function: SetAllPreds is undefined\n");
+    ROS_ERROR("ERROR in pdata_... function: SetAllPreds is undefined");
     throw new SBPL_Exception();
 }
 
@@ -505,7 +505,7 @@ bool EnvironmentROBARM3D::isGoalState(
             if (!pdata_.near_goal) {
                 pdata_.time_to_goal_region = (clock() - pdata_.t_start) / (double)CLOCKS_PER_SEC;
                 pdata_.near_goal = true;
-                printf("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %.4f sec. (after %d expansions)\n", pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.pose[0], goal.pose[1], goal.pose[2], pdata_.time_to_goal_region, (int)pdata_.expanded_states.size());
+                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %.4f sec. (after %d expansions)", pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.pose[0], goal.pose[1], goal.pose[2], pdata_.time_to_goal_region, (int)pdata_.expanded_states.size());
             }
             const double droll = fabs(angles::shortest_angular_distance(pose[3], goal.pose[3]));
             const double dpitch = fabs(angles::shortest_angular_distance(pose[4], goal.pose[4]));
@@ -594,7 +594,7 @@ int EnvironmentROBARM3D::getEdgeCost(int FromStateID, int ToStateID)
     if(FromStateID >= (int)pdata_.StateID2CoordTable.size()
         || ToStateID >= (int)pdata_.StateID2CoordTable.size())
     {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal\n");
+        ROS_ERROR("ERROR in pdata_... function: stateID illegal");
         throw new SBPL_Exception();
     }
 #endif
