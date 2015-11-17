@@ -943,53 +943,66 @@ std::vector<double> EnvironmentROBARM3D::getStart()
     return pdata_.start_entry->state;
 }
 
-visualization_msgs::MarkerArray EnvironmentROBARM3D::getVisualization(
-    const std::string& type)
+visualization_msgs::MarkerArray
+EnvironmentROBARM3D::getBfsWallsVisualization() const
 {
     visualization_msgs::MarkerArray ma;
-
-    if (type.compare("bfs_walls") == 0) {
-        std::vector<geometry_msgs::Point> pnts;
-        geometry_msgs::Point p;
-        int dimX, dimY, dimZ;
-        grid_->getGridSize(dimX, dimY, dimZ);
-        for (int z = 0; z < dimZ - 2; z++) {
-            for (int y = 0; y < dimY - 2; y++) {
-                for (int x = 0; x < dimX - 2; x++) {
-                    if (bfs_->isWall(x+1, y+1, z+1)) {
-                        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
-                        pnts.push_back(p);
-                    }
+    std::vector<geometry_msgs::Point> pnts;
+    geometry_msgs::Point p;
+    int dimX, dimY, dimZ;
+    grid_->getGridSize(dimX, dimY, dimZ);
+    for (int z = 0; z < dimZ - 2; z++) {
+        for (int y = 0; y < dimY - 2; y++) {
+            for (int x = 0; x < dimX - 2; x++) {
+                if (bfs_->isWall(x+1, y+1, z+1)) {
+                    grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+                    pnts.push_back(p);
                 }
             }
-        }
-        if (!pnts.empty()) {
-            ma.markers.push_back(viz::getSpheresMarker(pnts, 0.02, 210, grid_->getReferenceFrame(), "bfs_walls", 0));
         }
     }
-    else if (type.compare("bfs_values") == 0) {
-        geometry_msgs::Pose p;
-        p.orientation.w = 1.0;
-        int dimX, dimY, dimZ;
-        grid_->getGridSize(dimX, dimY, dimZ);
-        for (int z = 65; z < 100 - 2; z++) {
-            for (int y = 50; y < 100 - 2; y++) {
-                for (int x = 65; x < 100 - 2; x++) {
-                    int d = bfs_->getDistance(x+1, y+1, z+1);
-                    if (d < 10000) {
-                        grid_->gridToWorld(x, y, z, p.position.x, p.position.y, p.position.z);
-                        double hue = d / 30.0 * 300;
-                        ma.markers.push_back(viz::getTextMarker(p, boost::lexical_cast<std::string>(d), 0.009, hue, grid_->getReferenceFrame(), "bfs_values", ma.markers.size()));
-                    }
+    if (!pnts.empty()) {
+        ma.markers.push_back(viz::getSpheresMarker(pnts, 0.02, 210, grid_->getReferenceFrame(), "bfs_walls", 0));
+    }
+    return ma;
+}
+
+visualization_msgs::MarkerArray
+EnvironmentROBARM3D::getBfsValuesVisualization() const
+{
+    visualization_msgs::MarkerArray ma;
+    geometry_msgs::Pose p;
+    p.orientation.w = 1.0;
+    int dimX, dimY, dimZ;
+    grid_->getGridSize(dimX, dimY, dimZ);
+    for (int z = 65; z < 100 - 2; z++) {
+        for (int y = 50; y < 100 - 2; y++) {
+            for (int x = 65; x < 100 - 2; x++) {
+                int d = bfs_->getDistance(x+1, y+1, z+1);
+                if (d < 10000) {
+                    grid_->gridToWorld(x, y, z, p.position.x, p.position.y, p.position.z);
+                    double hue = d / 30.0 * 300;
+                    ma.markers.push_back(viz::getTextMarker(p, boost::lexical_cast<std::string>(d), 0.009, hue, grid_->getReferenceFrame(), "bfs_values", ma.markers.size()));
                 }
             }
         }
+    }
+    return ma;
+}
+
+visualization_msgs::MarkerArray EnvironmentROBARM3D::getVisualization(
+    const std::string& type) const
+{
+    if (type == "bfs_walls") {
+        return getBfsWallsVisualization();
+    }
+    else if (type == "bfs_values") {
+        return getBfsValuesVisualization();
     }
     else {
         ROS_ERROR("No such marker type, '%s'.", type.c_str());
+        return visualization_msgs::MarkerArray();
     }
-
-    return ma;
 }
 
 } // namespace sbpl_arm_planner
