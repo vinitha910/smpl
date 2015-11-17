@@ -100,9 +100,29 @@ public:
     /// @return The statistics
     std::map<std::string, double> getPlannerStats();
 
-    visualization_msgs::MarkerArray getVisualization(const std::string& type);
+    /// \name Visualization
+    ///@{
 
+    visualization_msgs::MarkerArray getGoalVisualization() const;
+    visualization_msgs::MarkerArray getExpansionsVisualization() const;
+
+    /// \brief Retrieve visualization of the arm planner
+    ///
+    /// The visualization_msgs::MarkerArray's contents vary depending on the
+    /// argument:
+    ///
+    ///     "goal":
+    ///     "expansions":
+    ///     <any argument accepted by EnvironmentROBARM3D::getVisualization>:
+    ///         <the corresponding visualization provided by EnvironmentROBARM3D>
+    ///
+    /// \param type The type of visualization to get
+    /// \return The visualization
+    visualization_msgs::MarkerArray getVisualization(
+        const std::string& type) const;
     visualization_msgs::MarkerArray getCollisionModelTrajectoryMarker();
+
+    ///@}
 
 protected:
 

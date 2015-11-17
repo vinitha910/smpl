@@ -538,7 +538,7 @@ bool SBPLArmPlannerInterface::planToPosition(
             ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(res.trajectory.joint_trajectory.points.size()));
         }
         
-        shortcutTrajectory(cc_, straj.points,res.trajectory.joint_trajectory.points);
+        shortcutTrajectory(cc_, straj.points, res.trajectory.joint_trajectory.points);
     }
     
     // interpolate path
@@ -695,7 +695,7 @@ visualization_msgs::MarkerArray
 SBPLArmPlannerInterface::getCollisionModelTrajectoryMarker()
 {
     visualization_msgs::MarkerArray ma, ma1;
-    std::vector<std::vector<double> > traj;
+    std::vector<std::vector<double>> traj;
 
     if (res_.trajectory.joint_trajectory.points.empty()) {
         ROS_ERROR("No trajectory found to visualize yet. Plan a path first.");
@@ -728,65 +728,86 @@ SBPLArmPlannerInterface::getCollisionModelTrajectoryMarker()
     return ma;
 }
 
-visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
-    const std::string& type)
+visualization_msgs::MarkerArray
+SBPLArmPlannerInterface::getGoalVisualization() const
 {
-    visualization_msgs::MarkerArray ma;
-    if (type.compare("goal") == 0) {
-        const moveit_msgs::Constraints& goal_constraints = req_.goal_constraints.front();
-        if (goal_constraints.position_constraints.empty()) {
-            ROS_WARN("Failed to get visualization marker for goals because no position constraints found.");
-            return visualization_msgs::MarkerArray();
-        }
+    const moveit_msgs::Constraints& goal_constraints = req_.goal_constraints.front();
+    if (goal_constraints.position_constraints.empty()) {
+        ROS_WARN("Failed to get visualization marker for goals because no position constraints found.");
+        return visualization_msgs::MarkerArray();
+    }
 
-        // compute space needed for goal poses
-        int num_goal_pos_constraints = 0;
-        for (int i = 0; i < goal_constraints.position_constraints.size(); ++i) {
-            const moveit_msgs::PositionConstraint& pos_constraint = goal_constraints.position_constraints[i];
-            num_goal_pos_constraints += pos_constraint.constraint_region.primitive_poses.size();
-        }
-        std::vector<std::vector<double> > poses(num_goal_pos_constraints,std::vector<double>(6,0));
-    
-        for(size_t i = 0; i < goal_constraints.position_constraints.size(); ++i) {
-            const moveit_msgs::PositionConstraint& pos_constraint = goal_constraints.position_constraints[i];
-            for (size_t j = 0; j < pos_constraint.constraint_region.primitive_poses.size(); ++j) {
-                size_t idx = i * pos_constraint.constraint_region.primitive_poses.size() + j;
-            
-                poses[idx][0] = goal_constraints.position_constraints[i].constraint_region.primitive_poses[j].position.x;
-                poses[idx][1] = goal_constraints.position_constraints[i].constraint_region.primitive_poses[j].position.y;
-                poses[idx][2] = goal_constraints.position_constraints[i].constraint_region.primitive_poses[j].position.z;
-            
-                if (goal_constraints.orientation_constraints.size() > i) {
-                    leatherman::getRPY(goal_constraints.orientation_constraints[i].orientation, poses[idx][3], poses[idx][4], poses[idx][5]);
-                }
-                else
-                {
-                    poses[idx][3] = 0;
-                    poses[idx][4] = 0;
-                    poses[idx][5] = 0;
-                }
+    // compute space needed for goal poses
+    int num_goal_pos_constraints = 0;
+    for (int i = 0; i < goal_constraints.position_constraints.size(); ++i) {
+        const moveit_msgs::PositionConstraint& pos_constraint =
+                goal_constraints.position_constraints[i];
+        num_goal_pos_constraints += pos_constraint.constraint_region.primitive_poses.size();
+    }
+    std::vector<std::vector<double>> poses(
+            num_goal_pos_constraints, std::vector<double>(6, 0));
+
+    for (size_t i = 0; i < goal_constraints.position_constraints.size(); ++i) {
+        const moveit_msgs::PositionConstraint& pos_constraint =
+                goal_constraints.position_constraints[i];
+        const moveit_msgs::BoundingVolume constraint_region =
+                pos_constraint.constraint_region;
+        for (size_t j = 0; j < constraint_region.primitive_poses.size(); ++j) {
+            const geometry_msgs::Pose& prim_pose =
+                    constraint_region.primitive_poses[j];
+
+            size_t idx = i * pos_constraint.constraint_region.primitive_poses.size() + j;
+        
+            poses[idx][0] = prim_pose.position.x;
+            poses[idx][1] = prim_pose.position.y;
+            poses[idx][2] = prim_pose.position.z;
+        
+            if (goal_constraints.orientation_constraints.size() > i) {
+                leatherman::getRPY(
+                        goal_constraints.orientation_constraints[i].orientation,
+                        poses[idx][3], poses[idx][4], poses[idx][5]);
+            }
+            else
+            {
+                poses[idx][3] = 0;
+                poses[idx][4] = 0;
+                poses[idx][5] = 0;
             }
         }
-        ma = viz::getPosesMarkerArray(poses, goal_constraints.position_constraints[0].header.frame_id, "goals", 0);
     }
-    else if (type.compare("expansions") == 0) {
-        std::vector<std::vector<double> > expanded_states;
-        sbpl_arm_env_->getExpandedStates(&(expanded_states));
-        if (!expanded_states.empty()) {
-            std::vector<std::vector<double> > colors(2, std::vector<double>(4,0));
-            colors[0][0] = 1;
-            colors[0][3] = 1;
-            colors[1][1] = 1;
-            colors[1][3] = 1;
-            ROS_ERROR("Expansions visualization %d expands, %s frame", int(expanded_states.size()), prm_.planning_frame_.c_str());
-            ma = viz::getCubesMarkerArray(expanded_states, 0.01, colors, prm_.planning_frame_, "expansions", 0);
-        }
+    return viz::getPosesMarkerArray(poses, goal_constraints.position_constraints[0].header.frame_id, "goals", 0);
+}
+
+visualization_msgs::MarkerArray
+SBPLArmPlannerInterface::getExpansionsVisualization() const
+{
+    visualization_msgs::MarkerArray ma;
+    std::vector<std::vector<double>> expanded_states;
+    sbpl_arm_env_->getExpandedStates(&(expanded_states));
+    if (!expanded_states.empty()) {
+        std::vector<std::vector<double>> colors(2, std::vector<double>(4, 0));
+        colors[0][0] = 1;
+        colors[0][3] = 1;
+        colors[1][1] = 1;
+        colors[1][3] = 1;
+        ROS_ERROR("Expansions visualization %d expands, %s frame", int(expanded_states.size()), prm_.planning_frame_.c_str());
+        ma = viz::getCubesMarkerArray(expanded_states, 0.01, colors, prm_.planning_frame_, "expansions", 0);
+    }
+    return ma;
+}
+
+visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
+    const std::string& type) const
+{
+    if (type == "goal") {
+        return getGoalVisualization();
+    }
+    else if (type == "expansions") {
+        return getExpansionsVisualization();
     }
     else {
-        ma = sbpl_arm_env_->getVisualization(type);
+        return sbpl_arm_env_->getVisualization(type);
     }
-    
-    return ma;
 }
 
 void SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
