@@ -169,6 +169,7 @@ public:
     ///
     /// The visualization_msgs::MarkerArray's contents vary depending on the
     /// argument:
+    ///
     ///     "bounds": line markers for the bounding box of the distance field in
     ///               the namespace "collision_space_bounds"
     ///     "distance_field": cube markers for all voxels nearby occupied voxels

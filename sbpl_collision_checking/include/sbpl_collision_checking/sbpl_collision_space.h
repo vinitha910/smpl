@@ -168,6 +168,21 @@ public:
     visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
 
+    /// \brief Retrive visualization of the collision space
+    ///
+    /// The visualization_msgs::MarkerArray's contents vary depending on the
+    /// argument:
+    ///
+    ///     "collision_objects": markers representing all collision objects
+    ///     "collisions": spheres representing the collisions during the last
+    ///         call to isStateValid
+    ///     "collision_object_voxels": points representing all voxels occupied
+    ///         by collision objects
+    ///     <any argument excepted by OccupancyGrid::getVisualization>:
+    ///         <the corresponding visualization provided by OccupancyGrid>
+    ///
+    /// \param type The type of visualization to get
+    /// \return The visualization
     visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
     visualization_msgs::MarkerArray getCollisionModelVisualization(

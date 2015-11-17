@@ -1162,8 +1162,6 @@ bool SBPLCollisionSpace::setPlanningScene(
     // TODO: get the transform from the the reference frame to the robot model 
     // frame and update here
 
-    // reset the distance field (TODO...shouldn't have to reset everytime)
-
     ////////////////////////////////////////////////////////////////////////////////
     // attached collision objects
     ////////////////////////////////////////////////////////////////////////////////
