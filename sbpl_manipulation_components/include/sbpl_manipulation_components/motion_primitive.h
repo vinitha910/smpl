@@ -11,29 +11,40 @@ typedef std::vector<double> RobotState;
 
 typedef std::vector<RobotState> Action;
 
-typedef struct MotionPrimitive
+struct MotionPrimitive
 {
-  int type;
-  int id;
-  int group;
-  Action action;
-
-  void print()
-  { 
-    ROS_INFO("type: %d  id: %d  nsteps: %d  group: %d", type, id, int(action.size()), group);
-    std::stringstream os;
-    for(std::size_t j = 0; j < action.size(); ++j)
+    enum Type
     {
-      os.str("");
-      os << "[step: " << int(j+1) << "/" << int(action.size()) << "] ";
-      for(std::size_t k = 0; k < action[j].size(); ++k)
-        os << std::setw(4) << std::setprecision(3) << std::fixed << action[j][k] << " ";
-      ROS_INFO_STREAM(os.str());
+        LONG_DISTANCE = -1,
+        SNAP_TO_RPY = 0, // NOTE: start at 0 to use successive types as indices
+        SNAP_TO_XYZ,
+        SNAP_TO_XYZ_RPY,
+        SHORT_DISTANCE,
+        NUMBER_OF_MPRIM_TYPES
+    };
+
+    Type type;
+    int id;
+    Action action;
+
+    void print() const;
+};
+
+inline
+void MotionPrimitive::print() const
+{ 
+    ROS_INFO("type: %d  id: %d  nsteps: %d ", type, id, int(action.size()));
+    std::stringstream os;
+    for (std::size_t j = 0; j < action.size(); ++j) {
+        os.str("");
+        os << "[step: " << int(j+1) << "/" << int(action.size()) << "] ";
+        for (std::size_t k = 0; k < action[j].size(); ++k) {
+            os << std::setw(4) << std::setprecision(3) << std::fixed << action[j][k] << " ";
+        }
+        ROS_INFO_STREAM(os.str());
     }
-  }
-
-} MotionPrimitive;
-
 }
+
+} // namespace sbpl_arm_planner
 
 #endif
