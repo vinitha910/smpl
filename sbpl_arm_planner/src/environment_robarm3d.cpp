@@ -315,7 +315,7 @@ void EnvironmentROBARM3D::GetSuccs(
     } // loop over actions
 
     if (n_goal_succs > 0) {
-        ROS_WARN("Got %d goal successors!", n_goal_succs);
+        ROS_DEBUG("Got %d goal successors!", n_goal_succs);
     }
 
     pdata_.expanded_states.push_back(SourceStateID);
@@ -510,7 +510,7 @@ bool EnvironmentROBARM3D::isGoalState(
             const double droll = fabs(angles::shortest_angular_distance(pose[3], goal.pose[3]));
             const double dpitch = fabs(angles::shortest_angular_distance(pose[4], goal.pose[4]));
             const double dyaw = fabs(angles::shortest_angular_distance(pose[5], goal.pose[5]));
-            SBPL_WARN("Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
+            ROS_DEBUG("Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
             if (droll < goal.rpy_tolerance[0] &&
                 dpitch < goal.rpy_tolerance[1] &&
                 dyaw < goal.rpy_tolerance[2])
