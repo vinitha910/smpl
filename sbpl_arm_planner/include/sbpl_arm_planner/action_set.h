@@ -55,6 +55,8 @@ class ActionSet
 {
 public:
 
+    typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
+
     static bool Load(const std::string& action_file, ActionSet& action_set);
 
     static const double DefaultAmpThreshold;
@@ -75,6 +77,12 @@ public:
 
     /// \brief Remove all motion primitives and disable all adaptive motions
     void clear();
+
+    const_iterator begin() const { return mp_.begin(); }
+    const_iterator end() const { return mp_.end(); }
+
+    int longDistCount() const;
+    int shortDistCount() const;
 
     bool useAmp(MotionPrimitive::Type type) const;
     bool useMultipleIkSolutions() const;

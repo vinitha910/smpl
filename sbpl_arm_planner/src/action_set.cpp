@@ -215,6 +215,28 @@ void ActionSet::clear()
     }
 }
 
+int ActionSet::longDistCount() const
+{
+    return std::accumulate(
+            begin(), end(), 0,
+            [](int count, const MotionPrimitive& prim)
+            {
+                return count +
+                        (prim.type == MotionPrimitive::LONG_DISTANCE ? 1 : 0);
+            });
+}
+
+int ActionSet::shortDistCount() const
+{
+    return std::accumulate(
+            begin(), end(), 0,
+            [](int count, const MotionPrimitive& prim)
+            {
+                return count +
+                        (prim.type == MotionPrimitive::SHORT_DISTANCE ? 1 : 0);
+            });
+}
+
 bool ActionSet::useAmp(MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
