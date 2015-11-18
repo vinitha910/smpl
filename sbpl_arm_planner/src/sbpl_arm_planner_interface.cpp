@@ -101,6 +101,28 @@ bool SBPLArmPlannerInterface::init()
 
 bool SBPLArmPlannerInterface::init(const PlanningParams& params)
 {
+    ROS_INFO("Initializing SBPL Arm Planner Interface");
+    ROS_INFO("Planning Frame: %s", params.planning_frame_.c_str());
+    ROS_INFO("Group Name: %s", params.group_name_.c_str());
+    ROS_INFO("Num Joints: %d", params.num_joints_);
+    ROS_INFO("Planning Joints: %s", to_string(params.planning_joints_).c_str());
+    ROS_INFO("Coord Values: %s", to_string(params.coord_vals_).c_str());
+    ROS_INFO("Coord Deltas: %s", to_string(params.coord_delta_).c_str());
+
+    ROS_INFO("Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions_ ? "true" : "false");
+
+    ROS_INFO("Use BFS Heuristic: %s", params.use_bfs_heuristic_ ? "true" : "false");
+    ROS_INFO("Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius_);
+
+    ROS_INFO("Planner Name: %s", params.planner_name_.c_str());
+    ROS_INFO("Epsilon: %0.3f", params.epsilon_);
+    ROS_INFO("Allowed Time: %0.3f", params.allowed_time_);
+    ROS_INFO("Search Mode: %s", params.search_mode_ ? "true" : "false");
+
+    ROS_INFO("Shortcut Path: %s", params.shortcut_path_ ? "true" : "false");
+    ROS_INFO("Interpolate Path: %s", params.interpolate_path_ ? "true" : "false");
+    ROS_INFO("Waypoint Time: %0.3f", params.waypoint_time_);
+
     prm_ = params;
 
     if (!checkParams(prm_)) {
@@ -186,9 +208,6 @@ bool SBPLArmPlannerInterface::solve(
     
     // preprocess
     clock_t t_preprocess = clock();
-    //prm_.planning_frame_ = planning_scene->world.octomap.header.frame_id;
-    grid_->setReferenceFrame(prm_.planning_frame_);
-    // TODO: set kinematics to planning frame
     double preprocess_time = (clock() - t_preprocess) / (double)CLOCKS_PER_SEC;
     
     // plan
@@ -233,7 +252,7 @@ bool SBPLArmPlannerInterface::checkParams(
         return false;
     }
 
-    // TODO: check for frame in robot model
+    // TODO: check for frame in robot model?
     if (params.planning_frame_.empty()) {
         return false;
     }

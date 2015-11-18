@@ -52,7 +52,8 @@ EnvironmentROBARM3D::EnvironmentROBARM3D(
 :
     DiscreteSpaceInformation(),
     bfs_(NULL),
-    nh_()
+    nh_(),
+    m_initialized(false)
 {
     grid_ = grid;
     rmodel_ = rmodel;
@@ -487,7 +488,7 @@ bool EnvironmentROBARM3D::initEnvironment()
     getHeuristic_ = &sbpl_arm_planner::EnvironmentROBARM3D::getXYZHeuristic;
     
     //set 'environment is initialized' flag
-    prm_->ready_to_plan_ = true;
+    m_initialized = true;
     ROS_INFO("[env] Environment has been initialized.");
     return true;
 }
@@ -659,7 +660,7 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
     const std::vector<double>& goal,
     const std::vector<double>& goal_tolerances)
 {
-    if (!prm_->ready_to_plan_) {
+    if (!m_initialized) {
         ROS_ERROR("Cannot set goal position because environment is not initialized.");
         return false;
     }
@@ -691,7 +692,7 @@ bool EnvironmentROBARM3D::setGoalPosition(
 {
     // goals: {{x1,y1,z1,r1,p1,y1,is_6dof},{x2,y2,z2,r2,p2,y2,is_6dof}...}
 
-    if (!prm_->ready_to_plan_) {
+    if (!m_initialized) {
         ROS_ERROR("Cannot set goal position because environment is not initialized.");
         return false;
     }

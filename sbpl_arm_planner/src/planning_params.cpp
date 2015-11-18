@@ -57,26 +57,14 @@ const std::string PlanningParams::DefaultCspaceLog = "info";
 const std::string PlanningParams::DefaultSolutionLog = "info";
 
 PlanningParams::PlanningParams() :
-    search_mode_(DefaultSearchMode),
-    shortcut_path_(DefaultShortcutPath),
-    interpolate_path_(DefaultInterpolatePath),
-    use_multiple_ik_solutions_(DefaultUseMultipleIkSolutions),
-    allowed_time_(DefaultAllowedTime),
-    waypoint_time_(DefaultWaypointTime),
-
-    ready_to_plan_(false),
-    num_joints_(0),
     planning_frame_(),
     group_name_(),
-    planner_name_(),
+    num_joints_(0),
     planning_joints_(),
-
-    use_bfs_heuristic_(DefaultUseBfsHeuristic),
-    epsilon_(DefaultEpsilon),
-    planning_link_sphere_radius_(DefaultPlanningLinkSphereRadius),
-
     coord_vals_(),
     coord_delta_(),
+
+    use_multiple_ik_solutions_(DefaultUseMultipleIkSolutions),
 
     cost_multiplier_(DefaultCostMultiplier),
     cost_per_cell_(DefaultCostPerCell),
@@ -84,6 +72,18 @@ PlanningParams::PlanningParams() :
     cost_per_second_(DefaultCostPerSecond),
     time_per_cell_(DefaultTimePerCell),
     max_mprim_offset_(DefaultMaxMprimOffset),
+
+    use_bfs_heuristic_(DefaultUseBfsHeuristic),
+    planning_link_sphere_radius_(DefaultPlanningLinkSphereRadius),
+
+    planner_name_(),
+    epsilon_(DefaultEpsilon),
+    allowed_time_(DefaultAllowedTime),
+    search_mode_(DefaultSearchMode),
+
+    shortcut_path_(DefaultShortcutPath),
+    interpolate_path_(DefaultInterpolatePath),
+    waypoint_time_(DefaultWaypointTime),
 
     print_path_(true),
     verbose_(false),

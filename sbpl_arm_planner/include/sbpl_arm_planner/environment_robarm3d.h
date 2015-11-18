@@ -246,6 +246,8 @@ protected:
     // function pointers for heuristic function
     int (EnvironmentROBARM3D::*getHeuristic_) (int FromStateID, int ToStateID);
 
+    bool m_initialized;
+
     /** hash table */
     unsigned int intHash(unsigned int key);
     unsigned int getHashBin(const std::vector<int>& coord);

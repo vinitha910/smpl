@@ -75,40 +75,54 @@ public:
 
     void printParams(const std::string& stream) const;
 
-    /* Search */
-    bool search_mode_; // true => stop after first solution
-    bool shortcut_path_;
-    bool interpolate_path_;
-    bool use_multiple_ik_solutions_;
-    double allowed_time_;
-    double waypoint_time_;
-
-    /* Planning */
-    bool ready_to_plan_;
-    int num_joints_;
+    /// \name Environment
+    ///@{
     std::string planning_frame_;
     std::string group_name_;
-    std::string planner_name_;
+    int num_joints_;
     std::vector<std::string> planning_joints_;
-
-    /* Options */
-    bool use_bfs_heuristic_;
-    double epsilon_;
-    double planning_link_sphere_radius_;
-
-    /* Discretization */
     std::vector<int> coord_vals_;
     std::vector<double> coord_delta_;
+    ///@}
 
-    /* Costs */
+    /// \name Actions
+    ///@{
+    bool use_multiple_ik_solutions_;
+    ///@}
+
+    /// \name Costs
+    ///@{
     int cost_multiplier_;
     int cost_per_cell_;
     int cost_per_meter_;
     int cost_per_second_;
     double time_per_cell_;
     double max_mprim_offset_;
-    
-    /* Debugging & Logging */
+    ///@}
+
+    /// \name Heuristic
+    ///@{
+    bool use_bfs_heuristic_;
+    double planning_link_sphere_radius_;
+    ///@}
+
+    /// \name Search
+    ///@{
+    std::string planner_name_;
+    double epsilon_;
+    double allowed_time_;
+    bool search_mode_; // true => stop after first solution
+    ///@}
+
+    /// \name Post-Processing
+    ///@{
+    bool shortcut_path_;
+    bool interpolate_path_;
+    double waypoint_time_;
+    ///@}
+
+    /// \name Logging
+    ///@{
     bool print_path_;
     bool verbose_;
     bool verbose_heuristics_;
@@ -127,6 +141,7 @@ public:
     std::string rmodel_log_level_;
     std::string cspace_log_level_;
     std::string solution_log_level_;
+    ///@}
 };
 
 } // namespace sbpl_arm_planner
