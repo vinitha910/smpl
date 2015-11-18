@@ -489,6 +489,7 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
         if (!sbpl_arm_env_->convertStateIDPathToJointTrajectory(
                 solution_state_ids, traj))
         {
+            ROS_ERROR("Failed to convert state id trajectory to joint trajectory");
             return false;
         }
     }

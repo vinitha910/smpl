@@ -208,7 +208,7 @@ void EnvironmentROBARM3D::GetSuccs(
 
     ROS_DEBUG_NAMED(prm_->expands_log_, "[parent: %d] angles: %s xyz: %3d %3d %3d  #_actions: %d  heur: %d dist: %0.3f",
             SourceStateID,
-            to_string(source_angles[0]).c_str(),
+            to_string(source_angles).c_str(),
             parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2],
             int(actions.size()),
             getXYZHeuristic(SourceStateID, 1),
