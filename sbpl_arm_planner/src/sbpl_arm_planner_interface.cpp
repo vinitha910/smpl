@@ -514,7 +514,7 @@ bool SBPLArmPlannerInterface::planToPosition(
     // plan
     ROS_INFO("Calling planner");
     if (!plan(res.trajectory.joint_trajectory)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;

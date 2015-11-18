@@ -102,9 +102,9 @@ bool SBPLCollisionSpace::setPlanningJoints(
         continuous_[i] = cont;
     }
 
-    ROS_INFO("min limits: %s", leatherman::getString(min_limits_).c_str());
-    ROS_INFO("max limits: %s", leatherman::getString(max_limits_).c_str());
-    ROS_INFO("continuous: %s", leatherman::getString(continuous_, "yes", "no").c_str());
+    ROS_INFO("min limits: %s", to_string(min_limits_).c_str());
+    ROS_INFO("max limits: %s", to_string(max_limits_).c_str());
+    ROS_INFO("continuous: %s", to_string(continuous_).c_str());
 
     return true;
 }
