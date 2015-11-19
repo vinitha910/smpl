@@ -37,6 +37,7 @@
 
 #include <angles/angles.h>
 #include <eigen_conversions/eigen_kdl.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <sbpl_geometry_utils/interpolation.h>
@@ -1025,15 +1026,18 @@ bool SBPLCollisionSpace::voxelizeBox(
     const double height = box.dimensions[shape_msgs::SolidPrimitive::BOX_Z];
     const double res = grid_->getResolution();
 
-    std::vector<std::vector<double>> sbpl_voxels;
-    sbpl::Voxelizer::voxelizeBox(
-            length, width, height, pose, res, sbpl_voxels, false);
+    Eigen::Affine3d eigen_pose;
+    tf::poseMsgToEigen(pose, eigen_pose);
 
-    voxels.reserve(voxels.size() + sbpl_voxels.size());
-    for (const std::vector<double>& voxel : sbpl_voxels) {
-        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
-    }
+    std::vector<Eigen::Vector3d> sbpl_voxels;
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeBox(
+            length, width, height, eigen_pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            sbpl_voxels, false);
 
+    voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
 }
 
@@ -1044,16 +1048,20 @@ bool SBPLCollisionSpace::voxelizeSphere(
 {
     const double radius =
             sphere.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS];
+    const double res = grid_->getResolution();
 
-    std::vector<std::vector<double>> sbpl_voxels;
-    sbpl::Voxelizer::voxelizeSphere(
-            radius, pose, grid_->getResolution(), sbpl_voxels, true);
+    Eigen::Affine3d eigen_pose;
+    tf::poseMsgToEigen(pose, eigen_pose);
 
-    voxels.reserve(voxels.size() + sbpl_voxels.size());
-    for (const std::vector<double>& voxel : sbpl_voxels) {
-        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
-    }
+    std::vector<Eigen::Vector3d> sbpl_voxels;
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeSphere(
+            radius, eigen_pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            sbpl_voxels, true);
 
+    voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
 }
 
@@ -1066,15 +1074,18 @@ bool SBPLCollisionSpace::voxelizeCylinder(
     const double radius = cylinder.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS];
     const double res = grid_->getResolution();
 
-    std::vector<std::vector<double>> sbpl_voxels;
-    sbpl::Voxelizer::voxelizeCylinder(
-            radius, height, pose, res, sbpl_voxels, true);
+    Eigen::Affine3d eigen_pose;
+    tf::poseMsgToEigen(pose, eigen_pose);
 
-    voxels.reserve(voxels.size() + sbpl_voxels.size());
-    for (const std::vector<double>& voxel : sbpl_voxels) {
-        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
-    }
+    std::vector<Eigen::Vector3d> sbpl_voxels;
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeCylinder(
+            radius, height, eigen_pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            sbpl_voxels, true);
 
+    voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
 }
 
@@ -1091,21 +1102,29 @@ bool SBPLCollisionSpace::voxelizeMesh(
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    const double res = grid_->getResolution();
-    std::vector<std::vector<double>> sbpl_voxels;
-    sbpl::Voxelizer::voxelizeMesh(
-            mesh.vertices,
-            convertToVertexIndices(mesh.triangles),
-            pose,
-            res,
-            sbpl_voxels,
-            true);
-
-    voxels.reserve(voxels.size() + sbpl_voxels.size());
-    for (const std::vector<double>& voxel : sbpl_voxels) {
-        voxels.push_back(Eigen::Vector3d(voxel[0], voxel[1], voxel[2]));
+    std::vector<Eigen::Vector3d> vertices;
+    vertices.resize(mesh.vertices.size());
+    for (size_t vidx = 0; vidx < mesh.vertices.size(); ++vidx) {
+        const geometry_msgs::Point& vertex = mesh.vertices[vidx];
+        vertices[vidx] = Eigen::Vector3d(vertex.x, vertex.y, vertex.z);
     }
 
+    std::vector<int> indices = convertToVertexIndices(mesh.triangles);
+
+    const double res = grid_->getResolution();
+
+    Eigen::Affine3d eigen_pose;
+    tf::poseMsgToEigen(pose, eigen_pose);
+
+    std::vector<Eigen::Vector3d> sbpl_voxels;
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeMesh(
+            vertices, indices, eigen_pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            sbpl_voxels, true);
+
+    voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
 }
 

@@ -29,13 +29,14 @@
 
 /// \author Benjamin Cohen
 
+#include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shapes.h>
 #include <leatherman/print.h>
 #include <sbpl_geometry_utils/Voxelizer.h>
 
 #include <sbpl_collision_checking/group.h>
 
-#define RESOLUTION 0.02
+#define RES 0.02
 
 namespace sbpl {
 namespace collision {
@@ -549,80 +550,72 @@ bool Group::getLinkVoxels(
     }
 
     geometry_msgs::Pose p;
-  
+
     boost::shared_ptr<const urdf::Geometry> geom = link->collision->geometry;
     p.position.x = link->collision->origin.position.x;
     p.position.y = link->collision->origin.position.y;
     p.position.z = link->collision->origin.position.z;
     link->collision->origin.rotation.getQuaternion(
             p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+
+    Eigen::Affine3d pose;
+    tf::poseMsgToEigen(p, pose);
   
     voxels.clear();
+
+    std::vector<Eigen::Vector3d> v;
     if (geom->type == urdf::Geometry::MESH) {
         geometry_msgs::Vector3 scale;
         scale.x = 1; scale.y = 1; scale.z = 1;
+        std::vector<geometry_msgs::Point> mesh_vertices;
         std::vector<int> triangles;
-        std::vector<geometry_msgs::Point> vertices;
-        std::vector<std::vector<double>> v;
         urdf::Mesh* mesh = (urdf::Mesh*)geom.get();
         if (!leatherman::getMeshComponentsFromResource(
-                mesh->filename, scale, triangles, vertices))
+                mesh->filename, scale, triangles, mesh_vertices))
         {
             ROS_ERROR("Failed to get mesh from file. (%s)", mesh->filename.c_str());
             return false;
         }
-        ROS_DEBUG("mesh: %s  triangles: %u  vertices: %u", name.c_str(), int(triangles.size()), int(vertices.size()));
-        sbpl::Voxelizer::voxelizeMesh(
-                vertices, triangles, p, RESOLUTION, v, false);
-        ROS_DEBUG("mesh: %s  voxels: %u", name.c_str(), int(v.size()));
-        voxels.resize(v.size());
-        for (size_t i = 0; i < v.size(); ++i) {
-            voxels[i].x(v[i][0]); 
-            voxels[i].y(v[i][1]); 
-            voxels[i].z(v[i][2]); 
+        ROS_DEBUG("mesh: %s  triangles: %u  vertices: %u", name.c_str(), int(triangles.size()), int(mesh_vertices.size()));
+
+        std::vector<Eigen::Vector3d> vertices(mesh_vertices.size());
+        for (size_t vidx = 0; vidx < mesh_vertices.size(); ++vidx) {
+            const geometry_msgs::Point& vertex = mesh_vertices[vidx];
+            vertices[vidx] = Eigen::Vector3d(vertex.x, vertex.y, vertex.z);
         }
+        
+        sbpl::VoxelizeMesh(vertices, triangles, pose, RES, v, false);
+        ROS_DEBUG("mesh: %s  voxels: %u", name.c_str(), int(v.size()));
     }
     else if (geom->type == urdf::Geometry::BOX) {
-        std::vector<std::vector<double>> v;
+        std::vector<Eigen::Vector3d> v;
         urdf::Box* box = (urdf::Box*)geom.get();
-        sbpl::Voxelizer::voxelizeBox(
-                box->dim.x, box->dim.y, box->dim.z, p, RESOLUTION, v, false); 
+        sbpl::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, RES, v, false);
         ROS_INFO("box: %s  voxels: %u   {dims: %0.2f %0.2f %0.2f}", name.c_str(), int(v.size()), box->dim.x, box->dim.y, box->dim.z);
-        voxels.resize(v.size());
-        for (size_t i = 0; i < v.size(); ++i) {
-            voxels[i].x(v[i][0]); 
-            voxels[i].y(v[i][1]); 
-            voxels[i].z(v[i][2]); 
-        }
     }
     else if (geom->type == urdf::Geometry::CYLINDER) {
-        std::vector<std::vector<double>> v;
+        std::vector<Eigen::Vector3d> v;
         urdf::Cylinder* cyl = (urdf::Cylinder*)geom.get();
-        sbpl::Voxelizer::voxelizeCylinder(
-                cyl->radius, cyl->length, p, RESOLUTION, v, true); 
+        sbpl::VoxelizeCylinder(
+                cyl->radius, cyl->length, pose, RES, v, true); 
         ROS_INFO("cylinder: %s  voxels: %u", name.c_str(), int(v.size()));
-        voxels.resize(v.size());
-        for (size_t i = 0; i < v.size(); ++i) {
-            voxels[i].x(v[i][0]); 
-            voxels[i].y(v[i][1]); 
-            voxels[i].z(v[i][2]); 
-        }
     }
     else if (geom->type == urdf::Geometry::SPHERE) {
-        std::vector<std::vector<double>> v;
+        std::vector<Eigen::Vector3d> v;
         urdf::Sphere* sph = (urdf::Sphere*)geom.get();
-        sbpl::Voxelizer::voxelizeSphere(sph->radius, p, RESOLUTION, v, true); 
+        sbpl::VoxelizeSphere(sph->radius, pose, RES, v, true); 
         ROS_INFO("sphere: %s  voxels: %u", name.c_str(), int(v.size()));
-        voxels.resize(v.size());
-        for (size_t i = 0; i < v.size(); ++i) {
-            voxels[i].x(v[i][0]); 
-            voxels[i].y(v[i][1]); 
-            voxels[i].z(v[i][2]); 
-        }
     }
     else {
         ROS_ERROR("Failed to get voxels for link '%s'.", name.c_str());
         return false;
+    }
+
+    voxels.resize(v.size());
+    for (size_t i = 0; i < v.size(); ++i) {
+        voxels[i].x(v[i][0]); 
+        voxels[i].y(v[i][1]); 
+        voxels[i].z(v[i][2]); 
     }
 
     if (voxels.empty()) {
