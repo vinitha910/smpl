@@ -167,7 +167,7 @@ bool CollisionModelImpl::initAllGroups(const CollisionModelConfig& config)
         group_config_map_[group_name] = gc;
     }
 
-    ROS_INFO("Successfully initialized collision groups");
+    ROS_DEBUG("Successfully initialized collision groups");
     return true;
 }
 
@@ -373,7 +373,7 @@ bool CollisionModelImpl::initURDF(const std::string& urdf_string)
     }
 
     setReferenceFrame(urdf_->getRoot()->name);
-    ROS_INFO("Collision Robot Frame: %s", getReferenceFrame().c_str());
+    ROS_DEBUG("Collision Robot Frame: %s", getReferenceFrame().c_str());
 
     return true;
 }
@@ -455,7 +455,7 @@ bool CollisionModelImpl::initKdlRobotModel()
                 }
 
                 if (seg.getJoint().getName() == joint_name) {
-                    ROS_INFO("Found joint contributor '%s' of type '%s' to chain", joint_name.c_str(), seg.getJoint().getTypeName().c_str());
+                    ROS_DEBUG("Found joint contributor '%s' of type '%s' to chain", joint_name.c_str(), seg.getJoint().getTypeName().c_str());
                     vit->second.chain_indices.push_back(chidx);
                     vit->second.joint_indices.push_back(jidx);
                     break;

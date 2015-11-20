@@ -103,9 +103,9 @@ bool SBPLCollisionSpace::setPlanningJoints(
         continuous_[i] = cont;
     }
 
-    ROS_INFO("min limits: %s", to_string(min_limits_).c_str());
-    ROS_INFO("max limits: %s", to_string(max_limits_).c_str());
-    ROS_INFO("continuous: %s", to_string(continuous_).c_str());
+    ROS_DEBUG("min limits: %s", to_string(min_limits_).c_str());
+    ROS_DEBUG("max limits: %s", to_string(max_limits_).c_str());
+    ROS_DEBUG("continuous: %s", to_string(continuous_).c_str());
 
     return true;
 }
@@ -116,7 +116,7 @@ bool SBPLCollisionSpace::init(
     const CollisionModelConfig& config,
     const std::vector<std::string>& planning_joints)
 {
-    ROS_INFO("Initializing collision space for group '%s'", group_name.c_str());
+    ROS_DEBUG("Initializing collision space for group '%s'", group_name.c_str());
 
     // initialize the collision model
     if (!model_.init(urdf_string, config)) {
@@ -299,7 +299,7 @@ bool SBPLCollisionSpace::updateVoxelGroup(Group* g)
         pts.resize(l->voxels_.v.size());
 
         size_t oob_count = 0;
-        ROS_INFO("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size()));
+        ROS_DEBUG("Updating Voxel Group %s with %d voxels", g->getName().c_str(), int(l->voxels_.v.size()));
         for (size_t j = 0; j < l->voxels_.v.size(); ++j) {
             KDL::Vector v = frames[l->voxels_.kdl_chain][l->voxels_.kdl_segment] *
                     l->voxels_.v[j];
@@ -510,7 +510,7 @@ void SBPLCollisionSpace::attachSphere(
     object_spheres_[0].kdl_segment = attached_object_segment_num_;
 
     ROS_DEBUG("[cspace] frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
-    ROS_INFO("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
+    ROS_DEBUG("[cspace] Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
 }
 
 void SBPLCollisionSpace::attachCylinder(
@@ -545,10 +545,10 @@ void SBPLCollisionSpace::attachCylinder(
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
 
-    ROS_INFO("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x, pose.position.y, pose.position.z, radius, length, int(object_spheres_.size()));
-    ROS_INFO("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
-    ROS_INFO("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
-    ROS_INFO("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
+    ROS_DEBUG("[cspace] [attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x, pose.position.y, pose.position.z, radius, length, int(object_spheres_.size()));
+    ROS_DEBUG("[cspace] [attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), group_name_.c_str(), attached_object_chain_num_, attached_object_segment_num_);
+    ROS_DEBUG("[cspace] [attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
+    ROS_DEBUG("[cspace] [attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
 }
 
 void SBPLCollisionSpace::attachCube(
@@ -594,7 +594,7 @@ void SBPLCollisionSpace::attachCube(
         object_spheres_[i].kdl_chain = attached_object_chain_num_;
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
-    ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f (sphere rad: %.3f) (chain id: %d)(segment id: %d)", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, attached_object_chain_num_, attached_object_segment_num_);
+    ROS_DEBUG("[cspace] Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f (sphere rad: %.3f) (chain id: %d)(segment id: %d)", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, attached_object_chain_num_, attached_object_segment_num_);
 }
 
 void SBPLCollisionSpace::attachMesh(
@@ -631,7 +631,7 @@ void SBPLCollisionSpace::attachMesh(
         object_spheres_[i].kdl_segment = attached_object_segment_num_;
     }
 
-    ROS_INFO("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
+    ROS_DEBUG("[cspace] Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
 }
 
 bool SBPLCollisionSpace::getAttachedObject(
@@ -806,7 +806,7 @@ bool SBPLCollisionSpace::addCollisionObject(
     assert(vit != object_voxel_map_.end());
 
     // add this object to the distance transform
-    ROS_INFO("Adding %zu voxels from collision object '%s' to the distance transform", vit->second.size(), object.id.c_str());
+    ROS_DEBUG("Adding %zu voxels from collision object '%s' to the distance transform", vit->second.size(), object.id.c_str());
     grid_->addPointsToField(vit->second);
 
     return true;
@@ -826,7 +826,7 @@ bool SBPLCollisionSpace::removeCollisionObject(
     auto vit = object_voxel_map_.find(object.id);
     assert(vit != object_voxel_map_.end());
 
-    ROS_INFO("Removing %zu grid cells from the distance transform", vit->second.size());
+    ROS_DEBUG("Removing %zu grid cells from the distance transform", vit->second.size());
     grid_->removePointsFromField(vit->second);
 
     object_voxel_map_.erase(vit);
@@ -866,7 +866,7 @@ void SBPLCollisionSpace::removeAllCollisionObjects()
         auto vit = object_voxel_map_.find(oit->second.id);
         assert(vit != object_voxel_map_.end());
 
-        ROS_INFO("Removing %zu grid cells from the distance transform", vit->second.size());
+        ROS_DEBUG("Removing %zu grid cells from the distance transform", vit->second.size());
         grid_->removePointsFromField(vit->second);
 
         object_voxel_map_.erase(vit);
