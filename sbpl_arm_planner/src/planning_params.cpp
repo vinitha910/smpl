@@ -34,21 +34,6 @@
  
 namespace sbpl_arm_planner {
 
-const bool PlanningParams::DefaultSearchMode = false;
-const bool PlanningParams::DefaultShortcutPath = false;
-const bool PlanningParams::DefaultInterpolatePath = false;
-const bool PlanningParams::DefaultUseMultipleIkSolutions = false;
-const double PlanningParams::DefaultAllowedTime = 10.0;
-const double PlanningParams::DefaultWaypointTime = 0.35;
-const bool PlanningParams::DefaultUseBfsHeuristic = true;
-const double PlanningParams::DefaultEpsilon = 10.0;
-const double PlanningParams::DefaultPlanningLinkSphereRadius = 0.08;
-const int PlanningParams::DefaultCostMultiplier = 1000;
-const int PlanningParams::DefaultCostPerCell = 1;
-const int PlanningParams::DefaultCostPerMeter = 50;
-const int PlanningParams::DefaultCostPerSecond = DefaultCostMultiplier;
-const double PlanningParams::DefaultTimePerCell = 0.05;
-const double PlanningParams::DefaultMaxMprimOffset = 0.0;
 const std::string PlanningParams::DefaultExpandsLog = "info";
 const std::string PlanningParams::DefaultExpands2Log = "info";
 const std::string PlanningParams::DefaultIkLog = "info";

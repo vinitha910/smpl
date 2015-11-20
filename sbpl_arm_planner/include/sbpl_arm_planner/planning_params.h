@@ -44,23 +44,23 @@ class PlanningParams
 {
 public:
 
-    static const bool DefaultSearchMode;
-    static const bool DefaultShortcutPath;
-    static const bool DefaultInterpolatePath;
-    static const bool DefaultUseMultipleIkSolutions;
-    static const double DefaultAllowedTime;
-    static const double DefaultWaypointTime;
+    static const bool DefaultSearchMode = false;
+    static const bool DefaultShortcutPath = false;
+    static const bool DefaultInterpolatePath = false;
+    static const bool DefaultUseMultipleIkSolutions = false;
+    static constexpr double DefaultAllowedTime = 10.0;
+    static constexpr double DefaultWaypointTime = 0.35;
 
-    static const bool DefaultUseBfsHeuristic;
-    static const double DefaultEpsilon;
-    static const double DefaultPlanningLinkSphereRadius;
+    static const bool DefaultUseBfsHeuristic = true;
+    static constexpr double DefaultEpsilon = 10.0;
+    static constexpr double DefaultPlanningLinkSphereRadius = 0.08;
 
-    static const int DefaultCostMultiplier;
-    static const int DefaultCostPerCell;
-    static const int DefaultCostPerMeter;
-    static const int DefaultCostPerSecond;
-    static const double DefaultTimePerCell;
-    static const double DefaultMaxMprimOffset;
+    static const int DefaultCostMultiplier = 1000;
+    static const int DefaultCostPerCell = 1;
+    static const int DefaultCostPerMeter = 50;
+    static const int DefaultCostPerSecond = DefaultCostMultiplier;
+    static constexpr double DefaultTimePerCell = 0.05;
+    static constexpr double DefaultMaxMprimOffset = 0.0;
 
     static const std::string DefaultExpandsLog;
     static const std::string DefaultExpands2Log;
