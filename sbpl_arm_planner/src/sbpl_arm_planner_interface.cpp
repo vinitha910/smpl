@@ -102,26 +102,26 @@ bool SBPLArmPlannerInterface::init()
 bool SBPLArmPlannerInterface::init(const PlanningParams& params)
 {
     ROS_INFO("Initializing SBPL Arm Planner Interface");
-    ROS_INFO("Planning Frame: %s", params.planning_frame_.c_str());
-    ROS_INFO("Group Name: %s", params.group_name_.c_str());
-    ROS_INFO("Num Joints: %d", params.num_joints_);
-    ROS_INFO("Planning Joints: %s", to_string(params.planning_joints_).c_str());
-    ROS_INFO("Coord Values: %s", to_string(params.coord_vals_).c_str());
-    ROS_INFO("Coord Deltas: %s", to_string(params.coord_delta_).c_str());
+    ROS_INFO("  Planning Frame: %s", params.planning_frame_.c_str());
+    ROS_INFO("  Group Name: %s", params.group_name_.c_str());
+    ROS_INFO("  Num Joints: %d", params.num_joints_);
+    ROS_INFO("  Planning Joints: %s", to_string(params.planning_joints_).c_str());
+    ROS_INFO("  Coord Values: %s", to_string(params.coord_vals_).c_str());
+    ROS_INFO("  Coord Deltas: %s", to_string(params.coord_delta_).c_str());
 
-    ROS_INFO("Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions_ ? "true" : "false");
+    ROS_INFO("  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions_ ? "true" : "false");
 
-    ROS_INFO("Use BFS Heuristic: %s", params.use_bfs_heuristic_ ? "true" : "false");
-    ROS_INFO("Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius_);
+    ROS_INFO("  Use BFS Heuristic: %s", params.use_bfs_heuristic_ ? "true" : "false");
+    ROS_INFO("  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius_);
 
-    ROS_INFO("Planner Name: %s", params.planner_name_.c_str());
-    ROS_INFO("Epsilon: %0.3f", params.epsilon_);
-    ROS_INFO("Allowed Time: %0.3f", params.allowed_time_);
-    ROS_INFO("Search Mode: %s", params.search_mode_ ? "true" : "false");
+    ROS_INFO("  Planner Name: %s", params.planner_name_.c_str());
+    ROS_INFO("  Epsilon: %0.3f", params.epsilon_);
+    ROS_INFO("  Allowed Time: %0.3f", params.allowed_time_);
+    ROS_INFO("  Search Mode: %s", params.search_mode_ ? "true" : "false");
 
-    ROS_INFO("Shortcut Path: %s", params.shortcut_path_ ? "true" : "false");
-    ROS_INFO("Interpolate Path: %s", params.interpolate_path_ ? "true" : "false");
-    ROS_INFO("Waypoint Time: %0.3f", params.waypoint_time_);
+    ROS_INFO("  Shortcut Path: %s", params.shortcut_path_ ? "true" : "false");
+    ROS_INFO("  Interpolate Path: %s", params.interpolate_path_ ? "true" : "false");
+    ROS_INFO("  Waypoint Time: %0.3f", params.waypoint_time_);
 
     prm_ = params;
 
@@ -468,7 +468,7 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
     
     //plan
     ReplanParams replan_params(prm_.allowed_time_);
-    replan_params.initial_eps = 100.0;
+    replan_params.initial_eps = prm_.epsilon_;
     replan_params.final_eps = 1.0;
     replan_params.dec_eps = 0.2;
     replan_params.return_first_solution = false;
