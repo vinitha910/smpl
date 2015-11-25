@@ -220,17 +220,21 @@ bool SBPLCollisionSpace::checkCollision(
         // check bounds
         if (!grid_->isInBounds(x, y, z)) {
             if (verbose) {
-                ROS_INFO("[cspace] Sphere '%s' with center at {%0.2f %0.2f %0.2f} (%d %d %d) is out of bounds.", spheres_[i]->name.c_str(), v.x(), v.y(), v.z(), x, y, z);
+                ROS_INFO("[cspace] Sphere '%s' with center at {%0.2f %0.2f %0.2f} (%d %d %d) is out of bounds.",
+                        spheres_[i]->name.c_str(), v.x(), v.y(), v.z(), x, y, z);
             }
             return false;
         }
 
         // check for collision with world
         dist_temp = grid_->getDistance(x, y, z);
-        if (dist_temp <= spheres_[i]->radius + padding_) {
+        const double effective_radius =
+                spheres_[i]->radius + 0.5 * grid_->getResolution() * padding_;
+        if (dist_temp <= effective_radius) {
             dist = dist_temp;
             if (verbose) {
-                ROS_INFO("    [sphere %zd] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*", i, spheres_[i]->name.c_str(), x, y, z, spheres_[i]->radius + padding_, grid_->getDistance(x, y, z));
+                ROS_INFO("    [sphere %zd] name: %6s  x: %d y: %d z: %d radius: %0.3fm  dist: %0.3fm  *collision*",
+                        i, spheres_[i]->name.c_str(), x, y, z, effective_radius, grid_->getDistance(x, y, z));
             }
 
             if (visualize) {
@@ -473,7 +477,7 @@ SBPLCollisionSpace::getCollisionSpheres(
             xyzr[2] = object[i][2];
             xyzr[3] = (double)object[i][3];
             spheres.push_back(xyzr);
-            
+
         }
     }
     return true;
@@ -1178,7 +1182,7 @@ bool SBPLCollisionSpace::setPlanningScene(
         model_.setJointPosition(joint_state.name[i], joint_state.position[i]);
     }
 
-    // TODO: get the transform from the the reference frame to the robot model 
+    // TODO: get the transform from the the reference frame to the robot model
     // frame and update here
 
     ////////////////////////////////////////////////////////////////////////////////
