@@ -1063,7 +1063,7 @@ bool SBPLCollisionSpace::voxelizeSphere(
     sbpl::VoxelizeSphere(
             radius, eigen_pose,
             res, Eigen::Vector3d(ox, oy, oz),
-            sbpl_voxels, true);
+            sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
@@ -1087,7 +1087,7 @@ bool SBPLCollisionSpace::voxelizeCylinder(
     sbpl::VoxelizeCylinder(
             radius, height, eigen_pose,
             res, Eigen::Vector3d(ox, oy, oz),
-            sbpl_voxels, true);
+            sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
@@ -1126,7 +1126,7 @@ bool SBPLCollisionSpace::voxelizeMesh(
     sbpl::VoxelizeMesh(
             vertices, indices, eigen_pose,
             res, Eigen::Vector3d(ox, oy, oz),
-            sbpl_voxels, true);
+            sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
