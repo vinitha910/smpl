@@ -29,6 +29,9 @@ public:
         double &dist) = 0;
 
     /// \brief Return whether the interpolated path between two points is valid.
+    ///
+    /// Need not include the endpoints.
+    ///
     /// \param[in] angles0 The start configuration of the default joint group
     /// \param[in] angles1 The start configuration of the default joint group
     /// \param[out] path_length The number of waypoints in the path between
