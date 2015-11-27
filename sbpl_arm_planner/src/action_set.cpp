@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2010, Maxim Likhachev
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-// 
+//
 //     * Redistributions of source code must retain the above copyright
 //       notice, this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
 //     * Neither the name of the University of Pennsylvania nor the names of its
 //       contributors may be used to endorse or promote products derived from
 //       this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -51,21 +51,21 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
 
     char sTemp[1024];
     int nrows = 0, ncols = 0, short_mprims = 0;
-    
+
     if (fCfg == NULL) {
         ROS_ERROR("unable to open the params file. Exiting.");
         return false;
     }
-    
+
     if (fscanf(fCfg, "%s", sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1."); 
+        ROS_WARN("Parsed string has length < 1.");
     }
 
     if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
         ROS_ERROR("First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
         return false;
     }
-    
+
     // number of actions
     if (fscanf(fCfg, "%s", sTemp) < 1) {
         ROS_WARN("Parsed string has length < 1.");
@@ -74,7 +74,7 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
     else {
         nrows = atoi(sTemp);
     }
-    
+
     // length of joint array
     if (fscanf(fCfg, "%s", sTemp) < 1) {
         ROS_WARN("Parsed string has length < 1.");
@@ -83,7 +83,7 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
     else {
         ncols = atoi(sTemp);
     }
-    
+
     // number of short distance motion primitives
     if (fscanf(fCfg, "%s", sTemp) < 1) {
         ROS_WARN("Parsed string has length < 1.");
@@ -92,11 +92,11 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
     else {
         short_mprims = atoi(sTemp);
     }
-    
+
     if (short_mprims == nrows) {
         ROS_ERROR("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
     }
-    
+
     std::vector<double> mprim(ncols, 0);
 
     bool have_short_dist_mprims = false;
@@ -126,7 +126,7 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
     if (have_short_dist_mprims) {
         as.useAmp(MotionPrimitive::SHORT_DISTANCE);
     }
-    
+
     action_set = as;
     return true;
 }
@@ -159,18 +159,18 @@ void ActionSet::addMotionPrim(
     bool add_converse)
 {
     MotionPrimitive m;
-    
+
     if (short_dist_mprim) {
         m.type = sbpl_arm_planner::MotionPrimitive::SHORT_DISTANCE;
     }
     else {
         m.type = sbpl_arm_planner::MotionPrimitive::LONG_DISTANCE;
     }
-    
+
     m.id =  mp_.size();
-    m.action.push_back(mprim);    
+    m.action.push_back(mprim);
     mp_.push_back(m);
-    
+
     if (add_converse) {
         Action a;
         a.resize(1);
@@ -189,7 +189,7 @@ void ActionSet::addMotionPrim(
 void ActionSet::clear()
 {
     mp_.clear();
-    
+
     // add all amps to the motion primitive set
     MotionPrimitive mprim;
 
@@ -261,10 +261,10 @@ double ActionSet::ampThresh(MotionPrimitive::Type type) const
         return std::numeric_limits<double>::infinity();
     }
     else if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
-        return m_mprim_enabled[type];
+        return m_mprim_thresh[type];
     }
     else {
-        return false;
+        return std::numeric_limits<double>::quiet_NaN();
     }
 }
 
@@ -290,7 +290,7 @@ void ActionSet::ampThresh(MotionPrimitive::Type type, double thresh)
 void ActionSet::print() const
 {
     for (size_t i = 0; i < mp_.size(); ++i) {
-        mp_[i].print(); 
+        mp_[i].print();
     }
 }
 
@@ -303,22 +303,22 @@ bool ActionSet::getActionSet(
         ROS_ERROR("Failed to compute forward kinematics for planning link");
         return false;
     }
-    
+
     // get distance to the goal pose
     const double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
 
     std::vector<Action> act;
     for (size_t i = 0; i < mp_.size(); ++i) {
         const MotionPrimitive& prim = mp_[i];
-        if (getAction(parent, d, prim, act)) { 
+        if (getAction(parent, d, prim, act)) {
             actions.insert(actions.end(), act.begin(), act.end());
         }
     }
-    
+
     if (actions.empty()) {
         ROS_WARN_ONCE("No motion primitives specified");
     }
-    
+
     return true;
 }
 
@@ -333,7 +333,7 @@ bool ActionSet::getAction(
     if (!mprimActive(dist_to_goal, mp.type)) {
         return false;
     }
-    
+
     switch (mp.type) {
     case MotionPrimitive::LONG_DISTANCE:
     {
@@ -432,7 +432,7 @@ bool ActionSet::applyMotionPrimitive(
         if (action[i].size() != state.size()) {
             return false;
         }
-    
+
         for (size_t j = 0; j < action[i].size(); ++j) {
             action[i][j] = angles::normalize_angle(action[i][j] + state[j]);
         }
