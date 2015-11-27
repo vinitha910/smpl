@@ -64,6 +64,10 @@ public:
     void setPlanningJoints(const std::vector<std::string>& joints);
     const std::vector<std::string>& getPlanningJoints() const;
 
+    virtual double minVarLimit(int jidx) const = 0;
+    virtual double maxVarLimit(int jidx) const = 0;
+    virtual bool   hasVarLimit(int jidx) const = 0;
+
     void setPlanningLink(const std::string& name);
     const std::string& getPlanningLink() const;
 
