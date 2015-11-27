@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2008, Maxim Likhachev
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-// 
+//
 //     * Redistributions of source code must retain the above copyright
 //       notice, this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
 //     * Neither the name of the University of Pennsylvania nor the names of its
 //       contributors may be used to endorse or promote products derived from
 //       this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -99,7 +99,7 @@ struct EnvironmentPlanningData
     int HashTableSize;
     std::vector<EnvROBARM3DHashEntry_t*>* Coord2StateIDHashTable;
 
-    // maps from stateID to coords	
+    // maps from stateID to coords
     std::vector<EnvROBARM3DHashEntry_t*> StateID2CoordTable;
 
     // stateIDs of expanded states
@@ -129,7 +129,7 @@ struct EnvironmentPlanningData
 };
 
 /** Environment to be used when planning for a Robotic Arm using the SBPL. */
-class EnvironmentROBARM3D : public DiscreteSpaceInformation 
+class EnvironmentROBARM3D : public DiscreteSpaceInformation
 {
 public:
 
@@ -195,7 +195,7 @@ public:
     void SetAllActionsandAllOutcomes(CMDPSTATE* state);
     void SetAllPreds(CMDPSTATE* state);
     void PrintEnv_Config(FILE* fOut);
-    
+
     RobotModel* getRobotModel() { return rmodel_; };
     CollisionChecker* getCollisionChecker() { return cc_; };
     bool use7DOFGoal() { return pdata_.use_7dof_goal; };
@@ -203,7 +203,7 @@ public:
 
     //returns the actual 7-dof goal configuration (should be used only when 7dof
     //goal is given)
-    std::vector<double> getGoalConfiguration(); 
+    std::vector<double> getGoalConfiguration();
 
     std::vector<double> getStart();
     double getDistanceToGoal(double x, double y, double z);
@@ -236,6 +236,11 @@ protected:
     CollisionChecker *cc_;
     BFS_3D *bfs_;
     ActionSet *as_;
+
+    // cached from robot model
+    std::vector<double> m_min_limits;
+    std::vector<double> m_max_limits;
+    std::vector<bool> m_continuous;
 
     EnvironmentPlanningData pdata_;
     PlanningParams *prm_;
@@ -304,7 +309,7 @@ protected:
 
 inline unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
 {
-    key += (key << 12); 
+    key += (key << 12);
     key ^= (key >> 22);
     key += (key << 4);
     key ^= (key >> 9);
@@ -334,7 +339,12 @@ inline void EnvironmentROBARM3D::coordToAngles(
 {
     angles.resize(coord.size());
     for (size_t i = 0; i < coord.size(); i++) {
-        angles[i] = coord[i] * prm_->coord_delta_[i];
+        if (m_continuous[i]) {
+            angles[i] = coord[i] * prm_->coord_delta_[i];
+        }
+        else {
+            angles[i] = m_min_limits[i] + coord[i] * prm_->coord_delta_[i];
+        }
     }
 }
 
@@ -344,16 +354,21 @@ inline void EnvironmentROBARM3D::anglesToCoord(
 {
     double pos_angle;
 
-    for (int i = 0; i < int(angle.size()); i++) {
-        pos_angle = angle[i];
-        if (pos_angle < 0.0) {
-            pos_angle += 2 * M_PI;
+    for (size_t i = 0; i < angle.size(); i++) {
+        if (m_continuous[i]) {
+            pos_angle = angle[i];
+            if (pos_angle < 0.0) {
+                pos_angle += 2 * M_PI;
+            }
+
+            coord[i] = (int)((pos_angle + prm_->coord_delta_[i] * 0.5) / prm_->coord_delta_[i]);
+
+            if (coord[i] == prm_->coord_vals_[i]) {
+                coord[i] = 0;
+            }
         }
-    
-        coord[i] = (int)((pos_angle + prm_->coord_delta_[i] * 0.5) / prm_->coord_delta_[i]);
-    
-        if (coord[i] == prm_->coord_vals_[i]) {
-            coord[i] = 0;
+        else {
+            coord[i] = (int)(((angle[i] - m_min_limits[i]) / prm_->coord_delta_[i]) + 0.5);
         }
     }
 }
