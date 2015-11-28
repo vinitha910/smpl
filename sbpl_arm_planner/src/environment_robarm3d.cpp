@@ -640,7 +640,7 @@ bool EnvironmentROBARM3D::setStartConfiguration(
     ROS_INFO("[env][start] planning_link pose:   xyzrpy: %s", to_string(pose).c_str());
 
     //check joint limits of starting configuration but plan anyway
-    if (!rmodel_->checkJointLimits(angles)) {
+    if (!rmodel_->checkJointLimits(angles, true)) {
         ROS_WARN("Starting configuration violates the joint limits. Attempting to plan anyway.");
     }
 

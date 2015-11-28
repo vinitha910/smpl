@@ -79,7 +79,9 @@ public:
     ///@}
 
     /// \brief Joint Limits
-    virtual bool checkJointLimits(const std::vector<double>& angles);
+    virtual bool checkJointLimits(
+        const std::vector<double>& angles,
+        bool verbose = false);
 
     /// \name Forward Kinematics
     ///@{

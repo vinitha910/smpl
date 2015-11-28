@@ -81,7 +81,9 @@ public:
     virtual bool   hasVarLimit(int jidx) const { return continuous_[jidx]; }
 
     /* Joint Limits */
-    virtual bool checkJointLimits(const std::vector<double> &angles);
+    virtual bool checkJointLimits(
+        const std::vector<double> &angles,
+        bool verbose = false);
 
     /* Forward Kinematics */
     virtual bool computeFK(
