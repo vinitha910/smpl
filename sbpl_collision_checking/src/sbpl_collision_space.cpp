@@ -1365,7 +1365,8 @@ SBPLCollisionSpace::getOccupiedVoxelsVisualization() const
     return grid_->getOccupiedVoxelsVisualization();
 }
 
-visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(
+visualization_msgs::MarkerArray
+SBPLCollisionSpace::getVisualization(
     const std::string& type)
 {
     if (type == "collision_objects") {
@@ -1384,7 +1385,7 @@ visualization_msgs::MarkerArray SBPLCollisionSpace::getVisualization(
 
 visualization_msgs::MarkerArray
 SBPLCollisionSpace::getCollisionModelVisualization(
-    const std::vector<double> &angles)
+    const std::vector<double>& angles)
 {
     std::vector<std::vector<double>> spheres;
 
@@ -1399,8 +1400,8 @@ SBPLCollisionSpace::getCollisionModelVisualization(
         rad[i] = spheres[i][3];
     }
 
-    visualization_msgs::MarkerArray ma =
-            viz::getSpheresMarkerArray(spheres, rad, 90, grid_->getReferenceFrame(), "collision_model", 0);
+    visualization_msgs::MarkerArray ma = viz::getSpheresMarkerArray(
+            spheres, rad, 90, grid_->getReferenceFrame(), "collision_model", 0);
 
     return ma;
 }
