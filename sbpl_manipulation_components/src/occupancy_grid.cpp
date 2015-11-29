@@ -136,20 +136,16 @@ void OccupancyGrid::getOccupiedVoxels(
 void OccupancyGrid::getOccupiedVoxels(
     std::vector<geometry_msgs::Point>& voxels) const
 {
-    std::vector<double> dim(3, 0);
-    getWorldSize(dim[0], dim[1], dim[2]);
-
-    std::vector<double> origin(3, 0);
-    getOrigin(origin[0], origin[1], origin[2]);
-
-    for (double x = origin[0]; x <= origin[0] + dim[0]; x += grid_->getResolution()) {
-        for (double y = origin[1]; y <= origin[1] + dim[1]; y += grid_->getResolution()) {
-            for (double z = origin[2]; z <= origin[2] + dim[2]; z += grid_->getResolution()) {
-                if (getDistanceFromPoint(x, y, z) == 0.0) {
+    for (int gx = 0; gx < grid_->getXNumCells(); ++gx) {
+        for (int gy = 0; gy < grid_->getYNumCells(); ++gy) {
+            for (int gz = 0; gz < grid_->getZNumCells(); ++gz) {
+                if (grid_->getDistance(gx, gy, gz) == 0.0) {
+                    double wx, wy, wz;
+                    grid_->gridToWorld(gx, gy, gz, wx, wy, wz);
                     geometry_msgs::Point v;
-                    v.x = x;
-                    v.y = y;
-                    v.z = z;
+                    v.x = wx;
+                    v.y = wy;
+                    v.z = wz;
                     voxels.push_back(v);
                 }
             }
