@@ -149,6 +149,7 @@ bool SBPLArmPlannerInterface::initializeParamsFromParamServer()
 bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 {
     grid_.reset(new sbpl_arm_planner::OccupancyGrid(df_));
+    grid_->setReferenceFrame(prm_.planning_frame_);
     sbpl_arm_env_.reset(new sbpl_arm_planner::EnvironmentROBARM3D(grid_.get(), rm_, cc_, as_, &prm_));
 
     if (!as_->init(sbpl_arm_env_.get(), prm_.use_multiple_ik_solutions_)) {
