@@ -86,8 +86,10 @@ void shortcutTrajectory(
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
 {
-    std::vector<std::vector<double>> pin(traj_in.size()), pout;
+    std::vector<std::vector<double>> pin(traj_in.size());
+    std::vector<std::vector<double>> pout;
 
+    // convert JointTrajectoryPoint vector to vector<vector<double>> repr
     for (size_t j = 0; j < traj_in.size(); ++j) {
         pin[j].resize(traj_in[j].positions.size(),0);
         for (size_t k = 0; k < traj_in[j].positions.size(); ++k) {
@@ -100,6 +102,7 @@ void shortcutTrajectory(
     }
     else {
         ROS_WARN("Path is too short for shortcutting.");
+        pout = pin;
     }
 
     traj_out.resize(pout.size());
@@ -139,23 +142,23 @@ bool interpolateTrajectory(
             end[j] = traj[i+1].positions[j];
         }
         ipath.clear();
-    
+
         if (!cc->interpolatePath(start, end, inc, ipath)) {
             ROS_ERROR("Failed to interpolate between waypoint %d & %d because it's infeasible given the limits.", int(i), int(i+1));
             return false;
         }
-    
+
         if (ipath.empty()) {
             ROS_ERROR("Interpolated path between waypoints %d & %d is empty...what's going on?", int(i), int(i+1));
             return false;
         }
-    
+
         // we already have the first waypoint in the path (from last iteration)
         ipath.erase(ipath.begin());
-    
+
         // concatenate current path and the intermediate path
         path.insert(path.end(),ipath.begin(),ipath.end());
-    
+
         ROS_DEBUG("[%d] path length: %d", int(i), int(path.size()));
     }
 
