@@ -414,7 +414,7 @@ bool ActionSet::computeIkAction(
         //get actions for multiple ik solutions
         std::vector<std::vector<double>> solutions;
         if (!env_->getRobotModel()->computeIK(goal, state, solutions, option)) {
-            ROS_WARN("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
+            ROS_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
                     to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
@@ -428,7 +428,7 @@ bool ActionSet::computeIkAction(
         //get single action for single ik solution
         std::vector<double> ik_sol;
         if (!env_->getRobotModel()->computeIK(goal, state, ik_sol)) {
-            ROS_WARN("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+            ROS_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
         actions.resize(1);
