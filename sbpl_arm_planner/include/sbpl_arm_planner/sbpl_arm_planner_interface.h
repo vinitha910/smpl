@@ -124,9 +124,20 @@ public:
 
     ///@}
 
-protected:
+    /// \name Planner-specific functionality
+    ///@{
 
-    ros::NodeHandle nh_;
+    ///
+    bool addBfsHeuristic(
+        const std::string& name,
+        distance_field::PropagationDistanceField* df,
+        double radius);
+
+    bool removeBfsHeuristic(const std::string& name);
+
+    ///@}
+
+protected:
 
     // params
     bool m_initialized;
@@ -135,16 +146,22 @@ protected:
     sbpl_arm_planner::PlanningParams prm_;
 
     // planner components
-    sbpl_arm_planner::RobotModel *rm_;
-    sbpl_arm_planner::CollisionChecker *cc_;
+    sbpl_arm_planner::RobotModel* rm_;
+    sbpl_arm_planner::CollisionChecker* cc_;
     distance_field::PropagationDistanceField* df_;
-    sbpl_arm_planner::ActionSet *as_;
+    sbpl_arm_planner::ActionSet* as_;
 
     // planner & environment
     MDPConfig mdp_cfg_;
     std::unique_ptr<sbpl_arm_planner::OccupancyGrid> grid_;
     std::unique_ptr<sbpl_arm_planner::EnvironmentROBARM3D> sbpl_arm_env_;
     std::unique_ptr<SBPLPlanner> planner_;
+
+    Heuristic* m_heuristic; // lazily-initialized upon using mha*
+    std::vector<Heuristic*> m_heur_vec;
+    std::map<std::string, Heuristic*> m_heuristics;
+
+    std::string m_planner_id;
 
     moveit_msgs::MotionPlanRequest req_;
     moveit_msgs::MotionPlanResponse res_;
@@ -190,6 +207,11 @@ protected:
         double* tolerance_out);
 
     void clearMotionPlanResponse(moveit_msgs::MotionPlanResponse& res) const;
+
+    void clearGraphStateToPlannerStateMap();
+    bool reinitPlanner(const std::string& planner_id);
+    bool reinitAraPlanner();
+    bool reinitMhaPlanner();
 };
 
 } // namespace sbpl_arm_planner

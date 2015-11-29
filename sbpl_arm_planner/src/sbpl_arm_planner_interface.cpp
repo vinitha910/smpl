@@ -45,6 +45,7 @@
 #include <tf/transform_datatypes.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
+#include <sbpl_arm_planner/bfs_heuristic.h>
 #include <sbpl_arm_planner/environment_robarm3d.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/post_processing.h>
@@ -57,7 +58,6 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     ActionSet* as,
     distance_field::PropagationDistanceField* df)
 :
-    nh_("~"),
     m_initialized(false),
     solution_cost_(INFINITECOST),
     prm_(),
@@ -66,9 +66,13 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     df_(df),
     as_(as),
     mdp_cfg_(),
-    planner_(),
-    sbpl_arm_env_(),
     grid_(),
+    sbpl_arm_env_(),
+    planner_(),
+    m_heuristic(nullptr),
+    m_heur_vec(),
+    m_heuristics(),
+    m_planner_id(),
     req_(),
     res_(),
     pscene_(),
@@ -78,6 +82,18 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
 
 SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
 {
+    if (!m_heuristic) {
+        delete m_heuristic;
+    }
+
+    for (Heuristic* heur : m_heur_vec) {
+        if (heur) {
+            delete heur;
+        }
+    }
+
+    m_heuristics.clear();
+    m_heur_vec.clear();
 }
 
 bool SBPLArmPlannerInterface::init()
@@ -157,8 +173,6 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         return false;
     }
 
-    planner_.reset(new ARAPlanner(sbpl_arm_env_.get(), true));
-
     if (!sbpl_arm_env_->initEnvironment()) {
         ROS_ERROR("initEnvironment failed");
         return false;
@@ -168,9 +182,6 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         ROS_ERROR("InitializeMDPCfg failed");
         return false;
     }
-
-    planner_->set_initialsolution_eps(prm_.epsilon_);
-    planner_->set_search_mode(prm_.search_mode_);
 
     ROS_INFO("Initialized sbpl arm planning environment.");
     return true;
@@ -186,6 +197,13 @@ bool SBPLArmPlannerInterface::solve(
     if (!m_initialized) {
         res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
         return false;
+    }
+
+    if (req.planner_id != m_planner_id) {
+        if (!reinitPlanner(req.planner_id)) {
+            res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+            return false;
+        }
     }
 
     if (!planning_scene) {
@@ -310,7 +328,7 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
     std::vector<double> initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions, missing)) {
-        ROS_ERROR("Start state is missing planning joints: %s", leatherman::vectorToString(missing).c_str());
+        ROS_ERROR("Start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
     }
 
@@ -323,7 +341,7 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
         return false;
     }
 
-    ROS_INFO("start: %s", leatherman::vectorToString(initial_positions).c_str());
+    ROS_INFO("start: %s", to_string(initial_positions).c_str());
     return true;
 }
 
@@ -753,6 +771,62 @@ SBPLArmPlannerInterface::getCollisionModelTrajectoryMarker()
     return ma;
 }
 
+bool SBPLArmPlannerInterface::addBfsHeuristic(
+    const std::string& name,
+    distance_field::PropagationDistanceField* df,
+    double radius)
+{
+    if (!df) {
+        ROS_ERROR("Null distance field");
+        return false;
+    }
+
+    if (m_heuristics.find(name) != m_heuristics.end()) {
+        ROS_ERROR("Already have heuristic named '%s'", name.c_str());
+        return false;
+    }
+
+    auto entry = m_heuristics.insert(std::make_pair(
+            name, new BfsHeuristic(sbpl_arm_env_.get(), df, radius)));
+
+    m_heur_vec.push_back(entry.first->second);
+
+    if (m_planner_id == "MHA*") {
+        reinitMhaPlanner();
+    }
+
+    return true;
+}
+
+bool SBPLArmPlannerInterface::removeBfsHeuristic(
+    const std::string& name)
+{
+    auto it = m_heuristics.find(name);
+    if (it == m_heuristics.end()) {
+        ROS_ERROR("No heuristic named '%s'", name.c_str());
+        return false;
+    }
+
+    Heuristic* heur = it->second;
+
+    // remove from the name -> heur map
+    m_heuristics.erase(it);
+
+    // remove from the heuristic vector
+    auto vit = std::find(m_heur_vec.begin(), m_heur_vec.end(), heur);
+    if (vit != m_heur_vec.end()) {
+        m_heur_vec.erase(vit);
+    }
+
+    delete heur;
+
+    if (m_planner_id == "MHA*") {
+        reinitMhaPlanner();
+    }
+
+    return true;
+}
+
 visualization_msgs::MarkerArray
 SBPLArmPlannerInterface::getGoalVisualization() const
 {
@@ -930,6 +1004,79 @@ void SBPLArmPlannerInterface::clearMotionPlanResponse(
     res.trajectory.multi_dof_joint_trajectory.points.clear();
     res.planning_time = 0.0;
     res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+}
+
+void SBPLArmPlannerInterface::clearGraphStateToPlannerStateMap()
+{
+    if (!sbpl_arm_env_) {
+        return;
+    }
+
+    std::vector<int*>& state_id_to_index = sbpl_arm_env_->StateID2IndexMapping;
+    for (int* mapping : state_id_to_index) {
+        for (int i = 0; i < NUMOFINDICES_STATEID2IND; ++i) {
+            mapping[i] = -1;
+        }
+    }
+}
+
+bool SBPLArmPlannerInterface::reinitPlanner(const std::string& planner_id)
+{
+    if (planner_id == "ARA*") {
+        return reinitAraPlanner();
+    }
+    else if (planner_id == "MHA*") {
+        return reinitMhaPlanner();
+    }
+    else if (planner_id == "LARA*") {
+        return false; // stub name for lazy ara*
+    }
+    else if (planner_id == "LMHA*") {
+        return false; // stub name for lazy mha*
+    }
+    else if (planner_id == "AD*") {
+        return false; // stub name for anytime d*
+    }
+    else if (planner_id == "R*") {
+        return false; // stub name for r*
+    }
+    else {
+        return false;
+    }
+}
+
+bool SBPLArmPlannerInterface::reinitAraPlanner()
+{
+    clearGraphStateToPlannerStateMap();
+
+    planner_.reset(new ARAPlanner(sbpl_arm_env_.get(), true));
+    planner_->set_initialsolution_eps(prm_.epsilon_);
+    planner_->set_search_mode(prm_.search_mode_);
+
+    return true;
+}
+
+bool SBPLArmPlannerInterface::reinitMhaPlanner()
+{
+    clearGraphStateToPlannerStateMap();
+
+    if (!m_heuristic) {
+        m_heuristic = new EmbeddedHeuristic(sbpl_arm_env_.get());
+    }
+
+    MHAPlanner* mha = new MHAPlanner(
+            sbpl_arm_env_.get(),
+            m_heuristic,
+            m_heur_vec.data(),
+            m_heur_vec.size());
+
+    mha->set_initial_mha_eps(2.0);
+
+    planner_.reset(mha);
+    planner_->set_initialsolution_eps(prm_.epsilon_);
+    planner_->set_search_mode(prm_.search_mode_);
+
+    return true;
 }
 
 } // namespace sbpl_arm_planner

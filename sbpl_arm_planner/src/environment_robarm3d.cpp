@@ -752,7 +752,9 @@ bool EnvironmentROBARM3D::setGoalPosition(
     for (int z = 0; z < dimZ - 2; z++) {
         for (int y = 0; y < dimY - 2; y++) {
             for (int x = 0; x < dimX - 2; x++) {
-                if (grid_->getDistance(x,y,z) <= prm_->planning_link_sphere_radius_) {
+                if (grid_->getDistance(x, y, z) <=
+                    prm_->planning_link_sphere_radius_)
+                {
                     bfs_->setWall(x + 1, y + 1, z + 1);
                     walls++;
                 }
