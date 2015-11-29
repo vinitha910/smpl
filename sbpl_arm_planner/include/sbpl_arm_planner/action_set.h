@@ -42,6 +42,7 @@
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 #include <sbpl_manipulation_components/motion_primitive.h>
+#include <sbpl_manipulation_components/robot_model.h>
 
 namespace sbpl_arm_planner {
 
@@ -110,9 +111,16 @@ protected:
     EnvironmentROBARM3D *env_;
 
     bool applyMotionPrimitive(
-        const RobotState &state,
-        const MotionPrimitive &mp,
-        Action &action);
+        const RobotState& state,
+        const MotionPrimitive& mp,
+        Action& action);
+
+    bool computeIkAction(
+        const RobotState& state,
+        const std::vector<double>& goal,
+        double dist_to_goal,
+        sbpl_arm_planner::ik_option::IkOption option,
+        std::vector<Action>& actions);
 
     bool getAction(
         const RobotState& parent,

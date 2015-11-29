@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,7 +47,6 @@
 #include <sbpl_manipulation_components_pr2/orientation_solver.h>
 #include <pr2_arm_kinematics/pr2_arm_ik_solver.h>
 
-
 using namespace std;
 
 namespace sbpl_arm_planner {
@@ -59,13 +58,13 @@ class PR2KDLRobotModel : public KDLRobotModel {
     PR2KDLRobotModel();
 
     ~PR2KDLRobotModel();
-   
+
     /* Initialization */
     virtual bool init(std::string robot_description, std::vector<std::string> &planning_joints);
 
     /* Inverse Kinematics */
     virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
-    
+
     virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
 
     /* Debug Output */
@@ -74,7 +73,7 @@ class PR2KDLRobotModel : public KDLRobotModel {
   private:
 
     pr2_arm_kinematics::PR2ArmIKSolver* pr2_ik_solver_;
-    
+
     sbpl_arm_planner::RPYSolver* rpy_solver_;
 
     std::string forearm_roll_link_name_;

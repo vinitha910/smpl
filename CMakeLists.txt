@@ -8,7 +8,8 @@ find_package(Boost REQUIRED)
 
 find_package(Bullet REQUIRED)
 
-find_package(catkin REQUIRED
+find_package(catkin
+    REQUIRED
     COMPONENTS
         angles
         cmake_modules
@@ -36,6 +37,34 @@ pkg_check_modules(SBPL REQUIRED sbpl)
 
 find_package(orocos_kdl REQUIRED)
 
+# export libraries, headers, and dependencies
+catkin_package(
+    INCLUDE_DIRS
+        bfs3d/include
+        sbpl_arm_planner/include
+        sbpl_collision_checking/include
+        sbpl_manipulation_components/include
+        sbpl_manipulation_components_pr2/include
+    LIBRARIES
+        bfs3d
+        sbpl_arm_planner
+        sbpl_manipulation_components
+        sbpl_collision_checking
+        sbpl_manipulation_components_pr2
+    CATKIN_DEPENDS
+        angles
+        geometry_msgs
+        kdl_parser
+        leatherman
+        moveit_core
+        moveit_msgs
+        moveit_ros_planning
+        tf
+        tf_conversions
+        trajectory_msgs
+    DEPENDS
+        Boost BULLET Eigen orocos_kdl)
+
 # external include directories
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${BULLET_INCLUDE_DIR})
@@ -53,36 +82,12 @@ include_directories(bfs3d/include)
 include_directories(sbpl_arm_planner/include)
 include_directories(sbpl_collision_checking/include)
 include_directories(sbpl_manipulation_components/include)
+include_directories(sbpl_manipulation_components_pr2/include)
 
 add_definitions(-DROS)
-
-# export libraries, headers, and dependencies
-catkin_package(
-    INCLUDE_DIRS
-        bfs3d/include 
-        sbpl_arm_planner/include 
-        sbpl_collision_checking/include
-        sbpl_manipulation_components/include
-    LIBRARIES
-        bfs3d
-        sbpl_arm_planner
-        sbpl_manipulation_components
-        sbpl_collision_checking
-    CATKIN_DEPENDS
-        angles
-        geometry_msgs
-        kdl_parser
-        leatherman
-        moveit_core
-        moveit_msgs
-        moveit_ros_planning
-        tf
-        tf_conversions
-        trajectory_msgs
-    DEPENDS 
-        Boost BULLET Eigen orocos_kdl)
 
 add_subdirectory(bfs3d)
 add_subdirectory(sbpl_arm_planner)
 add_subdirectory(sbpl_collision_checking)
 add_subdirectory(sbpl_manipulation_components)
+add_subdirectory(sbpl_manipulation_components_pr2)

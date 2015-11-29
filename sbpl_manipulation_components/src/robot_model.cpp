@@ -35,6 +35,31 @@
 
 namespace sbpl_arm_planner {
 
+namespace ik_option {
+
+std::ostream& operator<<(std::ostream& o, IkOption option)
+{
+    switch (option) {
+    case UNRESTRICTED:
+        o << "UNRESTRICTED";
+        return o;
+    case RESTRICT_XYZ_JOINTS:
+        o << "RESTRICTED_XYZ_JOINTS";
+        return o;
+    }
+
+    return o;
+}
+
+std::string to_string(IkOption option)
+{
+    std::stringstream ss;
+    ss << option;
+    return ss.str();
+}
+
+} // namespace ik_option
+
 RobotModel::RobotModel()
 {
     logger_ = "kinematic_model";
@@ -105,7 +130,7 @@ bool RobotModel::computeIK(
     const std::vector<double>& pose,
     const std::vector<double>& start,
     std::vector<double> &solution,
-    int option)
+    ik_option::IkOption option)
 {
     ROS_ERROR("Function not filled in.");
     return false;
@@ -115,7 +140,7 @@ bool RobotModel::computeIK(
     const std::vector<double>& pose,
     const std::vector<double>& start,
     std::vector< std::vector<double> >& solutions,
-    int option)
+    ik_option::IkOption option)
 {
     ROS_ERROR("Function not filled in.");
     return false;

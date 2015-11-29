@@ -347,31 +347,12 @@ bool ActionSet::getAction(
     }
     case MotionPrimitive::SNAP_TO_RPY:
     {
-        if (use_multiple_ik_solutions_) {
-            std::vector<std::vector<double> > ik_solutions;
-            if (!env_->getRobotModel()->computeIK(goal, parent, ik_solutions, sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS)) {
-                ROS_WARN("RPY-solver failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-                return false;
-            }
-            actions.resize(ik_solutions.size());
-            for (size_t a = 0; a < actions.size(); a++) {
-                actions[a].resize(1);
-                actions[a][0] = ik_solutions[a];
-            }
-        }
-        else {
-            //get single action for single ik solution
-            std::vector<double> ik_sol;
-            if (!env_->getRobotModel()->computeIK(goal, parent, ik_sol)) {
-                ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-                return false;
-            }
-            actions.resize(1);
-            actions[0].resize(1);
-            actions[0][0] = ik_sol;
-        }
-
-        return true;
+        return computeIkAction(
+                parent,
+                goal,
+                dist_to_goal,
+                ik_option::RESTRICT_XYZ_JOINTS,
+                actions);
     }
     case MotionPrimitive::SNAP_TO_XYZ:
     {
@@ -381,34 +362,16 @@ bool ActionSet::getAction(
     case MotionPrimitive::SNAP_TO_XYZ_RPY:
     {
         if (!env_->use7DOFGoal()) {
-            // not a 7dof goal -- use the usual IK method
-            if (use_multiple_ik_solutions_) {
-                //get actions for multiple ik solutions
-                std::vector<std::vector<double>> ik_solutions;
-                if (!env_->getRobotModel()->computeIK(goal, parent, ik_solutions)) {
-                    ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-                    return false;
-                }
-                actions.resize(ik_solutions.size());
-                for (size_t a = 0; a < actions.size(); a++){
-                    actions[a].resize(1);
-                    actions[a][0] = ik_solutions[a];
-                }
-            }
-            else {
-                //get single action for single ik solution
-                std::vector<double> ik_sol;
-                if (!env_->getRobotModel()->computeIK(goal, parent, ik_sol)) {
-                    ROS_WARN("IK failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
-                    return false;
-                }
-                actions.resize(1);
-                actions[0].resize(1);
-                actions[0][0] = ik_sol;
-            }
+            return computeIkAction(
+                    parent,
+                    goal,
+                    dist_to_goal,
+                    ik_option::UNRESTRICTED,
+                    actions);
         }
         else {
-            //goal is 7dof -- instead of computing  IK, use the goal itself as the IK solution
+            // goal is 7dof; instead of computing  IK, use the goal itself as
+            // the IK solution
             actions.resize(1);
             actions[0].resize(1);
             actions[0][0] = env_->getGoalConfiguration();
@@ -437,6 +400,42 @@ bool ActionSet::applyMotionPrimitive(
             action[i][j] = angles::normalize_angle(action[i][j] + state[j]);
         }
     }
+    return true;
+}
+
+bool ActionSet::computeIkAction(
+    const RobotState& state,
+    const std::vector<double>& goal,
+    double dist_to_goal,
+    sbpl_arm_planner::ik_option::IkOption option,
+    std::vector<Action>& actions)
+{
+    if (use_multiple_ik_solutions_) {
+        //get actions for multiple ik solutions
+        std::vector<std::vector<double>> solutions;
+        if (!env_->getRobotModel()->computeIK(goal, state, solutions, option)) {
+            ROS_WARN("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
+                    to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+            return false;
+        }
+        actions.resize(solutions.size());
+        for (size_t a = 0; a < actions.size(); a++){
+            actions[a].resize(1);
+            actions[a][0] = solutions[a];
+        }
+    }
+    else {
+        //get single action for single ik solution
+        std::vector<double> ik_sol;
+        if (!env_->getRobotModel()->computeIK(goal, state, ik_sol)) {
+            ROS_WARN("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+            return false;
+        }
+        actions.resize(1);
+        actions[0].resize(1);
+        actions[0][0] = ik_sol;
+    }
+
     return true;
 }
 

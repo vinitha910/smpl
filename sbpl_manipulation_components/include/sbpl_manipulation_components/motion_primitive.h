@@ -56,7 +56,6 @@ struct MotionPrimitive
         NUMBER_OF_MPRIM_TYPES
     };
 
-
     Type type;
     int id;
     Action action;
@@ -86,7 +85,8 @@ inline std::ostream& operator<<(std::ostream& o, MotionPrimitive::Type type)
     return o;
 }
 
-inline std::string to_string(MotionPrimitive::Type type)
+inline
+std::string to_string(MotionPrimitive::Type type)
 {
     std::stringstream ss;
     ss << type;
@@ -95,7 +95,7 @@ inline std::string to_string(MotionPrimitive::Type type)
 
 inline
 void MotionPrimitive::print() const
-{ 
+{
     ROS_INFO("type: %d  id: %d  nsteps: %d ", type, id, int(action.size()));
     std::stringstream os;
     for (std::size_t j = 0; j < action.size(); ++j) {

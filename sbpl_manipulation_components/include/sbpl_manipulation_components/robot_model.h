@@ -42,11 +42,14 @@ namespace sbpl_arm_planner {
 
 namespace ik_option {
 
-enum
+enum IkOption
 {
     UNRESTRICTED = 0,
     RESTRICT_XYZ_JOINTS = 1
 };
+
+std::ostream& operator<<(std::ostream& o, IkOption option);
+std::string to_string(IkOption option);
 
 } // namespace ik_option
 
@@ -109,13 +112,13 @@ public:
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<double>& solution,
-        int option = ik_option::UNRESTRICTED);
+        ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<std::vector<double> >& solutions,
-        int option = ik_option::UNRESTRICTED);
+        ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeFastIK(
         const std::vector<double>& pose,

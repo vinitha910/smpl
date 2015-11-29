@@ -105,13 +105,13 @@ public:
             const std::vector<double> &pose,
             const std::vector<double> &start,
             std::vector<double> &solution,
-            int option = 0);
+            ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeIK(
             const std::vector<double> &pose,
             const std::vector<double> &start,
             std::vector< std::vector<double> > &solutions,
-            int option = 0);
+            ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeFastIK(
             const std::vector<double> &pose,

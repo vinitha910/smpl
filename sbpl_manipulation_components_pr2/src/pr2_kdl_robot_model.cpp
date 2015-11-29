@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,13 +38,15 @@ using namespace std;
 
 namespace sbpl_arm_planner {
 
-PR2KDLRobotModel::PR2KDLRobotModel() : pr2_ik_solver_(NULL), rpy_solver_(NULL)
+PR2KDLRobotModel::PR2KDLRobotModel() :
+    pr2_ik_solver_(NULL),
+    rpy_solver_(NULL)
 {
-  chain_root_name_ = "torso_lift_link";
-  chain_tip_name_ = "r_gripper_palm_link";
-  forearm_roll_link_name_ = "r_forearm_roll_link";
-  wrist_pitch_joint_name_ = "r_wrist_flex_joint";
-  end_effector_link_name_ = "r_gripper_palm_link";
+    chain_root_name_ = "torso_lift_link";
+    chain_tip_name_ = "r_gripper_palm_link";
+    forearm_roll_link_name_ = "r_forearm_roll_link";
+    wrist_pitch_joint_name_ = "r_wrist_flex_joint";
+    end_effector_link_name_ = "r_gripper_palm_link";
 }
 
 PR2KDLRobotModel::~PR2KDLRobotModel()
@@ -64,7 +66,7 @@ bool PR2KDLRobotModel::init(std::string robot_description, std::vector<std::stri
     ROS_ERROR("Failed to parse the URDF.");
     return false;
   }
- 
+
   if(!kdl_parser::treeFromUrdfModel(*urdf_, ktree_))
   {
     ROS_ERROR("Failed to parse the kdl tree from robot description.");
@@ -167,63 +169,71 @@ bool PR2KDLRobotModel::init(std::string robot_description, std::vector<std::stri
   return true;
 }
 
-bool PR2KDLRobotModel::computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option)
+bool PR2KDLRobotModel::computeIK(
+    const std::vector<double>& pose,
+    const std::vector<double>& start,
+    std::vector<double>& solution,
+    int option)
 {
-  //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
-  KDL::Frame frame_des;
-  frame_des.p.x(pose[0]);
-  frame_des.p.y(pose[1]);
-  frame_des.p.z(pose[2]);
+    //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
+    KDL::Frame frame_des;
+    frame_des.p.x(pose[0]);
+    frame_des.p.y(pose[1]);
+    frame_des.p.z(pose[2]);
 
-  // RPY
-  if(pose.size() == 6)
-    frame_des.M = KDL::Rotation::RPY(pose[3],pose[4],pose[5]);
-  // quaternion
-  else
-    frame_des.M = KDL::Rotation::Quaternion(pose[3],pose[4],pose[5],pose[6]);
-
-  // transform into kinematics frame
-  frame_des = T_planning_to_kinematics_ * frame_des;
-
-  // seed configuration
-  for(size_t i = 0; i < start.size(); i++)
-    jnt_pos_in_(i) = angles::normalize_angle(start[i]); // must be normalized for CartToJntSearch
-
-  solution.resize(start.size());
-
-  // choose solver
-  if(option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS)
-  {
-    std::vector<double> rpy(3,0), fpose(6,0), epose(6,0);
-    frame_des.M.GetRPY(rpy[0], rpy[1], rpy[2]);
-    std::vector<double> const rpy2(rpy);
-
-    // get pose of forearm link
-    if(!computeFK(start, forearm_roll_link_name_, fpose))
-    {
-      ROS_ERROR("[rm] computeFK failed on forearm pose.");
-      return false;
+    if (pose.size() == 6) {
+        // RPY
+        frame_des.M = KDL::Rotation::RPY(pose[3], pose[4], pose[5]);
+    }
+    else {
+        // quaternion
+        frame_des.M = KDL::Rotation::Quaternion(pose[3], pose[4], pose[5], pose[6]);
     }
 
-    // get pose of end-effector link
-    if(!computeFK(start, end_effector_link_name_, epose))
-    {
-      ROS_ERROR("[rm] computeFK failed on end_eff pose.");
-      return false;
+    // transform into kinematics frame
+    frame_des = T_planning_to_kinematics_ * frame_des;
+
+    // seed configuration
+    for (size_t i = 0; i < start.size(); i++) {
+        // must be normalized for CartToJntSearch
+        jnt_pos_in_(i) = angles::normalize_angle(start[i]);
     }
 
-    return rpy_solver_->computeRPYOnly(rpy2, start, fpose, epose, 1, solution);
-  }
-  else
-  {
-    if(pr2_ik_solver_->CartToJntSearch(jnt_pos_in_, frame_des, jnt_pos_out_, 0.2) < 0)
-      return false;
-    
-    for(size_t i = 0; i < solution.size(); ++i)
-      solution[i] = jnt_pos_out_(i);
-  }
+    solution.resize(start.size());
 
-  return true;
+    // choose solver
+    if (option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS) {
+        std::vector<double> rpy(3, 0);
+        std::vector<double> fpose(6, 0);
+        std::vector<double> epose(6, 0);
+        frame_des.M.GetRPY(rpy[0], rpy[1], rpy[2]);
+        const std::vector<double> rpy2(rpy);
+
+        // get pose of forearm link
+        if (!computeFK(start, forearm_roll_link_name_, fpose)) {
+            ROS_ERROR("[rm] computeFK failed on forearm pose.");
+            return false;
+        }
+
+        // get pose of end-effector link
+        if (!computeFK(start, end_effector_link_name_, epose)) {
+            ROS_ERROR("[rm] computeFK failed on end_eff pose.");
+            return false;
+        }
+
+        return rpy_solver_->computeRPYOnly(rpy2, start, fpose, epose, 1, solution);
+    }
+    else {
+        if (pr2_ik_solver_->CartToJntSearch(jnt_pos_in_, frame_des, jnt_pos_out_, 0.2) < 0) {
+            return false;
+        }
+
+        for (size_t i = 0; i < solution.size(); ++i) {
+            solution[i] = jnt_pos_out_(i);
+        }
+    }
+
+    return true;
 }
 
 bool PR2KDLRobotModel::computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution)
