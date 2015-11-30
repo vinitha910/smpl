@@ -444,6 +444,17 @@ bool SBPLArmPlannerInterface::setGoalPosition(
             goal_constraints.orientation_constraints[0].orientation.y,
             goal_constraints.orientation_constraints[0].orientation.z);
 
+    if (m_planner_id == "MHA*") {
+        // set the goal for the heuristic
+        ROS_INFO("Setting the heuristic goal for %zu heuristics", m_heur_vec.size());
+        for (Heuristic* heur : m_heur_vec) {
+            BfsHeuristic* bheur = (BfsHeuristic*)heur;
+            if (!bheur->setGoal(sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2])) {
+                ROS_ERROR("Failed to set heuristic goal");
+            }
+        }
+    }
+
     // set sbpl environment goal
     if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_tolerance)) {
         ROS_ERROR("Failed to set goal state. Perhaps goal position is out of reach. Exiting.");
@@ -795,6 +806,7 @@ bool SBPLArmPlannerInterface::addBfsHeuristic(
         reinitMhaPlanner();
     }
 
+    ROS_INFO("Added bfs heuristic '%s'", name.c_str());
     return true;
 }
 
@@ -824,6 +836,7 @@ bool SBPLArmPlannerInterface::removeBfsHeuristic(
         reinitMhaPlanner();
     }
 
+    ROS_INFO("Removed bfs heuristic '%s'", name.c_str());
     return true;
 }
 
@@ -1053,6 +1066,8 @@ bool SBPLArmPlannerInterface::reinitAraPlanner()
     planner_->set_initialsolution_eps(prm_.epsilon_);
     planner_->set_search_mode(prm_.search_mode_);
 
+    m_planner_id = "ARA*";
+
     return true;
 }
 
@@ -1075,6 +1090,8 @@ bool SBPLArmPlannerInterface::reinitMhaPlanner()
     planner_.reset(mha);
     planner_->set_initialsolution_eps(prm_.epsilon_);
     planner_->set_search_mode(prm_.search_mode_);
+
+    m_planner_id = "MHA*";
 
     return true;
 }
