@@ -494,7 +494,7 @@ bool EnvironmentROBARM3D::initEnvironment()
     //initialize BFS
     int dimX, dimY, dimZ;
     grid_->getGridSize(dimX, dimY, dimZ);
-    ROS_INFO("Initializing BFS of size %d x %d x %d = %d", dimX, dimY, dimZ, dimX, dimY, dimZ);
+    ROS_INFO("Initializing BFS of size %d x %d x %d = %d", dimX, dimY, dimZ, dimX * dimY * dimZ);
     bfs_ = new BFS_3D(dimX, dimY, dimZ);
 
     //set heuristic function pointer
@@ -755,6 +755,7 @@ bool EnvironmentROBARM3D::setGoalPosition(
                 if (grid_->getDistance(x, y, z) <=
                     prm_->planning_link_sphere_radius_)
                 {
+                    // TODO ANDREW: why?
                     bfs_->setWall(x + 1, y + 1, z + 1);
                     walls++;
                 }
@@ -939,6 +940,16 @@ double EnvironmentROBARM3D::getDistanceToGoal(double x, double y, double z)
     }
 
     return dist;
+}
+
+const EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
+    int state_id) const
+{
+    if (state_id < 0 || state_id >= pdata_.StateID2CoordTable.size()) {
+        return nullptr;
+    }
+
+    return pdata_.StateID2CoordTable[state_id];
 }
 
 std::vector<double> EnvironmentROBARM3D::getGoal()

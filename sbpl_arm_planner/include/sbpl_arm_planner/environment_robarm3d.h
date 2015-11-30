@@ -208,6 +208,8 @@ public:
     std::vector<double> getStart();
     double getDistanceToGoal(double x, double y, double z);
 
+    const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
+
     /// \name Visualization
     ///@{
 
