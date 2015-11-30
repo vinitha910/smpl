@@ -21,6 +21,7 @@ public:
         double radius);
 
     bool setGoal(int x, int y, int z);
+    bool setGoal(double x, double y, double z);
 
     int GetGoalHeuristic(int state_id);
     int GetStartHeuristic(int state_id);
@@ -31,6 +32,7 @@ private:
     double m_radius;
     sbpl_arm_planner::OccupancyGrid m_grid;
     std::unique_ptr<BFS_3D> m_bfs;
+    EnvironmentROBARM3D* m_robarm_env; // alias of specific environment
 };
 
 } // namespace sbpl_arm_planner
