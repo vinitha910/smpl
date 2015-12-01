@@ -448,7 +448,10 @@ bool SBPLArmPlannerInterface::setGoalPosition(
         // set the goal for the heuristic
         ROS_INFO("Setting the heuristic goal for %zu heuristics", m_heur_vec.size());
         for (Heuristic* heur : m_heur_vec) {
-            BfsHeuristic* bheur = (BfsHeuristic*)heur;
+            BfsHeuristic* bheur = dynamic_cast<BfsHeuristic*>(heur);
+            if (!bheur) {
+                continue;
+            }
             if (!bheur->setGoal(sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2])) {
                 ROS_ERROR("Failed to set heuristic goal");
             }
@@ -545,19 +548,19 @@ bool SBPLArmPlannerInterface::planToPosition(
     // set start
     ROS_INFO("Setting start.");
 
-    if (!setStart(req.start_state.joint_state)) {
-        ROS_ERROR("Failed to set initial configuration of robot.");
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
-        res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
-        return false;
-    }
-
     // set goal
     ROS_INFO("Setting goal 6dof goal.");
     if (!setGoalPosition(goal_constraints)) {
         ROS_ERROR("Failed to set goal position.");
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
+        return false;
+    }
+
+    if (!setStart(req.start_state.joint_state)) {
+        ROS_ERROR("Failed to set initial configuration of robot.");
+        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
         return false;
     }
 
@@ -1077,6 +1080,10 @@ bool SBPLArmPlannerInterface::reinitMhaPlanner()
 
     if (!m_heuristic) {
         m_heuristic = new EmbeddedHeuristic(sbpl_arm_env_.get());
+
+        auto entry = m_heuristics.insert(std::make_pair(
+                "embedded_heuristic", new EmbeddedHeuristic(sbpl_arm_env_.get())));
+        m_heur_vec.push_back(entry.first->second);
     }
 
     MHAPlanner* mha = new MHAPlanner(
