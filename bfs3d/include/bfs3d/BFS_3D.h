@@ -111,7 +111,25 @@ private:
     std::vector<bool> m_closed;
     std::vector<int> m_distances;
 
-    void search(int, int, int volatile*, int*, int&, int&);
+    void search(
+        int width,
+        int planeSize,
+        int volatile* distance_grid,
+        int* queue,
+        int& queue_head,
+        int& queue_tail);
+
+    void search(
+        int width,
+        int planeSize,
+        int volatile* distance_grid,
+        int* queue,
+        int& queue_head,
+        int& queue_tail,
+        int volatile* frontier_grid,
+        int* frontier_queue,
+        int& frontier_queue_head,
+        int& frontier_queue_tail);
 
     template <typename Visitor>
     void visit_free_cells(int node, const Visitor& visitor);

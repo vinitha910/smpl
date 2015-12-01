@@ -133,8 +133,15 @@ void BFS_3D::run(int x, int y, int z)
     m_distance_grid[origin] = 0;
 
     // fire off background thread to compute bfs
-    m_search_thread =
-            boost::thread(&BFS_3D::search, this, m_dim_x, m_dim_xy, m_distance_grid, m_queue, m_queue_head, m_queue_tail);
+    m_search_thread = boost::thread(
+            static_cast<void (BFS_3D::*)(int, int, int volatile*, int*, int&, int&)>(&BFS_3D::search),
+            this,
+            m_dim_x,
+            m_dim_xy,
+            m_distance_grid,
+            m_queue,
+            m_queue_head,
+            m_queue_tail);
     m_running = true;
 }
 
@@ -146,62 +153,147 @@ void BFS_3D::run_components(int gx, int gy, int gz)
         }
     }
 
-    // compute connected components
-    std::vector<int> components(m_dim_xyz, -1);
-    int comp_count = 0;
-    for (int i = 0; i < m_dim_xyz; ++i) {
-        if (isWall(i)) {
-            continue;
-        }
-        if (components[i] == -1) {
-            auto floodfiller = [&](int node) {
-                return components[node] = comp_count;
-            };
-            visit_free_cells(i, floodfiller);
-            comp_count++;
+    // invert walls and free cells in an auxiliary bfs
+    int length, width, height;
+    getDimensions(&length, &width, &height);
+    BFS_3D wall_bfs(length, width, height);
+    for (int x = 0; x < length; ++x) {
+        for (int y = 0; y < width; ++y) {
+            for (int z = 0; z < height; ++z) {
+                if (!isWall(x, y, z)) {
+                    wall_bfs.setWall(x, y, z);
+                }
+            }
         }
     }
 
-    // 1. for each component
-    // 2.     find the nearest cell to the goal and its distance
-    // 3.     floodfill distances from nearest cell, adding distance of the
-    //                nearest cell to the goal
+    // initialize the distance grid of the wall bfs
     for (int i = 0; i < m_dim_xyz; ++i) {
-        if (isWall(i)) {
-            continue;
-        }
-
-        if (m_distance_grid[i] < 0) { // undiscovered
-            int nearest_dist = -1;
-            int nearest;
-            auto find_nearest_to_goal = [&](int node) {
-                int nx, ny, nz;
-                getCoord(node, nx, ny, nz);
-
-                const int dist_sq =
-                        (nx - gx) * (nx - gx) +
-                        (ny - gy) * (ny - gy) +
-                        (nz - gz) * (nz - gz);
-
-                if (nearest_dist == -1) {
-                    nearest = node;
-                    nearest_dist = dist_sq;
-                }
-                else if (dist_sq < nearest_dist) {
-                    nearest = node;
-                    nearest_dist = dist_sq;
-                }
-            };
-            visit_free_cells(i, find_nearest_to_goal);
-
-            int origin = nearest;
-            m_queue_head = 0;
-            m_queue_tail = 1;
-            m_queue[0] = origin;
-            m_distance_grid[origin] = (int)sqrt((double)nearest_dist);
-            search(m_dim_x, m_dim_xy, m_distance_grid, m_queue, m_queue_head, m_queue_tail);
+        if (wall_bfs.m_distance_grid[i] != WALL) {
+            wall_bfs.m_distance_grid[i] = UNDISCOVERED;
         }
     }
+
+    // initialize the distance grid queue
+    wall_bfs.m_queue_head = 0;
+    wall_bfs.m_queue_tail = 1;
+
+    int volatile* curr_distance_grid = m_distance_grid;
+    int* curr_queue = m_queue;
+    int* curr_queue_head = &m_queue_head;
+    int* curr_queue_tail = &m_queue_tail;
+
+    int volatile* next_distance_grid = wall_bfs.m_distance_grid;
+    int* next_queue = wall_bfs.m_queue;
+    int* next_queue_head = &wall_bfs.m_queue_head;
+    int* next_queue_tail = &wall_bfs.m_queue_tail;
+
+    int gnode = getNode(gx, gy, gz);
+
+    // seed the initial queue
+    *curr_queue_head = 0;
+    *curr_queue_tail = 1;
+    curr_queue[0] = gnode;
+    curr_distance_grid[gnode] = 0;
+
+    *next_queue_head = 0;
+    *next_queue_tail = 0;
+
+    int num_iterations = 0;
+
+    while (*curr_queue_head < *curr_queue_tail) {
+        // next_queue and values of cells in next_queue via next_distance_grid
+        // are initialized by this search call
+        search(
+                m_dim_x,
+                m_dim_xy,
+                curr_distance_grid,
+                curr_queue,
+                *curr_queue_head,
+                *curr_queue_tail,
+                next_distance_grid,
+                next_queue,
+                *next_queue_head,
+                *next_queue_tail);
+
+        std::swap(curr_distance_grid, next_distance_grid);
+        std::swap(curr_queue, next_queue);
+        std::swap(curr_queue_head, next_queue_head);
+        std::swap(curr_queue_tail, next_queue_tail);
+        ++num_iterations;
+    }
+
+    ROS_INFO("Computed entire distance field in %d iterations", num_iterations);
+
+    // combine distance fields
+    for (int i = 0; i < m_dim_xyz; ++i) {
+        if (wall_bfs.m_distance_grid[i] != WALL) {
+            m_distance_grid[i] = wall_bfs.m_distance_grid[i];
+        }
+    }
+
+//    // compute connected components
+//    std::vector<int> components(m_dim_xyz, -1);
+//    int comp_count = 0;
+//    for (int i = 0; i < m_dim_xyz; ++i) {
+//        if (isWall(i)) {
+//            continue;
+//        }
+//        if (components[i] == -1) {
+//            auto floodfiller = [&](int node) {
+//                return components[node] = comp_count;
+//            };
+//            visit_free_cells(i, floodfiller);
+//            comp_count++;
+//        }
+//    }
+//
+//    // 1. for each component
+//    // 2.     find the nearest cell to the goal and its distance
+//    // 3.     floodfill distances from nearest cell, adding distance of the
+//    //                nearest cell to the goal
+//    for (int i = 0; i < m_dim_xyz; ++i) {
+//        if (isWall(i)) {
+//            continue;
+//        }
+//
+//        if (m_distance_grid[i] < 0) { // undiscovered
+//            int nearest_dist = -1;
+//            int nearest;
+//            auto find_nearest_to_goal = [&](int node) {
+//                int nx, ny, nz;
+//                getCoord(node, nx, ny, nz);
+//
+//                const int dist_sq =
+//                        (nx - gx) * (nx - gx) +
+//                        (ny - gy) * (ny - gy) +
+//                        (nz - gz) * (nz - gz);
+//
+//                if (nearest_dist == -1) {
+//                    nearest = node;
+//                    nearest_dist = dist_sq;
+//                }
+//                else if (dist_sq < nearest_dist) {
+//                    nearest = node;
+//                    nearest_dist = dist_sq;
+//                }
+//            };
+//            visit_free_cells(i, find_nearest_to_goal);
+//
+//            int origin = nearest;
+//            m_queue_head = 0;
+//            m_queue_tail = 1;
+//            m_queue[0] = origin;
+//            m_distance_grid[origin] = (int)sqrt((double)nearest_dist);
+//            search(
+//                    m_dim_x,
+//                    m_dim_xy,
+//                    m_distance_grid,
+//                    m_queue,
+//                    m_queue_head,
+//                    m_queue_tail);
+//        }
+//    }
 }
 
 template <typename Visitor>
