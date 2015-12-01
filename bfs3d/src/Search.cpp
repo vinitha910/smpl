@@ -8,7 +8,14 @@ namespace sbpl_arm_planner {
         distance_grid[currentNode + offset] = currentCost; \
     }
 
-void BFS_3D::search(int width, int planeSize, int volatile* distance_grid, int* queue, int &queue_head, int &queue_tail) {
+void BFS_3D::search(
+    int width,
+    int planeSize,
+    int volatile* distance_grid,
+    int* queue,
+    int& queue_head,
+    int& queue_tail)
+{
     while (queue_head < queue_tail) {
         int currentNode = queue[queue_head++];
         int currentCost = distance_grid[currentNode] + 1;
@@ -40,7 +47,7 @@ void BFS_3D::search(int width, int planeSize, int volatile* distance_grid, int* 
         EXPAND_NEIGHBOR(width+1-planeSize);
         EXPAND_NEIGHBOR(width-1-planeSize);
     }
-    running = false;
+    m_running = false;
 }
 
 } // namespace sbpl_arm_planner
