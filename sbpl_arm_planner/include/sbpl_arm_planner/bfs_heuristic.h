@@ -9,6 +9,8 @@
 #include <sbpl_arm_planner/environment_robarm3d.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 
+#include <visualization_msgs/MarkerArray.h>
+
 namespace sbpl_arm_planner {
 
 class BfsHeuristic : public Heuristic
@@ -26,6 +28,9 @@ public:
     int GetGoalHeuristic(int state_id);
     int GetStartHeuristic(int state_id);
     int GetFromToHeuristic(int from_id, int to_id);
+
+    visualization_msgs::MarkerArray getWallsVisualization() const;
+    visualization_msgs::MarkerArray getValuesVisualization() const;
 
 private:
 
