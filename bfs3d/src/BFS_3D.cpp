@@ -231,69 +231,6 @@ void BFS_3D::run_components(int gx, int gy, int gz)
             m_distance_grid[i] = wall_bfs.m_distance_grid[i];
         }
     }
-
-//    // compute connected components
-//    std::vector<int> components(m_dim_xyz, -1);
-//    int comp_count = 0;
-//    for (int i = 0; i < m_dim_xyz; ++i) {
-//        if (isWall(i)) {
-//            continue;
-//        }
-//        if (components[i] == -1) {
-//            auto floodfiller = [&](int node) {
-//                return components[node] = comp_count;
-//            };
-//            visit_free_cells(i, floodfiller);
-//            comp_count++;
-//        }
-//    }
-//
-//    // 1. for each component
-//    // 2.     find the nearest cell to the goal and its distance
-//    // 3.     floodfill distances from nearest cell, adding distance of the
-//    //                nearest cell to the goal
-//    for (int i = 0; i < m_dim_xyz; ++i) {
-//        if (isWall(i)) {
-//            continue;
-//        }
-//
-//        if (m_distance_grid[i] < 0) { // undiscovered
-//            int nearest_dist = -1;
-//            int nearest;
-//            auto find_nearest_to_goal = [&](int node) {
-//                int nx, ny, nz;
-//                getCoord(node, nx, ny, nz);
-//
-//                const int dist_sq =
-//                        (nx - gx) * (nx - gx) +
-//                        (ny - gy) * (ny - gy) +
-//                        (nz - gz) * (nz - gz);
-//
-//                if (nearest_dist == -1) {
-//                    nearest = node;
-//                    nearest_dist = dist_sq;
-//                }
-//                else if (dist_sq < nearest_dist) {
-//                    nearest = node;
-//                    nearest_dist = dist_sq;
-//                }
-//            };
-//            visit_free_cells(i, find_nearest_to_goal);
-//
-//            int origin = nearest;
-//            m_queue_head = 0;
-//            m_queue_tail = 1;
-//            m_queue[0] = origin;
-//            m_distance_grid[origin] = (int)sqrt((double)nearest_dist);
-//            search(
-//                    m_dim_x,
-//                    m_dim_xy,
-//                    m_distance_grid,
-//                    m_queue,
-//                    m_queue_head,
-//                    m_queue_tail);
-//        }
-//    }
 }
 
 template <typename Visitor>
