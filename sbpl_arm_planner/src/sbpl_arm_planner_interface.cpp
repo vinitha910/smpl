@@ -813,7 +813,7 @@ bool SBPLArmPlannerInterface::addBfsHeuristic(
     return true;
 }
 
-bool SBPLArmPlannerInterface::removeBfsHeuristic(
+bool SBPLArmPlannerInterface::removeHeuristic(
     const std::string& name)
 {
     auto it = m_heuristics.find(name);

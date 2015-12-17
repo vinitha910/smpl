@@ -133,7 +133,7 @@ public:
         distance_field::PropagationDistanceField* df,
         double radius);
 
-    bool removeBfsHeuristic(const std::string& name);
+    bool removeHeuristic(const std::string& name);
 
     ///@}
 
