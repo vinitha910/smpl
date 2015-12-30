@@ -31,7 +31,7 @@
 #include <sbpl_arm_planner/planning_params.h>
 #include <leatherman/utils.h>
 #include <leatherman/print.h>
- 
+
 namespace sbpl_arm_planner {
 
 const std::string PlanningParams::DefaultExpandsLog = "info";
@@ -95,6 +95,7 @@ bool PlanningParams::init(const std::string& ns)
     ROS_ERROR("Getting params from namespace: %s", nh.getNamespace().c_str());
     /* planning */
     nh.param("planning/epsilon", epsilon_, 10.0);
+    nh.param<std::string>("planning/planner_name", planner_name_, "ARA*");
     nh.param("planning/use_bfs_heuristic", use_bfs_heuristic_, true);
     nh.param("planning/verbose", verbose_, false);
     nh.param("planning/verbose_collisions", verbose_collisions_, false);
@@ -105,7 +106,7 @@ bool PlanningParams::init(const std::string& ns)
     nh.param("planning/seconds_per_waypoint", waypoint_time_, 0.35);
     nh.param<std::string>("planning/planning_frame", planning_frame_, "");
     nh.param<std::string>("planning/group_name", group_name_, "");
-    
+
     /* logging */
     nh.param ("debug/print_out_path", print_path_, true);
     nh.param<std::string>("debug/logging/expands", expands_log_level_, "info");
@@ -114,7 +115,7 @@ bool PlanningParams::init(const std::string& ns)
     nh.param<std::string>("debug/logging/robot_model", rmodel_log_level_, "info");
     nh.param<std::string>("/debug/logging/collisions", cspace_log_level_, "info");
     nh.param<std::string>("debug/logging/solution", solution_log_level_, "info");
-    
+
     /* planning joints */
     XmlRpc::XmlRpcValue xlist;
     nh.getParam("planning/planning_joints", xlist);
@@ -129,7 +130,7 @@ bool PlanningParams::init(const std::string& ns)
         planning_joints_.push_back(jname);
     }
     num_joints_ = planning_joints_.size();
-    
+
     // discretization
     std::string p;
     if (nh.hasParam("planning/discretization")) {
@@ -138,7 +139,7 @@ bool PlanningParams::init(const std::string& ns)
         while (ss >> p) {
             coord_vals_.push_back(atof(p.c_str()));
         }
-    
+
         coord_delta_.resize(coord_vals_.size(), 0);
         for (int i = 0; i < num_joints_; ++i) {
             coord_delta_[i] = (2.0 * M_PI) / coord_vals_[i];
@@ -148,14 +149,14 @@ bool PlanningParams::init(const std::string& ns)
         ROS_ERROR("Discretization of statespace has not been defined.");
         return false;
     }
-    
+
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + expands_log_, expands_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + expands2_log_, expands2_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + solution_log_, solution_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + ik_log_, ik_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + rmodel_log_, rmodel_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + cspace_log_, cspace_log_level_);
-    
+
     return true;
 }
 
