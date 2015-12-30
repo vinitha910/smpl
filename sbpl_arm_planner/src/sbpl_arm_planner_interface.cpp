@@ -166,7 +166,8 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 {
     grid_.reset(new sbpl_arm_planner::OccupancyGrid(df_));
     grid_->setReferenceFrame(prm_.planning_frame_);
-    sbpl_arm_env_.reset(new sbpl_arm_planner::EnvironmentROBARM3D(grid_.get(), rm_, cc_, as_, &prm_));
+    sbpl_arm_env_.reset(new sbpl_arm_planner::EnvironmentROBARM3D(
+            grid_.get(), rm_, cc_, as_, &prm_));
 
     if (!as_->init(sbpl_arm_env_.get(), prm_.use_multiple_ik_solutions_)) {
         ROS_ERROR("Failed to initialize the action set.");
@@ -323,11 +324,13 @@ bool SBPLArmPlannerInterface::checkParams(
     return true;
 }
 
-bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
+bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
 {
     std::vector<double> initial_positions;
     std::vector<std::string> missing;
-    if (!leatherman::getJointPositions(state, prm_.planning_joints_, initial_positions, missing)) {
+    if (!leatherman::getJointPositions(
+            state, prm_.planning_joints_, initial_positions, missing))
+    {
         ROS_ERROR("Start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
     }
@@ -345,7 +348,8 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState &state)
     return true;
 }
 
-bool SBPLArmPlannerInterface::setGoalConfiguration(const moveit_msgs::Constraints& goal_constraints)
+bool SBPLArmPlannerInterface::setGoalConfiguration(
+    const moveit_msgs::Constraints& goal_constraints)
 {
     std::vector<double> sbpl_angle_goal(7, 0);
     std::vector<double> sbpl_angle_tolerance(7,0.05); //~3 degrees tolerance by default
@@ -358,14 +362,22 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(const moveit_msgs::Constraint
         ROS_WARN("%d joint constraints specified! Using the first 7!", (int)goal_constraints.joint_constraints.size());
         return false;
     }
-    for (int i = 0; i < (int)std::min(goal_constraints.joint_constraints.size(), sbpl_angle_goal.size()); i++) {
-        sbpl_angle_goal[i] = goal_constraints.joint_constraints[i].position;
-        sbpl_angle_tolerance[i] = 0.5*abs(goal_constraints.joint_constraints[i].tolerance_above) + 0.5*abs(goal_constraints.joint_constraints[i].tolerance_below);
-        ROS_INFO("Joint %d [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
+
+    const size_t num_angle_constraints = std::min(
+            goal_constraints.joint_constraints.size(), sbpl_angle_goal.size());
+    for (size_t i = 0; i < num_angle_constraints; i++) {
+        const auto& joint_constraint = goal_constraints.joint_constraints[i];
+        sbpl_angle_goal[i] = joint_constraint.position;
+        sbpl_angle_tolerance[i] =
+               0.5 * abs(joint_constraint.tolerance_above) +
+               0.5 * abs(joint_constraint.tolerance_below);
+        ROS_INFO("Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
     }
 
     // set sbpl environment goal
-    if (!sbpl_arm_env_->setGoalConfiguration(sbpl_angle_goal, sbpl_angle_tolerance)) {
+    if (!sbpl_arm_env_->setGoalConfiguration(
+            sbpl_angle_goal, sbpl_angle_tolerance))
+    {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
     }
@@ -490,7 +502,7 @@ bool SBPLArmPlannerInterface::planKinematicPath(
     return true;
 }
 
-bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory &traj)
+bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory& traj)
 {
     ROS_WARN("Planning!!!!!");
     bool b_ret = false;

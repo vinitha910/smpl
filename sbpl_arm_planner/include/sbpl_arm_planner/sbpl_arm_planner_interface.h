@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef _SBPL_ARM_PLANNER_INTERFACE_H_
-#define _SBPL_ARM_PLANNER_INTERFACE_H_
+#ifndef sbpl_arm_planner_SBPLArmPlannerInterface_h
+#define sbpl_arm_planner_SBPLArmPlannerInterface_h
 
 // standard includes
 #include <map>
@@ -172,30 +172,29 @@ protected:
     bool initializeParamsFromParamServer();
 
     // Initialize the SBPL planner and the sbpl_arm_planner environment
-    virtual bool initializePlannerAndEnvironment();
+    bool initializePlannerAndEnvironment();
 
     bool checkParams(const sbpl_arm_planner::PlanningParams& params) const;
 
     // Set start configuration
-    virtual bool setStart(const sensor_msgs::JointState &state);
+    bool setStart(const sensor_msgs::JointState& state);
 
     // Set goal(s)
-    virtual bool setGoalPosition(const moveit_msgs::Constraints &goals);
+    bool setGoalPosition(const moveit_msgs::Constraints& goals);
 
     // use this to set a 7dof goal!
-    virtual bool setGoalConfiguration(
-        const moveit_msgs::Constraints& goal_constraints);
+    bool setGoalConfiguration(const moveit_msgs::Constraints& goal_constraints);
 
     // Plan a path to a cartesian goal(s)
-    virtual bool planToPosition(
-        const moveit_msgs::MotionPlanRequest &req,
-        moveit_msgs::MotionPlanResponse &res);
-    virtual bool planToConfiguration(
-        const moveit_msgs::MotionPlanRequest &req,
-        moveit_msgs::MotionPlanResponse &res);
+    bool planToPosition(
+        const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MotionPlanResponse& res);
+    bool planToConfiguration(
+        const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MotionPlanResponse& res);
 
     // Retrieve plan from sbpl
-    virtual bool plan(trajectory_msgs::JointTrajectory &traj);
+    bool plan(trajectory_msgs::JointTrajectory& traj);
 
     void extractGoalPoseFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,
