@@ -952,8 +952,16 @@ bool SBPLCollisionSpace::voxelizeCone(
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    ROS_ERROR("Voxelization of cones is currently unsupported");
-    return false;
+    const double height = cone.length;
+    const double radius = cone.radius;
+    const double res = grid_->getResolution();
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeCone(
+        radius, height, pose,
+        res, Eigen::Vector3d(ox, oy, oz),
+        voxels, false);
+    return true;
 }
 
 bool SBPLCollisionSpace::voxelizeBox(
@@ -1434,8 +1442,23 @@ bool SBPLCollisionSpace::voxelizeCone(
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    ROS_ERROR("Voxelization of cones is currently unsupported");
-    return false;
+    const double height = cone.dimensions[shape_msgs::SolidPrimitive::CONE_HEIGHT];
+    const double radius = cone.dimensions[shape_msgs::SolidPrimitive::CONE_RADIUS];
+    const double res = grid_->getResolution();
+
+    Eigen::Affine3d eigen_pose;
+    tf::poseMsgToEigen(pose, eigen_pose);
+
+    std::vector<Eigen::Vector3d> sbpl_voxels;
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeCone(
+        radius, height, eigen_pose,
+        res, Eigen::Vector3d(ox, oy, oz),
+        sbpl_voxels, false);
+
+    voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
+    return true;
 }
 
 bool SBPLCollisionSpace::voxelizeMesh(
