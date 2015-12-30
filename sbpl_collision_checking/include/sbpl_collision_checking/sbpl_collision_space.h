@@ -147,8 +147,6 @@ public:
     ///@{
 
     bool processCollisionObject(const moveit_msgs::CollisionObject& object);
-    void getAllCollisionObjectVoxelPoses(
-        std::vector<geometry_msgs::Pose>& poses) const;
 
     ///@}
 
@@ -217,6 +215,7 @@ public:
 private:
 
     typedef collision_detection::World::Object Object;
+    typedef collision_detection::World::ObjectPtr ObjectPtr;
     typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
 
     //////////////////////////////
@@ -225,16 +224,12 @@ private:
 
     sbpl_arm_planner::OccupancyGrid* grid_;
 
+    // set of collision objects
     std::map<std::string, ObjectConstPtr> m_object_map;
 
+    // voxelization of objects in the grid reference frame
     typedef std::vector<Eigen::Vector3d> VoxelList;
     std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
-
-    // set of collision objects
-    std::map<std::string, moveit_msgs::CollisionObject> object_map_;
-
-    // voxelization of objects in the grid reference frame
-    std::map<std::string, std::vector<Eigen::Vector3d>> object_voxel_map_;
 
     ///////////////////////////////
     // Collision Robot Variables //
@@ -282,6 +277,8 @@ private:
     // Generic Shapes //
     ////////////////////
 
+    bool haveObject(const std::string& name) const;
+
     bool checkObjectInsert(const Object& object) const;
     bool checkObjectRemove(const Object& object) const;
     bool checkObjectRemove(const std::string& object_name) const;
@@ -289,7 +286,9 @@ private:
     bool checkObjectInsertShape(const Object& object) const;
     bool checkObjectRemoveShape(const Object& object) const;
 
-    bool voxelizeObject(const Object& object);
+    bool voxelizeObject(
+        const Object& object,
+        std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
     bool voxelizeShape(
         const shapes::Shape& shape,
         const Eigen::Affine3d& pose,
@@ -329,6 +328,9 @@ private:
     // Collision Objects //
     ///////////////////////
 
+    ObjectConstPtr convertCollisionObjectToObject(
+        const moveit_msgs::CollisionObject& object) const;
+
     // return whether or not to accept an incoming collision object
     bool checkCollisionObjectAdd(
         const moveit_msgs::CollisionObject& object) const;
@@ -346,9 +348,15 @@ private:
 
     void removeAllCollisionObjects();
 
-    bool voxelizeCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool voxelizeCollisionObject(
+        const moveit_msgs::CollisionObject& object,
+        std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
 
     // voxelize primitive shapes; functions must append to the output voxels
+    bool voxelizeSolidPrimitive(
+        const shape_msgs::SolidPrimitive& prim,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
     bool voxelizeBox(
         const shape_msgs::SolidPrimitive& box,
         const geometry_msgs::Pose& pose,
@@ -367,6 +375,10 @@ private:
         std::vector<Eigen::Vector3d>& voxels);
     bool voxelizeMesh(
         const shape_msgs::Mesh& mesh,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizePlane(
+        const shape_msgs::Plane& plane,
         const geometry_msgs::Pose& pose,
         std::vector<Eigen::Vector3d>& voxels);
 
@@ -434,10 +446,22 @@ private:
         int num_spheres,
         double& avg_dist,
         double& min_dist);
+
+    ///////////////////
+    // Visualization //
+    ///////////////////
+
+    void getAllCollisionObjectVoxels(
+        std::vector<geometry_msgs::Point>& poses) const;
+
+    visualization_msgs::MarkerArray getWorldObjectMarkerArray(
+        const Object& object,
+        std::vector<double>& hue,
+        const std::string& ns,
+        int id) const;
 };
 
 } // namespace collision
-} // namespace sbpl 
+} // namespace sbpl
 
 #endif
-
