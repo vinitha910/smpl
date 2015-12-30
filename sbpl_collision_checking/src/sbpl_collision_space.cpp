@@ -1133,19 +1133,19 @@ bool SBPLCollisionSpace::voxelizeMesh(
 }
 
 bool SBPLCollisionSpace::isStateValid(
-    const std::vector<double> &angles,
+    const std::vector<double>& angles,
     bool verbose,
     bool visualize,
-    double &dist)
+    double& dist)
 {
     return checkCollision(angles, verbose, visualize, dist);
 }
 
 bool SBPLCollisionSpace::isStateToStateValid(
-    const std::vector<double> &angles0,
-    const std::vector<double> &angles1,
-    int &path_length,
-    int &num_checks,
+    const std::vector<double>& angles0,
+    const std::vector<double>& angles1,
+    int& path_length,
+    int& num_checks,
     double &dist)
 {
     return checkPathForCollision(
@@ -1153,7 +1153,7 @@ bool SBPLCollisionSpace::isStateToStateValid(
 }
 
 bool SBPLCollisionSpace::setPlanningScene(
-    const moveit_msgs::PlanningScene &scene)
+    const moveit_msgs::PlanningScene& scene)
 {
     ROS_INFO("Setting the Planning Scene");
 
@@ -1216,7 +1216,6 @@ bool SBPLCollisionSpace::setPlanningScene(
 
     ROS_INFO("Processing %zd collision objects", scene.world.collision_objects.size());
     for (const moveit_msgs::CollisionObject& collision_object : scene.world.collision_objects) {
-        object_map_[collision_object.id] = collision_object;
         processCollisionObject(collision_object);
     }
 
