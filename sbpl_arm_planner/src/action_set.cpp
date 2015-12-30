@@ -124,7 +124,7 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
     }
 
     if (have_short_dist_mprims) {
-        as.useAmp(MotionPrimitive::SHORT_DISTANCE);
+        as.useAmp(MotionPrimitive::SHORT_DISTANCE, true);
     }
 
     action_set = as;
@@ -448,7 +448,7 @@ bool ActionSet::mprimActive(
             dist_to_goal <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE]);
     }
     else {
-        return m_mprim_enabled[type] && dist_to_goal < m_mprim_thresh[type];
+        return m_mprim_enabled[type] && dist_to_goal <= m_mprim_thresh[type];
     }
 }
 
