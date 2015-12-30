@@ -1019,8 +1019,30 @@ bool SBPLCollisionSpace::voxelizeOcTree(
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    ROS_ERROR("Voxelization of octrees is currently unsupported");
-    return false;
+    const double gres = grid_->getResolution();
+
+    auto tree = octree.octree;
+    for (auto lit = tree->begin_leafs(); lit != tree->end_leafs(); ++lit) {
+        if (tree->isNodeOccupied(*lit)) {
+            if (lit.getSize() <= gres) {
+                voxels.push_back(Eigen::Vector3d(lit.getX(), lit.getY(), lit.getZ()));
+            }
+            else {
+                double ceil_val = ceil(lit.getSize() / gres) * gres;
+                for (double x = lit.getX() - ceil_val; x < lit.getX() + ceil_val; x += gres) {
+                for (double y = lit.getY() - ceil_val; y < lit.getY() + ceil_val; y += gres) {
+                for (double z = lit.getZ() - ceil_val; z < lit.getZ() + ceil_val; z += gres) {
+                    Eigen::Vector3d pt(x, y, z);
+                    pt = pose * pt;
+                    voxels.push_back(pt);
+                }
+                }
+                }
+            }
+        }
+    }
+
+    return true;
 }
 
 SBPLCollisionSpace::ObjectConstPtr
