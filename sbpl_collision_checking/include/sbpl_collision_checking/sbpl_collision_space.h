@@ -43,6 +43,7 @@
 #include <geometry_msgs/Point.h>
 #include <leatherman/bresenham.h>
 #include <leatherman/utils.h>
+#include <moveit/collision_detection/world.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/RobotState.h>
@@ -130,6 +131,18 @@ public:
 
     ///@}
 
+    /// \name Generic Objects
+    ///@{
+
+    bool insertObject(const collision_detection::World::ObjectConstPtr& object);
+    bool removeObject(const collision_detection::World::ObjectConstPtr& object);
+    bool removeObject(const std::string& object_name);
+    bool moveShapes(const collision_detection::World::ObjectConstPtr& object);
+    bool insertShapes(const collision_detection::World::ObjectConstPtr& object);
+    bool removeShapes(const collision_detection::World::ObjectConstPtr& object);
+
+    /// @}
+
     /// \name Collision Objects
     ///@{
 
@@ -203,11 +216,19 @@ public:
 
 private:
 
+    typedef collision_detection::World::Object Object;
+    typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
+
     //////////////////////////////
     // Collision World Variable //
     //////////////////////////////
 
     sbpl_arm_planner::OccupancyGrid* grid_;
+
+    std::map<std::string, ObjectConstPtr> m_object_map;
+
+    typedef std::vector<Eigen::Vector3d> VoxelList;
+    std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
 
     // set of collision objects
     std::map<std::string, moveit_msgs::CollisionObject> object_map_;
@@ -243,7 +264,7 @@ private:
 
     // cached between collision check and visualization
     std::vector<Sphere> collision_spheres_;
-    
+
     ////////////////////
     // Initialization //
     ////////////////////
@@ -257,15 +278,66 @@ private:
     bool updateVoxelGroup(Group* g);
     bool updateVoxelGroup(const std::string& name);
 
+    ////////////////////
+    // Generic Shapes //
+    ////////////////////
+
+    bool checkObjectInsert(const Object& object) const;
+    bool checkObjectRemove(const Object& object) const;
+    bool checkObjectRemove(const std::string& object_name) const;
+    bool checkObjectMoveShape(const Object& object) const;
+    bool checkObjectInsertShape(const Object& object) const;
+    bool checkObjectRemoveShape(const Object& object) const;
+
+    bool voxelizeObject(const Object& object);
+    bool voxelizeShape(
+        const shapes::Shape& shape,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+
+    // voxelize primitive shapes; functions may overwrite the output voxels
+    bool voxelizeSphere(
+        const shapes::Sphere& sphere,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCylinder(
+        const shapes::Cylinder& cylinder,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCone(
+        const shapes::Cone& cone,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeBox(
+        const shapes::Box& box,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizePlane(
+        const shapes::Plane& plane,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeMesh(
+        const shapes::Mesh& mesh,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeOcTree(
+        const shapes::OcTree& octree,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+
     ///////////////////////
     // Collision Objects //
     ///////////////////////
 
     // return whether or not to accept an incoming collision object
-    bool checkCollisionObjectAdd(const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectRemove(const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectAppend(const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectMove(const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectAdd(
+        const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectRemove(
+        const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectAppend(
+        const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectMove(
+        const moveit_msgs::CollisionObject& object) const;
 
     bool addCollisionObject(const moveit_msgs::CollisionObject& object);
     bool removeCollisionObject(const moveit_msgs::CollisionObject& object);
@@ -276,6 +348,7 @@ private:
 
     bool voxelizeCollisionObject(const moveit_msgs::CollisionObject& object);
 
+    // voxelize primitive shapes; functions must append to the output voxels
     bool voxelizeBox(
         const shape_msgs::SolidPrimitive& box,
         const geometry_msgs::Pose& pose,
@@ -349,7 +422,7 @@ private:
         int& num_checks,
         double& dist);
 
-    bool isValidCell(const int x, const int y, const int z, const int radius);
+    bool isValidCell(int x, int y, int z, int radius) const;
 
     double isValidLineSegment(
         const std::vector<int> a,
@@ -362,18 +435,6 @@ private:
         double& avg_dist,
         double& min_dist);
 };
-
-inline bool SBPLCollisionSpace::isValidCell(
-    const int x,
-    const int y,
-    const int z,
-    const int radius)
-{
-    if (grid_->getCell(x,y,z) <= radius) {
-        return false;
-    }
-    return true;
-}
 
 } // namespace collision
 } // namespace sbpl 

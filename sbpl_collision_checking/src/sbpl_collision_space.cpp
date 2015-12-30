@@ -388,6 +388,18 @@ bool SBPLCollisionSpace::checkPathForCollision(
     return true;
 }
 
+inline bool SBPLCollisionSpace::isValidCell(
+    int x,
+    int y,
+    int z,
+    int radius) const
+{
+    if (grid_->getCell(x,y,z) <= radius) {
+        return false;
+    }
+    return true;
+}
+
 double SBPLCollisionSpace::isValidLineSegment(
     const std::vector<int> a,
     const std::vector<int> b,
@@ -481,6 +493,61 @@ SBPLCollisionSpace::getCollisionSpheres(
         }
     }
     return true;
+}
+
+bool SBPLCollisionSpace::insertObject(
+    const collision_detection::World::ObjectConstPtr& object)
+{
+    if (!checkObjectInsert(*object)) {
+        ROS_ERROR("Rejecting addition of collision object '%s'", object->id_.c_str());
+        return false;
+    }
+
+    if (!voxelizeObject(*object)) {
+        ROS_ERROR("Failed to voxelize object '%s'", object->id_.c_str());
+        return false;
+    }
+
+    m_object_map.insert(std::make_pair(object->id_, object));
+
+    auto vit = m_object_voxel_map.find(object->id_);
+    assert(vit != m_object_voxel_map.end());
+
+    for (const auto& voxel_list : vit->second) {
+        ROS_DEBUG("Adding %zu voxels from collision object '%s' to the distance transform", voxel_list.size(), object->id_.c_str());
+        grid_->addPointsToField(voxel_list);
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::removeObject(
+    const collision_detection::World::ObjectConstPtr& object)
+{
+    return false;
+}
+
+bool SBPLCollisionSpace::removeObject(const std::string& object_name)
+{
+    return false;
+}
+
+bool SBPLCollisionSpace::moveShapes(
+    const collision_detection::World::ObjectConstPtr& object)
+{
+    return false;
+}
+
+bool SBPLCollisionSpace::insertShapes(
+    const collision_detection::World::ObjectConstPtr& object)
+{
+    return false;
+}
+
+bool SBPLCollisionSpace::removeShapes(
+    const collision_detection::World::ObjectConstPtr& object)
+{
+    return false;
 }
 
 void SBPLCollisionSpace::removeAttachedObject()
@@ -689,6 +756,237 @@ bool SBPLCollisionSpace::processCollisionObject(
         ROS_ERROR("Collision object operation '%d' is not supported", object.operation);
         return false;
     }
+}
+
+bool SBPLCollisionSpace::checkObjectInsert(const Object& object) const
+{
+    if (m_object_map.find(object.id_) != m_object_map.end()) {
+        ROS_ERROR("Already have collision object '%s'", object.id_.c_str());
+        return false;
+    }
+
+    if (object.shapes_.size() != object.shape_poses_.size()) {
+        ROS_ERROR("Mismatched sizes of shapes and shape poses");
+        return false;
+    }
+
+    return true;
+}
+
+bool SBPLCollisionSpace::checkObjectRemove(const Object& object) const
+{
+    return checkObjectRemove(object.id_);
+}
+
+bool SBPLCollisionSpace::checkObjectRemove(
+    const std::string& object_name) const
+{
+    return m_object_map.find(object_name) != m_object_map.end();
+}
+
+bool SBPLCollisionSpace::checkObjectMoveShape(const Object& object) const
+{
+    return m_object_map.find(object.id_.c_str()) != m_object_map.end();
+}
+
+bool SBPLCollisionSpace::checkObjectInsertShape(const Object& object) const
+{
+    return m_object_map.find(object.id_.c_str()) != m_object_map.end();
+}
+
+bool SBPLCollisionSpace::checkObjectRemoveShape(const Object& object) const
+{
+    return m_object_map.find(object.id_.c_str()) != m_object_map.end();
+}
+
+bool SBPLCollisionSpace::voxelizeObject(const Object& object)
+{
+    if (m_object_voxel_map.find(object.id_) != m_object_voxel_map.end()) {
+        ROS_INFO("Already have voxelization for object '%s'", object.id_.c_str());
+        return true;
+    }
+
+    std::vector<VoxelList> all_voxels;
+    for (size_t i = 0; i < object.shapes_.size(); ++i) {
+        const shapes::ShapeConstPtr& shape = object.shapes_[i];
+        const Eigen::Affine3d& pose = object.shape_poses_[i];
+        std::vector<Eigen::Vector3d> voxels;
+        if (!voxelizeShape(*shape, pose, voxels)) {
+            return false;
+        }
+        all_voxels.push_back(std::move(voxels));
+    }
+
+    auto vit = m_object_voxel_map.insert(
+            std::make_pair(object.id_, std::vector<VoxelList>()));
+    vit.first->second = std::move(all_voxels);
+
+    assert(vit.second);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeShape(
+    const shapes::Shape& shape,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    switch (shape.type) {
+    case shapes::SPHERE: {
+        const shapes::Sphere* sphere =
+                dynamic_cast<const shapes::Sphere*>(&shape);
+        if (!sphere) {
+            return false;
+        }
+        return voxelizeSphere(*sphere, pose, voxels);
+    }   break;
+    case shapes::CYLINDER: {
+        const shapes::Cylinder* cylinder =
+                dynamic_cast<const shapes::Cylinder*>(&shape);
+        if (!cylinder) {
+            return false;
+        }
+        return voxelizeCylinder(*cylinder, pose, voxels);
+    }   break;
+    case shapes::CONE: {
+        const shapes::Cone* cone = dynamic_cast<const shapes::Cone*>(&shape);
+        if (!cone) {
+            return false;
+        }
+        return voxelizeCone(*cone, pose, voxels);
+    }   break;
+    case shapes::BOX: {
+        const shapes::Box* box = dynamic_cast<const shapes::Box*>(&shape);
+        if (!box) {
+            return false;
+        }
+        return voxelizeBox(*box, pose, voxels);
+    }   break;
+    case shapes::PLANE: {
+        const shapes::Plane* plane = dynamic_cast<const shapes::Plane*>(&shape);
+        if (!plane) {
+            return false;
+        }
+        return voxelizePlane(*plane, pose, voxels);
+    }   break;
+    case shapes::MESH: {
+        const shapes::Mesh* mesh = dynamic_cast<const shapes::Mesh*>(&shape);
+        if (!mesh) {
+            return false;
+        }
+        return voxelizeMesh(*mesh, pose, voxels);
+    }   break;
+    case shapes::OCTREE: {
+        const shapes::OcTree* octree =
+                dynamic_cast<const shapes::OcTree*>(&shape);
+        if (!octree) {
+            return false;
+        }
+        return voxelizeOcTree(*octree, pose, voxels);
+    }   break;
+    }
+
+    return false;
+}
+
+bool SBPLCollisionSpace::voxelizeSphere(
+    const shapes::Sphere& sphere,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double radius = sphere.radius;
+    const double res = grid_->getResolution();
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeSphere(
+            radius, pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            voxels, false);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeCylinder(
+    const shapes::Cylinder& cylinder,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double height = cylinder.length;
+    const double radius = cylinder.radius;
+    const double res = grid_->getResolution();
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeCylinder(
+            radius, height, pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            voxels, false);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeCone(
+    const shapes::Cone& cone,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    ROS_ERROR("Voxelization of cones is currently unsupported");
+    return false;
+}
+
+bool SBPLCollisionSpace::voxelizeBox(
+    const shapes::Box& box,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double length = box.size[0];
+    const double width = box.size[1];
+    const double height = box.size[2];
+    const double res = grid_->getResolution();
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeBox(
+            length, width, height, pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            voxels, false);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizePlane(
+    const shapes::Plane& plane,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    ROS_ERROR("Voxelization of planes is currently unsupported");
+    return false;
+}
+
+bool SBPLCollisionSpace::voxelizeMesh(
+    const shapes::Mesh& mesh,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    std::vector<Eigen::Vector3d> vertices(mesh.vertex_count);
+    for (unsigned int i = 0; i < mesh.vertex_count; ++i) {
+        vertices[i] = Eigen::Vector3d(
+                mesh.vertices[3 * i + 0],
+                mesh.vertices[3 * i + 1],
+                mesh.vertices[3 * i + 2]);
+    }
+    std::vector<int> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
+    const double res = grid_->getResolution();
+    double ox, oy, oz;
+    grid_->getOrigin(ox, oy, oz);
+    sbpl::VoxelizeMesh(
+            vertices, indices, pose,
+            res, Eigen::Vector3d(ox, oy, oz),
+            voxels, false);
+    return true;
+}
+
+bool SBPLCollisionSpace::voxelizeOcTree(
+    const shapes::OcTree& octree,
+    const Eigen::Affine3d& pose,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    ROS_ERROR("Voxelization of octrees is currently unsupported");
+    return false;
 }
 
 bool SBPLCollisionSpace::checkCollisionObjectAdd(
@@ -1098,6 +1396,7 @@ bool SBPLCollisionSpace::voxelizeCone(
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
 {
+    ROS_ERROR("Voxelization of cones is currently unsupported");
     return false;
 }
 

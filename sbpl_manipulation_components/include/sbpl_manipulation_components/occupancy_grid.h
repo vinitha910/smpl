@@ -116,7 +116,7 @@ public:
 
     unsigned char getCell(int x, int y, int z) const;
 
-    double getCell(int *xyz) const;
+    double getCell(const int* xyz) const;
 
     double getDistance(int x, int y, int z) const;
 
@@ -257,7 +257,7 @@ unsigned char OccupancyGrid::getCell(int x, int y, int z) const
 }
 
 inline
-double OccupancyGrid::getCell(int *xyz) const
+double OccupancyGrid::getCell(const int* xyz) const
 {
     return grid_->getDistance(xyz[0], xyz[1], xyz[2]);
 }
