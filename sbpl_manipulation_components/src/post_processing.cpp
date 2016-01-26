@@ -123,43 +123,41 @@ bool interpolateTrajectory(
         return false;
     }
 
-    int num_joints = traj[0].positions.size();
+    const size_t num_joints = traj.front().positions.size();
+    for (const auto& pt : traj) {
+        if (pt.positions.size() != num_joints) {
+            ROS_ERROR("Failed to interpolate trajectory. Input trajectory is malformed");
+            return false;
+        }
+    }
+
     std::vector<std::vector<double>> path;
-    std::vector<std::vector<double>> ipath;
     std::vector<double> start(num_joints, 0);
     std::vector<double> end(num_joints, 0);
     std::vector<double> inc(num_joints, 0.069);
 
     // tack on the first point of the trajectory
-    for (size_t j = 0; j < traj[0].positions.size(); ++j) {
-        start[j] = traj[0].positions[j];
-    }
-    path.push_back(start);
+    path.push_back(traj.front().positions);
 
     for (size_t i = 0; i < traj.size() - 1; ++i) {
-        for (size_t j = 0; j < traj[i].positions.size(); ++j) {
-            start[j] = traj[i].positions[j];
-            end[j] = traj[i+1].positions[j];
-        }
-        ipath.clear();
+        start = traj[i].positions;
+        end = traj[i + 1].positions;
 
+        ROS_DEBUG_STREAM("Interpolating between " << start << " and " << end);
+
+        std::vector<std::vector<double>> ipath;
         if (!cc->interpolatePath(start, end, inc, ipath)) {
-            ROS_ERROR("Failed to interpolate between waypoint %d & %d because it's infeasible given the limits.", int(i), int(i+1));
+            ROS_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
         }
 
-        if (ipath.empty()) {
-            ROS_ERROR("Interpolated path between waypoints %d & %d is empty...what's going on?", int(i), int(i+1));
-            return false;
+        if (!ipath.empty()) {
+            // concatenate current path and the intermediate path (we already
+            // have the first waypoint in the path from last iteration)
+            path.insert(path.end(), ipath.begin() + 1, ipath.end());
         }
 
-        // we already have the first waypoint in the path (from last iteration)
-        ipath.erase(ipath.begin());
-
-        // concatenate current path and the intermediate path
-        path.insert(path.end(),ipath.begin(),ipath.end());
-
-        ROS_DEBUG("[%d] path length: %d", int(i), int(path.size()));
+        ROS_DEBUG("[%zu] path length: %zu", i, path.size());
     }
 
     traj_out.resize(path.size());

@@ -792,8 +792,9 @@ void EnvironmentROBARM3D::StateID2Angles(
     }
 
     for (size_t i = 0; i < angles.size(); i++) {
-        if(angles[i] >= M_PI)
-        angles[i] = -2.0*M_PI + angles[i];
+        if (angles[i] >= M_PI) {
+            angles[i] = -2.0 * M_PI + angles[i];
+        }
     }
 }
 
@@ -913,8 +914,9 @@ bool EnvironmentROBARM3D::convertStateIDPathToJointTrajectory(
         traj.points[i].positions.resize(prm_->num_joints_);
         StateID2Angles(idpath[i], angles);
 
-        for (int p = 0; p < prm_->num_joints_; ++p)
-        traj.points[i].positions[p] = angles::normalize_angle(angles[p]);
+        for (int p = 0; p < prm_->num_joints_; ++p) {
+            traj.points[i].positions[p] = angles::normalize_angle(angles[p]);
+        }
     }
     return true;
 }
