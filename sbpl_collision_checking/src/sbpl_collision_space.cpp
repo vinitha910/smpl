@@ -168,9 +168,6 @@ bool SBPLCollisionSpace::checkCollision(
         collision_spheres_.clear();
     }
 
-    // TODO: check self collisions against other spheres on the robot, utilizing
-    // an allowed-collision-matrix
-
     // compute foward kinematics
     if (!model_.computeDefaultGroupFK(angles, frames_)) {
         ROS_ERROR("[cspace] Failed to compute foward kinematics.");
@@ -260,7 +257,44 @@ bool SBPLCollisionSpace::checkCollision(
 
     // check self collisions
 
-    if (visualize && in_collision) {
+    // remember self collision, in case we're gathering visualization
+    bool self_collision = false;
+    for (size_t sidx1 = 0; sidx1 < spheres_.size(); ++sidx1) {
+        const Sphere* sphere1 = spheres_[sidx1];
+        KDL::Vector v1 = frames_[sphere1->kdl_chain][sphere1->kdl_segment] * sphere1->v;
+        for (size_t sidx2 = sidx1 + 1; sidx2 < spheres_.size(); ++sidx2) {
+            const Sphere* sphere2 = spheres_[sidx2];
+            KDL::Vector v2 = frames_[sphere2->kdl_chain][sphere2->kdl_segment] * sphere2->v;
+
+            const double dx = v2.x() - v1.x();
+            const double dy = v2.y() - v1.y();
+            const double dz = v2.z() - v1.z();
+
+            const double radius_combined = sphere1->radius + sphere2->radius;
+            if (dx * dx + dy * dy + dz * dz <= radius_combined * radius_combined) {
+                collision_detection::AllowedCollision::Type type;
+                if (!m_acm.getEntry(sphere1->name, sphere2->name, type)) {
+                    ROS_ERROR("An allowed collisions entry wasn't found for a collision sphere");
+                }
+                if (type == collision_detection::AllowedCollision::NEVER) {
+                    if (visualize) {
+                        self_collision = true;
+                        Sphere s1 = *sphere1;
+                        s1.v = v1;
+                        Sphere s2 = *sphere2;
+                        s2.v = v2;
+                        collision_spheres_.push_back(s1);
+                        collision_spheres_.push_back(s2);
+                    }
+                    else {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    if (visualize && (in_collision || self_collision)) {
         return false;
     }
 
