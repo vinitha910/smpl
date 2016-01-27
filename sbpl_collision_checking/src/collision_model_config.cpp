@@ -285,7 +285,7 @@ bool CollisionModelConfig::Load(
     nh.getParam(groups_param_name, all_groups);
 
     if (all_groups.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_WARN("Groups is not an array");
+        ROS_WARN("param '%s' is not an array", groups_param_name.c_str());
         return false;
     }
 
@@ -308,8 +308,47 @@ bool CollisionModelConfig::Load(
 
     // TODO: check references to spheres in collision_groups?
 
+    const std::string acm_param_name = "allowed_collisions";
+    collision_detection::AllowedCollisionMatrix acm;
+    if (nh.hasParam(acm_param_name)) {
+        XmlRpc::XmlRpcValue all_entries;
+        nh.getParam(acm_param_name, all_entries);
+
+        if (all_entries.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+            ROS_WARN("param '%s' is not an array", acm_param_name.c_str());
+            return false;
+        }
+
+        for (int i = 0; i < all_entries.size(); ++i) {
+            XmlRpc::XmlRpcValue& entry_config = all_entries[i];
+            if (entry_config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
+                ROS_WARN("Allowed collision entry is not a struct");
+                return false;
+            }
+
+            if (!entry_config.hasMember("sphere1") || !entry_config.hasMember("sphere2")) {
+                ROS_WARN("Allowed collision entry is missing 'sphere1' or 'sphere2' fields");
+                return false;
+            }
+
+            if (entry_config["sphere1"].getType() != XmlRpc::XmlRpcValue::TypeString ||
+                entry_config["sphere2"].getType() != XmlRpc::XmlRpcValue::TypeString)
+            {
+                ROS_WARN("'sphere1' and 'sphere2' fields must be strings");
+                return false;
+            }
+
+            std::string sphere1_value = entry_config["sphere1"];
+            std::string sphere2_value = entry_config["sphere2"];
+            acm.setEntry(sphere1_value, sphere2_value, true);
+        }
+    }
+
+    // TODO: check references to spheres?
+
     cfg.collision_groups = std::move(collision_groups_config);
     cfg.collision_spheres = std::move(collision_spheres_config);
+    cfg.acm = acm;
     return true;
 }
 

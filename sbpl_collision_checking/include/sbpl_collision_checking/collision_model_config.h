@@ -37,6 +37,7 @@
 #include <string>
 #include <vector>
 
+#include <moveit/collision_detection/collision_matrix.h>
 #include <ros/ros.h>
 
 namespace sbpl {
@@ -83,6 +84,7 @@ struct CollisionModelConfig
 {
     std::vector<CollisionGroupConfig> collision_groups;
     std::vector<CollisionSphereConfig> collision_spheres;
+    collision_detection::AllowedCollisionMatrix acm;
 
     static bool Load(const ros::NodeHandle& nh, CollisionModelConfig& cfg);
 };

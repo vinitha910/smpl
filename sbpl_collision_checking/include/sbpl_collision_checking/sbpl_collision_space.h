@@ -44,6 +44,7 @@
 #include <leatherman/bresenham.h>
 #include <leatherman/utils.h>
 #include <moveit/collision_detection/world.h>
+#include <moveit/collision_detection/collision_matrix.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/RobotState.h>
@@ -115,6 +116,10 @@ public:
 
     const std::string& getGroupName() const { return group_name_; }
 
+    /// \name Collision Robot Model
+    ///@{
+    ///@}
+
     /// \name Collision Robot State
     ///@{
 
@@ -128,6 +133,19 @@ public:
     bool getCollisionSpheres(
         const std::vector<double>& angles,
         std::vector<std::vector<double>>& spheres);
+
+    ///@}
+
+    /// \name Self Collisions
+    ///@{
+
+    const collision_detection::AllowedCollisionMatrix&
+    allowedCollisionMatrix() const;
+
+    void setAllowedCollisionMatrix(
+        const collision_detection::AllowedCollisionMatrix& acm);
+
+    bool updateVoxelGroups();
 
     ///@}
 
@@ -205,22 +223,15 @@ public:
 
     ///@}
 
-    /// \name Self Collision
-    ///@{
-
-    bool updateVoxelGroups();
-
-    ///@}
-
 private:
 
     typedef collision_detection::World::Object Object;
     typedef collision_detection::World::ObjectPtr ObjectPtr;
     typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
 
-    //////////////////////////////
-    // Collision World Variable //
-    //////////////////////////////
+    ///////////////////////////////
+    // Collision World Variables //
+    ///////////////////////////////
 
     sbpl_arm_planner::OccupancyGrid* grid_;
 
@@ -246,6 +257,8 @@ private:
     std::vector<const Sphere*> spheres_; // temp
     std::vector<std::vector<KDL::Frame>> frames_; // temp
 
+    collision_detection::AllowedCollisionMatrix m_acm;
+
     ////////////////////////////////
     // Attached Objects Varibles //
     ////////////////////////////////
@@ -270,6 +283,11 @@ private:
     // Self Collision //
     ////////////////////
 
+    void initAllowedCollisionMatrix(const CollisionModelConfig& config);
+    bool findAttachedLink(
+        const CollisionModelConfig& config,
+        const std::string& sphere,
+        std::string& link_name) const;
     bool updateVoxelGroup(Group* g);
     bool updateVoxelGroup(const std::string& name);
 

@@ -61,6 +61,7 @@ SBPLCollisionSpace::SBPLCollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
     continuous_(),
     spheres_(),
     frames_(),
+    m_acm(),
     object_attached_(false),
     attached_object_frame_num_(),
     attached_object_segment_num_(),
@@ -124,6 +125,9 @@ bool SBPLCollisionSpace::init(
         ROS_ERROR("[cspace] The robot's collision model failed to initialize.");
         return false;
     }
+
+    initAllowedCollisionMatrix(config);
+    m_acm.print(std::cout);
 
     std::vector<std::string> group_names;
     model_.getGroupNames(group_names);
@@ -254,6 +258,8 @@ bool SBPLCollisionSpace::checkCollision(
         }
     }
 
+    // check self collisions
+
     if (visualize && in_collision) {
         return false;
     }
@@ -261,32 +267,105 @@ bool SBPLCollisionSpace::checkCollision(
     return true;
 }
 
-bool SBPLCollisionSpace::updateVoxelGroups()
-{
-    grid_->reset();
-    for (const auto& entry : m_object_voxel_map) {
-        for (const auto& voxel_list : entry.second) {
-            grid_->addPointsToField(voxel_list);
-        }
-    }
-
-    bool ret = true;
-    std::vector<Group*> vg;
-    model_.getVoxelGroups(vg);
-
-    for (size_t i = 0; i < vg.size(); ++i) {
-        if (!updateVoxelGroup(vg[i])) {
-            ROS_ERROR("Failed to update the '%s' voxel group.", vg[i]->getName().c_str());
-            ret = false;
-        }
-    }
-    return ret;
-}
-
 bool SBPLCollisionSpace::updateVoxelGroup(const std::string& name)
 {
     Group* g = model_.getGroup(name);
     return updateVoxelGroup(g);
+}
+
+void SBPLCollisionSpace::initAllowedCollisionMatrix(
+    const CollisionModelConfig& config)
+{
+    for (size_t i = 0; i < config.collision_spheres.size(); ++i) {
+        const std::string& sphere1 = config.collision_spheres[i].name;
+        std::string link1;
+        if (!findAttachedLink(config, sphere1, link1)) {
+            continue;
+        }
+
+        if (!m_acm.hasEntry(sphere1)) {
+            ROS_INFO("Adding entry '%s' to the ACM", sphere1.c_str());
+            m_acm.setEntry(sphere1, false);
+        }
+
+        for (size_t j = i + 1; j < config.collision_spheres.size(); ++j) {
+            const std::string& sphere2 = config.collision_spheres[j].name;
+            std::string link2;
+            if (!findAttachedLink(config, sphere2, link2)) {
+                continue;
+            }
+
+            if (!m_acm.hasEntry(sphere2)) {
+                ROS_INFO("Adding entry '%s' to the ACM", sphere2.c_str());
+                m_acm.setEntry(sphere2, false);
+            }
+
+            if (link1 == link2) {
+                ROS_INFO("Spheres '%s' and '%s' attached to the same link...allowing collision", sphere1.c_str(), sphere2.c_str());
+                assert(m_acm.hasEntry(sphere1, sphere2));
+                m_acm.setEntry(sphere1, sphere2, true);
+            }
+        }
+    }
+
+    // add in additional allowed collisions from config
+    std::vector<std::string> config_entries;
+    config.acm.getAllEntryNames(config_entries);
+    for (size_t i = 0; i < config_entries.size(); ++i) {
+        const std::string& entry1 = config_entries[i];
+        if (!m_acm.hasEntry(entry1)) {
+            ROS_WARN("Configured allowed collision entry '%s' was not found in the collision model", entry1.c_str());
+            continue;
+        }
+        for (size_t j = i; j < config_entries.size(); ++j) {
+            const std::string& entry2 = config_entries[j];
+            if (!m_acm.hasEntry(entry2)) {
+                ROS_WARN("Configured allowed collision entry '%s' was not found in the collision model", entry2.c_str());
+                continue;
+            }
+
+            if (!config.acm.hasEntry(entry1, entry2)) {
+                continue;
+            }
+
+            collision_detection::AllowedCollision::Type type;
+            config.acm.getEntry(entry1, entry2, type);
+            switch (type) {
+            case collision_detection::AllowedCollision::NEVER:
+                // NOTE: not that it matters, but this disallows config freeing
+                // collisions
+                break;
+            case collision_detection::AllowedCollision::ALWAYS:
+                ROS_INFO("Configuration allows spheres '%s' and '%s' to be in collision", entry1.c_str(), entry2.c_str());
+                m_acm.setEntry(entry1, entry2, true);
+                break;
+            case collision_detection::AllowedCollision::CONDITIONAL:
+                ROS_WARN("Conditional collisions not supported in SBPL Collision Detection");
+                break;
+            }
+        }
+    }
+}
+
+bool SBPLCollisionSpace::findAttachedLink(
+    const CollisionModelConfig& config,
+    const std::string& sphere,
+    std::string& link_name) const
+{
+    for (const auto& group : config.collision_groups) {
+        for (const auto& collision_link : group.collision_links) {
+            auto it = std::find(
+                    collision_link.spheres.begin(),
+                    collision_link.spheres.end(),
+                    sphere);
+            if (it != collision_link.spheres.end()) {
+                link_name = collision_link.name;
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 bool SBPLCollisionSpace::updateVoxelGroup(Group* g)
@@ -496,6 +575,34 @@ SBPLCollisionSpace::getCollisionSpheres(
         }
     }
     return true;
+}
+
+void SBPLCollisionSpace::setAllowedCollisionMatrix(
+    const collision_detection::AllowedCollisionMatrix& acm)
+{
+    m_acm = acm;
+}
+
+bool SBPLCollisionSpace::updateVoxelGroups()
+{
+    grid_->reset();
+    for (const auto& entry : m_object_voxel_map) {
+        for (const auto& voxel_list : entry.second) {
+            grid_->addPointsToField(voxel_list);
+        }
+    }
+
+    bool ret = true;
+    std::vector<Group*> vg;
+    model_.getVoxelGroups(vg);
+
+    for (size_t i = 0; i < vg.size(); ++i) {
+        if (!updateVoxelGroup(vg[i])) {
+            ROS_ERROR("Failed to update the '%s' voxel group.", vg[i]->getName().c_str());
+            ret = false;
+        }
+    }
+    return ret;
 }
 
 bool SBPLCollisionSpace::insertObject(
