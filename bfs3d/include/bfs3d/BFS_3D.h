@@ -24,7 +24,7 @@ public:
     void getDimensions(int* length, int* width, int* height);
 
     void setWall(int x, int y, int z);
-    bool isWall(int x, int y, int z);
+
 
     // \brief Clear cells around a given cell until freespace is encountered.
     //
@@ -38,12 +38,21 @@ public:
     void run(int x, int y, int z);
     void run_components(int gx, int gy, int gz);
 
-    /// \brief Return the distance, in cells, to the nearest occupied cell
+    /// \brief Return the distance, in cells, to the nearest occupied cell.
     ///
-    /// This function is blocking if the bfs is being computed in parallel and
-    /// a value has not yet been computed for this cell.
+    /// This function is blocking if the BFS is running in parallel and a value
+    /// has not yet been computed for this cell.
     int getDistance(int x, int y, int z) const;
+
+    /// \brief Return whether this cell has been discovered.
+    ///
+    /// This function is blocking if the BFS is running. Once the BFS has
+    /// finished, this function will return true for cells that are isolated
+    /// from the region of the grid containing the start cell.
+    bool isUndiscovered(int x, int y, int z) const;
+
     int getNearestFreeNodeDist(int x, int y, int z);
+    bool isWall(int x, int y, int z) const;
 
     bool isRunning() const { return m_running; }
 

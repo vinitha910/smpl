@@ -17,7 +17,6 @@ BFS_3D::BFS_3D(int width, int height, int length) :
     m_distances()
 {
     if (width <= 0 || height <= 0 || length <= 0) {
-        //error "Invalid dimensions"
         return;
     }
 
@@ -80,8 +79,12 @@ BFS_3D::~BFS_3D()
 {
     m_search_thread.join();
 
-    delete[] m_distance_grid;
-    delete[] m_queue;
+    if (m_distance_grid) {
+        delete[] m_distance_grid;
+    }
+    if (m_queue) {
+        delete[] m_queue;
+    }
 }
 
 void BFS_3D::getDimensions(int* width, int* height, int* length)
@@ -102,10 +105,17 @@ void BFS_3D::setWall(int x, int y, int z)
     m_distance_grid[node] = WALL;
 }
 
-bool BFS_3D::isWall(int x, int y, int z)
+bool BFS_3D::isWall(int x, int y, int z) const
 {
     int node = getNode(x, y, z);
     return m_distance_grid[node] == WALL;
+}
+
+bool BFS_3D::isUndiscovered(int x, int y, int z) const
+{
+    int node = getNode(x, y, z);
+    while (m_running && m_distance_grid[node] < 0);
+    return m_distance_grid[node] == UNDISCOVERED;
 }
 
 void BFS_3D::run(int x, int y, int z)
@@ -323,8 +333,6 @@ int BFS_3D::getDistance(int x, int y, int z) const
 
 int BFS_3D::getNearestFreeNodeDist(int x, int y, int z)
 {
-//    ROS_INFO("Get Nearest Free Node Dist (%d, %d, %d)", x, y, z);
-
     // initialize closed set and distances
     m_closed.assign(m_dim_xyz, false);
     m_distances.assign(m_dim_xyz, -1);
@@ -347,8 +355,6 @@ int BFS_3D::getNearestFreeNodeDist(int x, int y, int z)
         // extract the index of this cell
         n = getNode(nx, ny, nz);
 
-//        ROS_INFO("Expanding %d (%zu in OPEN)", n, q.size());
-
         // mark as visited
         m_closed[n] = true;
 
@@ -363,7 +369,6 @@ int BFS_3D::getNearestFreeNodeDist(int x, int y, int z)
                 ROS_INFO("Encountered isolated cell, m_running: %s", m_running ? "true" : "false");
             }
             else {
-//                ROS_INFO("Returning distance of %d", dist + cell_dist);
                 return dist + cell_dist;
             }
         }
