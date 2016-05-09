@@ -111,7 +111,6 @@ bool BFS_3D::isWall(int x, int y, int z)
 void BFS_3D::run(int x, int y, int z)
 {
     if (m_running) {
-        //error "Search already running"
         return;
     }
 
