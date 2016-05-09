@@ -751,15 +751,15 @@ bool EnvironmentROBARM3D::setGoalPosition(
     int dimX, dimY, dimZ;
     grid_->getGridSize(dimX, dimY, dimZ);
     int walls = 0;
-    for (int z = 0; z < dimZ - 2; z++) {
-        for (int y = 0; y < dimY - 2; y++) {
-            for (int x = 0; x < dimX - 2; x++) {
+    // starting with z...since z is the major index used in the bfs
+    for (int z = 0; z < dimZ; z++) {
+        for (int y = 0; y < dimY; y++) {
+            for (int x = 0; x < dimX; x++) {
                 if (grid_->getDistance(x, y, z) <=
                     prm_->planning_link_sphere_radius_)
                 {
-                    // TODO ANDREW: why?
-                    bfs_->setWall(x + 1, y + 1, z + 1);
-                    walls++;
+                    bfs_->setWall(x, y, z);
+                    ++walls;
                 }
             }
         }
@@ -985,10 +985,10 @@ EnvironmentROBARM3D::getBfsWallsVisualization() const
     geometry_msgs::Point p;
     int dimX, dimY, dimZ;
     grid_->getGridSize(dimX, dimY, dimZ);
-    for (int z = 0; z < dimZ - 2; z++) {
-        for (int y = 0; y < dimY - 2; y++) {
-            for (int x = 0; x < dimX - 2; x++) {
-                if (bfs_->isWall(x+1, y+1, z+1)) {
+    for (int z = 0; z < dimZ; z++) {
+        for (int y = 0; y < dimY; y++) {
+            for (int x = 0; x < dimX; x++) {
+                if (bfs_->isWall(x, y, z)) {
                     grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
                     pnts.push_back(p);
                 }
@@ -1009,15 +1009,26 @@ EnvironmentROBARM3D::getBfsValuesVisualization() const
     p.orientation.w = 1.0;
     int dimX, dimY, dimZ;
     grid_->getGridSize(dimX, dimY, dimZ);
-    for (int z = 65; z < 100 - 2; z++) {
-        for (int y = 50; y < 100 - 2; y++) {
-            for (int x = 65; x < 100 - 2; x++) {
-                int d = bfs_->getDistance(x+1, y+1, z+1);
-                if (d < 10000) {
-                    grid_->gridToWorld(x, y, z, p.position.x, p.position.y, p.position.z);
-                    double hue = d / 30.0 * 300;
-                    ma.markers.push_back(viz::getTextMarker(p, boost::lexical_cast<std::string>(d), 0.009, hue, grid_->getReferenceFrame(), "bfs_values", ma.markers.size()));
+    for (int z = 0; z < dimZ; ++z) {
+        for (int y = 0; y < dimY; ++y) {
+            for (int x = 0; x < dimX; ++x) {
+                // skip cells without valid distances from the start
+                if (bfs_->isWall(x, y, z) || bfs_->isUndiscovered(x, y, z)) {
+                    continue;
                 }
+
+                int d = bfs_->getDistance(x, y, z);
+                grid_->gridToWorld(
+                        x, y, z, p.position.x, p.position.y, p.position.z);
+                double hue = d / 30.0 * 300;
+                ma.markers.push_back(viz::getTextMarker(
+                        p,
+                        boost::lexical_cast<std::string>(d),
+                        0.009,
+                        hue,
+                        grid_->getReferenceFrame(),
+                        "bfs_values",
+                        ma.markers.size()));
             }
         }
     }
