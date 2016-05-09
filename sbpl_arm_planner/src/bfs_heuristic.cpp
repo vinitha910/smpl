@@ -38,45 +38,10 @@ bool BfsHeuristic::setGoal(int x, int y, int z)
 {
     ROS_INFO("Setting the BFS Heuristic goal (%d, %d, %d)", x, y, z);
 
-    if (!m_bfs->inBounds(x, y, z)) {
-        ROS_ERROR("BFS goal is out of bounds");
+    if (!m_bfs->escapeCell(x, y, z)) {
+        ROS_ERROR("BFS goal is out of bounds or couldn't be freed");
         return false;
     }
-
-    // clear cells until the goal connects to a free cell
-    int escape_count = 0;
-    std::queue<int> q;
-    q.push(m_bfs->getNode(x, y, z));
-    bool escaped = false;
-
-    int length, width, height;
-    m_bfs->getDimensions(&length, &width, &height);
-    std::vector<bool> visited((length + 2) * (width + 2) * (height + 2), false);
-
-    while (!q.empty()) {
-        int n = q.front();
-        q.pop();
-
-        visited[n] = true;
-
-        // goal condition
-        if (!m_bfs->isWall(n)) {
-            break;
-        }
-
-        m_bfs->unsetWall(n);
-
-        for (int i = 0; i < 26; ++i) {
-            int neighbor = m_bfs->neighbor(n, i);
-            if (!visited[neighbor]) {
-                q.push(neighbor);
-            }
-        }
-
-        ++escape_count;
-    }
-
-    ROS_INFO("Escaped goal cell in %d expansions", escape_count);
 
     m_bfs->run_components(x, y, z);
     ROS_INFO(" -> Running");

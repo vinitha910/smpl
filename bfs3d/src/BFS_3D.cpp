@@ -232,6 +232,52 @@ void BFS_3D::run_components(int gx, int gy, int gz)
     }
 }
 
+bool BFS_3D::escapeCell(int x, int y, int z)
+{
+    if (!inBounds(x, y, z)) {
+        ROS_ERROR("BFS goal is out of bounds");
+        return false;
+    }
+
+    // clear cells until the goal connects to a free cell
+    int escape_count = 0;
+    std::queue<int> q;
+    q.push(getNode(x, y, z));
+    bool escaped = false;
+
+    int length, width, height;
+    getDimensions(&length, &width, &height);
+    std::vector<bool> visited((length + 2) * (width + 2) * (height + 2), false);
+
+    while (!q.empty()) {
+        int n = q.front();
+        q.pop();
+
+        visited[n] = true;
+
+        // goal condition
+        if (!isWall(n)) {
+            break;
+        }
+
+        unsetWall(n);
+
+        for (int i = 0; i < 26; ++i) {
+            int neighbor = this->neighbor(n, i);
+            if (!visited[neighbor]) {
+                q.push(neighbor);
+            }
+        }
+
+        ++escape_count;
+    }
+
+    ROS_INFO("Escaped goal cell in %d expansions", escape_count);
+
+    // TODO: return false if no free cells (escape_count == width * height * depth?)
+    return true;
+}
+
 template <typename Visitor>
 void BFS_3D::visit_free_cells(int node, const Visitor& visitor)
 {
@@ -268,7 +314,7 @@ void BFS_3D::visit_free_cells(int node, const Visitor& visitor)
     }
 }
 
-int BFS_3D::getDistance(int x, int y, int z)
+int BFS_3D::getDistance(int x, int y, int z) const
 {
     int node = getNode(x, y, z);
     while (m_running && m_distance_grid[node] < 0);

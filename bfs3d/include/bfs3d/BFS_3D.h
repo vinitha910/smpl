@@ -26,28 +26,24 @@ public:
     void setWall(int x, int y, int z);
     bool isWall(int x, int y, int z);
 
+    // \brief Clear cells around a given cell until freespace is encountered.
+    //
+    // Clear cells around a given cell, in bfs-fashion, until a path has been
+    // made to an existing free cell.
+    //
+    // \return false if out of bounds or if there are no free cells, true
+    //         otherwise
+    bool escapeCell(int x, int y, int z);
+
     void run(int x, int y, int z);
     void run_components(int gx, int gy, int gz);
 
-    int getDistance(int x, int y, int z);
-
-    bool inBounds(int x, int y, int z) const;
-
-    int getNode(int x, int y, int z) const;
-
-    bool getCoord(int node, int& x, int& y, int& z) const;
-
+    /// \brief Return the distance, in cells, to the nearest occupied cell
+    ///
+    /// This function is blocking if the bfs is being computed in parallel and
+    /// a value has not yet been computed for this cell.
+    int getDistance(int x, int y, int z) const;
     int getNearestFreeNodeDist(int x, int y, int z);
-
-    void setWall(int node) const;
-
-    void unsetWall(int node) const;
-
-    bool isWall(int node) const;
-
-    int isUndiscovered(int node) const;
-
-    int neighbor(int node, int neighbor) const;
 
     bool isRunning() const { return m_running; }
 
@@ -72,6 +68,15 @@ private:
     int m_neighbor_offsets[26];
     std::vector<bool> m_closed;
     std::vector<int> m_distances;
+
+    bool inBounds(int x, int y, int z) const;
+    int getNode(int x, int y, int z) const;
+    bool getCoord(int node, int& x, int& y, int& z) const;
+    void setWall(int node);
+    void unsetWall(int node);
+    bool isWall(int node) const;
+    int isUndiscovered(int node) const;
+    int neighbor(int node, int neighbor) const;
 
     void search(
         int width,
@@ -127,12 +132,12 @@ inline bool BFS_3D::getCoord(int node, int& x, int& y, int& z) const
     return true;
 }
 
-inline void BFS_3D::setWall(int node) const
+inline void BFS_3D::setWall(int node)
 {
     m_distance_grid[node] = WALL;
 }
 
-inline void BFS_3D::unsetWall(int node) const
+inline void BFS_3D::unsetWall(int node)
 {
     m_distance_grid[node] = UNDISCOVERED;
 }
