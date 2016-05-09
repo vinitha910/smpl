@@ -51,7 +51,7 @@ EnvironmentROBARM3D::EnvironmentROBARM3D(
     PlanningParams* pm)
 :
     DiscreteSpaceInformation(),
-    bfs_(NULL),
+    bfs_(),
     nh_(),
     m_initialized(false)
 {
@@ -75,10 +75,6 @@ EnvironmentROBARM3D::EnvironmentROBARM3D(
 
 EnvironmentROBARM3D::~EnvironmentROBARM3D()
 {
-    if (bfs_ != NULL) {
-        delete bfs_;
-    }
-
     for (size_t i = 0; i < pdata_.StateID2CoordTable.size(); i++) {
         delete pdata_.StateID2CoordTable.at(i);
         pdata_.StateID2CoordTable.at(i) = NULL;
@@ -495,9 +491,9 @@ bool EnvironmentROBARM3D::initEnvironment()
     int dimX, dimY, dimZ;
     grid_->getGridSize(dimX, dimY, dimZ);
     ROS_INFO("Initializing BFS of size %d x %d x %d = %d", dimX, dimY, dimZ, dimX * dimY * dimZ);
-    bfs_ = new BFS_3D(dimX, dimY, dimZ);
+    bfs_.reset(new BFS_3D(dimX, dimY, dimZ));
 
-    //set heuristic function pointer
+    // set heuristic function pointer
     getHeuristic_ = &sbpl_arm_planner::EnvironmentROBARM3D::getXYZHeuristic;
 
     //set 'environment is initialized' flag
@@ -733,7 +729,13 @@ bool EnvironmentROBARM3D::setGoalPosition(
     pdata_.goal.type = goals[0][6];
 
     // set goal hash entry
-    grid_->worldToGrid(goals[0][0], goals[0][1], goals[0][2], pdata_.goal_entry->xyz[0],pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2]);
+    grid_->worldToGrid(
+            goals[0][0],
+            goals[0][1],
+            goals[0][2],
+            pdata_.goal_entry->xyz[0],
+            pdata_.goal_entry->xyz[1],
+            pdata_.goal_entry->xyz[2]);
 
     for (int i = 0; i < prm_->num_joints_; i++) {
         pdata_.goal_entry->coord[i] = 0;
@@ -766,7 +768,10 @@ bool EnvironmentROBARM3D::setGoalPosition(
     double set_walls_time = (ros::WallTime::now() - start).toSec();
     ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))", set_walls_time, walls, double(walls)/double(dimX*dimY*dimZ));
 
-    if ((pdata_.goal_entry->xyz[0] < 0) || (pdata_.goal_entry->xyz[1] < 0) || (pdata_.goal_entry->xyz[2] < 0)) {
+    if (pdata_.goal_entry->xyz[0] < 0 || pdata_.goal_entry->xyz[0] >= dimX ||
+        pdata_.goal_entry->xyz[1] < 0 || pdata_.goal_entry->xyz[1] >= dimY ||
+        pdata_.goal_entry->xyz[2] < 0 || pdata_.goal_entry->xyz[2] >= dimZ)
+    {
         ROS_ERROR("Goal is out of bounds. Can't run BFS with {%d %d %d} as start.", pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2]);
         return false;
     }

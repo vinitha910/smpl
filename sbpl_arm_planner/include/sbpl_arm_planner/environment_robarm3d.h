@@ -33,8 +33,9 @@
 #define _ENVIRONMENT_ROBARM3D_H_
 
 #include <time.h>
-#include <vector>
+#include <memory>
 #include <string>
+#include <vector>
 #include <angles/angles.h>
 #include <bfs3d/BFS_3D.h>
 #include <sbpl/sbpl_exception.h>
@@ -236,7 +237,7 @@ protected:
     OccupancyGrid *grid_;
     RobotModel *rmodel_;
     CollisionChecker *cc_;
-    BFS_3D *bfs_;
+    std::unique_ptr<BFS_3D> bfs_;
     ActionSet *as_;
 
     // cached from robot model
