@@ -1,4 +1,4 @@
-add_library(bfs3d src/BFS_3D.cpp src/Search.cpp)
+add_library(bfs3d src/BFS_3D.cpp)
 target_link_libraries(bfs3d ${catkin_LIBRARIES})
 
 install(
