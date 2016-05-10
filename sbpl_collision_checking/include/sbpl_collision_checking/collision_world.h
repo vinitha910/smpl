@@ -38,8 +38,8 @@
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 
-#ifndef sbpl_manip_collision_world_h
-#define sbpl_manip_collision_world_h
+#ifndef sbpl_collision_collision_world_h
+#define sbpl_collision_collision_world_h
 
 namespace sbpl {
 namespace collision {
