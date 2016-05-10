@@ -287,7 +287,7 @@ void EnvironmentROBARM3D::GetSuccs(
         }
 
         // discretize planning link pose
-        grid_->worldToGrid(pose[0],pose[1],pose[2],endeff[0],endeff[1],endeff[2]);
+        grid_->worldToGrid(pose[0], pose[1], pose[2], endeff[0], endeff[1], endeff[2]);
 
         ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]   pose: %s", i, to_string(pose).c_str());
         ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]    xyz: %d %d %d  goal: %d %d %d  (diff: %d %d %d)", i, endeff[0], endeff[1], endeff[2], pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2], abs(pdata_.goal_entry->xyz[0] - endeff[0]), abs(pdata_.goal_entry->xyz[1] - endeff[1]), abs(pdata_.goal_entry->xyz[2] - endeff[2]));
@@ -337,12 +337,6 @@ void EnvironmentROBARM3D::GetPreds(
     std::vector<int>* CostV)
 {
     ROS_ERROR("ERROR in pdata_... function: GetPreds is undefined");
-    throw new SBPL_Exception();
-}
-
-bool EnvironmentROBARM3D::AreEquivalent(int StateID1, int StateID2)
-{
-    ROS_ERROR("ERROR in pdata_... function: AreEquivalent is undefined");
     throw new SBPL_Exception();
 }
 
@@ -677,13 +671,14 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
     //compute the goal pose and fill in pdata_.goal
     std::vector<std::vector<double>> goals_6dof;
     std::vector<std::vector<double>> tolerances_6dof;
-    std::vector<double> pose(6, 0);
+    std::vector<double> pose(6, 0.0);
     if (!rmodel_->computePlanningLinkFK(goal, pose)) {
         SBPL_WARN("Could not compute planning link FK for given goal configuration!");
         return false;
     }
     goals_6dof.push_back(pose);
-    tolerances_6dof.push_back(std::vector<double>(6, 0.05)); //made up goal tolerance (it should not be used in with 7dof goals anyways)
+    // made up goal tolerance (it should not be used in with 7dof goals anyways)
+    tolerances_6dof.push_back(std::vector<double>(6, 0.05));
     if (!setGoalPosition(goals_6dof, tolerances_6dof)) {
 	   ROS_WARN("Failed to set goal position");
 	   return false;

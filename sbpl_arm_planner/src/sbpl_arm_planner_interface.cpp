@@ -394,54 +394,34 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(
 bool SBPLArmPlannerInterface::setGoalPosition(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    std::vector<std::vector<double>> sbpl_goal(1, std::vector<double>(11, 0));  //Changed to include Quaternion
-    std::vector<std::vector<double>> sbpl_tolerance(1, std::vector<double>(12, 0));
-
-    if (goal_constraints.position_constraints.empty() ||
-        goal_constraints.orientation_constraints.empty())
-    {
-        ROS_WARN("Cannot convert goal constraints without position constraints into goal pose");
-        return false;
-    }
-
-    if (goal_constraints.position_constraints.front().constraint_region.primitive_poses.empty()) {
-        ROS_WARN("At least one primitive shape pose for goal position constraint regions is required");
-        return false;
-    }
+    // { x_1, y_1, z_1, R_1, P_1, Y_1, is_six_dof_1 },
+    // ...,
+    // { x_n, y_n, z_n, R_n, P_n, Y_n, is_six_dof_n }
+    std::vector<std::vector<double>> sbpl_goal(1, std::vector<double>(7, 0.0));  //Changed to include Quaternion
+    std::vector<std::vector<double>> sbpl_tolerance(1, std::vector<double>(6, 0.0));
 
     geometry_msgs::Pose goal_pose;
-    extractGoalPoseFromGoalConstraints(goal_constraints, goal_pose);
-    double tolerance[6];
-    extractGoalToleranceFromGoalConstraints(goal_constraints, tolerance);
+    if (!extractGoalPoseFromGoalConstraints(goal_constraints, goal_pose)) {
+        ROS_WARN("Failed to extract goal pose from goal constraints");
+        return false;
+    }
 
     // currently only supports one goal
     sbpl_goal[0][0] = goal_pose.position.x;
     sbpl_goal[0][1] = goal_pose.position.y;
     sbpl_goal[0][2] = goal_pose.position.z;
 
-    // convert quaternion into roll, pitch, yaw
-    geometry_msgs::Quaternion goalq;
-    goalq = goal_pose.orientation;
-    // perturb quaternion if rpy will suffer from gimbal lock.
-    goalq.w += 0.001; // Where is the if here? Won't this possibly perturb it into gimbal lock? - Andrew
-    leatherman::getRPY(goalq, sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5]);
+    // TODO: do we need to handle gimbal lock in any special way here?
+    leatherman::getRPY(goal_pose.orientation, sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5]);
 
-    // 6dof goal: true, 3dof: false
-    sbpl_goal[0][6] = true;
-
-    // orientation constraint as a quaternion
-    sbpl_goal[0][7] = goalq.x;
-    sbpl_goal[0][8] = goalq.y;
-    sbpl_goal[0][9] = goalq.z;
-    sbpl_goal[0][10] = goalq.w;
+    // true => 6-dof goal, false => 3-dof
+    sbpl_goal[0][6] = (double)true;
 
     // allowable tolerance from goal
-    sbpl_tolerance[0][0] = tolerance[0];
-    sbpl_tolerance[0][1] = tolerance[1];
-    sbpl_tolerance[0][2] = tolerance[2];
-    sbpl_tolerance[0][3] = tolerance[3];
-    sbpl_tolerance[0][4] = tolerance[4];
-    sbpl_tolerance[0][5] = tolerance[5];
+    if (!extractGoalToleranceFromGoalConstraints(goal_constraints, &sbpl_tolerance[0][0])) {
+        ROS_WARN("Failed to extract goal tolerance from goal constraints");
+        return false;
+    }
 
     ROS_INFO("Goal(%s)", prm_.planning_frame_.c_str());
     ROS_INFO("    pose: (%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f)",
@@ -476,7 +456,7 @@ bool SBPLArmPlannerInterface::setGoalPosition(
         return false;
     }
 
-    //set planner goal
+    // set planner goal
     if (planner_->set_goal(mdp_cfg_.goalstateid) == 0) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
@@ -943,30 +923,36 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
     }
 }
 
-void SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
-    const moveit_msgs::Constraints& goal_constraints,
-    geometry_msgs::Pose& goal_pose_out) const
+bool SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
+    const moveit_msgs::Constraints& constraints,
+    geometry_msgs::Pose& goal_pose) const
 {
-    assert(!goal_constraints.position_constraints.empty() &&
-            !goal_constraints.orientation_constraints.empty());
+    if (constraints.position_constraints.empty() ||
+        constraints.orientation_constraints.empty())
+    {
+        ROS_WARN("Conversion from goal constraints to goal pose requires at least one position and one orientation constraint");
+        return false;
+    }
 
-    const moveit_msgs::PositionConstraint& position_constraint =
-            goal_constraints.position_constraints.front();
-    const moveit_msgs::OrientationConstraint& orientation_constraint =
-            goal_constraints.orientation_constraints.front();
+    // TODO: where is it enforced that the goal position/orientation constraints
+    // should be for the planning link?
+    const moveit_msgs::PositionConstraint& position_constraint = constraints.position_constraints.front();
+    const moveit_msgs::OrientationConstraint& orientation_constraint = constraints.orientation_constraints.front();
 
-    assert(!position_constraint.constraint_region.primitive_poses.empty());
+    if (position_constraint.constraint_region.primitive_poses.empty()) {
+        ROS_WARN("Conversion from goal constraints to goal pose requires at least one primitive shape pose associated with the position constraint region");
+        return false;
+    }
 
-    const shape_msgs::SolidPrimitive& bounding_primitive =
-            position_constraint.constraint_region.primitives.front();
-    const geometry_msgs::Pose& primitive_pose =
-            position_constraint.constraint_region.primitive_poses.front();
+    const shape_msgs::SolidPrimitive& bounding_primitive = position_constraint.constraint_region.primitives.front();
+    const geometry_msgs::Pose& primitive_pose = position_constraint.constraint_region.primitive_poses.front();
 
-    goal_pose_out.position = primitive_pose.position;
-    goal_pose_out.orientation = orientation_constraint.orientation;
+    goal_pose.position = primitive_pose.position;
+    goal_pose.orientation = orientation_constraint.orientation;
+    return true;
 }
 
-void SBPLArmPlannerInterface::extractGoalToleranceFromGoalConstraints(
+bool SBPLArmPlannerInterface::extractGoalToleranceFromGoalConstraints(
     const moveit_msgs::Constraints& goal_constraints,
     double* tol)
 {
@@ -1016,6 +1002,7 @@ void SBPLArmPlannerInterface::extractGoalToleranceFromGoalConstraints(
     else {
         tol[3] = tol[4] = tol[5] = 0.0;
     }
+    return true;
 }
 
 void SBPLArmPlannerInterface::clearMotionPlanResponse(

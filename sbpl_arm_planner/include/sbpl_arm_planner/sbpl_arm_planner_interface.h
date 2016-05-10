@@ -196,12 +196,12 @@ protected:
     // Retrieve plan from sbpl
     bool plan(trajectory_msgs::JointTrajectory& traj);
 
-    void extractGoalPoseFromGoalConstraints(
+    bool extractGoalPoseFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,
         geometry_msgs::Pose& goal_pose_out) const;
 
     // extract tolerance as an array of 6 doubles: x, y, z, roll, pitch, yaw
-    void extractGoalToleranceFromGoalConstraints(
+    bool extractGoalToleranceFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,
         double* tolerance_out);
 

@@ -135,23 +135,33 @@ class EnvironmentROBARM3D : public DiscreteSpaceInformation
 public:
 
     EnvironmentROBARM3D(
-        OccupancyGrid *grid,
-        RobotModel *rmodel,
-        CollisionChecker *cc,
+        OccupancyGrid* grid,
+        RobotModel* rmodel,
+        CollisionChecker* cc,
         ActionSet* as,
-        PlanningParams *pm);
+        PlanningParams* pm);
 
     ~EnvironmentROBARM3D();
 
-    virtual bool AreEquivalent(int StateID1, int StateID2);
+    bool initEnvironment();
 
     virtual bool setStartConfiguration(const std::vector<double>& angles);
 
+    /// \brief Set a 6-dof goal pose for the tip link.
+    ///
+    /// \param goals A list of goal poses/positions for the tip link. The format
+    ///     of each element is { x_i, y_i, z_i, R_i, P_i, Y_i, 6dof? } where
+    ///     the first 6 elements specify the goal pose of the end effector and
+    ///     the 7th element is a flag indicating whether orientation constraints
+    ///     are required.
+    /// \param tolerances A list of goal pose/position tolerances corresponding
+    ///     to the \p goals. The format of each element is
+    //      { dx_i, dy_i, dz_i, dR_i, dP_i, dY_i } in meters/radians.
     virtual bool setGoalPosition(
         const std::vector<std::vector<double>>& goals,
         const std::vector<std::vector<double>>& tolerances);
 
-    /* used to set 7-DoF goals */
+    /// \brief Set a full joint configuration goal.
     virtual bool setGoalConfiguration(
         const std::vector<double>& angles,
         const std::vector<double>& angle_tolerances);
@@ -164,46 +174,32 @@ public:
         std::vector<std::vector<double>>& path);
 
     virtual bool convertStateIDPathToJointTrajectory(
-        const std::vector<int> &idpath,
-        trajectory_msgs::JointTrajectory &traj);
+        const std::vector<int>& idpath,
+        trajectory_msgs::JointTrajectory& traj);
 
     virtual void convertStateIDPathToShortenedJointAnglesPath(
-        const std::vector<int> &idpath,
-        std::vector<std::vector<double> > &path,
-        std::vector<int> &idpath_short);
-
-    virtual void GetSuccs(
-        int SourceStateID,
-        std::vector<int>* SuccIDV,
-        std::vector<int>* CostV);
+        const std::vector<int>& idpath,
+        std::vector<std::vector<double>>& path,
+        std::vector<int>& idpath_short);
 
     virtual void StateID2Angles(int stateID, std::vector<double>& angles);
 
     virtual int getXYZRPYHeuristic(int FromStateID, int ToStateID);
 
-    bool initEnvironment();
-    bool InitializeMDPCfg(MDPConfig* MDPCfg);
-    inline bool InitializeEnv(const char* sEnvFile) { return false; }
-    int GetFromToHeuristic(int FromStateID, int ToStateID);
-    int GetGoalHeuristic(int stateID);
-    int GetStartHeuristic(int stateID);
-    void GetPreds(
-        int TargetStateID,
-        std::vector<int>* PredIDV,
-        std::vector<int>* CostV);
-    int	SizeofCreatedEnv();
-    void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
-    void SetAllActionsandAllOutcomes(CMDPSTATE* state);
-    void SetAllPreds(CMDPSTATE* state);
-    void PrintEnv_Config(FILE* fOut);
-
     RobotModel* getRobotModel() { return rmodel_; };
     CollisionChecker* getCollisionChecker() { return cc_; };
     bool use7DOFGoal() { return pdata_.use_7dof_goal; };
-    std::vector<double> getGoal(); //returns the 6-dof pose of the goal
 
-    //returns the actual 7-dof goal configuration (should be used only when 7dof
-    //goal is given)
+    /// \brief Return the 6-dof goal pose for the tip link.
+    ///
+    /// Return the 6-dof goal pose for the tip link, as last set by
+    /// setGoalPosition().
+    std::vector<double> getGoal();
+
+    /// \brief Return the full joint configuration goal.
+    ///
+    /// Return the full joint configuration goal,  as last set by
+    /// setGoalConfiguration().
     std::vector<double> getGoalConfiguration();
 
     std::vector<double> getStart();
@@ -232,13 +228,39 @@ public:
 
     ///@}
 
+    /// \name Reimplemented Public Functions
+    ///@{
+    bool InitializeMDPCfg(MDPConfig* MDPCfg);
+    virtual int GetFromToHeuristic(int FromStateID, int ToStateID);
+    virtual int GetGoalHeuristic(int stateID);
+    virtual int GetStartHeuristic(int stateID);
+    virtual void GetSuccs(
+        int SourceStateID,
+        std::vector<int>* SuccIDV,
+        std::vector<int>* CostV);
+    int SizeofCreatedEnv();
+    void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
+    ///@}
+
+    /// \name Reimplemented Public Functions (Unused)
+    ///@{
+    virtual bool InitializeEnv(const char* sEnvFile) { return false; }
+    void GetPreds(
+        int TargetStateID,
+        std::vector<int>* PredIDV,
+        std::vector<int>* CostV);
+    void SetAllActionsandAllOutcomes(CMDPSTATE* state);
+    void SetAllPreds(CMDPSTATE* state);
+    void PrintEnv_Config(FILE* fOut);
+    ///@}
+
 protected:
 
-    OccupancyGrid *grid_;
-    RobotModel *rmodel_;
-    CollisionChecker *cc_;
+    OccupancyGrid* grid_;
+    RobotModel* rmodel_;
+    CollisionChecker* cc_;
     std::unique_ptr<BFS_3D> bfs_;
-    ActionSet *as_;
+    ActionSet* as_;
 
     // cached from robot model
     std::vector<double> m_min_limits;
@@ -246,7 +268,7 @@ protected:
     std::vector<bool> m_continuous;
 
     EnvironmentPlanningData pdata_;
-    PlanningParams *prm_;
+    PlanningParams* prm_;
 
     ros::NodeHandle nh_;
     ros::Publisher pub_;
