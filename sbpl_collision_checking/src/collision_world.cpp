@@ -181,24 +181,21 @@ CollisionWorld::getCollisionObjectVoxelsVisualization() const
 {
     visualization_msgs::MarkerArray ma;
 
-    visualization_msgs::Marker marker;
-    std::vector<std::vector<double>> points(1, std::vector<double>(3, 0));
-    std::vector<double> color(4, 1);
-    color[2] = 0;
     std::vector<geometry_msgs::Point> voxels;
     getAllCollisionObjectVoxels(voxels);
 
+    visualization_msgs::Marker marker;
     marker.header.seq = 0;
     marker.header.stamp = ros::Time::now();
     marker.header.frame_id = m_grid->getReferenceFrame();
     marker.ns = "collision_object_voxels";
     marker.id = 1;
-    marker.type = visualization_msgs::Marker::POINTS;
+    marker.type = visualization_msgs::Marker::CUBE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration(0.0);
-    marker.scale.x = 0.01;
-    marker.scale.y = 0.01;
-    marker.scale.z = 0.01;
+    marker.scale.x = m_grid->getResolution();
+    marker.scale.y = m_grid->getResolution();
+    marker.scale.z = m_grid->getResolution();
     marker.color.r = 1;
     marker.color.g = 1;
     marker.color.b = 0;
