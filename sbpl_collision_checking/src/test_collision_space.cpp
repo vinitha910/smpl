@@ -81,16 +81,16 @@ int main(int argc, char **argv)
 
     sbpl_arm_planner::OccupancyGrid* grid = new sbpl_arm_planner::OccupancyGrid(df);
     grid->setReferenceFrame(world_frame);
-    
-    sbpl::collision::SBPLCollisionSpace* cspace =
-            new sbpl::collision::SBPLCollisionSpace(grid);
-    
+
+    sbpl::collision::CollisionSpace* cspace =
+            new sbpl::collision::CollisionSpace(grid);
+
     std::string urdf_string;
     if (!nh.getParam("robot_description", urdf_string)) {
         ROS_ERROR("Failed to retrieve 'robot_description' from the param server");
         return 1;
     }
-    
+
     sbpl::collision::CollisionModelConfig cspace_config;
     sbpl::collision::CollisionModelConfig::Load(ros::NodeHandle(), cspace_config);
 
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
     ros::spinOnce();
     sleep(1);
-    
+
     ROS_INFO("Done");
     delete cspace;
     delete grid;

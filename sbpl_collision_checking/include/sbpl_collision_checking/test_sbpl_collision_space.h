@@ -53,7 +53,7 @@
 #include <geometry_msgs/Pose.h>
 #include <moveit_msgs/CollisionMap.h>
 #include <moveit_msgs/CollisionObject.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h> 
+#include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <kinematics_msgs/GetPositionFK.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 
@@ -123,7 +123,7 @@ private:
 
     /* planner & environment */
     double resolution_;
-    SBPLCollisionSpace* cspace_;
+    CollisionSpace* cspace_;
     sbpl_arm_planner::OccupancyGrid* grid_;
     sbpl_arm_planner::VisualizeArm* aviz_;
     KDL::Frame kdl_transform_;

@@ -89,7 +89,7 @@ bool TestSBPLCollisionSpace::init()
   rjoint_names_[4] = "r_forearm_roll_joint";
   rjoint_names_[5] = "r_wrist_flex_joint";
   rjoint_names_[6] = "r_wrist_roll_joint";
-  
+
   //collision space
   node_handle_.param<std::string>("collision_space/collision_map_topic", collision_map_topic_, "collision_map_occ");
 
@@ -100,9 +100,9 @@ bool TestSBPLCollisionSpace::init()
   ROS_INFO("[test] Creating the grid.");
   const double max_dist_m = 0.40;
   grid_ = new sbpl_arm_planner::OccupancyGrid(sizeX_, sizeY_, sizeZ_, resolution_, originX_, originY_, originZ_, max_dist_m);
-  
-  ROS_INFO("[test] Creating the collision space."); 
-  cspace_ = new sbpl_arm_planner::SBPLCollisionSpace(grid_);
+
+  ROS_INFO("[test] Creating the collision space.");
+  cspace_ = new sbpl::collision::CollisionSpace(grid_);
 
   if(arm_name_.compare("right_arm") == 0)
     cspace_->setPlanningJoints(rjoint_names_);
