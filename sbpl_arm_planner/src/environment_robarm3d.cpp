@@ -668,22 +668,26 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
         return false;
     }
 
-    //compute the goal pose and fill in pdata_.goal
+    // compute the goal pose
     std::vector<std::vector<double>> goals_6dof;
-    std::vector<std::vector<double>> tolerances_6dof;
-    std::vector<double> pose(6, 0.0);
+    std::vector<double> pose;
     if (!rmodel_->computePlanningLinkFK(goal, pose)) {
         SBPL_WARN("Could not compute planning link FK for given goal configuration!");
         return false;
     }
     goals_6dof.push_back(pose);
+
+    std::vector<std::vector<double>> offsets_6dof(1, std::vector<double>(3, 0.0));
+
     // made up goal tolerance (it should not be used in with 7dof goals anyways)
-    tolerances_6dof.push_back(std::vector<double>(6, 0.05));
-    if (!setGoalPosition(goals_6dof, tolerances_6dof)) {
+    std::vector<std::vector<double>> tolerances_6dof(1, std::vector<double>(6, 0.05));
+
+    if (!setGoalPosition(goals_6dof, offsets_6dof, tolerances_6dof)) {
 	   ROS_WARN("Failed to set goal position");
 	   return false;
     }
 
+    // fill in pdata_.goal
     pdata_.goal_7dof.angles = goal;
     pdata_.goal_7dof.angle_tolerances = goal_tolerances;
     pdata_.use_7dof_goal = true;
@@ -692,29 +696,64 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
 
 bool EnvironmentROBARM3D::setGoalPosition(
     const std::vector<std::vector<double>>& goals,
+    const std::vector<std::vector<double>>& offsets,
     const std::vector<std::vector<double>>& tolerances)
 {
-    // goals: {{x1,y1,z1,r1,p1,y1,is_6dof},{x2,y2,z2,r2,p2,y2,is_6dof}...}
-
     if (!m_initialized) {
         ROS_ERROR("Cannot set goal position because environment is not initialized.");
         return false;
     }
 
+    // check arguments
+
     if (goals.empty()) {
-        ROS_ERROR("[setGoalPosition] No goal constraint set.");
+        ROS_ERROR("goals vector is empty");
         return false;
+    }
+
+    for (const auto& goal : goals) {
+        if (goal.size() != 7) {
+            ROS_ERROR("goal element has incorrect format");
+            return false;
+        }
+    }
+
+    if (offsets.size() != goals.size()) {
+        ROS_ERROR("setGoalPosition requires as many offset elements as goal elements");
+        return false;
+    }
+
+    for (const auto& offset : offsets) {
+        if (offset.size() != 3) {
+            ROS_ERROR("offset element has incorrect format");
+            return false;
+        }
+    }
+
+    if (tolerances.size() != goals.size()) {
+        ROS_ERROR("setGoalPosition requires as many tolerance elements as goal elements");
+        return false;
+    }
+
+    for (const auto& tol : tolerances) {
+        if (tol.size() != 6) {
+            ROS_ERROR("tolerance element has incorrect format");
+            return false;
+        }
     }
 
     pdata_.use_7dof_goal = false;
 
-    pdata_.goal.pose.resize(6,0);
+    pdata_.goal.pose.resize(6, 0.0);
     pdata_.goal.pose[0] = goals[0][0];
     pdata_.goal.pose[1] = goals[0][1];
     pdata_.goal.pose[2] = goals[0][2];
     pdata_.goal.pose[3] = goals[0][3];
     pdata_.goal.pose[4] = goals[0][4];
     pdata_.goal.pose[5] = goals[0][5];
+    pdata_.goal.xyz_offset[0] = offsets[0][0];
+    pdata_.goal.xyz_offset[1] = offsets[0][1];
+    pdata_.goal.xyz_offset[2] = offsets[0][2];
     pdata_.goal.xyz_tolerance[0] = tolerances[0][0];
     pdata_.goal.xyz_tolerance[1] = tolerances[0][1];
     pdata_.goal.xyz_tolerance[2] = tolerances[0][2];
@@ -738,7 +777,11 @@ bool EnvironmentROBARM3D::setGoalPosition(
 
     ROS_DEBUG_NAMED(prm_->expands_log_, "time: %f", clock() / (double)CLOCKS_PER_SEC);
     ROS_DEBUG_NAMED(prm_->expands_log_, "A new goal has been set.");
-    ROS_DEBUG_NAMED(prm_->expands_log_, "grid: %d %d %d (cells)  xyz: %.2f %.2f %.2f (meters)  (tol: %.3f) rpy: %1.2f %1.2f %1.2f (radians) (tol: %.3f)", pdata_.goal_entry->xyz[0],pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2], pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2], pdata_.goal.xyz_tolerance[0], pdata_.goal.pose[3], pdata_.goal.pose[4], pdata_.goal.pose[5], pdata_.goal.rpy_tolerance[0]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "    grid (cells): (%d, %d, %d)", pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "    tol (meters): %0.3f", pdata_.goal.xyz_tolerance[0]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", pdata_.goal.pose[3], pdata_.goal.pose[4], pdata_.goal.pose[5]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "    tol (radians): %0.3f", pdata_.goal.rpy_tolerance[0]);
 
     // push obstacles into bfs grid
     ros::WallTime start = ros::WallTime::now();
@@ -761,13 +804,15 @@ bool EnvironmentROBARM3D::setGoalPosition(
     }
 
     double set_walls_time = (ros::WallTime::now() - start).toSec();
-    ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))", set_walls_time, walls, double(walls)/double(dimX*dimY*dimZ));
+    ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))",
+            set_walls_time, walls, (double)walls / (double)(dimX*dimY*dimZ));
 
     if (pdata_.goal_entry->xyz[0] < 0 || pdata_.goal_entry->xyz[0] >= dimX ||
         pdata_.goal_entry->xyz[1] < 0 || pdata_.goal_entry->xyz[1] >= dimY ||
         pdata_.goal_entry->xyz[2] < 0 || pdata_.goal_entry->xyz[2] >= dimZ)
     {
-        ROS_ERROR("Goal is out of bounds. Can't run BFS with {%d %d %d} as start.", pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2]);
+        ROS_ERROR("Goal is out of bounds. Can't run BFS with {%d %d %d} as start.",
+                pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2]);
         return false;
     }
 

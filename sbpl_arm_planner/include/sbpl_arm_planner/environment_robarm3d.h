@@ -62,6 +62,7 @@ struct GoalConstraint
 {
     int type;
     std::vector<double> pose;
+    double xyz_offset[3];
     double xyz_tolerance[3];
     double rpy_tolerance[3];
 };
@@ -74,12 +75,12 @@ struct GoalConstraint7DOF
 
 struct EnvROBARM3DHashEntry_t
 {
-    int stateID;             // hash entry ID number
-    int heur;
-    int xyz[3];              // planning link pos (xyz)
+    int stateID;                // hash entry ID number
+    int heur;                   // cached heuristic value
+    int xyz[3];                 // planning link pos (xyz)
     double dist;
-    std::vector<int> coord;
-    RobotState state;
+    std::vector<int> coord;     // discrete coordinate
+    RobotState state;           // corresponding continuous coordinate
 };
 
 /** main structure that stores environment data used in planning */
@@ -88,9 +89,10 @@ struct EnvironmentPlanningData
     bool near_goal;
     clock_t t_start;
     double time_to_goal_region;
-    GoalConstraint goal;
 
     bool use_7dof_goal;
+
+    GoalConstraint goal;
     GoalConstraint7DOF goal_7dof;
 
     EnvROBARM3DHashEntry_t* goal_entry;
@@ -110,8 +112,8 @@ struct EnvironmentPlanningData
         near_goal(false),
         t_start(),
         time_to_goal_region(),
-        goal(),
         use_7dof_goal(false),
+        goal(),
         goal_7dof(),
         goal_entry(NULL),
         start_entry(NULL),
@@ -149,16 +151,22 @@ public:
 
     /// \brief Set a 6-dof goal pose for the tip link.
     ///
-    /// \param goals A list of goal poses/positions for the tip link. The format
-    ///     of each element is { x_i, y_i, z_i, R_i, P_i, Y_i, 6dof? } where
-    ///     the first 6 elements specify the goal pose of the end effector and
-    ///     the 7th element is a flag indicating whether orientation constraints
-    ///     are required.
+    /// \param goals A list of goal poses/positions for offsets from the tip
+    ///      link. The format of each element is { x_i, y_i, z_i, R_i, P_i, Y_i,
+    ///      6dof? } where the first 6 elements specify the goal pose of the end
+    ///      effector and the 7th element is a flag indicating whether
+    ///      orientation constraints are required.
+    ///
+    /// \param offsets A list of offsets from the tip link corresponding to
+    ///     \p goals. The goal condition and the heuristic values will be
+    ///     computed relative to these offsets.
+    ///
     /// \param tolerances A list of goal pose/position tolerances corresponding
-    ///     to the \p goals. The format of each element is
-    //      { dx_i, dy_i, dz_i, dR_i, dP_i, dY_i } in meters/radians.
+    ///     to the \p goals. The format of each element is { dx_i, dy_i, dz_i,
+    ///     dR_i, dP_i, dY_i } in meters/radians.
     virtual bool setGoalPosition(
         const std::vector<std::vector<double>>& goals,
+        const std::vector<std::vector<double>>& offsets,
         const std::vector<std::vector<double>>& tolerances);
 
     /// \brief Set a full joint configuration goal.

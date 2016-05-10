@@ -198,7 +198,8 @@ protected:
 
     bool extractGoalPoseFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,
-        geometry_msgs::Pose& goal_pose_out) const;
+        geometry_msgs::Pose& goal_pose_out,
+        geometry_msgs::Vector3& offset) const;
 
     // extract tolerance as an array of 6 doubles: x, y, z, roll, pitch, yaw
     bool extractGoalToleranceFromGoalConstraints(

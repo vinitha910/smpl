@@ -394,17 +394,16 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(
 bool SBPLArmPlannerInterface::setGoalPosition(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    // { x_1, y_1, z_1, R_1, P_1, Y_1, is_six_dof_1 },
-    // ...,
-    // { x_n, y_n, z_n, R_n, P_n, Y_n, is_six_dof_n }
-    std::vector<std::vector<double>> sbpl_goal(1, std::vector<double>(7, 0.0));  //Changed to include Quaternion
-    std::vector<std::vector<double>> sbpl_tolerance(1, std::vector<double>(6, 0.0));
-
     geometry_msgs::Pose goal_pose;
-    if (!extractGoalPoseFromGoalConstraints(goal_constraints, goal_pose)) {
+    geometry_msgs::Vector3 offset;
+    if (!extractGoalPoseFromGoalConstraints(
+            goal_constraints, goal_pose, offset))
+    {
         ROS_WARN("Failed to extract goal pose from goal constraints");
         return false;
     }
+
+    std::vector<std::vector<double>> sbpl_goal(1, std::vector<double>(7, 0.0));
 
     // currently only supports one goal
     sbpl_goal[0][0] = goal_pose.position.x;
@@ -417,7 +416,13 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     // true => 6-dof goal, false => 3-dof
     sbpl_goal[0][6] = (double)true;
 
+    std::vector<std::vector<double>> sbpl_goal_offset(1, std::vector<double>(3, 0.0));
+    sbpl_goal_offset[0][0] = offset.x;
+    sbpl_goal_offset[0][1] = offset.y;
+    sbpl_goal_offset[0][2] = offset.z;
+
     // allowable tolerance from goal
+    std::vector<std::vector<double>> sbpl_tolerance(1, std::vector<double>(6, 0.0));
     if (!extractGoalToleranceFromGoalConstraints(goal_constraints, &sbpl_tolerance[0][0])) {
         ROS_WARN("Failed to extract goal tolerance from goal constraints");
         return false;
@@ -451,7 +456,7 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     }
 
     // set sbpl environment goal
-    if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_tolerance)) {
+    if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_goal_offset, sbpl_tolerance)) {
         ROS_ERROR("Failed to set goal state. Perhaps goal position is out of reach. Exiting.");
         return false;
     }
@@ -925,7 +930,8 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
 
 bool SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
     const moveit_msgs::Constraints& constraints,
-    geometry_msgs::Pose& goal_pose) const
+    geometry_msgs::Pose& goal_pose,
+    geometry_msgs::Vector3& offset) const
 {
     if (constraints.position_constraints.empty() ||
         constraints.orientation_constraints.empty())
@@ -949,6 +955,8 @@ bool SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
 
     goal_pose.position = primitive_pose.position;
     goal_pose.orientation = orientation_constraint.orientation;
+
+    offset = position_constraint.target_point_offset;
     return true;
 }
 
