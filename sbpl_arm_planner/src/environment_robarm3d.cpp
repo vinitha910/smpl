@@ -142,6 +142,8 @@ void EnvironmentROBARM3D::GetSuccs(
     std::vector<int>* SuccIDV,
     std::vector<int>* CostV)
 {
+    ROS_DEBUG_NAMED(prm_->expands_log_, "expanding state %d", SourceStateID);
+
     int endeff[3] = { 0 };
     int path_length = 0, nchecks = 0;
 
@@ -165,9 +167,16 @@ void EnvironmentROBARM3D::GetSuccs(
         scoord[i] = parent_entry->coord.at(i);
     }
 
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  coord: %s", to_string(scoord).c_str());
+
     //used for interpolated collision check
     std::vector<double> source_angles(prm_->num_joints_, 0);
     coordToAngles(scoord, source_angles);
+
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(source_angles).c_str());
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", getXYZHeuristic(SourceStateID, 1));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
     visualization_msgs::MarkerArray ma =
             cc_->getCollisionModelVisualization(source_angles);
@@ -177,75 +186,75 @@ void EnvironmentROBARM3D::GetSuccs(
     }
     pub_.publish(ma);
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "state %d: %s  endeff: %3d %3d %3d", SourceStateID, to_string(source_angles).c_str(), parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
-
-    int valid = 1;
+    std::uint32_t violation_mask = 0x00000000;
     std::vector<Action> actions;
     if (!as_->getActionSet(source_angles, actions)) {
         ROS_WARN("Failed to get successors.");
         return;
     }
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "[parent: %d] angles: %s xyz: %3d %3d %3d  #_actions: %zu  heur: %d dist: %0.3f",
-            SourceStateID,
-            to_string(source_angles).c_str(),
-            parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2],
-            actions.size(),
-            getXYZHeuristic(SourceStateID, 1),
-            double(bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2])) * grid_->getResolution());
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  actions: %zu", actions.size());
 
     // check actions for validity
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        valid = 1;
+        ROS_DEBUG_NAMED(prm_->expands_log_, "    action %zu:", i);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints: %zu", action.size());
+
+        violation_mask = 0x00000000;
+
         // check intermediate states for collisions
         for (size_t j = 0; j < action.size(); ++j) {
-            ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu] angles: %s", i, to_string(action[j]).c_str());
+            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", j, to_string(action[j]).c_str());
 
             // check joint limits
             if (!rmodel_->checkJointLimits(action[j])) {
-                ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2zu violates joint limits", i);
-                valid = -1;
+                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> violates joint limits");
+                violation_mask |= 0x00000001;
             }
 
             // check for collisions
             double dist = 0;
             if (!cc_->isStateValid(action[j], prm_->verbose_collisions_, false, dist)) {
-                ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2zu  dist: %0.3f is in collision.", i, dist);
-                valid = -2;
+                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+                violation_mask |= 0x00000002;
             }
 
-            if (valid < 1) {
+            if (violation_mask) {
                 break;
             }
         }
 
-        if (valid < 1) {
+        if (violation_mask) {
             continue;
         }
 
         // check for collisions along path from parent to first waypoint
         double dist = 0.0;
-        if (!cc_->isStateToStateValid(source_angles, action[0], path_length, nchecks, dist)) {
-            ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2zu  dist: %0.3f is in collision along interpolated path. (path_length: %d)", i, dist, path_length);
-            valid = -3;
+        if (!cc_->isStateToStateValid(
+                source_angles, action[0], path_length, nchecks, dist))
+        {
+            ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, path_length);
+            violation_mask |= 0x00000004;
         }
 
-        if (valid < 1) {
+        if (violation_mask) {
             continue;
         }
 
         // check for collisions between waypoints
         for (size_t j = 1; j < action.size(); ++j) {
-            if (!cc_->isStateToStateValid(action[j-1], action[j], path_length, nchecks, dist)) {
-                ROS_DEBUG_NAMED(prm_->expands_log_, " succ: %2zu  dist: %0.3f is in collision along interpolated path. (path_length: %d)", i, dist, path_length);
-                valid = -4;
+            if (!cc_->isStateToStateValid(
+                    action[j-1], action[j], path_length, nchecks, dist))
+            {
+                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, path_length);
+                violation_mask |= 0x00000008;
                 break;
             }
         }
 
-        if (valid < 1) {
+        if (violation_mask) {
             continue;
         }
 
@@ -265,10 +274,10 @@ void EnvironmentROBARM3D::GetSuccs(
         // discretize planning link pose
         grid_->worldToGrid(tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2], endeff[0], endeff[1], endeff[2]);
 
-        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]   pose: %s", i, to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]    xyz: %d %d %d  goal: %d %d %d  (diff: %d %d %d)",
-                i, endeff[0], endeff[1], endeff[2],
-                pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2],
+        ROS_DEBUG_NAMED(prm_->expands_log_, "      succ: %zu", i);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        pose: %s", to_string(tgt_off_pose).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)",
                 abs(pdata_.goal_entry->xyz[0] - endeff[0]),
                 abs(pdata_.goal_entry->xyz[1] - endeff[1]),
                 abs(pdata_.goal_entry->xyz[2] - endeff[2]));
@@ -296,12 +305,13 @@ void EnvironmentROBARM3D::GetSuccs(
             succ_entry = createHashEntry(scoord, endeff);
             succ_entry->state = action.back();
             succ_entry->dist = dist;
-
-            ROS_DEBUG_NAMED(prm_->expands_log_, "%5i: action: %2zu dist: %2d edge_distance_cost: %5d heur: %2d endeff: %3d %3d %3d",
-                    succ_entry->stateID, i, int(succ_entry->dist), cost(parent_entry,succ_entry, succ_is_goal_state),
-                    GetFromToHeuristic(succ_entry->stateID, pdata_.goal_entry->stateID),
-                    succ_entry->xyz[0], succ_entry->xyz[1], succ_entry->xyz[2]);
         }
+
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        id: %5i", succ_entry->stateID);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        coord: %s", to_string(scoord).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, succ_is_goal_state));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetFromToHeuristic(succ_entry->stateID, pdata_.goal_entry->stateID));
 
         // put successor on successor list with the proper cost
         SuccIDV->push_back(succ_entry->stateID);
@@ -814,6 +824,8 @@ bool EnvironmentROBARM3D::setGoalPosition(
         }
     }
 
+    pub_.publish(getBfsWallsVisualization());
+
     double set_walls_time = (ros::WallTime::now() - start).toSec();
     ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))",
             set_walls_time, walls, (double)walls / (double)(dimX*dimY*dimZ));
@@ -1050,24 +1062,37 @@ std::vector<double> EnvironmentROBARM3D::getStart()
 visualization_msgs::MarkerArray
 EnvironmentROBARM3D::getBfsWallsVisualization() const
 {
-    visualization_msgs::MarkerArray ma;
     std::vector<geometry_msgs::Point> pnts;
-    geometry_msgs::Point p;
     int dimX, dimY, dimZ;
     grid_->getGridSize(dimX, dimY, dimZ);
     for (int z = 0; z < dimZ; z++) {
         for (int y = 0; y < dimY; y++) {
             for (int x = 0; x < dimX; x++) {
                 if (bfs_->isWall(x, y, z)) {
+                    geometry_msgs::Point p;
                     grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
                     pnts.push_back(p);
                 }
             }
         }
     }
-    if (!pnts.empty()) {
-        ma.markers.push_back(viz::getSpheresMarker(pnts, 0.02, 210, grid_->getReferenceFrame(), "bfs_walls", 0));
-    }
+
+    std_msgs::ColorRGBA color;
+    color.r = 100.0f / 255.0f;
+    color.g = 149.0f / 255.0f;
+    color.b = 238.0f / 255.0f;
+    color.a = 1.0f;
+
+    visualization_msgs::Marker cubes_marker = viz::getCubesMarker(
+            pnts,
+            grid_->getResolution(),
+            color,
+            grid_->getReferenceFrame(),
+            "bfs_walls",
+            0);
+
+    visualization_msgs::MarkerArray ma;
+    ma.markers.push_back(std::move(cubes_marker));
     return ma;
 }
 
