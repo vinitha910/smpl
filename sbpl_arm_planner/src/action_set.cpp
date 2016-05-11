@@ -106,7 +106,7 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
                 ROS_WARN("Parsed string has length < 1.");
             }
             if (!feof(fCfg) && strlen(sTemp) != 0) {
-                mprim[j] = 2.0 * angles::from_degrees(atof(sTemp));
+                mprim[j] = angles::from_degrees(atof(sTemp));
                 ROS_DEBUG("Got %s deg -> %.3f rad", sTemp, mprim[j]);
             }
             else {

@@ -660,7 +660,6 @@ bool EnvironmentROBARM3D::setStartConfiguration(
 
     visualization_msgs::MarkerArray ma;
     ma = cc_->getCollisionModelVisualization(angles);
-    ROS_INFO("Got %zd markers for start_config visualization!", ma.markers.size());
     for (size_t i = 0; i < ma.markers.size(); i++) {
         ma.markers[i].ns = "start_config";
         ma.markers[i].id = i;
