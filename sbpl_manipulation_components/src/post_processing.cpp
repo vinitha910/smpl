@@ -34,6 +34,7 @@
 #include <leatherman/print.h>
 #include <ros/console.h>
 #include <sbpl_geometry_utils/interpolation.h>
+#include <sbpl_geometry_utils/utils.h>
 
 namespace sbpl_arm_planner {
 
@@ -116,7 +117,7 @@ void shortcutTrajectory(
 
 bool interpolateTrajectory(
     sbpl_arm_planner::CollisionChecker* cc,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
+    const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
 {
     if (traj.empty()) {
@@ -134,11 +135,12 @@ bool interpolateTrajectory(
     std::vector<std::vector<double>> path;
     std::vector<double> start(num_joints, 0);
     std::vector<double> end(num_joints, 0);
-    std::vector<double> inc(num_joints, 0.069);
+    std::vector<double> inc(num_joints, sbpl::utils::ToRadians(1.0));
 
     // tack on the first point of the trajectory
     path.push_back(traj.front().positions);
 
+    // iterate over path segments
     for (size_t i = 0; i < traj.size() - 1; ++i) {
         start = traj[i].positions;
         end = traj[i + 1].positions;
@@ -149,6 +151,23 @@ bool interpolateTrajectory(
         if (!cc->interpolatePath(start, end, inc, ipath)) {
             ROS_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
+        }
+
+        // check the interpolated path for collisions, as the interpolator may
+        // take a slightly different
+        bool collision = false;
+        for (const auto& point : ipath) {
+            double dist;
+            if (!cc->isStateValid(point, false, false, dist)) {
+                collision = true;
+                break;
+            }
+        }
+
+        if (collision) {
+            ROS_ERROR("Interpolated path collides. Resorting to original waypoints");
+            path.push_back(end);
+            continue;
         }
 
         if (!ipath.empty()) {

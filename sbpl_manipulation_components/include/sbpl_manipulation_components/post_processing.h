@@ -51,7 +51,7 @@ void shortcutTrajectory(
 
 bool interpolateTrajectory(
     sbpl_arm_planner::CollisionChecker* cc,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
+    const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out);
 
 } // namespace sbpl_arm_planner
