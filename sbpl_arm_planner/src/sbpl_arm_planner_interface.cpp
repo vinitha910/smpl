@@ -326,6 +326,7 @@ bool SBPLArmPlannerInterface::checkParams(
 
 bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
 {
+    ROS_INFO("Setting start configuration");
     std::vector<double> initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(
@@ -334,6 +335,9 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
         ROS_ERROR("Start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
     }
+
+    ROS_INFO("New Start Configuration");
+    ROS_INFO("  Joint Variables: %s", to_string(initial_positions).c_str());
 
     if (sbpl_arm_env_->setStartConfiguration(initial_positions) == 0) {
         ROS_ERROR("Environment failed to set start state. Not Planning.");
@@ -344,13 +348,14 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
         return false;
     }
 
-    ROS_INFO("start: %s", to_string(initial_positions).c_str());
     return true;
 }
 
 bool SBPLArmPlannerInterface::setGoalConfiguration(
     const moveit_msgs::Constraints& goal_constraints)
 {
+    ROS_INFO("Setting goal configuration");
+
     std::vector<double> sbpl_angle_goal(7, 0);
     std::vector<double> sbpl_angle_tolerance(7,0.05); //~3 degrees tolerance by default
 
@@ -394,6 +399,8 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(
 bool SBPLArmPlannerInterface::setGoalPosition(
     const moveit_msgs::Constraints& goal_constraints)
 {
+    ROS_INFO("Setting goal position");
+
     geometry_msgs::Pose goal_pose;
     geometry_msgs::Vector3 offset;
     if (!extractGoalPoseFromGoalConstraints(
@@ -428,18 +435,17 @@ bool SBPLArmPlannerInterface::setGoalPosition(
         return false;
     }
 
-    ROS_INFO("Goal(%s)", prm_.planning_frame_.c_str());
-    ROS_INFO("    pose: (%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f)",
+    ROS_INFO("New Goal");
+    ROS_INFO("    frame: %s", prm_.planning_frame_.c_str());
+    ROS_INFO("    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)",
             sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2],
             sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5]);
-    ROS_INFO("    tolerance: (%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f)",
+    ROS_INFO("    quaternion: (%0.3f, %0.3f, %0.3f, %0.3f)",
+            goal_pose.orientation.w, goal_pose.orientation.x, goal_pose.orientation.y, goal_pose.orientation.z);
+    ROS_INFO("    offset: (%0.3f, %0.3f, %0.3f)", sbpl_goal_offset[0][0], sbpl_goal_offset[0][1], sbpl_goal_offset[0][2]);
+    ROS_INFO("    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)",
             sbpl_tolerance[0][0], sbpl_tolerance[0][1], sbpl_tolerance[0][2],
             sbpl_tolerance[0][3], sbpl_tolerance[0][4], sbpl_tolerance[0][5]);
-    ROS_INFO("    quaternion: (%0.3f, %0.3f, %0.3f, %0.3f)",
-            goal_constraints.orientation_constraints[0].orientation.w,
-            goal_constraints.orientation_constraints[0].orientation.x,
-            goal_constraints.orientation_constraints[0].orientation.y,
-            goal_constraints.orientation_constraints[0].orientation.z);
 
     if (m_planner_id == "MHA*") {
         // set the goal for the heuristic
@@ -543,11 +549,6 @@ bool SBPLArmPlannerInterface::planToPosition(
     // only acknowledge the first constraint
     const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front();
 
-    // set start
-    ROS_INFO("Setting start.");
-
-    // set goal
-    ROS_INFO("Setting goal 6dof goal.");
     if (!setGoalPosition(goal_constraints)) {
         ROS_ERROR("Failed to set goal position.");
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
@@ -562,8 +563,6 @@ bool SBPLArmPlannerInterface::planToPosition(
         return false;
     }
 
-    // plan
-    ROS_INFO("Calling planner");
     trajectory_msgs::JointTrajectory& otraj = res.trajectory.joint_trajectory;
     if (!plan(otraj)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
@@ -608,6 +607,11 @@ bool SBPLArmPlannerInterface::planToPosition(
         leatherman::printJointTrajectory(otraj, "path");
     }
 
+    ROS_INFO("Visualizing trajectory");
+    static ros::Publisher vpub = ros::NodeHandle().advertise<visualization_msgs::MarkerArray>("visualization_markers", 1);
+    vpub.publish(getCollisionModelTrajectoryVisualization(res.trajectory_start, res.trajectory));
+    ros::Duration(1.0).sleep();
+
     res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
     return true;
@@ -637,7 +641,6 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         return false;
     }
 
-    ROS_INFO("Setting goal 7dof goal.");
     if (!setGoalConfiguration(goal_constraints)) {
         ROS_ERROR("Failed to set goal position.");
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
@@ -645,8 +648,6 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         return false;
     }
 
-    // plan
-    ROS_INFO("Calling planner");
     trajectory_msgs::JointTrajectory& otraj = res.trajectory.joint_trajectory;
     if (!plan(otraj)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
@@ -754,28 +755,37 @@ std::map<std::string, double> SBPLArmPlannerInterface::getPlannerStats()
 visualization_msgs::MarkerArray
 SBPLArmPlannerInterface::getCollisionModelTrajectoryMarker()
 {
+    return getCollisionModelTrajectoryVisualization(
+            res_.trajectory_start, res_.trajectory);
+}
+
+visualization_msgs::MarkerArray
+SBPLArmPlannerInterface::getCollisionModelTrajectoryVisualization(
+    const moveit_msgs::RobotState& ref_state,
+    const moveit_msgs::RobotTrajectory& res_traj)
+{
     visualization_msgs::MarkerArray ma, ma1;
     std::vector<std::vector<double>> traj;
 
-    if (res_.trajectory.joint_trajectory.points.empty()) {
+    if (res_traj.joint_trajectory.points.empty()) {
         ROS_ERROR("No trajectory found to visualize yet. Plan a path first.");
         return ma;
     }
 
-    traj.resize(res_.trajectory.joint_trajectory.points.size());
-    double cinc = 1.0/double(res_.trajectory.joint_trajectory.points.size());
-    for (size_t i = 0; i < res_.trajectory.joint_trajectory.points.size(); ++i) {
-        traj[i].resize(res_.trajectory.joint_trajectory.points[i].positions.size());
-        for (size_t j = 0; j < res_.trajectory.joint_trajectory.points[i].positions.size(); j++) {
-            traj[i][j] = res_.trajectory.joint_trajectory.points[i].positions[j];
+    traj.resize(res_traj.joint_trajectory.points.size());
+    double cinc = 1.0/double(res_traj.joint_trajectory.points.size());
+    for (size_t i = 0; i < res_traj.joint_trajectory.points.size(); ++i) {
+        traj[i].resize(res_traj.joint_trajectory.points[i].positions.size());
+        for (size_t j = 0; j < res_traj.joint_trajectory.points[i].positions.size(); j++) {
+            traj[i][j] = res_traj.joint_trajectory.points[i].positions[j];
         }
 
         ma1 = cc_->getCollisionModelVisualization(traj[i]);
 
         for (size_t j = 0; j < ma1.markers.size(); ++j) {
             ma1.markers[j].color.r = 0.1;
-            ma1.markers[j].color.g = cinc*double(res_.trajectory.joint_trajectory.points.size()-(i+1));
-            ma1.markers[j].color.b = cinc*double(i);
+            ma1.markers[j].color.g = cinc * double(res_traj.joint_trajectory.points.size() - (i + 1));
+            ma1.markers[j].color.b = cinc * double(i);
         }
         ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
     }
@@ -953,7 +963,28 @@ bool SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
     const shape_msgs::SolidPrimitive& bounding_primitive = position_constraint.constraint_region.primitives.front();
     const geometry_msgs::Pose& primitive_pose = position_constraint.constraint_region.primitive_poses.front();
 
-    goal_pose.position = primitive_pose.position;
+    // undo the translation
+    Eigen::Affine3d T_planning_eef = // T_planning_off * T_off_eef;
+            Eigen::Translation3d(
+                    primitive_pose.position.x,
+                    primitive_pose.position.y,
+                    primitive_pose.position.z) *
+            Eigen::Quaterniond(
+                    primitive_pose.orientation.w,
+                    primitive_pose.orientation.x,
+                    primitive_pose.orientation.y,
+                    primitive_pose.orientation.z) *
+            Eigen::Translation3d(
+                    -position_constraint.target_point_offset.x,
+                    -position_constraint.target_point_offset.y,
+                    -position_constraint.target_point_offset.z);
+    Eigen::Vector3d eef_pos(T_planning_eef.translation());
+
+    goal_pose.position.x = eef_pos.x();
+    goal_pose.position.y = eef_pos.y();
+    goal_pose.position.z = eef_pos.z();
+
+//    goal_pose.position = primitive_pose.position;
     goal_pose.orientation = orientation_constraint.orientation;
 
     offset = position_constraint.target_point_offset;

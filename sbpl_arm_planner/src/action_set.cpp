@@ -305,7 +305,8 @@ bool ActionSet::getActionSet(
     }
 
     // get distance to the goal pose
-    const double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
+//    const double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
+    const double d = env_->getDistanceToGoal(pose);
 
     std::vector<Action> act;
     for (size_t i = 0; i < mp_.size(); ++i) {

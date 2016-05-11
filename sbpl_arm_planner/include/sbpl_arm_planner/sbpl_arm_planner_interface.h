@@ -122,6 +122,10 @@ public:
         const std::string& type) const;
     visualization_msgs::MarkerArray getCollisionModelTrajectoryMarker();
 
+    visualization_msgs::MarkerArray getCollisionModelTrajectoryVisualization(
+        const moveit_msgs::RobotState& ref_state,
+        const moveit_msgs::RobotTrajectory& traj);
+
     ///@}
 
     /// \name Planner-specific functionality

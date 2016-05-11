@@ -89,16 +89,24 @@ public:
     /// \name Forward Kinematics
     ///@{
 
+    /// \brief Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
         const std::vector<double>& angles,
         const std::string& name,
         KDL::Frame& f);
 
+    /// \brief Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
         const std::vector<double>& angles,
         const std::string& name,
         std::vector<double>& pose);
 
+    /// \brief Compute forward kinematics of the planning link.
+    ///
+    /// The output pose, stored in \p pose, should be of the format
+    /// { x, y, z, R, P, Y } of the planning link
+    ///
+    /// \return true if forward kinematics were computed; false otherwise
     virtual bool computePlanningLinkFK(
         const std::vector<double>& angles,
         std::vector<double>& pose);

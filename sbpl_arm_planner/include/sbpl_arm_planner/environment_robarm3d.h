@@ -62,6 +62,7 @@ struct GoalConstraint
 {
     int type;
     std::vector<double> pose;
+    std::vector<double> tgt_off_pose;
     double xyz_offset[3];
     double xyz_tolerance[3];
     double rpy_tolerance[3];
@@ -192,8 +193,6 @@ public:
 
     virtual void StateID2Angles(int stateID, std::vector<double>& angles);
 
-    virtual int getXYZRPYHeuristic(int FromStateID, int ToStateID);
-
     RobotModel* getRobotModel() { return rmodel_; };
     CollisionChecker* getCollisionChecker() { return cc_; };
     bool use7DOFGoal() { return pdata_.use_7dof_goal; };
@@ -212,6 +211,7 @@ public:
 
     std::vector<double> getStart();
     double getDistanceToGoal(double x, double y, double z);
+    double getDistanceToGoal(const std::vector<double>& pose);
 
     const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
 
@@ -286,6 +286,12 @@ protected:
 
     bool m_initialized;
 
+    std::vector<double> getTargetOffsetPose(const std::vector<double>& tip_pose);
+
+    bool computePlanningFrameFK(
+        const std::vector<double>& state,
+        std::vector<double>& pose);
+
     /** hash table */
     unsigned int intHash(unsigned int key);
     unsigned int getHashBin(const std::vector<int>& coord);
@@ -317,7 +323,6 @@ protected:
         EnvROBARM3DHashEntry_t* HashEntry1,
         EnvROBARM3DHashEntry_t* HashEntry2,
         bool bState2IsGoal);
-    int getEdgeCost(int FromStateID, int ToStateID);
     virtual void computeCostPerCell();
     int getActionCost(
         const std::vector<double>& from_config,

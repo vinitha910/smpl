@@ -30,16 +30,17 @@
 
 #include <sbpl_arm_planner/environment_robarm3d.h>
 
+// standard includes
 #include <sstream>
+
+// system includes
+#include <Eigen/Dense>
 #include <angles/angles.h>
-//#include <bfs3d/BFS_Util.hpp>
 #include <leatherman/viz.h>
 #include <leatherman/print.h>
 
 #define DEG2RAD(d) ((d)*(M_PI/180.0))
 #define RAD2DEG(r) ((r)*(180.0/M_PI))
-
-using namespace std;
 
 namespace sbpl_arm_planner {
 
@@ -101,25 +102,13 @@ int EnvironmentROBARM3D::GetFromToHeuristic(int FromStateID, int ToStateID)
 
 int EnvironmentROBARM3D::GetGoalHeuristic(int stateID)
 {
-#if DEBUG_HEUR
-    if (stateID >= (int)pdata_.StateID2CoordTable.size()) {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal");
-        return -1;
-    }
-#endif
-
+    assert(stateID < (int)pdata_.StateID2CoordTable.size());
     return GetFromToHeuristic(stateID, pdata_.goal_entry->stateID);
 }
 
 int EnvironmentROBARM3D::GetStartHeuristic(int stateID)
 {
-#if DEBUG_HEUR
-    if (stateID >= (int)pdata_.StateID2CoordTable.size()) {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal");
-        return -1;
-    }
-#endif
-
+    assert(stateID < (int)pdata_.StateID2CoordTable.size());
     return GetFromToHeuristic(stateID, pdata_.start_entry->stateID);
 }
 
@@ -130,29 +119,16 @@ int EnvironmentROBARM3D::SizeofCreatedEnv()
 
 void EnvironmentROBARM3D::PrintState(int stateID, bool bVerbose, FILE* fOut)
 {
-#if DEBUG_HEUR
-    if (stateID >= (int)pdata_.StateID2CoordTable.size()) {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal (2)");
-        throw new SBPL_Exception();
-    }
-#endif
+    assert(stateID < (int)pdata_.StateID2CoordTable.size());
 
-    if (fOut == NULL) {
+    if (!fOut) {
         fOut = stdout;
     }
 
     EnvROBARM3DHashEntry_t* HashEntry = pdata_.StateID2CoordTable[stateID];
 
-    bool bGoal = false;
-    if (stateID == pdata_.goal_entry->stateID) {
-        bGoal = true;
-    }
-
-    if (stateID == pdata_.goal_entry->stateID && bVerbose) {
-        bGoal = true;
-    }
-
-    printJointArray(fOut, HashEntry, bGoal, bVerbose);
+    const bool is_goal = (stateID == pdata_.goal_entry->stateID);
+    printJointArray(fOut, HashEntry, is_goal, bVerbose);
 }
 
 void EnvironmentROBARM3D::PrintEnv_Config(FILE* fOut)
@@ -193,8 +169,8 @@ void EnvironmentROBARM3D::GetSuccs(
     std::vector<double> source_angles(prm_->num_joints_, 0);
     coordToAngles(scoord, source_angles);
 
-    visualization_msgs::MarkerArray ma;
-    ma = cc_->getCollisionModelVisualization(source_angles);
+    visualization_msgs::MarkerArray ma =
+            cc_->getCollisionModelVisualization(source_angles);
     for (int i = 0; i < (int) ma.markers.size(); i++) {
         ma.markers[i].ns = "expansion";
         ma.markers[i].id = i;
@@ -281,19 +257,24 @@ void EnvironmentROBARM3D::GetSuccs(
         bool succ_is_goal_state = false;
 
         // get pose of planning link
-        std::vector<double> pose;
-        if (!rmodel_->computePlanningLinkFK(action.back(), pose)) {
+        std::vector<double> tgt_off_pose;
+        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
             continue;
         }
 
         // discretize planning link pose
-        grid_->worldToGrid(pose[0], pose[1], pose[2], endeff[0], endeff[1], endeff[2]);
+        grid_->worldToGrid(tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2], endeff[0], endeff[1], endeff[2]);
 
-        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]   pose: %s", i, to_string(pose).c_str());
-        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]    xyz: %d %d %d  goal: %d %d %d  (diff: %d %d %d)", i, endeff[0], endeff[1], endeff[2], pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2], abs(pdata_.goal_entry->xyz[0] - endeff[0]), abs(pdata_.goal_entry->xyz[1] - endeff[1]), abs(pdata_.goal_entry->xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]   pose: %s", i, to_string(tgt_off_pose).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "[ succ: %zu]    xyz: %d %d %d  goal: %d %d %d  (diff: %d %d %d)",
+                i, endeff[0], endeff[1], endeff[2],
+                pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2],
+                abs(pdata_.goal_entry->xyz[0] - endeff[0]),
+                abs(pdata_.goal_entry->xyz[1] - endeff[1]),
+                abs(pdata_.goal_entry->xyz[2] - endeff[2]));
 
         // check if this state meets the goal criteria
-        if ((!pdata_.use_7dof_goal && isGoalState(pose, pdata_.goal)) ||
+        if ((!pdata_.use_7dof_goal && isGoalState(tgt_off_pose, pdata_.goal)) ||
             (pdata_.use_7dof_goal && isGoalState(action.back(), pdata_.goal_7dof )))
         {
             succ_is_goal_state = true;
@@ -311,12 +292,15 @@ void EnvironmentROBARM3D::GetSuccs(
         }
 
         // check if hash entry already exists, if not then create one
-        if ((succ_entry = getHashEntry(scoord, succ_is_goal_state)) == NULL) {
+        if (!(succ_entry = getHashEntry(scoord, succ_is_goal_state))) {
             succ_entry = createHashEntry(scoord, endeff);
             succ_entry->state = action.back();
             succ_entry->dist = dist;
 
-            ROS_DEBUG_NAMED(prm_->expands_log_, "%5i: action: %2zu dist: %2d edge_distance_cost: %5d heur: %2d endeff: %3d %3d %3d", succ_entry->stateID, i, int(succ_entry->dist), cost(parent_entry,succ_entry, succ_is_goal_state), GetFromToHeuristic(succ_entry->stateID, pdata_.goal_entry->stateID), succ_entry->xyz[0],succ_entry->xyz[1],succ_entry->xyz[2]);
+            ROS_DEBUG_NAMED(prm_->expands_log_, "%5i: action: %2zu dist: %2d edge_distance_cost: %5d heur: %2d endeff: %3d %3d %3d",
+                    succ_entry->stateID, i, int(succ_entry->dist), cost(parent_entry,succ_entry, succ_is_goal_state),
+                    GetFromToHeuristic(succ_entry->stateID, pdata_.goal_entry->stateID),
+                    succ_entry->xyz[0], succ_entry->xyz[1], succ_entry->xyz[2]);
         }
 
         // put successor on successor list with the proper cost
@@ -386,6 +370,48 @@ void EnvironmentROBARM3D::printHashTableHist()
     ROS_DEBUG("hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
 }
 
+std::vector<double> EnvironmentROBARM3D::getTargetOffsetPose(
+    const std::vector<double>& tip_pose)
+{
+    // pose represents T_planning_eef
+    Eigen::Affine3d T_planning_tipoff =  // T_planning_eef * T_eef_tipoff
+            Eigen::Translation3d(tip_pose[0], tip_pose[1], tip_pose[2]) *
+            Eigen::AngleAxisd(tip_pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
+            Eigen::Translation3d(
+                    pdata_.goal.xyz_offset[0],
+                    pdata_.goal.xyz_offset[1],
+                    pdata_.goal.xyz_offset[2]);
+    const Eigen::Vector3d voff(T_planning_tipoff.translation());
+    return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
+}
+
+bool EnvironmentROBARM3D::computePlanningFrameFK(
+    const std::vector<double>& state,
+    std::vector<double>& pose)
+{
+    if (!rmodel_->computePlanningLinkFK(state, pose)) {
+        return false;
+    }
+
+    // pose represents T_planning_eef
+    Eigen::Affine3d T_planning_tipoff =  // T_planning_eef * T_eef_tipoff
+            Eigen::Translation3d(pose[0], pose[1], pose[2]) *
+            Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()) *
+            Eigen::Translation3d(
+                    pdata_.goal.xyz_offset[0],
+                    pdata_.goal.xyz_offset[1],
+                    pdata_.goal.xyz_offset[2]);
+    const Eigen::Vector3d voff(T_planning_tipoff.translation());
+    pose[0] = voff.x();
+    pose[1] = voff.y();
+    pose[2] = voff.z();
+    return true;
+}
+
 EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
     const std::vector<int>& coord,
     bool bIsGoal)
@@ -431,7 +457,7 @@ EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::createHashEntry(
 
     HashEntry->coord = coord;
 
-    memcpy(HashEntry->xyz, endeff, 3*sizeof(int));
+    memcpy(HashEntry->xyz, endeff, 3 * sizeof(int));
 
     // assign a stateID to HashEntry to be used
     HashEntry->stateID = pdata_.StateID2CoordTable.size();
@@ -497,23 +523,24 @@ bool EnvironmentROBARM3D::initEnvironment()
 }
 
 bool EnvironmentROBARM3D::isGoalState(
-    const std::vector<double>& pose,
+    const std::vector<double>& pose, // tgt_off_pose
     GoalConstraint& goal)
 {
     if (goal.type == XYZ_RPY_GOAL) {
-        if (fabs(pose[0] - goal.pose[0]) <= goal.xyz_tolerance[0] &&
-            fabs(pose[1] - goal.pose[1]) <= goal.xyz_tolerance[1] &&
-            fabs(pose[2] - goal.pose[2]) <= goal.xyz_tolerance[2])
+        if (fabs(pose[0] - goal.tgt_off_pose[0]) <= goal.xyz_tolerance[0] &&
+            fabs(pose[1] - goal.tgt_off_pose[1]) <= goal.xyz_tolerance[1] &&
+            fabs(pose[2] - goal.tgt_off_pose[2]) <= goal.xyz_tolerance[2])
         {
             // log the amount of time required for the search to get close to the goal
             if (!pdata_.near_goal) {
                 pdata_.time_to_goal_region = (clock() - pdata_.t_start) / (double)CLOCKS_PER_SEC;
                 pdata_.near_goal = true;
-                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %.4f sec. (after %d expansions)", pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.pose[0], goal.pose[1], goal.pose[2], pdata_.time_to_goal_region, (int)pdata_.expanded_states.size());
+                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %.4f sec. (after %d expansions)",
+                        pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2], pdata_.time_to_goal_region, (int)pdata_.expanded_states.size());
             }
-            const double droll = fabs(angles::shortest_angular_distance(pose[3], goal.pose[3]));
-            const double dpitch = fabs(angles::shortest_angular_distance(pose[4], goal.pose[4]));
-            const double dyaw = fabs(angles::shortest_angular_distance(pose[5], goal.pose[5]));
+            const double droll = fabs(angles::shortest_angular_distance(pose[3], goal.tgt_off_pose[3]));
+            const double dpitch = fabs(angles::shortest_angular_distance(pose[4], goal.tgt_off_pose[4]));
+            const double dyaw = fabs(angles::shortest_angular_distance(pose[5], goal.tgt_off_pose[5]));
             ROS_DEBUG("Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
             if (droll < goal.rpy_tolerance[0] &&
                 dpitch < goal.rpy_tolerance[1] &&
@@ -524,9 +551,9 @@ bool EnvironmentROBARM3D::isGoalState(
         }
     }
     else if (goal.type == XYZ_GOAL) {
-        if (fabs(pose[0] - goal.pose[0]) <= goal.xyz_tolerance[0] &&
-            fabs(pose[1] - goal.pose[1]) <= goal.xyz_tolerance[1] &&
-            fabs(pose[2] - goal.pose[2]) <= goal.xyz_tolerance[2])
+        if (fabs(pose[0] - goal.tgt_off_pose[0]) <= goal.xyz_tolerance[0] &&
+            fabs(pose[1] - goal.tgt_off_pose[1]) <= goal.xyz_tolerance[1] &&
+            fabs(pose[2] - goal.tgt_off_pose[2]) <= goal.xyz_tolerance[2])
         {
             return true;
         }
@@ -592,24 +619,6 @@ int EnvironmentROBARM3D::getActionCost(
     return cost;
 }
 
-int EnvironmentROBARM3D::getEdgeCost(int FromStateID, int ToStateID)
-{
-#if DEBUG
-    if(FromStateID >= (int)pdata_.StateID2CoordTable.size()
-        || ToStateID >= (int)pdata_.StateID2CoordTable.size())
-    {
-        ROS_ERROR("ERROR in pdata_... function: stateID illegal");
-        throw new SBPL_Exception();
-    }
-#endif
-
-    //get X, Y for the state
-    EnvROBARM3DHashEntry_t* FromHashEntry = pdata_.StateID2CoordTable[FromStateID];
-    EnvROBARM3DHashEntry_t* ToHashEntry = pdata_.StateID2CoordTable[ToStateID];
-
-    return cost(FromHashEntry, ToHashEntry, false);
-}
-
 bool EnvironmentROBARM3D::setStartConfiguration(
     const std::vector<double>& angles)
 {
@@ -623,7 +632,7 @@ bool EnvironmentROBARM3D::setStartConfiguration(
     }
 
     //get joint positions of starting configuration
-    if (!rmodel_->computePlanningLinkFK(angles, pose)) {
+    if (!computePlanningFrameFK(angles, pose)) {
         ROS_WARN("Unable to compute forward kinematics for initial robot state. Attempting to plan anyway.");
     }
     ROS_INFO("[env][start]             angles: %s", to_string(angles).c_str());
@@ -641,11 +650,10 @@ bool EnvironmentROBARM3D::setStartConfiguration(
 
     visualization_msgs::MarkerArray ma;
     ma = cc_->getCollisionModelVisualization(angles);
-    ROS_INFO("Got %zd markers for start_config visualization in frame %s!", ma.markers.size(), grid_->getReferenceFrame().c_str());
+    ROS_INFO("Got %zd markers for start_config visualization!", ma.markers.size());
     for (size_t i = 0; i < ma.markers.size(); i++) {
         ma.markers[i].ns = "start_config";
         ma.markers[i].id = i;
-//        ma.markers[i].header.frame_id = grid_->getReferenceFrame();
     }
     pub_.publish(ma);
 
@@ -671,7 +679,7 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
     // compute the goal pose
     std::vector<std::vector<double>> goals_6dof;
     std::vector<double> pose;
-    if (!rmodel_->computePlanningLinkFK(goal, pose)) {
+    if (!computePlanningFrameFK(goal, pose)) {
         SBPL_WARN("Could not compute planning link FK for given goal configuration!");
         return false;
     }
@@ -762,11 +770,14 @@ bool EnvironmentROBARM3D::setGoalPosition(
     pdata_.goal.rpy_tolerance[2] = tolerances[0][5];
     pdata_.goal.type = goals[0][6];
 
+    std::vector<double> tgt_off_pose = getTargetOffsetPose(pdata_.goal.pose);
+    pdata_.goal.tgt_off_pose = tgt_off_pose;
+
     // set goal hash entry
     grid_->worldToGrid(
-            goals[0][0],
-            goals[0][1],
-            goals[0][2],
+            tgt_off_pose[0],
+            tgt_off_pose[1],
+            tgt_off_pose[2],
             pdata_.goal_entry->xyz[0],
             pdata_.goal_entry->xyz[1],
             pdata_.goal_entry->xyz[2]);
@@ -811,7 +822,7 @@ bool EnvironmentROBARM3D::setGoalPosition(
         pdata_.goal_entry->xyz[1] < 0 || pdata_.goal_entry->xyz[1] >= dimY ||
         pdata_.goal_entry->xyz[2] < 0 || pdata_.goal_entry->xyz[2] >= dimZ)
     {
-        ROS_ERROR("Goal is out of bounds. Can't run BFS with {%d %d %d} as start.",
+        ROS_ERROR("Goal is out of bounds. Can't run BFS with (%d, %d, %d) as start.",
                 pdata_.goal_entry->xyz[0], pdata_.goal_entry->xyz[1], pdata_.goal_entry->xyz[2]);
         return false;
     }
@@ -843,18 +854,13 @@ void EnvironmentROBARM3D::StateID2Angles(
     }
 }
 
-int EnvironmentROBARM3D::getXYZRPYHeuristic(int FromStateID, int ToStateID)
-{
-    return 0;
-}
-
 void EnvironmentROBARM3D::printJointArray(
     FILE* fOut,
     EnvROBARM3DHashEntry_t* HashEntry,
     bool bGoal,
     bool bVerbose)
 {
-    std::vector<double> angles(prm_->num_joints_, 0);
+    std::vector<double> angles(prm_->num_joints_, 0.0);
 
     if (bGoal) {
         coordToAngles(pdata_.goal_entry->coord, angles);
@@ -867,17 +873,16 @@ void EnvironmentROBARM3D::printJointArray(
     if (bVerbose) {
         ss << "angles: ";
     }
-
-    for (int i = 0; i < int(angles.size()); i++) {
-        if (i > 0) {
-            ss << std::setprecision(3) << angles[i] - angles[i - 1] << ' ';
-        }
-        else {
-            ss << std::setprecision(3) << angles[i] << ' ';
+    ss << "{ ";
+    for (size_t i = 0; i < angles.size(); ++i) {
+        ss << std::setprecision(3) << angles[i];
+        if (i != angles.size() - 1) {
+            ss << ", ";
         }
     }
+    ss << " }";
 
-    if (fOut == stdin) {
+    if (fOut == stdout) {
         ROS_INFO("%s", ss.str().c_str());
     }
     else if (fOut == stderr) {
@@ -896,7 +901,7 @@ void EnvironmentROBARM3D::getExpandedStates(
 
     for (size_t i = 0; i < pdata_.expanded_states.size(); ++i) {
         StateID2Angles(pdata_.expanded_states[i],angles);
-        rmodel_->computePlanningLinkFK(angles,state);
+        computePlanningFrameFK(angles, state);
         state[6] = pdata_.StateID2CoordTable[pdata_.expanded_states[i]]->heur;
         states->push_back(state);
         ROS_DEBUG("[%d] id: %d  xyz: %s", int(i), pdata_.expanded_states[i], to_string(state).c_str());
@@ -923,14 +928,17 @@ int EnvironmentROBARM3D::getXYZHeuristic(int FromStateID, int ToStateID)
 {
     EnvROBARM3DHashEntry_t* FromHashEntry = pdata_.StateID2CoordTable[FromStateID];
 
-    //get distance heuristic
+    // get distance heuristic
     if (prm_->use_bfs_heuristic_) {
         FromHashEntry->heur = getBFSCostToGoal(FromHashEntry->xyz[0], FromHashEntry->xyz[1], FromHashEntry->xyz[2]);
     }
     else {
         double x, y, z;
-        grid_->gridToWorld(FromHashEntry->xyz[0],FromHashEntry->xyz[1],FromHashEntry->xyz[2], x, y, z);
-        FromHashEntry->heur = getEuclideanDistance(x, y, z, pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]) * prm_->cost_per_meter_ * 500;
+        grid_->gridToWorld(FromHashEntry->xyz[0], FromHashEntry->xyz[1], FromHashEntry->xyz[2], x, y, z);
+        std::vector<double> off_pose = getTargetOffsetPose(pdata_.goal.pose);
+        FromHashEntry->heur =
+                500 * prm_->cost_per_meter_ * getEuclideanDistance(
+                        x, y, z, off_pose[0], off_pose[1], off_pose[2]);
     }
     return FromHashEntry->heur;
 }
@@ -984,6 +992,28 @@ double EnvironmentROBARM3D::getDistanceToGoal(double x, double y, double z)
     }
     else {
         dist = getEuclideanDistance(x, y, z, pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]);
+    }
+
+    return dist;
+}
+
+double EnvironmentROBARM3D::getDistanceToGoal(const std::vector<double>& pose)
+{
+    // transform to the tipoff pose
+    std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
+
+    double dist;
+    int dx, dy, dz;
+    grid_->worldToGrid(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2], dx, dy, dz);
+
+    if (prm_->use_bfs_heuristic_) {
+        dist = double(bfs_->getDistance(dx, dy, dz)) * grid_->getResolution();
+    }
+    else {
+        // TODO: distance between offset position and the goal offset position
+        dist = getEuclideanDistance(
+                tipoff_pose[0], tipoff_pose[1], tipoff_pose[2],
+                pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]);
     }
 
     return dist;
