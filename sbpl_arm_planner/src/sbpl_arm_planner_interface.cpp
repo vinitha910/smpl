@@ -233,6 +233,8 @@ bool SBPLArmPlannerInterface::solve(
     // plan
     clock_t t_plan = clock();
     res.trajectory_start = planning_scene->robot_state;
+    prm_.allowed_time_ = req.allowed_planning_time;
+    ROS_INFO("Allowed Time (s): %0.3f", prm_.allowed_time_);
 
     if (req.goal_constraints.front().position_constraints.size() > 0) {
         ROS_INFO("Planning to position!");
@@ -541,7 +543,6 @@ bool SBPLArmPlannerInterface::planToPosition(
     assert(!goal_constraints_v.empty());
 
     m_starttime = clock();
-    prm_.allowed_time_ = req.allowed_planning_time;
     req_ = req;
 
     // transform goal pose into reference_frame
@@ -625,7 +626,6 @@ bool SBPLArmPlannerInterface::planToConfiguration(
     assert(!goal_constraints_v.empty());
 
     m_starttime = clock();
-    prm_.allowed_time_ = req.allowed_planning_time;
     req_ = req;
 
     // only acknowledge the first constraint
