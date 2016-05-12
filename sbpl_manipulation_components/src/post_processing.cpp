@@ -35,48 +35,62 @@
 #include <ros/console.h>
 #include <sbpl_geometry_utils/interpolation.h>
 #include <sbpl_geometry_utils/utils.h>
+#include <sbpl_geometry_utils/shortcut.h>
 
 namespace sbpl_arm_planner {
+
+class ShortcutPathGenerator :
+    public sbpl::shortcut::PathGenerator<std::vector<double>, int>
+{
+public:
+
+    typedef sbpl::shortcut::PathGenerator<std::vector<double>, int> Base;
+
+    ShortcutPathGenerator(sbpl_arm_planner::CollisionChecker* cc) :
+        m_cc(cc)
+    {
+
+    }
+
+    virtual ~ShortcutPathGenerator() { }
+
+    virtual bool generate_path(
+        const Base::Point& start,
+        const Base::Point& end,
+        Base::PathContainer& path,
+        Base::Cost& cost) const
+    {
+        int path_length;
+        int num_checks;
+        double dist;
+        if (m_cc->isStateToStateValid(start, end, path_length, num_checks, dist)) {
+            path = { start, end };
+            cost = 0;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+private:
+
+    sbpl_arm_planner::CollisionChecker* m_cc;
+};
 
 void shortcutPath(
     sbpl_arm_planner::CollisionChecker* cc,
     std::vector<std::vector<double>>& pin,
     std::vector<std::vector<double>>& pout)
 {
-    int i = 0;
-    int num_checks = 0, path_length = 0;
-    unsigned int current = 1;
-    double dist = 100;
-
-    if (pin.size() <= 2) {
-        ROS_INFO("Path has 2 waypoints or less. Can't shortcut.");
+    if (pin.size() < 2) {
         pout = pin;
         return;
     }
 
-    pout.clear();
-    pout.push_back(pin[0]);
-    ROS_DEBUG("[keeping %d] %s", 0, to_string(pin[0]).c_str());
-    while (current != pin.size()) {
-        if (!cc->isStateToStateValid(pin[i], pin[current], path_length, num_checks, dist)) {
-            i = current;
-            ROS_DEBUG("[keeping %d] %s (num_checks: %d  interp_length: %d)", current, to_string(pin[i]).c_str(), num_checks, path_length);
-            pout.push_back(pin[i]);
-        }
-        else {
-            if (current < pin.size()-1) {
-                ROS_DEBUG("[cutting %d] %s (num_checks: %d  interp_length: %d)", current, to_string(pin[current]).c_str(), num_checks, path_length);
-            }
-            else {
-                ROS_DEBUG("[keeping %d] %s (num_checks: %d  interp_length: %d)",int(pin.size())-1, to_string(pin[pin.size() - 1]).c_str(), num_checks, path_length);
-                pout.push_back(pin[current]);
-            }
-        }
-        current++;
-    }
-    if (pout.size() == 2) {
-        ROS_ERROR("Does it make sense that the shortcutted path length is 2? Is it freespace?");
-    }
+    std::vector<int> costs(pin.size() - 1, 1);
+    std::vector<ShortcutPathGenerator> generators = { ShortcutPathGenerator(cc) };
+    sbpl::shortcut::ShortcutPath(pin, costs, generators, pout);
 
     ROS_INFO("Original path length: %zu", pin.size());
     ROS_INFO("Shortcutted path length: %zu", pout.size());

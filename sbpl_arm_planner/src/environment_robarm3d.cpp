@@ -262,8 +262,6 @@ void EnvironmentROBARM3D::GetSuccs(
         anglesToCoord(action.back(), scoord);
 
         // get the successor
-        EnvROBARM3DHashEntry_t* succ_entry;
-        bool succ_is_goal_state = false;
 
         // get pose of planning link
         std::vector<double> tgt_off_pose;
@@ -283,10 +281,11 @@ void EnvironmentROBARM3D::GetSuccs(
                 abs(pdata_.goal_entry->xyz[2] - endeff[2]));
 
         // check if this state meets the goal criteria
-        if ((!pdata_.use_7dof_goal && isGoalState(tgt_off_pose, pdata_.goal)) ||
-            (pdata_.use_7dof_goal && isGoalState(action.back(), pdata_.goal_7dof )))
+        const bool succ_is_goal_state =
+            (!pdata_.use_7dof_goal && isGoalState(tgt_off_pose, pdata_.goal)) ||
+            (pdata_.use_7dof_goal && isGoalState(action.back(), pdata_.goal_7dof));
+        if (succ_is_goal_state)
         {
-            succ_is_goal_state = true;
             //update goal state
             for (int k = 0; k < prm_->num_joints_; k++) {
                 pdata_.goal_entry->coord[k] = scoord[k];
@@ -301,6 +300,7 @@ void EnvironmentROBARM3D::GetSuccs(
         }
 
         // check if hash entry already exists, if not then create one
+        EnvROBARM3DHashEntry_t* succ_entry;
         if (!(succ_entry = getHashEntry(scoord, succ_is_goal_state))) {
             succ_entry = createHashEntry(scoord, endeff);
             succ_entry->state = action.back();
