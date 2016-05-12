@@ -32,8 +32,17 @@ find_package(catkin
 
 find_package(Eigen REQUIRED)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SBPL REQUIRED sbpl)
+find_package(
+    sbpl
+    REQUIRED
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH
+    NO_CMAKE_BUILDS_PATH
+#    NO_CMAKE_SYSTEM_PATH
+    NO_CMAKE_PACKAGE_REGISTRY
+    NO_CMAKE_SYSTEM_PACKAGE_REGISTRY
+    NO_CMAKE_SYSTEM_PATH)
 
 find_package(orocos_kdl REQUIRED)
 
