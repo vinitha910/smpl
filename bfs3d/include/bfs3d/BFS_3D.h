@@ -9,14 +9,14 @@
 
 #include <boost/thread.hpp>
 
-#define WALL         0x7FFFFFFF
-#define UNDISCOVERED 0xFFFFFFFF
-
 namespace sbpl_arm_planner {
 
 class BFS_3D
 {
 public:
+
+    static const int WALL = 0x7FFFFFFF;
+    static const int UNDISCOVERED = 0xFFFFFFFF;
 
     BFS_3D(int length, int width, int height);
     ~BFS_3D();
@@ -37,6 +37,8 @@ public:
 
     void run(int x, int y, int z);
     void run_components(int gx, int gy, int gz);
+
+    bool inBounds(int x, int y, int z) const;
 
     /// \brief Return the distance, in cells, to the nearest occupied cell.
     ///
@@ -78,7 +80,6 @@ private:
     std::vector<bool> m_closed;
     std::vector<int> m_distances;
 
-    bool inBounds(int x, int y, int z) const;
     int getNode(int x, int y, int z) const;
     bool getCoord(int node, int& x, int& y, int& z) const;
     void setWall(int node);
