@@ -211,7 +211,11 @@ public:
     std::vector<double> getGoalConfiguration();
 
     std::vector<double> getStart();
+
+    /// \brief Get the (heuristic) distance from the planning frame position to the goal
     double getDistanceToGoal(double x, double y, double z);
+
+    // \brief Get the (heuristic) distance from the planning link pose to the goal
     double getDistanceToGoal(const std::vector<double>& pose);
 
     const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
