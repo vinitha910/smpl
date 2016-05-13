@@ -782,6 +782,9 @@ bool EnvironmentROBARM3D::setGoalPosition(
     std::vector<double> tgt_off_pose = getTargetOffsetPose(pdata_.goal.pose);
     pdata_.goal.tgt_off_pose = tgt_off_pose;
 
+    auto goal_markers = viz::getPosesMarkerArray({ tgt_off_pose }, grid_->getReferenceFrame(), "target_goal");
+    pub_.publish(goal_markers);
+
     // set goal hash entry
     grid_->worldToGrid(
             tgt_off_pose[0],
