@@ -195,6 +195,7 @@ public:
 
     RobotModel* getRobotModel() { return rmodel_; };
     CollisionChecker* getCollisionChecker() { return cc_; };
+    ros::Publisher& visualizationPublisher() { return m_vpub; }
     bool use7DOFGoal() { return pdata_.use_7dof_goal; };
 
     /// \brief Return the 6-dof goal pose for the tip link.
@@ -246,6 +247,12 @@ public:
         int SourceStateID,
         std::vector<int>* SuccIDV,
         std::vector<int>* CostV);
+    virtual void GetLazySuccs(
+        int SourceStateID,
+        std::vector<int>* SuccIDV,
+        std::vector<int>* CostV,
+        std::vector<bool>* isTrueCost);
+    virtual int GetTrueCost(int parentID, int childID);
     int SizeofCreatedEnv();
     void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
     ///@}
@@ -279,7 +286,7 @@ protected:
     PlanningParams* prm_;
 
     ros::NodeHandle nh_;
-    ros::Publisher pub_;
+    ros::Publisher m_vpub;
 
     // function pointers for heuristic function
     int (EnvironmentROBARM3D::*getHeuristic_) (int FromStateID, int ToStateID);
@@ -317,6 +324,9 @@ protected:
     virtual bool isGoalState(
         const std::vector<double>& angles,
         GoalConstraint7DOF& goal);
+    virtual bool isGoal(
+        const std::vector<double>& angles,
+        const std::vector<double>& pose);
 
     /** costs */
     int cost(
@@ -343,6 +353,10 @@ protected:
     double getEuclideanDistance(
         double x1, double y1, double z1,
         double x2, double y2, double z2) const;
+
+    void visualizeState(
+        const std::vector<double>& jvals,
+        const std::string& ns) const;
 };
 
 inline unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
@@ -390,6 +404,9 @@ inline void EnvironmentROBARM3D::anglesToCoord(
     const std::vector<double>& angle,
     std::vector<int>& coord)
 {
+    assert((int)angle.size() == prm_->num_joints_ &&
+            (int)coord.size() == prm_->num_joints_);
+
     double pos_angle;
 
     for (size_t i = 0; i < angle.size(); i++) {

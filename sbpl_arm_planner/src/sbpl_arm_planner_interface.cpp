@@ -179,11 +179,6 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         return false;
     }
 
-    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
-        ROS_ERROR("InitializeMDPCfg failed");
-        return false;
-    }
-
     ROS_INFO("Initialized sbpl arm planning environment.");
     return true;
 }
@@ -345,6 +340,12 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
         ROS_ERROR("Environment failed to set start state. Not Planning.");
         return false;
     }
+
+    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
+        ROS_ERROR("InitializeMDPCfg failed");
+        return false;
+    }
+
     if (planner_->set_start(mdp_cfg_.startstateid) == 0) {
         ROS_ERROR("Failed to set start state. Not Planning.");
         return false;
@@ -390,6 +391,12 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(
     }
 
     //set planner goal
+
+    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
+        ROS_ERROR("InitializeMDPCfg failed");
+        return false;
+    }
+
     if (planner_->set_goal(mdp_cfg_.goalstateid) == 0) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
@@ -470,6 +477,11 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     }
 
     // set planner goal
+    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
+        ROS_ERROR("InitializeMDPCfg failed");
+        return false;
+    }
+
     if (planner_->set_goal(mdp_cfg_.goalstateid) == 0) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
