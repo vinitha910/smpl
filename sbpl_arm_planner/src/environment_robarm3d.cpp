@@ -961,12 +961,8 @@ bool EnvironmentROBARM3D::setGoalPosition(
 
     // set goal hash entry
     grid_->worldToGrid(
-            tgt_off_pose[0],
-            tgt_off_pose[1],
-            tgt_off_pose[2],
-            m_goal_entry->xyz[0],
-            m_goal_entry->xyz[1],
-            m_goal_entry->xyz[2]);
+            tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2],
+            m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[2]);
 
     for (int i = 0; i < prm_->num_joints_; i++) {
         m_goal_entry->coord[i] = 0;
@@ -1006,9 +1002,8 @@ bool EnvironmentROBARM3D::setGoalPosition(
     ROS_INFO("[env] %0.5fsec to set walls in new bfs. (%d walls (%0.3f percent))",
             set_walls_time, walls, (double)walls / (double)(dimX*dimY*dimZ));
 
-    if (m_goal_entry->xyz[0] < 0 || m_goal_entry->xyz[0] >= dimX ||
-        m_goal_entry->xyz[1] < 0 || m_goal_entry->xyz[1] >= dimY ||
-        m_goal_entry->xyz[2] < 0 || m_goal_entry->xyz[2] >= dimZ)
+    if (!bfs_->inBounds(
+            m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[1]))
     {
         ROS_ERROR("Goal is out of bounds. Can't run BFS with (%d, %d, %d) as start.",
                 m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[2]);
