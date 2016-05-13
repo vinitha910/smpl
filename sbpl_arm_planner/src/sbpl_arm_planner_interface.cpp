@@ -76,8 +76,11 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     req_(),
     res_(),
     pscene_(),
-    m_starttime()
+    m_starttime(),
+    m_vpub()
 {
+    ros::NodeHandle nh;
+    m_vpub = nh.advertise<visualization_msgs::MarkerArray>("visualization_markers", 1);
 }
 
 SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
@@ -576,54 +579,22 @@ bool SBPLArmPlannerInterface::planToPosition(
         return false;
     }
 
-    trajectory_msgs::JointTrajectory& otraj = res.trajectory.joint_trajectory;
-    if (!plan(otraj)) {
+    if (!plan(res.trajectory.joint_trajectory)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
 
-    otraj.header.seq = goal_constraints.position_constraints.front().header.seq;
-    otraj.header.stamp = ros::Time::now();
+    ROS_INFO("Planner Trajectory:");
+    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
 
-    // fill in the waypoint times (not very intelligently)
-    otraj.points.front().time_from_start.fromSec(prm_.waypoint_time_);
-    for (size_t i = 1; i < otraj.points.size(); i++) {
-        const double prev_time_s = otraj.points[i - 1].time_from_start.toSec();
-        otraj.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
-    }
+    res.trajectory.joint_trajectory.header.seq = 0;
+    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
 
-    // shortcut path
-    if (prm_.shortcut_path_) {
-        trajectory_msgs::JointTrajectory straj;
-        if (!interpolateTrajectory(cc_, otraj.points, straj.points)) {
-            ROS_WARN("Failed to interpolate planned trajectory with %zu waypoints before shortcutting", otraj.points.size());
-            // shortcut original trajectory
-            trajectory_msgs::JointTrajectory orig_traj = otraj;
-            shortcutTrajectory(cc_, orig_traj.points, otraj.points);
-        }
-        else {
-            shortcutTrajectory(cc_, straj.points, otraj.points);
-        }
-    }
+    postProcessPath(res.trajectory.joint_trajectory);
 
-    // interpolate path
-    if (prm_.interpolate_path_) {
-        trajectory_msgs::JointTrajectory itraj = otraj;
-        if (!interpolateTrajectory(cc_, itraj.points, otraj.points)) {
-            ROS_WARN("Failed to interpolate trajectory");
-        }
-    }
-
-    if (prm_.print_path_) {
-        leatherman::printJointTrajectory(otraj, "path");
-    }
-
-    ROS_INFO("Visualizing trajectory");
-    static ros::Publisher vpub = ros::NodeHandle().advertise<visualization_msgs::MarkerArray>("visualization_markers", 1);
-    vpub.publish(getCollisionModelTrajectoryVisualization(res.trajectory_start, res.trajectory));
-    ros::Duration(1.0).sleep();
+    visualizePath(res.trajectory_start, res.trajectory);
 
     res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
@@ -643,9 +614,6 @@ bool SBPLArmPlannerInterface::planToConfiguration(
     // only acknowledge the first constraint
     const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front();
 
-    // set start
-    ROS_INFO("Setting start.");
-
     if (!setStart(req.start_state.joint_state)) {
         ROS_ERROR("Failed to set initial configuration of robot.");
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
@@ -660,46 +628,22 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         return false;
     }
 
-    trajectory_msgs::JointTrajectory& otraj = res.trajectory.joint_trajectory;
-    if (!plan(otraj)) {
+    if (!plan(res.trajectory.joint_trajectory)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
 
-    const moveit_msgs::JointConstraint joint_constraint = goal_constraints.joint_constraints.front();
-    otraj.header.seq = 0;
-    otraj.header.stamp = ros::Time::now();
+    ROS_INFO("Planner Trajectory:");
+    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
 
-    // fill in the waypoint times (not very intelligently)
-    otraj.points[0].time_from_start.fromSec(prm_.waypoint_time_);
-    for (size_t i = 1; i < otraj.points.size(); i++) {
-        const double prev_time_s = otraj.points[i - 1].time_from_start.toSec();
-        otraj.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
-    }
+    res.trajectory.joint_trajectory.header.seq = 0;
+    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
 
-    // shortcut path
-    if (prm_.shortcut_path_) {
-        trajectory_msgs::JointTrajectory straj;
-        if (!interpolateTrajectory(cc_, otraj.points, straj.points)) {
-            ROS_WARN("Failed to interpolate planned trajectory with %d waypoints before shortcutting.", int(otraj.points.size()));
-        }
+    postProcessPath(res.trajectory.joint_trajectory);
 
-        shortcutTrajectory(cc_, straj.points,otraj.points);
-    }
-
-    // interpolate path
-    if (prm_.interpolate_path_) {
-        trajectory_msgs::JointTrajectory itraj = otraj;
-        if (!interpolateTrajectory(cc_, itraj.points, otraj.points)) {
-            ROS_WARN("Failed to interpolate trajectory");
-        }
-    }
-
-    if (prm_.print_path_) {
-        leatherman::printJointTrajectory(otraj, "path");
-    }
+    visualizePath(res.trajectory_start, res.trajectory);
 
     res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
@@ -774,7 +718,7 @@ SBPLArmPlannerInterface::getCollisionModelTrajectoryMarker()
 visualization_msgs::MarkerArray
 SBPLArmPlannerInterface::getCollisionModelTrajectoryVisualization(
     const moveit_msgs::RobotState& ref_state,
-    const moveit_msgs::RobotTrajectory& res_traj)
+    const moveit_msgs::RobotTrajectory& res_traj) const
 {
     visualization_msgs::MarkerArray ma, ma1;
     std::vector<std::vector<double>> traj;
@@ -1097,7 +1041,7 @@ bool SBPLArmPlannerInterface::reinitPlanner(const std::string& planner_id)
         return reinitMhaPlanner();
     }
     else if (planner_id == "LARA*") {
-        return false; // stub name for lazy ara*
+        return reinitLaraPlanner();
     }
     else if (planner_id == "LMHA*") {
         return false; // stub name for lazy mha*
@@ -1153,6 +1097,69 @@ bool SBPLArmPlannerInterface::reinitMhaPlanner()
     m_planner_id = "MHA*";
 
     return true;
+}
+
+bool SBPLArmPlannerInterface::reinitLaraPlanner()
+{
+    clearGraphStateToPlannerStateMap();
+
+    planner_.reset(new LazyARAPlanner(sbpl_arm_env_.get(), true));
+    planner_->set_initialsolution_eps(prm_.epsilon_);
+    planner_->set_search_mode(prm_.search_mode_);
+
+    m_planner_id = "LARA*";
+
+    return true;
+}
+
+void SBPLArmPlannerInterface::profilePath(
+    trajectory_msgs::JointTrajectory& traj) const
+{
+    traj.points[0].time_from_start.fromSec(prm_.waypoint_time_);
+    for (size_t i = 1; i < traj.points.size(); i++) {
+        const double prev_time_s = traj.points[i - 1].time_from_start.toSec();
+        traj.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
+    }
+}
+
+void SBPLArmPlannerInterface::postProcessPath(
+    trajectory_msgs::JointTrajectory& traj) const
+{
+    profilePath(traj);
+
+    // shortcut path
+    if (prm_.shortcut_path_) {
+        trajectory_msgs::JointTrajectory straj;
+        if (!interpolateTrajectory(cc_, traj.points, straj.points)) {
+            ROS_WARN("Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
+            trajectory_msgs::JointTrajectory orig_traj = traj;
+            shortcutTrajectory(cc_, orig_traj.points, traj.points);
+        }
+        else {
+            shortcutTrajectory(cc_, straj.points, traj.points);
+        }
+    }
+
+    // interpolate path
+    if (prm_.interpolate_path_) {
+        trajectory_msgs::JointTrajectory itraj = traj;
+        if (!interpolateTrajectory(cc_, itraj.points, traj.points)) {
+            ROS_WARN("Failed to interpolate trajectory");
+        }
+    }
+
+    if (prm_.print_path_) {
+        leatherman::printJointTrajectory(traj, "path");
+    }
+}
+
+void SBPLArmPlannerInterface::visualizePath(
+    const moveit_msgs::RobotState& traj_start,
+    const moveit_msgs::RobotTrajectory& traj) const
+{
+    ROS_INFO("Visualizing trajectory");
+    m_vpub.publish(getCollisionModelTrajectoryVisualization(traj_start, traj));
+    ros::Duration(1.0).sleep();
 }
 
 } // namespace sbpl_arm_planner

@@ -124,7 +124,7 @@ public:
 
     visualization_msgs::MarkerArray getCollisionModelTrajectoryVisualization(
         const moveit_msgs::RobotState& ref_state,
-        const moveit_msgs::RobotTrajectory& traj);
+        const moveit_msgs::RobotTrajectory& traj) const;
 
     ///@}
 
@@ -171,6 +171,8 @@ protected:
     moveit_msgs::MotionPlanResponse res_;
     moveit_msgs::PlanningScene pscene_;
 
+    ros::Publisher m_vpub;
+
     clock_t m_starttime;
 
     bool initializeParamsFromParamServer();
@@ -216,6 +218,13 @@ protected:
     bool reinitPlanner(const std::string& planner_id);
     bool reinitAraPlanner();
     bool reinitMhaPlanner();
+    bool reinitLaraPlanner();
+
+    void postProcessPath(trajectory_msgs::JointTrajectory& traj) const;
+    void profilePath(trajectory_msgs::JointTrajectory& traj) const;
+    void visualizePath(
+        const moveit_msgs::RobotState& traj_start,
+        const moveit_msgs::RobotTrajectory& traj) const;
 };
 
 } // namespace sbpl_arm_planner
