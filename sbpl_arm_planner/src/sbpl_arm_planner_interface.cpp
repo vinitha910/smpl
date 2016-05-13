@@ -586,8 +586,8 @@ bool SBPLArmPlannerInterface::planToPosition(
         return false;
     }
 
-    ROS_INFO("Planner Trajectory:");
-    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
+//    ROS_INFO("Planner Trajectory:");
+//    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
 
     res.trajectory.joint_trajectory.header.seq = 0;
     res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
@@ -635,8 +635,8 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         return false;
     }
 
-    ROS_INFO("Planner Trajectory:");
-    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
+//    ROS_INFO("Planner Trajectory:");
+//    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
 
     res.trajectory.joint_trajectory.header.seq = 0;
     res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
