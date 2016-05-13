@@ -84,54 +84,6 @@ struct EnvROBARM3DHashEntry_t
     RobotState state;           // corresponding continuous coordinate
 };
 
-/** main structure that stores environment data used in planning */
-struct EnvironmentPlanningData
-{
-    bool near_goal;
-    clock_t t_start;
-    double time_to_goal_region;
-
-    bool use_7dof_goal;
-
-    GoalConstraint goal;
-    GoalConstraint7DOF goal_7dof;
-
-    EnvROBARM3DHashEntry_t* goal_entry;
-    EnvROBARM3DHashEntry_t* start_entry;
-
-    // maps from coords to stateID
-    int HashTableSize;
-    std::vector<EnvROBARM3DHashEntry_t*>* Coord2StateIDHashTable;
-
-    // maps from stateID to coords
-    std::vector<EnvROBARM3DHashEntry_t*> StateID2CoordTable;
-
-    // stateIDs of expanded states
-    std::vector<int> expanded_states;
-
-    EnvironmentPlanningData() :
-        near_goal(false),
-        t_start(),
-        time_to_goal_region(),
-        use_7dof_goal(false),
-        goal(),
-        goal_7dof(),
-        goal_entry(NULL),
-        start_entry(NULL),
-        HashTableSize(32 * 1024),
-        Coord2StateIDHashTable(NULL),
-        StateID2CoordTable(),
-        expanded_states()
-    {
-    }
-
-    void init()
-    {
-        Coord2StateIDHashTable = new std::vector<EnvROBARM3DHashEntry_t*>[HashTableSize];
-        StateID2CoordTable.clear();
-    }
-};
-
 /** Environment to be used when planning for a Robotic Arm using the SBPL. */
 class EnvironmentROBARM3D : public DiscreteSpaceInformation
 {
@@ -196,7 +148,7 @@ public:
     RobotModel* getRobotModel() { return rmodel_; };
     CollisionChecker* getCollisionChecker() { return cc_; };
     ros::Publisher& visualizationPublisher() { return m_vpub; }
-    bool use7DOFGoal() { return pdata_.use_7dof_goal; };
+    bool use7DOFGoal() { return m_use_7dof_goal; };
 
     /// \brief Return the 6-dof goal pose for the tip link.
     ///
@@ -286,14 +238,32 @@ protected:
     std::vector<double> m_max_limits;
     std::vector<bool> m_continuous;
 
-    EnvironmentPlanningData pdata_;
+    bool m_near_goal;
+    clock_t m_t_start;
+    double m_time_to_goal_region;
+
+    bool m_use_7dof_goal;
+
+    GoalConstraint m_goal;
+    GoalConstraint7DOF m_goal_7dof;
+
+    EnvROBARM3DHashEntry_t* m_goal_entry;
+    EnvROBARM3DHashEntry_t* m_start_entry;
+
+    // maps from coords to stateID
+    int m_HashTableSize;
+    std::vector<EnvROBARM3DHashEntry_t*>* m_Coord2StateIDHashTable;
+
+    // maps from stateID to coords
+    std::vector<EnvROBARM3DHashEntry_t*> m_states;
+
+    // stateIDs of expanded states
+    std::vector<int> m_expanded_states;
+
     PlanningParams* prm_;
 
     ros::NodeHandle nh_;
     ros::Publisher m_vpub;
-
-    // function pointers for heuristic function
-    int (EnvironmentROBARM3D::*getHeuristic_) (int FromStateID, int ToStateID);
 
     bool m_initialized;
 
@@ -385,7 +355,7 @@ inline unsigned int EnvironmentROBARM3D::getHashBin(
         val += intHash(coord[i]) << i;
     }
 
-    return intHash(val) & (pdata_.HashTableSize-1);
+    return intHash(val) & (m_HashTableSize - 1);
 }
 
 //angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin 0, ...
