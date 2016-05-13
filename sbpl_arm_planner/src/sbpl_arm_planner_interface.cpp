@@ -973,11 +973,7 @@ bool SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
                     primitive_pose.orientation.w,
                     primitive_pose.orientation.x,
                     primitive_pose.orientation.y,
-                    primitive_pose.orientation.z) *
-            Eigen::Translation3d(
-                    -position_constraint.target_point_offset.x,
-                    -position_constraint.target_point_offset.y,
-                    -position_constraint.target_point_offset.z);
+                    primitive_pose.orientation.z);
     Eigen::Vector3d eef_pos(T_planning_eef.translation());
 
     goal_pose.position.x = eef_pos.x();
