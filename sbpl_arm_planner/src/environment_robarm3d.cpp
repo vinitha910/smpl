@@ -356,7 +356,7 @@ void EnvironmentROBARM3D::GetLazySuccs(
         }
 
         int endeff[3];
-        grid_->worldToGrid(tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[3], endeff[0], endeff[1], endeff[2]);
+        grid_->worldToGrid(tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2], endeff[0], endeff[1], endeff[2]);
 
         const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
         if (succ_is_goal_state) {
@@ -1095,11 +1095,14 @@ void EnvironmentROBARM3D::computeCostPerCell()
 
 int EnvironmentROBARM3D::getBFSCostToGoal(int x, int y, int z) const
 {
-    if (bfs_->getDistance(x,y,z) > 1000000) {
+    if (!bfs_->inBounds(x, y, z)) {
+        return INT_MAX;
+    }
+    else if (bfs_->getDistance(x, y, z) == BFS_3D::WALL) {
         return INT_MAX;
     }
     else {
-        return int(bfs_->getDistance(x,y,z)) * prm_->cost_per_cell_;
+        return bfs_->getDistance(x, y, z) * prm_->cost_per_cell_;
     }
 }
 
@@ -1162,40 +1165,26 @@ void EnvironmentROBARM3D::convertStateIDPathToShortenedJointAnglesPath(
 
 double EnvironmentROBARM3D::getDistanceToGoal(double x, double y, double z)
 {
-    double dist;
     int dx, dy, dz;
     grid_->worldToGrid(x, y, z, dx, dy, dz);
 
     if (prm_->use_bfs_heuristic_) {
-        dist = double(bfs_->getDistance(dx, dy, dz)) * grid_->getResolution();
+        if (!bfs_->inBounds(dx, dy, dz)) {
+            return (double)BFS_3D::WALL * grid_->getResolution();
+        }
+        else {
+            return (double)bfs_->getDistance(dx, dy, dz) * grid_->getResolution();
+        }
     }
     else {
-        dist = getEuclideanDistance(x, y, z, pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]);
+        return getEuclideanDistance(x, y, z, pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]);
     }
-
-    return dist;
 }
 
 double EnvironmentROBARM3D::getDistanceToGoal(const std::vector<double>& pose)
 {
-    // transform to the tipoff pose
     std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
-
-    double dist;
-    int dx, dy, dz;
-    grid_->worldToGrid(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2], dx, dy, dz);
-
-    if (prm_->use_bfs_heuristic_) {
-        dist = double(bfs_->getDistance(dx, dy, dz)) * grid_->getResolution();
-    }
-    else {
-        // TODO: distance between offset position and the goal offset position
-        dist = getEuclideanDistance(
-                tipoff_pose[0], tipoff_pose[1], tipoff_pose[2],
-                pdata_.goal.pose[0], pdata_.goal.pose[1], pdata_.goal.pose[2]);
-    }
-
-    return dist;
+    return getDistanceToGoal(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
 const EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(

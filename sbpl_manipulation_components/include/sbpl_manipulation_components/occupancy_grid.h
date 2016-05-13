@@ -204,13 +204,13 @@ OccupancyGrid::getDistanceFieldPtr() const
     return grid_;
 }
 
-inline 
+inline
 double OccupancyGrid::getResolution() const
 {
     return grid_->getResolution();
 }
 
-inline 
+inline
 double OccupancyGrid::getMaxDistance() const
 {
     // HACK: embedded knowledge of PropagationDistanceField here
@@ -231,11 +231,6 @@ void OccupancyGrid::worldToGrid(
     int &x, int &y, int &z) const
 {
     grid_->worldToGrid(wx, wy, wz, x, y, z);
-
-    if ((x > 10000) || (y > 10000) || (z > 10000) || (x < 0) || (y < 0) || (z < 0)) {
-        ROS_ERROR("[grid] worldToGrid converted %0.5f %0.5f %0.5f to %d %d %d", wx, wy, wz, x, y, z);
-        fflush(stdout);
-    }
 }
 
 inline
