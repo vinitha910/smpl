@@ -1,5 +1,5 @@
-#ifndef _BFS_3D_
-#define _BFS_3D_
+#ifndef sbpl_manip_bfs3d_h
+#define sbpl_manip_bfs3d_h
 
 #include <stdio.h>
 #include <queue>
@@ -9,7 +9,8 @@
 
 #include <boost/thread.hpp>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 class BFS_3D
 {
@@ -217,6 +218,7 @@ inline int BFS_3D::neighbor(int node, int neighbor) const
     return node + m_neighbor_offsets[neighbor];
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

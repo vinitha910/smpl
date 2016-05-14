@@ -38,7 +38,8 @@
 #include <angles/angles.h>
 #include <kdl/frames.hpp>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 namespace ik_option {
 
@@ -170,6 +171,7 @@ protected:
     std::string logger_;
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

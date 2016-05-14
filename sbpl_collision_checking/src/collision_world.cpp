@@ -47,7 +47,7 @@ std::vector<int> ConvertToVertexIndices(
     return triangle_indices;
 }
 
-CollisionWorld::CollisionWorld(sbpl_arm_planner::OccupancyGrid* grid) :
+CollisionWorld::CollisionWorld(OccupancyGrid* grid) :
     m_grid(grid),
     m_object_map(),
     m_object_voxel_map()

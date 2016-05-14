@@ -37,7 +37,8 @@
 
 #define VERIFY_KINEMATICS 0
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
 {
@@ -161,10 +162,10 @@ void ActionSet::addMotionPrim(
     MotionPrimitive m;
 
     if (short_dist_mprim) {
-        m.type = sbpl_arm_planner::MotionPrimitive::SHORT_DISTANCE;
+        m.type = MotionPrimitive::SHORT_DISTANCE;
     }
     else {
-        m.type = sbpl_arm_planner::MotionPrimitive::LONG_DISTANCE;
+        m.type = MotionPrimitive::LONG_DISTANCE;
     }
 
     m.id =  mp_.size();
@@ -408,7 +409,7 @@ bool ActionSet::computeIkAction(
     const RobotState& state,
     const std::vector<double>& goal,
     double dist_to_goal,
-    sbpl_arm_planner::ik_option::IkOption option,
+    ik_option::IkOption option,
     std::vector<Action>& actions)
 {
     if (use_multiple_ik_solutions_) {
@@ -453,4 +454,5 @@ bool ActionSet::mprimActive(
     }
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

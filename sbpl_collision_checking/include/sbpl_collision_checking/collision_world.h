@@ -56,7 +56,7 @@ public:
     typedef collision_detection::World::ObjectPtr ObjectPtr;
     typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
 
-    CollisionWorld(sbpl_arm_planner::OccupancyGrid* grid);
+    CollisionWorld(OccupancyGrid* grid);
 
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
@@ -78,7 +78,7 @@ public:
 
 private:
 
-    sbpl_arm_planner::OccupancyGrid* m_grid;
+    OccupancyGrid* m_grid;
 
     // set of collision objects
     std::map<std::string, ObjectConstPtr> m_object_map;

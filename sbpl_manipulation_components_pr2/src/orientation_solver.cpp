@@ -5,7 +5,8 @@
 #include <sbpl_manipulation_components_pr2/sbpl_math.h>
 #include <sbpl_manipulation_components_pr2/orientation_solver.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 // Both these pitch limits are on the upper side (i.e. if forearm is aligned
 // along x-axis with forearm_roll_link_roll = 0, then the end effector cannot
@@ -399,4 +400,5 @@ void RPYSolver::orientationSolver(
     output[3] = wrist_roll;
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

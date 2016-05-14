@@ -9,7 +9,7 @@ int main(int argc, char **argv)
   sleep(1);
   ros::spinOnce();
 
-  sbpl_arm_planner::KDLRobotModel rm("torso_lift_link", "r_gripper_palm_link");
+  sbpl::manip::KDLRobotModel rm("torso_lift_link", "r_gripper_palm_link");
 
   std::string urdf;
   nh.param<std::string>("robot_description", urdf, " ");
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
   fka[6] =  0.0;
   KDL::Frame f;
 
-  
+
   /****** Test 1: FK/IK matching? *****
   // FK
   if(!rm.computePlanningLinkFK(fka, pose))
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  // IK 
+  // IK
   if(!rm.computeIK(pose, zeros, ika))
   {
     ROS_ERROR("Failed to compute fK");
@@ -61,9 +61,9 @@ int main(int argc, char **argv)
 
   ROS_INFO(" ");
   ROS_WARN("FK-IK Test 1 (kinematics_frame == planning_frame)");
-  ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f",
       fka[0], fka[1], fka[2], fka[3], fka[4], fka[5], fka[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
-  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f",
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
   */
 
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  // IK 
+  // IK
   if(!rm.computeIK(pose, zeros, ika))
   {
     ROS_ERROR("Failed to compute fK");
@@ -89,9 +89,9 @@ int main(int argc, char **argv)
   }
 
   ROS_INFO("[robot pose] xyz: 10.0 3.0 5.0  rpy: 0.0 0.0 0.0");
-  ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f",
       fka[0], fka[1], fka[2], fka[3], fka[4], fka[5], fka[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
-  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f",
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
   */
 
@@ -105,18 +105,18 @@ int main(int argc, char **argv)
   pose[0] = 0.766268;
   pose[1] = -0.188;
   pose[2] = 0.790675;
-  pose[3] = 0.5; 
+  pose[3] = 0.5;
   pose[4] = 0;
   pose[5] = 0;
-  
-  // IK 
+
+  // IK
   if(!rm.computeIK(pose, zeros, ika))
   {
     ROS_ERROR("Failed to compute fK");
     return 0;
   }
 
-  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+  ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f",
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
   // FK
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-    ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f", 
+    ROS_INFO("[fk]  input_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f  xyz: % 0.3f % 0.3f % 0.3f  rpy: % 0.3f % 0.3f % 0.3f",
       ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], posef[0], posef[1], posef[2], posef[3], posef[4], posef[5]);
 
   ROS_INFO("done");

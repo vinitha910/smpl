@@ -37,7 +37,8 @@
 
 using namespace std;
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 KDLRobotModel::KDLRobotModel() :
     initialized_(false),
@@ -312,7 +313,7 @@ bool KDLRobotModel::computeIK(
     std::vector<double>& solution,
     ik_option::IkOption option)
 {
-    if (option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS) {
+    if (option == ik_option::RESTRICT_XYZ_JOINTS) {
         return false;
     }
 
@@ -325,7 +326,7 @@ bool KDLRobotModel::computeIK(
     std::vector< std::vector<double>>& solutions,
     ik_option::IkOption option)
 {
-    if (option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS) {
+    if (option == ik_option::RESTRICT_XYZ_JOINTS) {
         return false;
     }
     std::vector<double> solution;
@@ -480,4 +481,5 @@ bool KDLRobotModel::getCount(int &count, const int &max_count, const int &min_co
   }
 }
 
-}
+} // namespace manip
+} // namespace sbpl

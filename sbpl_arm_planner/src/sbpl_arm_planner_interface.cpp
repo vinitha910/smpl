@@ -50,7 +50,8 @@
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/post_processing.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     RobotModel* rm,
@@ -167,9 +168,9 @@ bool SBPLArmPlannerInterface::initializeParamsFromParamServer()
 
 bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 {
-    grid_.reset(new sbpl_arm_planner::OccupancyGrid(df_));
+    grid_.reset(new OccupancyGrid(df_));
     grid_->setReferenceFrame(prm_.planning_frame_);
-    sbpl_arm_env_.reset(new sbpl_arm_planner::EnvironmentROBARM3D(
+    sbpl_arm_env_.reset(new EnvironmentROBARM3D(
             grid_.get(), rm_, cc_, as_, &prm_));
 
     if (!as_->init(sbpl_arm_env_.get(), prm_.use_multiple_ik_solutions_)) {
@@ -177,10 +178,13 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         return false;
     }
 
-    if (!sbpl_arm_env_->initEnvironment()) {
+    m_heur.reset(new BfsHeuristic(sbpl_arm_env_.get(), grid_, &prm_));
+
+    if (!sbpl_arm_env_->initEnvironment(m_heur.get())) {
         ROS_ERROR("initEnvironment failed");
         return false;
     }
+
 
     ROS_INFO("Initialized sbpl arm planning environment.");
     return true;
@@ -258,7 +262,7 @@ bool SBPLArmPlannerInterface::solve(
 }
 
 bool SBPLArmPlannerInterface::checkParams(
-    const sbpl_arm_planner::PlanningParams& params) const
+    const PlanningParams& params) const
 {
     if (params.allowed_time_ < 0.0) {
         return false;
@@ -344,12 +348,13 @@ bool SBPLArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
         return false;
     }
 
-    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
-        ROS_ERROR("InitializeMDPCfg failed");
+    const int start_id = sbpl_arm_env_->getStartStateID();
+    if (start_id == -1) {
+        ROS_ERROR("No start state has been set");
         return false;
     }
 
-    if (planner_->set_start(mdp_cfg_.startstateid) == 0) {
+    if (planner_->set_start(start_id) == 0) {
         ROS_ERROR("Failed to set start state. Not Planning.");
         return false;
     }
@@ -393,14 +398,16 @@ bool SBPLArmPlannerInterface::setGoalConfiguration(
         return false;
     }
 
-    //set planner goal
+    // TODO: set heuristic goal
 
-    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
-        ROS_ERROR("InitializeMDPCfg failed");
+    // set planner goal
+    const int goal_id = sbpl_arm_env_->getGoalStateID();
+    if (goal_id == -1) {
+        ROS_ERROR("No goal state has been set");
         return false;
     }
 
-    if (planner_->set_goal(mdp_cfg_.goalstateid) == 0) {
+    if (planner_->set_goal(goal_id) == 0) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
     }
@@ -475,17 +482,24 @@ bool SBPLArmPlannerInterface::setGoalPosition(
 
     // set sbpl environment goal
     if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_goal_offset, sbpl_tolerance)) {
-        ROS_ERROR("Failed to set goal state. Perhaps goal position is out of reach. Exiting.");
+        ROS_ERROR("Failed to set goal state");
         return false;
     }
 
-    // set planner goal
-    if (!sbpl_arm_env_->InitializeMDPCfg(&mdp_cfg_)) {
-        ROS_ERROR("InitializeMDPCfg failed");
+    // set sbpl heuristic goal
+    if (!m_heur->setGoal(sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2])) {
+        ROS_ERROR("Failed to set goal for the heuristic");
         return false;
     }
 
-    if (planner_->set_goal(mdp_cfg_.goalstateid) == 0) {
+    // set sbpl planner goal
+    const int goal_id = sbpl_arm_env_->getGoalStateID();
+    if (goal_id == -1) {
+        ROS_ERROR("No goal state has been set");
+        return false;
+    }
+
+    if (planner_->set_goal(goal_id) == 0) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
     }
@@ -770,7 +784,11 @@ bool SBPLArmPlannerInterface::addBfsHeuristic(
     }
 
     auto entry = m_heuristics.insert(std::make_pair(
-            name, new BfsHeuristic(sbpl_arm_env_.get(), df, radius)));
+            name,
+            new BfsHeuristic(
+                    sbpl_arm_env_.get(),
+                    OccupancyGridConstPtr(new OccupancyGrid(df)),
+                    &prm_)));
 
     m_heur_vec.push_back(entry.first->second);
 
@@ -867,7 +885,7 @@ SBPLArmPlannerInterface::getExpansionsVisualization() const
 {
     visualization_msgs::MarkerArray ma;
     std::vector<std::vector<double>> expanded_states;
-    sbpl_arm_env_->getExpandedStates(&(expanded_states));
+    sbpl_arm_env_->getExpandedStates(expanded_states);
     if (!expanded_states.empty()) {
         std::vector<std::vector<double>> colors(2, std::vector<double>(4, 0));
         colors[0][0] = 1;
@@ -889,9 +907,20 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
     else if (type == "expansions") {
         return getExpansionsVisualization();
     }
-    else {
-        return sbpl_arm_env_->getVisualization(type);
+    else if (type =="bfs_walls") {
+        const BfsHeuristic* bfs_heur = dynamic_cast<const BfsHeuristic*>(m_heur.get());
+        if (bfs_heur) {
+            return bfs_heur->getWallsVisualization();
+        }
     }
+    else if (type == "bfs_values") {
+        const BfsHeuristic* bfs_heur = dynamic_cast<const BfsHeuristic*>(m_heur.get());
+        if (bfs_heur) {
+            return bfs_heur->getValuesVisualization();
+        }
+    }
+
+    return visualization_msgs::MarkerArray();
 }
 
 bool SBPLArmPlannerInterface::extractGoalPoseFromGoalConstraints(
@@ -1162,4 +1191,5 @@ void SBPLArmPlannerInterface::visualizePath(
     ros::Duration(1.0).sleep();
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

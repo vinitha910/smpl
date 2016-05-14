@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_arm_planner_ActionSet_h
-#define sbpl_arm_planner_ActionSet_h
+#ifndef sbpl_manip_action_set_h
+#define sbpl_manip_action_set_h
 
 #include <iostream>
 #include <memory>
@@ -44,7 +44,8 @@
 #include <sbpl_manipulation_components/motion_primitive.h>
 #include <sbpl_manipulation_components/robot_model.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 class EnvironmentROBARM3D;
 
@@ -119,7 +120,7 @@ protected:
         const RobotState& state,
         const std::vector<double>& goal,
         double dist_to_goal,
-        sbpl_arm_planner::ik_option::IkOption option,
+        ik_option::IkOption option,
         std::vector<Action>& actions);
 
     bool getAction(
@@ -131,7 +132,8 @@ protected:
     bool mprimActive(double dist_to_goal, MotionPrimitive::Type type) const;
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif
 

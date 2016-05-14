@@ -29,27 +29,35 @@
 
 /// \author: Benjamin Cohen
 
-#ifndef _ENVIRONMENT_ROBARM3D_H_
-#define _ENVIRONMENT_ROBARM3D_H_
+#ifndef sbpl_manip_environment_robarm3d_h
+#define sbpl_manip_environment_robarm3d_h
 
+// standard includes
 #include <time.h>
 #include <memory>
 #include <string>
 #include <vector>
+
+// system includes
 #include <angles/angles.h>
-#include <bfs3d/BFS_3D.h>
-#include <sbpl/sbpl_exception.h>
-#include <sbpl/planners/planner.h>
-#include <sbpl/utils/mdpconfig.h>
 #include <sbpl/discrete_space_information/environment.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
-#include <sbpl_manipulation_components/robot_model.h>
-#include <sbpl_manipulation_components/collision_checker.h>
-#include <sbpl_arm_planner/action_set.h>
-#include <sbpl_arm_planner/planning_params.h>
+#include <sbpl/planners/planner.h>
+#include <sbpl/sbpl_exception.h>
+#include <sbpl/utils/mdpconfig.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
-namespace sbpl_arm_planner {
+// project includes
+#include <bfs3d/BFS_3D.h>
+#include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/planning_params.h>
+#include <sbpl_manipulation_components/collision_checker.h>
+#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_manipulation_components/robot_model.h>
+
+namespace sbpl {
+namespace manip {
+
+class ManipHeuristic;
 
 enum GoalType
 {
@@ -60,12 +68,12 @@ enum GoalType
 
 struct GoalConstraint
 {
-    int type;
     std::vector<double> pose;
     std::vector<double> tgt_off_pose;
     double xyz_offset[3];
     double xyz_tolerance[3];
     double rpy_tolerance[3];
+    int type;
 };
 
 struct GoalConstraint7DOF
@@ -84,7 +92,7 @@ struct EnvROBARM3DHashEntry_t
     RobotState state;           // corresponding continuous coordinate
 };
 
-/** Environment to be used when planning for a Robotic Arm using the SBPL. */
+/// \class Environment to be used when planning for a Robotic Arm using the SBPL
 class EnvironmentROBARM3D : public DiscreteSpaceInformation
 {
 public:
@@ -98,7 +106,7 @@ public:
 
     ~EnvironmentROBARM3D();
 
-    bool initEnvironment();
+    bool initEnvironment(ManipHeuristic* heur);
 
     virtual bool setStartConfiguration(const std::vector<double>& angles);
 
@@ -128,41 +136,48 @@ public:
         const std::vector<double>& angle_tolerances);
 
     virtual void getExpandedStates(
-        std::vector<std::vector<double>>* ara_states);
+        std::vector<std::vector<double>>& ara_states) const;
 
     virtual void convertStateIDPathToJointAnglesPath(
         const std::vector<int>& idpath,
-        std::vector<std::vector<double>>& path);
+        std::vector<std::vector<double>>& path) const;
 
     virtual bool convertStateIDPathToJointTrajectory(
         const std::vector<int>& idpath,
-        trajectory_msgs::JointTrajectory& traj);
+        trajectory_msgs::JointTrajectory& traj) const;
 
     virtual void convertStateIDPathToShortenedJointAnglesPath(
         const std::vector<int>& idpath,
         std::vector<std::vector<double>>& path,
         std::vector<int>& idpath_short);
 
-    virtual void StateID2Angles(int stateID, std::vector<double>& angles);
+    virtual void StateID2Angles(int stateID, std::vector<double>& angles) const;
 
-    RobotModel* getRobotModel() { return rmodel_; };
-    CollisionChecker* getCollisionChecker() { return cc_; };
+    RobotModel* getRobotModel() { return rmodel_; }
+    CollisionChecker* getCollisionChecker() { return cc_; }
     ros::Publisher& visualizationPublisher() { return m_vpub; }
-    bool use7DOFGoal() { return m_use_7dof_goal; };
+    bool use7DOFGoal() const { return m_use_7dof_goal; }
+
+    /// \brief Return the ID of the goal state or -1 if no goal has been set.
+    int getGoalStateID() const;
+
+    /// \brief Return the ID of the start state or -1 if no start has been set.
+    int getStartStateID() const;
 
     /// \brief Return the 6-dof goal pose for the tip link.
     ///
     /// Return the 6-dof goal pose for the tip link, as last set by
-    /// setGoalPosition().
-    std::vector<double> getGoal();
+    /// setGoalPosition(). If no goal has been set, the returned vector is
+    /// empty.
+    const std::vector<double>& getGoal() const;
 
     /// \brief Return the full joint configuration goal.
     ///
-    /// Return the full joint configuration goal,  as last set by
+    /// Return the full joint configuration goal, as last set by
     /// setGoalConfiguration().
-    std::vector<double> getGoalConfiguration();
+    std::vector<double> getGoalConfiguration() const;
 
-    std::vector<double> getStart();
+    std::vector<double> getStart() const;
 
     /// \brief Get the (heuristic) distance from the planning frame position to the goal
     double getDistanceToGoal(double x, double y, double z);
@@ -171,27 +186,7 @@ public:
     double getDistanceToGoal(const std::vector<double>& pose);
 
     const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
-
-    /// \name Visualization
-    ///@{
-
-    visualization_msgs::MarkerArray getBfsWallsVisualization() const;
-    visualization_msgs::MarkerArray getBfsValuesVisualization() const;
-
-    /// \brief Return visualization of the environment and heuristic
-    ///
-    /// The visualization_msgs::MarkerArray's contents vary depending on the
-    /// argument:
-    ///
-    ///     "bfs_walls":
-    ///     "bfs_values":
-    ///
-    /// \param type The type of visualization to get
-    /// \return The visualization
-    visualization_msgs::MarkerArray getVisualization(
-        const std::string& type) const;
-
-    ///@}
+    bool isGoal(int state_id) const;
 
     /// \name Reimplemented Public Functions
     ///@{
@@ -227,11 +222,15 @@ public:
 
 protected:
 
+    // Context Interfaces
     OccupancyGrid* grid_;
     RobotModel* rmodel_;
     CollisionChecker* cc_;
-    std::unique_ptr<BFS_3D> bfs_;
     ActionSet* as_;
+
+    PlanningParams* prm_;
+
+    ManipHeuristic* m_heur;
 
     // cached from robot model
     std::vector<double> m_min_limits;
@@ -260,8 +259,6 @@ protected:
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
 
-    PlanningParams* prm_;
-
     ros::NodeHandle nh_;
     ros::Publisher m_vpub;
 
@@ -269,9 +266,11 @@ protected:
 
     std::vector<double> getTargetOffsetPose(const std::vector<double>& tip_pose);
 
+    // note: const althought RobotModel::computePlanningLinkFK used underneath
+    // may not be
     bool computePlanningFrameFK(
         const std::vector<double>& state,
-        std::vector<double>& pose);
+        std::vector<double>& pose) const;
 
     /** hash table */
     unsigned int intHash(unsigned int key);
@@ -286,10 +285,10 @@ protected:
     /** coordinate frame/angle functions */
     virtual void coordToAngles(
         const std::vector<int>& coord,
-        std::vector<double>& angles);
+        std::vector<double>& angles) const;
     virtual void anglesToCoord(
         const std::vector<double>& angle,
-        std::vector<int>& coord);
+        std::vector<int>& coord) const;
 
     /** planning */
     virtual bool isGoalState(
@@ -321,94 +320,12 @@ protected:
         bool bGoal,
         bool bVerbose);
 
-    /** distance */
-    int getBFSCostToGoal(int x, int y, int z) const;
-    virtual int getXYZHeuristic(int FromStateID, int ToStateID);
-    double getEuclideanDistance(
-        double x1, double y1, double z1,
-        double x2, double y2, double z2) const;
-
     void visualizeState(
         const std::vector<double>& jvals,
         const std::string& ns) const;
 };
 
-inline unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
-{
-    key += (key << 12);
-    key ^= (key >> 22);
-    key += (key << 4);
-    key ^= (key >> 9);
-    key += (key << 10);
-    key ^= (key >> 2);
-    key += (key << 7);
-    key ^= (key >> 12);
-    return key;
-}
-
-inline unsigned int EnvironmentROBARM3D::getHashBin(
-    const std::vector<int>& coord)
-{
-    int val = 0;
-
-    for (size_t i = 0; i < coord.size(); i++) {
-        val += intHash(coord[i]) << i;
-    }
-
-    return intHash(val) & (m_HashTableSize - 1);
-}
-
-//angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin 0, ...
-inline void EnvironmentROBARM3D::coordToAngles(
-    const std::vector<int>& coord,
-    std::vector<double>& angles)
-{
-    angles.resize(coord.size());
-    for (size_t i = 0; i < coord.size(); i++) {
-        if (m_continuous[i]) {
-            angles[i] = coord[i] * prm_->coord_delta_[i];
-        }
-        else {
-            angles[i] = m_min_limits[i] + coord[i] * prm_->coord_delta_[i];
-        }
-    }
-}
-
-inline void EnvironmentROBARM3D::anglesToCoord(
-    const std::vector<double>& angle,
-    std::vector<int>& coord)
-{
-    assert((int)angle.size() == prm_->num_joints_ &&
-            (int)coord.size() == prm_->num_joints_);
-
-    double pos_angle;
-
-    for (size_t i = 0; i < angle.size(); i++) {
-        if (m_continuous[i]) {
-            pos_angle = angle[i];
-            if (pos_angle < 0.0) {
-                pos_angle += 2 * M_PI;
-            }
-
-            coord[i] = (int)((pos_angle + prm_->coord_delta_[i] * 0.5) / prm_->coord_delta_[i]);
-
-            if (coord[i] == prm_->coord_vals_[i]) {
-                coord[i] = 0;
-            }
-        }
-        else {
-            coord[i] = (int)(((angle[i] - m_min_limits[i]) / prm_->coord_delta_[i]) + 0.5);
-        }
-    }
-}
-
-inline double EnvironmentROBARM3D::getEuclideanDistance(
-    double x1, double y1, double z1,
-    double x2, double y2, double z2) const
-{
-    return sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2));
-}
-
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

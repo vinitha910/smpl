@@ -1,8 +1,9 @@
 add_library(
     sbpl_arm_planner
+    src/action_set.cpp
     src/bfs_heuristic.cpp
     src/environment_robarm3d.cpp
-    src/action_set.cpp
+    src/manip_heuristic.cpp
     src/planning_params.cpp
     src/sbpl_arm_planner_interface.cpp)
 

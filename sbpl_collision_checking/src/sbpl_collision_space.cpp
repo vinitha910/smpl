@@ -51,7 +51,7 @@
 namespace sbpl {
 namespace collision {
 
-CollisionSpace::CollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
+CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_world(grid),
     grid_(grid),
     model_(),

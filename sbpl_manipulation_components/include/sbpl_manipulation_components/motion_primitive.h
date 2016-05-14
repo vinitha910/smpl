@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_arm_planner_MotionPrimitive_h
-#define sbpl_arm_planner_MotionPrimitive_h
+#ifndef sbpl_manip_motion_primitive_h
+#define sbpl_manip_motion_primitive_h
 
 #include <vector>
 #include <sstream>
@@ -38,7 +38,8 @@
 #include <ros/console.h>
 #include <leatherman/print.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 typedef std::vector<double> RobotState;
 
@@ -108,6 +109,7 @@ void MotionPrimitive::print() const
     }
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

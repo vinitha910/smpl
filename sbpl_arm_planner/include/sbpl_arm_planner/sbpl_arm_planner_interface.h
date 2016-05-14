@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_arm_planner_SBPLArmPlannerInterface_h
-#define sbpl_arm_planner_SBPLArmPlannerInterface_h
+#ifndef sbpl_manip_sbpl_arm_planner_interface_h
+#define sbpl_manip_sbpl_arm_planner_interface_h
 
 // standard includes
 #include <map>
@@ -51,11 +51,13 @@
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_manipulation_components/collision_checker.h>
 #include <sbpl_manipulation_components/robot_model.h>
+#include <sbpl_manipulation_components/occupancy_grid.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
+class BfsHeuristic;
 class EnvironmentROBARM3D;
-class OccupancyGrid;
 
 class SBPLArmPlannerInterface
 {
@@ -147,18 +149,19 @@ protected:
     bool m_initialized;
     int solution_cost_;
 
-    sbpl_arm_planner::PlanningParams prm_;
+    PlanningParams prm_;
 
     // planner components
-    sbpl_arm_planner::RobotModel* rm_;
-    sbpl_arm_planner::CollisionChecker* cc_;
+    RobotModel* rm_;
+    CollisionChecker* cc_;
     distance_field::PropagationDistanceField* df_;
-    sbpl_arm_planner::ActionSet* as_;
+    ActionSet* as_;
 
     // planner & environment
     MDPConfig mdp_cfg_;
-    std::unique_ptr<sbpl_arm_planner::OccupancyGrid> grid_;
-    std::unique_ptr<sbpl_arm_planner::EnvironmentROBARM3D> sbpl_arm_env_;
+    OccupancyGridPtr grid_;
+    std::unique_ptr<EnvironmentROBARM3D> sbpl_arm_env_;
+    std::unique_ptr<BfsHeuristic> m_heur;
     std::unique_ptr<SBPLPlanner> planner_;
 
     Heuristic* m_heuristic; // lazily-initialized upon using mha*
@@ -180,7 +183,7 @@ protected:
     // Initialize the SBPL planner and the sbpl_arm_planner environment
     bool initializePlannerAndEnvironment();
 
-    bool checkParams(const sbpl_arm_planner::PlanningParams& params) const;
+    bool checkParams(const PlanningParams& params) const;
 
     // Set start configuration
     bool setStart(const sensor_msgs::JointState& state);
@@ -227,6 +230,7 @@ protected:
         const moveit_msgs::RobotTrajectory& traj) const;
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

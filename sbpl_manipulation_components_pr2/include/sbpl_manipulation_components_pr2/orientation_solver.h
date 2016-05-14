@@ -2,8 +2,8 @@
 /// \maintainer (Maintained by Benjamin Cohen)
 /// \date 4/14/2010
 
-#ifndef sbpl_arm_planner_RPYSolver
-#define sbpl_arm_planner_RPYSolver
+#ifndef sbpl_manip_orientation_solver_h
+#define sbpl_manip_orientation_solver_h
 
 // standard includes
 #include <stdio.h>
@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 class RPYSolver
 {
@@ -66,7 +67,8 @@ class RPYSolver
         int attempt) const;
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif
 
