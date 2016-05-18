@@ -1,15 +1,14 @@
 #ifndef sbpl_manip_multi_frame_bfs_heuristic_h
 #define sbpl_manip_multi_frame_bfs_heuristic_h
 
+// standard includes
 #include <memory>
 
-#include <moveit/distance_field/propagation_distance_field.h>
-#include <sbpl/heuristics/heuristic.h>
+// system includes
 #include <visualization_msgs/MarkerArray.h>
 
-#include <sbpl_arm_planner/environment_robarm3d.h>
-#include <sbpl_arm_planner/planning_params.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+// project includes
+#include <sbpl_arm_planner/manip_heuristic.h>
 
 namespace sbpl {
 namespace manip {
@@ -22,6 +21,8 @@ public:
         EnvironmentROBARM3D* env,
         const OccupancyGridConstPtr& grid,
         const PlanningParams* params);
+
+    virtual ~MultiFrameBfsHeuristic();
 
     bool setGoal(int x, int y, int z);
     bool setGoal(double x, double y, double z);
