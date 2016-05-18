@@ -85,7 +85,7 @@ struct GoalConstraint7DOF
 struct EnvROBARM3DHashEntry_t
 {
     int stateID;                // hash entry ID number
-    int heur;                   // cached heuristic value
+    int heur;                   // cached heuristic value (why, I don't know; it's only used in getExpandedStates and another print)
     int xyz[3];                 // planning link pos (xyz)
     double dist;
     std::vector<int> coord;     // discrete coordinate

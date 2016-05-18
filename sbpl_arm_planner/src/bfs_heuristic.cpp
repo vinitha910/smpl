@@ -36,13 +36,6 @@ bool BfsHeuristic::setGoal(int x, int y, int z)
     return true;
 }
 
-bool BfsHeuristic::setGoal(double x, double y, double z)
-{
-    int gx, gy, gz;
-    m_grid->worldToGrid(x, y, z, gx, gy, gz);
-    return setGoal(gx, gy, gz);
-}
-
 double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 {
     int gx, gy, gz;
@@ -59,18 +52,7 @@ int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
     const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
     if (state) {
-        const int x = state->xyz[0];
-        const int y = state->xyz[1];
-        const int z = state->xyz[2];
-        if (!m_bfs->inBounds(x, y, z)) {
-            return INT_MAX;
-        }
-        else if (m_bfs->getDistance(x, y, z) == BFS_3D::WALL) {
-            return INT_MAX;
-        }
-        else {
-            return m_params->cost_per_cell_ * m_bfs->getDistance(x, y, z);
-        }
+        return getBfsCostToGoal(*m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
     }
     else {
         return 0;
@@ -151,7 +133,7 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization() const
                 double hue = d / 30.0 * 300;
                 ma.markers.push_back(viz::getTextMarker(
                         p,
-                        boost::lexical_cast<std::string>(d),
+                        std::to_string(d),
                         0.009,
                         hue,
                         m_grid->getReferenceFrame(),

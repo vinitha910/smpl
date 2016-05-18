@@ -128,13 +128,17 @@ int EnvironmentROBARM3D::GetFromToHeuristic(int FromStateID, int ToStateID)
 int EnvironmentROBARM3D::GetGoalHeuristic(int state_id)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
-    return m_heur->GetGoalHeuristic(state_id);
+    EnvROBARM3DHashEntry_t* state = m_states[state_id];
+    state->heur = m_heur->GetGoalHeuristic(state_id);
+    return state->heur;
 }
 
 int EnvironmentROBARM3D::GetStartHeuristic(int state_id)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
-    return m_heur->GetStartHeuristic(state_id);
+    EnvROBARM3DHashEntry_t* state = m_states[state_id];
+    state->heur = m_heur->GetStartHeuristic(state_id);
+    return state->heur;
 }
 
 int EnvironmentROBARM3D::SizeofCreatedEnv()
@@ -1059,7 +1063,7 @@ void EnvironmentROBARM3D::getExpandedStates(
     std::vector<std::vector<double>>& states) const
 {
     std::vector<double> angles(prm_->num_joints_,0);
-    std::vector<double> state(7, 0); // {x,y,z,r,p,y,heur}
+    std::vector<double> state(7, 0); // { x, y, z, r, p, y, heur }
 
     for (size_t i = 0; i < m_expanded_states.size(); ++i) {
         StateID2Angles(m_expanded_states[i], angles);
