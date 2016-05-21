@@ -27,7 +27,6 @@ public:
     virtual ~BfsHeuristic();
 
     bool setGoal(int x, int y, int z);
-    bool setGoal(double x, double y, double z);
 
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;

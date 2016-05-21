@@ -2,6 +2,8 @@
 
 #include <leatherman/viz.h>
 
+#include <bfs3d/BFS_3D.h>
+
 namespace sbpl {
 namespace manip {
 
@@ -10,7 +12,9 @@ MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
     const OccupancyGridConstPtr& grid,
     const PlanningParams* params)
 :
-    ManipHeuristic(env, grid, params)
+    ManipHeuristic(env, grid, params),
+    m_bfs(),
+    m_ee_bfs()
 {
     syncGridAndBfs();
 }
@@ -30,9 +34,11 @@ bool MultiFrameBfsHeuristic::setGoal(int x, int y, int z)
 
     m_bfs->run(x, y, z);
     m_ee_bfs->run(x, y, z);
+    return true;
 }
 
-double MultiFrameBfsHeuristic::getMetricDistance(double x, double y, double z)
+double MultiFrameBfsHeuristic::getMetricGoalDistance(
+    double x, double y, double z)
 {
     int gx, gy, gz;
     m_grid->worldToGrid(x, y, z, gx, gy, gz);

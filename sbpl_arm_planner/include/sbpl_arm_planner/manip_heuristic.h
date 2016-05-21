@@ -26,6 +26,10 @@ public:
     virtual bool setGoal(int x, int y, int z);
     virtual bool setGoal(double x, double y, double z);
 
+    /// \brief Return the metric heuristic distance of the planning link.
+    ///
+    /// This distance is used by the manipulation lattice to determine whether
+    /// to activate context-aware actions.
     virtual double getMetricGoalDistance(double x, double y, double z) = 0;
 
 protected:

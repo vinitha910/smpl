@@ -48,6 +48,7 @@
 
 // project includes
 #include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/manip_heuristic.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_manipulation_components/collision_checker.h>
 #include <sbpl_manipulation_components/robot_model.h>
@@ -161,7 +162,7 @@ protected:
     MDPConfig mdp_cfg_;
     OccupancyGridPtr grid_;
     std::unique_ptr<EnvironmentROBARM3D> sbpl_arm_env_;
-    std::unique_ptr<BfsHeuristic> m_heur;
+    std::unique_ptr<ManipHeuristic> m_heur;
     std::unique_ptr<SBPLPlanner> planner_;
 
     Heuristic* m_heuristic; // lazily-initialized upon using mha*

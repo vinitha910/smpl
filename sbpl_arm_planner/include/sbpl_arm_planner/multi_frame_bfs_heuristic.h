@@ -13,6 +13,8 @@
 namespace sbpl {
 namespace manip {
 
+class BFS_3D;
+
 class MultiFrameBfsHeuristic : public ManipHeuristic
 {
 public:
@@ -25,12 +27,12 @@ public:
     virtual ~MultiFrameBfsHeuristic();
 
     bool setGoal(int x, int y, int z);
-    bool setGoal(double x, double y, double z);
 
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
 
-    double getMetricDistance(double x, double y, double z);
+    /// \brief Return the metric distance of the planning link.
+    double getMetricGoalDistance(double x, double y, double z);
 
     int GetGoalHeuristic(int state_id);
     int GetStartHeuristic(int state_id);

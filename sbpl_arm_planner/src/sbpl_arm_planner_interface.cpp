@@ -178,13 +178,19 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         return false;
     }
 
-    m_heur.reset(new BfsHeuristic(sbpl_arm_env_.get(), grid_, &prm_));
+    BfsHeuristic* bfs_heur = new BfsHeuristic(
+            sbpl_arm_env_.get(), grid_, &prm_);
+    auto bfs_markers = bfs_heur->getWallsVisualization();
+    ROS_INFO("Publishing BFS visualization with %zu markers", bfs_markers.markers.size());
+    m_vpub.publish(bfs_markers);
+    ros::Duration(1.0).sleep();
+
+    m_heur.reset(bfs_heur);
 
     if (!sbpl_arm_env_->initEnvironment(m_heur.get())) {
         ROS_ERROR("initEnvironment failed");
         return false;
     }
-
 
     ROS_INFO("Initialized sbpl arm planning environment.");
     return true;
@@ -429,42 +435,37 @@ bool SBPLArmPlannerInterface::setGoalPosition(
         return false;
     }
 
-    std::vector<std::vector<double>> sbpl_goal(1, std::vector<double>(7, 0.0));
+    std::vector<double> sbpl_goal(7, 0.0);
 
     // currently only supports one goal
-    sbpl_goal[0][0] = goal_pose.position.x;
-    sbpl_goal[0][1] = goal_pose.position.y;
-    sbpl_goal[0][2] = goal_pose.position.z;
+    sbpl_goal[0] = goal_pose.position.x;
+    sbpl_goal[1] = goal_pose.position.y;
+    sbpl_goal[2] = goal_pose.position.z;
 
     // TODO: do we need to handle gimbal lock in any special way here?
-    leatherman::getRPY(goal_pose.orientation, sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5]);
+    leatherman::getRPY(goal_pose.orientation, sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
 
     // true => 6-dof goal, false => 3-dof
-    sbpl_goal[0][6] = (double)true;
+    sbpl_goal[6] = (double)true;
 
-    std::vector<std::vector<double>> sbpl_goal_offset(1, std::vector<double>(3, 0.0));
-    sbpl_goal_offset[0][0] = offset.x;
-    sbpl_goal_offset[0][1] = offset.y;
-    sbpl_goal_offset[0][2] = offset.z;
+    std::vector<double> sbpl_goal_offset(3, 0.0);
+    sbpl_goal_offset[0] = offset.x;
+    sbpl_goal_offset[1] = offset.y;
+    sbpl_goal_offset[2] = offset.z;
 
     // allowable tolerance from goal
-    std::vector<std::vector<double>> sbpl_tolerance(1, std::vector<double>(6, 0.0));
-    if (!extractGoalToleranceFromGoalConstraints(goal_constraints, &sbpl_tolerance[0][0])) {
+    std::vector<double> sbpl_tolerance(6, 0.0);
+    if (!extractGoalToleranceFromGoalConstraints(goal_constraints, &sbpl_tolerance[0])) {
         ROS_WARN("Failed to extract goal tolerance from goal constraints");
         return false;
     }
 
     ROS_INFO("New Goal");
     ROS_INFO("    frame: %s", prm_.planning_frame_.c_str());
-    ROS_INFO("    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)",
-            sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2],
-            sbpl_goal[0][3], sbpl_goal[0][4], sbpl_goal[0][5]);
-    ROS_INFO("    quaternion: (%0.3f, %0.3f, %0.3f, %0.3f)",
-            goal_pose.orientation.w, goal_pose.orientation.x, goal_pose.orientation.y, goal_pose.orientation.z);
-    ROS_INFO("    offset: (%0.3f, %0.3f, %0.3f)", sbpl_goal_offset[0][0], sbpl_goal_offset[0][1], sbpl_goal_offset[0][2]);
-    ROS_INFO("    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)",
-            sbpl_tolerance[0][0], sbpl_tolerance[0][1], sbpl_tolerance[0][2],
-            sbpl_tolerance[0][3], sbpl_tolerance[0][4], sbpl_tolerance[0][5]);
+    ROS_INFO("    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", sbpl_goal[0], sbpl_goal[1], sbpl_goal[2], sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
+    ROS_INFO("    quaternion: (%0.3f, %0.3f, %0.3f, %0.3f)", goal_pose.orientation.w, goal_pose.orientation.x, goal_pose.orientation.y, goal_pose.orientation.z);
+    ROS_INFO("    offset: (%0.3f, %0.3f, %0.3f)", sbpl_goal_offset[0], sbpl_goal_offset[1], sbpl_goal_offset[2]);
+    ROS_INFO("    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
 
     if (m_planner_id == "MHA*") {
         // set the goal for the heuristic
@@ -474,20 +475,25 @@ bool SBPLArmPlannerInterface::setGoalPosition(
             if (!bheur) {
                 continue;
             }
-            if (!bheur->setGoal(sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2])) {
+            if (!bheur->setGoal(sbpl_goal[0], sbpl_goal[1], sbpl_goal[2])) {
                 ROS_ERROR("Failed to set heuristic goal");
             }
         }
     }
 
     // set sbpl environment goal
-    if (!sbpl_arm_env_->setGoalPosition(sbpl_goal, sbpl_goal_offset, sbpl_tolerance)) {
+    std::vector<std::vector<double>> sbpl_goals = { sbpl_goal };
+    std::vector<std::vector<double>> sbpl_goal_offsets = { sbpl_goal_offset };
+    std::vector<std::vector<double>> sbpl_goal_tols = { sbpl_tolerance };
+    if (!sbpl_arm_env_->setGoalPosition(
+            sbpl_goals, sbpl_goal_offsets, sbpl_goal_tols))
+    {
         ROS_ERROR("Failed to set goal state");
         return false;
     }
 
     // set sbpl heuristic goal
-    if (!m_heur->setGoal(sbpl_goal[0][0], sbpl_goal[0][1], sbpl_goal[0][2])) {
+    if (!m_heur->setGoal(sbpl_goal[0], sbpl_goal[1], sbpl_goal[2])) {
         ROS_ERROR("Failed to set goal for the heuristic");
         return false;
     }

@@ -189,7 +189,7 @@ void EnvironmentROBARM3D::GetSuccs(
     ROS_DEBUG_NAMED(prm_->expands_log_, "  coord: %s", to_string(parent_entry->coord).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(parent_entry->state).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetFromToHeuristic(SourceStateID, m_goal_entry->stateID));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(SourceStateID));
 //    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
     const std::vector<double>& source_angles = parent_entry->state;
@@ -321,7 +321,7 @@ void EnvironmentROBARM3D::GetSuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "        coord: %s", to_string(succ_coord).c_str());
         ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
         ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, succ_is_goal_state));
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetFromToHeuristic(succ_entry->stateID, m_goal_entry->stateID));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
 
         // put successor on successor list with the proper cost
         SuccIDV->push_back(succ_entry->stateID);
@@ -970,7 +970,10 @@ bool EnvironmentROBARM3D::setGoalPosition(
     std::vector<double> tgt_off_pose = getTargetOffsetPose(m_goal.pose);
     m_goal.tgt_off_pose = tgt_off_pose;
 
-    auto goal_markers = viz::getPosesMarkerArray({ tgt_off_pose }, grid_->getReferenceFrame(), "target_goal");
+    auto goal_markers = viz::getPosesMarkerArray(
+            { tgt_off_pose },
+            grid_->getReferenceFrame(),
+            "target_goal");
     m_vpub.publish(goal_markers);
 
     int eexyz[3];
