@@ -28,7 +28,7 @@
  */
 /** \author Benjamin Cohen */
 
-#include <sbpl_arm_planner/environment_robarm3d.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 // standard includes
 #include <sstream>
@@ -47,7 +47,7 @@
 namespace sbpl {
 namespace manip {
 
-EnvironmentROBARM3D::EnvironmentROBARM3D(
+ManipLattice::ManipLattice(
     OccupancyGrid* grid,
     RobotModel* rmodel,
     CollisionChecker* cc,
@@ -92,7 +92,7 @@ EnvironmentROBARM3D::EnvironmentROBARM3D(
     }
 }
 
-EnvironmentROBARM3D::~EnvironmentROBARM3D()
+ManipLattice::~ManipLattice()
 {
     for (size_t i = 0; i < m_states.size(); i++) {
         delete m_states[i];
@@ -106,7 +106,7 @@ EnvironmentROBARM3D::~EnvironmentROBARM3D()
     }
 }
 
-bool EnvironmentROBARM3D::InitializeMDPCfg(MDPConfig* MDPCfg)
+bool ManipLattice::InitializeMDPCfg(MDPConfig* MDPCfg)
 {
     if (!m_goal_entry || !m_start_entry) {
         return false;
@@ -118,14 +118,14 @@ bool EnvironmentROBARM3D::InitializeMDPCfg(MDPConfig* MDPCfg)
     }
 }
 
-int EnvironmentROBARM3D::GetFromToHeuristic(int FromStateID, int ToStateID)
+int ManipLattice::GetFromToHeuristic(int FromStateID, int ToStateID)
 {
     assert(FromStateID >= 0 && FromStateID < (int)m_states.size());
     assert(ToStateID >= 0 && ToStateID < (int)m_states.size());
     return m_heur->GetFromToHeuristic(FromStateID, ToStateID);
 }
 
-int EnvironmentROBARM3D::GetGoalHeuristic(int state_id)
+int ManipLattice::GetGoalHeuristic(int state_id)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
     EnvROBARM3DHashEntry_t* state = m_states[state_id];
@@ -133,7 +133,7 @@ int EnvironmentROBARM3D::GetGoalHeuristic(int state_id)
     return state->heur;
 }
 
-int EnvironmentROBARM3D::GetStartHeuristic(int state_id)
+int ManipLattice::GetStartHeuristic(int state_id)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
     EnvROBARM3DHashEntry_t* state = m_states[state_id];
@@ -141,12 +141,12 @@ int EnvironmentROBARM3D::GetStartHeuristic(int state_id)
     return state->heur;
 }
 
-int EnvironmentROBARM3D::SizeofCreatedEnv()
+int ManipLattice::SizeofCreatedEnv()
 {
     return (int)m_states.size();
 }
 
-void EnvironmentROBARM3D::PrintState(int stateID, bool bVerbose, FILE* fOut)
+void ManipLattice::PrintState(int stateID, bool bVerbose, FILE* fOut)
 {
     assert(stateID >= 0 && stateID < (int)m_states.size());
 
@@ -160,12 +160,12 @@ void EnvironmentROBARM3D::PrintState(int stateID, bool bVerbose, FILE* fOut)
     printJointArray(fOut, HashEntry, is_goal, bVerbose);
 }
 
-void EnvironmentROBARM3D::PrintEnv_Config(FILE* fOut)
+void ManipLattice::PrintEnv_Config(FILE* fOut)
 {
     ROS_WARN("PrintEnv_Config unimplemented");
 }
 
-void EnvironmentROBARM3D::GetSuccs(
+void ManipLattice::GetSuccs(
     int SourceStateID,
     std::vector<int>* SuccIDV,
     std::vector<int>* CostV)
@@ -335,7 +335,7 @@ void EnvironmentROBARM3D::GetSuccs(
     m_expanded_states.push_back(SourceStateID);
 }
 
-void EnvironmentROBARM3D::GetLazySuccs(
+void ManipLattice::GetLazySuccs(
     int SourceStateID,
     std::vector<int>* SuccIDV,
     std::vector<int>* CostV,
@@ -409,7 +409,7 @@ void EnvironmentROBARM3D::GetLazySuccs(
     m_expanded_states.push_back(SourceStateID);
 }
 
-int EnvironmentROBARM3D::GetTrueCost(int parentID, int childID)
+int ManipLattice::GetTrueCost(int parentID, int childID)
 {
     assert(parentID >= 0 && parentID < (int)m_states.size());
     assert(childID >= 0 && childID < (int)m_states.size());
@@ -490,7 +490,7 @@ int EnvironmentROBARM3D::GetTrueCost(int parentID, int childID)
     return -1;
 }
 
-void EnvironmentROBARM3D::GetPreds(
+void ManipLattice::GetPreds(
     int TargetStateID,
     std::vector<int>* PredIDV,
     std::vector<int>* CostV)
@@ -498,17 +498,17 @@ void EnvironmentROBARM3D::GetPreds(
     ROS_WARN("GetPreds unimplemented");
 }
 
-void EnvironmentROBARM3D::SetAllActionsandAllOutcomes(CMDPSTATE* state)
+void ManipLattice::SetAllActionsandAllOutcomes(CMDPSTATE* state)
 {
     ROS_ERROR("SetAllActionsandAllOutcomes unimplemented");
 }
 
-void EnvironmentROBARM3D::SetAllPreds(CMDPSTATE* state)
+void ManipLattice::SetAllPreds(CMDPSTATE* state)
 {
     ROS_ERROR("SetAllPreds unimplemented");
 }
 
-void EnvironmentROBARM3D::printHashTableHist()
+void ManipLattice::printHashTableHist()
 {
     int s0 = 0, s1 = 0, s50 = 0, s100 = 0, s200 = 0, s300 = 0, slarge = 0;
 
@@ -538,7 +538,7 @@ void EnvironmentROBARM3D::printHashTableHist()
     ROS_DEBUG("hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
 }
 
-std::vector<double> EnvironmentROBARM3D::getTargetOffsetPose(
+std::vector<double> ManipLattice::getTargetOffsetPose(
     const std::vector<double>& tip_pose)
 {
     // pose represents T_planning_eef
@@ -555,7 +555,7 @@ std::vector<double> EnvironmentROBARM3D::getTargetOffsetPose(
     return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
 }
 
-bool EnvironmentROBARM3D::computePlanningFrameFK(
+bool ManipLattice::computePlanningFrameFK(
     const std::vector<double>& state,
     std::vector<double>& pose) const
 {
@@ -584,7 +584,7 @@ bool EnvironmentROBARM3D::computePlanningFrameFK(
     return true;
 }
 
-EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
+EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
     const std::vector<int>& coord,
     bool bIsGoal)
 {
@@ -620,12 +620,12 @@ EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
     return NULL;
 }
 
-bool EnvironmentROBARM3D::isGoal(int state_id) const
+bool ManipLattice::isGoal(int state_id) const
 {
     return state_id == m_goal_entry->stateID;
 }
 
-EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::createHashEntry(
+EnvROBARM3DHashEntry_t* ManipLattice::createHashEntry(
     const std::vector<int>& coord,
     int endeff[3])
 {
@@ -662,7 +662,7 @@ EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::createHashEntry(
     return HashEntry;
 }
 
-int EnvironmentROBARM3D::cost(
+int ManipLattice::cost(
     EnvROBARM3DHashEntry_t* HashEntry1,
     EnvROBARM3DHashEntry_t* HashEntry2,
     bool bState2IsGoal)
@@ -670,7 +670,7 @@ int EnvironmentROBARM3D::cost(
     return prm_->cost_multiplier_;
 }
 
-bool EnvironmentROBARM3D::initEnvironment(ManipHeuristic* heur)
+bool ManipLattice::initEnvironment(ManipHeuristic* heur)
 {
     if (!heur) {
         ROS_ERROR("Heuristic is null");
@@ -700,7 +700,7 @@ bool EnvironmentROBARM3D::initEnvironment(ManipHeuristic* heur)
     return true;
 }
 
-bool EnvironmentROBARM3D::isGoalState(
+bool ManipLattice::isGoalState(
     const std::vector<double>& pose, // tgt_off_pose
     GoalConstraint& goal)
 {
@@ -743,7 +743,7 @@ bool EnvironmentROBARM3D::isGoalState(
     return false;
 }
 
-bool EnvironmentROBARM3D::isGoalState(
+bool ManipLattice::isGoalState(
     const std::vector<double>& angles,
     GoalConstraint7DOF& goal)
 {
@@ -759,7 +759,7 @@ bool EnvironmentROBARM3D::isGoalState(
     return true;
 }
 
-bool EnvironmentROBARM3D::isGoal(
+bool ManipLattice::isGoal(
     const std::vector<double>& angles,
     const std::vector<double>& pose)
 {
@@ -767,7 +767,7 @@ bool EnvironmentROBARM3D::isGoal(
             (m_use_7dof_goal && isGoalState(angles, m_goal_7dof));
 }
 
-int EnvironmentROBARM3D::getActionCost(
+int ManipLattice::getActionCost(
     const std::vector<double>& from_config,
     const std::vector<double>& to_config,
     int dist)
@@ -805,7 +805,7 @@ int EnvironmentROBARM3D::getActionCost(
     return cost;
 }
 
-bool EnvironmentROBARM3D::setStartConfiguration(
+bool ManipLattice::setStartConfiguration(
     const std::vector<double>& angles)
 {
     ROS_INFO("Setting the start state");
@@ -862,7 +862,7 @@ bool EnvironmentROBARM3D::setStartConfiguration(
     return true;
 }
 
-bool EnvironmentROBARM3D::setGoalConfiguration(
+bool ManipLattice::setGoalConfiguration(
     const std::vector<double>& goal,
     const std::vector<double>& goal_tolerances)
 {
@@ -897,7 +897,7 @@ bool EnvironmentROBARM3D::setGoalConfiguration(
     return true;
 }
 
-bool EnvironmentROBARM3D::setGoalPosition(
+bool ManipLattice::setGoalPosition(
     const std::vector<std::vector<double>>& goals,
     const std::vector<std::vector<double>>& offsets,
     const std::vector<std::vector<double>>& tolerances)
@@ -1003,7 +1003,7 @@ bool EnvironmentROBARM3D::setGoalPosition(
     return true;
 }
 
-void EnvironmentROBARM3D::StateID2Angles(
+void ManipLattice::StateID2Angles(
     int stateID,
     std::vector<double>& angles) const
 {
@@ -1023,7 +1023,7 @@ void EnvironmentROBARM3D::StateID2Angles(
     }
 }
 
-void EnvironmentROBARM3D::printJointArray(
+void ManipLattice::printJointArray(
     FILE* fOut,
     EnvROBARM3DHashEntry_t* HashEntry,
     bool bGoal,
@@ -1062,7 +1062,7 @@ void EnvironmentROBARM3D::printJointArray(
     }
 }
 
-void EnvironmentROBARM3D::getExpandedStates(
+void ManipLattice::getExpandedStates(
     std::vector<std::vector<double>>& states) const
 {
     std::vector<double> angles(prm_->num_joints_,0);
@@ -1077,20 +1077,20 @@ void EnvironmentROBARM3D::getExpandedStates(
     }
 }
 
-void EnvironmentROBARM3D::computeCostPerCell()
+void ManipLattice::computeCostPerCell()
 {
     ROS_WARN("Cell Cost: Uniform 100");
     prm_->cost_per_cell_ = 100;
 }
 
-void EnvironmentROBARM3D::convertStateIDPathToJointAnglesPath(
+void ManipLattice::convertStateIDPathToJointAnglesPath(
     const std::vector<int>& idpath,
     std::vector<std::vector<double>>& path) const
 {
 
 }
 
-bool EnvironmentROBARM3D::convertStateIDPathToJointTrajectory(
+bool ManipLattice::convertStateIDPathToJointTrajectory(
     const std::vector<int>& idpath,
     trajectory_msgs::JointTrajectory& traj) const
 {
@@ -1114,25 +1114,25 @@ bool EnvironmentROBARM3D::convertStateIDPathToJointTrajectory(
     return true;
 }
 
-void EnvironmentROBARM3D::convertStateIDPathToShortenedJointAnglesPath(
+void ManipLattice::convertStateIDPathToShortenedJointAnglesPath(
     const std::vector<int>& idpath,
     std::vector<std::vector<double>>& path,
     std::vector<int>& idpath_short)
 {
 }
 
-double EnvironmentROBARM3D::getDistanceToGoal(double x, double y, double z)
+double ManipLattice::getDistanceToGoal(double x, double y, double z)
 {
     m_heur->getMetricGoalDistance(x, y, z);
 }
 
-double EnvironmentROBARM3D::getDistanceToGoal(const std::vector<double>& pose)
+double ManipLattice::getDistanceToGoal(const std::vector<double>& pose)
 {
     std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
     return getDistanceToGoal(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
-const EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
+const EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
     int state_id) const
 {
     if (state_id < 0 || state_id >= m_states.size()) {
@@ -1142,27 +1142,27 @@ const EnvROBARM3DHashEntry_t* EnvironmentROBARM3D::getHashEntry(
     return m_states[state_id];
 }
 
-int EnvironmentROBARM3D::getGoalStateID() const
+int ManipLattice::getGoalStateID() const
 {
     return m_goal_entry ? m_goal_entry->stateID : -1;
 }
 
-int EnvironmentROBARM3D::getStartStateID() const
+int ManipLattice::getStartStateID() const
 {
     return m_start_entry ? m_start_entry->stateID : -1;
 }
 
-const std::vector<double>& EnvironmentROBARM3D::getGoal() const
+const std::vector<double>& ManipLattice::getGoal() const
 {
     return m_goal.pose;
 }
 
-std::vector<double> EnvironmentROBARM3D::getGoalConfiguration() const
+std::vector<double> ManipLattice::getGoalConfiguration() const
 {
     return m_goal_7dof.angles;
 }
 
-std::vector<double> EnvironmentROBARM3D::getStart() const
+std::vector<double> ManipLattice::getStart() const
 {
     if (m_start_entry) {
         return m_start_entry->state;
@@ -1172,7 +1172,7 @@ std::vector<double> EnvironmentROBARM3D::getStart() const
     }
 }
 
-void EnvironmentROBARM3D::visualizeState(
+void ManipLattice::visualizeState(
     const std::vector<double>& jvals,
     const std::string& ns) const
 {
@@ -1185,7 +1185,7 @@ void EnvironmentROBARM3D::visualizeState(
 }
 
 inline
-unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
+unsigned int ManipLattice::intHash(unsigned int key)
 {
     key += (key << 12);
     key ^= (key >> 22);
@@ -1199,7 +1199,7 @@ unsigned int EnvironmentROBARM3D::intHash(unsigned int key)
 }
 
 inline
-unsigned int EnvironmentROBARM3D::getHashBin(
+unsigned int ManipLattice::getHashBin(
     const std::vector<int>& coord)
 {
     int val = 0;
@@ -1213,7 +1213,7 @@ unsigned int EnvironmentROBARM3D::getHashBin(
 
 //angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin 0, ...
 inline
-void EnvironmentROBARM3D::coordToAngles(
+void ManipLattice::coordToAngles(
     const std::vector<int>& coord,
     std::vector<double>& angles) const
 {
@@ -1229,7 +1229,7 @@ void EnvironmentROBARM3D::coordToAngles(
 }
 
 inline
-void EnvironmentROBARM3D::anglesToCoord(
+void ManipLattice::anglesToCoord(
     const std::vector<double>& angle,
     std::vector<int>& coord) const
 {

@@ -4,12 +4,12 @@ namespace sbpl {
 namespace manip {
 
 ManipHeuristic::ManipHeuristic(
-    EnvironmentROBARM3D* manip_env,
+    ManipLattice* env,
     const OccupancyGridConstPtr& grid,
     const PlanningParams* params)
 :
-    Heuristic(manip_env),
-    m_manip_env(manip_env),
+    Heuristic(env),
+    m_manip_env(env),
     m_grid(grid),
     m_params(params)
 {

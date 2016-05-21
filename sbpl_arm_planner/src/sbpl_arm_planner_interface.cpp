@@ -46,7 +46,7 @@
 #include <trajectory_msgs/JointTrajectory.h>
 
 #include <sbpl_arm_planner/bfs_heuristic.h>
-#include <sbpl_arm_planner/environment_robarm3d.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/post_processing.h>
 
@@ -170,8 +170,7 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 {
     grid_.reset(new OccupancyGrid(df_));
     grid_->setReferenceFrame(prm_.planning_frame_);
-    sbpl_arm_env_.reset(new EnvironmentROBARM3D(
-            grid_.get(), rm_, cc_, as_, &prm_));
+    sbpl_arm_env_.reset(new ManipLattice(grid_.get(), rm_, cc_, as_, &prm_));
 
     if (!as_->init(sbpl_arm_env_.get(), prm_.use_multiple_ik_solutions_)) {
         ROS_ERROR("Failed to initialize the action set.");

@@ -5,7 +5,7 @@
 #include <sbpl/heuristics/heuristic.h>
 
 // project includes
-#include <sbpl_arm_planner/environment_robarm3d.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 
@@ -17,7 +17,7 @@ class ManipHeuristic : public Heuristic
 public:
 
     ManipHeuristic(
-        EnvironmentROBARM3D* manip_env,
+        ManipLattice* env,
         const OccupancyGridConstPtr& grid,
         const PlanningParams* params);
 
@@ -34,7 +34,7 @@ public:
 
 protected:
 
-    EnvironmentROBARM3D* m_manip_env;
+    ManipLattice* m_manip_env;
     OccupancyGridConstPtr m_grid;
     const PlanningParams* m_params;
 };

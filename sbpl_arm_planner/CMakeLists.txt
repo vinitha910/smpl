@@ -2,7 +2,7 @@ add_library(
     sbpl_arm_planner
     src/action_set.cpp
     src/bfs_heuristic.cpp
-    src/environment_robarm3d.cpp
+    src/manip_lattice.cpp
     src/manip_heuristic.cpp
     src/multi_frame_bfs_heuristic.cpp
     src/planning_params.cpp

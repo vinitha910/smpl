@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2011, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,15 +29,15 @@
 
 /** \Author: Benjamin Cohen /bcohen@seas.upenn.edu **/
 
-#ifndef _ENVIRONMENT_CARTROBARM3D_H_
-#define _ENVIRONMENT_CARTROBARM3D_H_
+#ifndef sbpl_manip_cart_manip_lattice_h
+#define sbpl_manip_cart_manip_lattice_h
 
 #include <LinearMath/btVector3.h>
-#include <sbpl_arm_planner/environment_robarm3d.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl_arm_planner {
 
-class EnvironmentCARTROBARM3D : public EnvironmentROBARM3D
+class EnvironmentCARTROBARM3D : public ManipLattice
 {
   public:
 
@@ -47,7 +47,7 @@ class EnvironmentCARTROBARM3D : public EnvironmentROBARM3D
         CollisionChecker *cc);
 
     ~EnvironmentCARTROBARM3D();
-    
+
     bool setStartConfiguration(std::vector<double> angles);
 
     void GetSuccs(int SourceStateID, vector<int>* SuccIDV, vector<int>* CostV);
@@ -57,7 +57,7 @@ class EnvironmentCARTROBARM3D : public EnvironmentROBARM3D
     bool setGoalPosition(const std::vector <std::vector<double> > &goals, const std::vector<std::vector<double> > &tolerances);
 
     void convertStateIDPathToJointAnglesPath(const std::vector<int> &idpath, std::vector<std::vector<double> > &path);
-    
+
     void convertStateIDPathToShortenedJointAnglesPath(const std::vector<int> &idpath, std::vector<std::vector<double> > &path, std::vector<int> &idpath_short);
 
     void convertStateIDPathToPoints(const std::vector<int> &idpath, std::vector<std::vector<double> > &path);
@@ -196,7 +196,7 @@ inline void EnvironmentCARTROBARM3D::coordToPose(const std::vector<int> &coord, 
 inline void EnvironmentCARTROBARM3D::coordToWorldPose(const std::vector<int> &coord, double *wxyz, double *wrpy, double *wfangle)
 {
   int xyz[3]={0}, rpy[3]={0}, fangle=0;
-  
+
   coordToPose(coord,xyz,rpy,&fangle);
 
   discToWorldXYZ(xyz,wxyz);
@@ -207,7 +207,7 @@ inline void EnvironmentCARTROBARM3D::coordToWorldPose(const std::vector<int> &co
 inline void EnvironmentCARTROBARM3D::coordToWorldPose(const std::vector<int> &coord, std::vector<double> &wcoord)
 {
   double xyz[3]={0}, rpy[3]={0}, fangle=0;
-  
+
   coordToWorldPose(coord, xyz, rpy, &fangle);
 
   wcoord[0] = xyz[0];
@@ -215,7 +215,7 @@ inline void EnvironmentCARTROBARM3D::coordToWorldPose(const std::vector<int> &co
   wcoord[2] = xyz[2];
   wcoord[3] = rpy[0];
   wcoord[4] = rpy[1];
-  wcoord[5] = rpy[2]; 
+  wcoord[5] = rpy[2];
   wcoord[6] = fangle;
 }
 

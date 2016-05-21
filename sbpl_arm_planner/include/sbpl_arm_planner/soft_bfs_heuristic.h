@@ -11,7 +11,7 @@ class SoftBfsHeuristic : public ManipHeuristic
 public:
 
     SoftBfsHeuristic(
-        EnvironmentROBARM3D* env,
+        ManipLattice* env,
         const OccupancyGridConstPtr& grid,
         const PlanningParams* params);
 

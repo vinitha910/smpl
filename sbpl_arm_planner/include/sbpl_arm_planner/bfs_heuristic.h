@@ -20,7 +20,7 @@ class BfsHeuristic : public ManipHeuristic
 public:
 
     BfsHeuristic(
-        EnvironmentROBARM3D* env,
+        ManipLattice* env,
         const OccupancyGridConstPtr& grid,
         const PlanningParams* params);
 

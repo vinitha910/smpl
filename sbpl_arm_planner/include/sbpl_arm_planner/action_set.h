@@ -47,7 +47,7 @@
 namespace sbpl {
 namespace manip {
 
-class EnvironmentROBARM3D;
+class ManipLattice;
 
 class ActionSet;
 typedef std::shared_ptr<ActionSet> ActionSetPtr;
@@ -65,7 +65,7 @@ public:
 
     ActionSet();
 
-    bool init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions = false);
+    bool init(ManipLattice* env, bool use_multiple_ik_solutions = false);
 
     /// \brief Add a long or short distance motion primitive to the action set
     /// \param mprim The angle delta for each joint, in radians
@@ -109,7 +109,7 @@ protected:
 
     bool use_multiple_ik_solutions_;
 
-    EnvironmentROBARM3D *env_;
+    ManipLattice* env_;
 
     bool applyMotionPrimitive(
         const RobotState& state,

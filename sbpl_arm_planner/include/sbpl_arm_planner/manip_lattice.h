@@ -29,8 +29,8 @@
 
 /// \author: Benjamin Cohen
 
-#ifndef sbpl_manip_environment_robarm3d_h
-#define sbpl_manip_environment_robarm3d_h
+#ifndef sbpl_manip_manip_lattice_h
+#define sbpl_manip_manip_lattice_h
 
 // standard includes
 #include <time.h>
@@ -93,18 +93,18 @@ struct EnvROBARM3DHashEntry_t
 };
 
 /// \class Environment to be used when planning for a Robotic Arm using the SBPL
-class EnvironmentROBARM3D : public DiscreteSpaceInformation
+class ManipLattice : public DiscreteSpaceInformation
 {
 public:
 
-    EnvironmentROBARM3D(
+    ManipLattice(
         OccupancyGrid* grid,
         RobotModel* rmodel,
         CollisionChecker* cc,
         ActionSet* as,
         PlanningParams* pm);
 
-    ~EnvironmentROBARM3D();
+    ~ManipLattice();
 
     bool initEnvironment(ManipHeuristic* heur);
 

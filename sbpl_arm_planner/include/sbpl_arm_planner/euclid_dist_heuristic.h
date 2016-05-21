@@ -11,7 +11,7 @@ class EuclidDistHeuristic : public ManipHeuristic
 public:
 
     EuclidDistHeuristic(
-        EnvironmentROBARM3D* manip_env
+        ManipHeuristic* manip_env
         const OccupancyGridConstPtr& grid,
         const PlanningParams* params);
 

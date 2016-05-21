@@ -33,7 +33,7 @@
 
 #include <leatherman/print.h>
 #include <sbpl_arm_planner/action_set.h>
-#include <sbpl_arm_planner/environment_robarm3d.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 #define VERIFY_KINEMATICS 0
 
@@ -143,7 +143,7 @@ ActionSet::ActionSet() :
     clear();
 }
 
-bool ActionSet::init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions)
+bool ActionSet::init(ManipLattice* env, bool use_multiple_ik_solutions)
 {
     if (!env) {
         return false;

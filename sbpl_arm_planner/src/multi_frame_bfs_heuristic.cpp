@@ -8,7 +8,7 @@ namespace sbpl {
 namespace manip {
 
 MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
-    EnvironmentROBARM3D* env,
+    ManipLattice* env,
     const OccupancyGridConstPtr& grid,
     const PlanningParams* params)
 :

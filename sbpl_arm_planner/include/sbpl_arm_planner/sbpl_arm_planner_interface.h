@@ -58,7 +58,7 @@ namespace sbpl {
 namespace manip {
 
 class BfsHeuristic;
-class EnvironmentROBARM3D;
+class ManipLattice;
 
 class SBPLArmPlannerInterface
 {
@@ -116,8 +116,8 @@ public:
     ///
     ///     "goal":
     ///     "expansions":
-    ///     <any argument accepted by EnvironmentROBARM3D::getVisualization>:
-    ///         <the corresponding visualization provided by EnvironmentROBARM3D>
+    ///     <any argument accepted by ManipLattice::getVisualization>:
+    ///         <the corresponding visualization provided by ManipLattice>
     ///
     /// \param type The type of visualization to get
     /// \return The visualization
@@ -161,7 +161,7 @@ protected:
     // planner & environment
     MDPConfig mdp_cfg_;
     OccupancyGridPtr grid_;
-    std::unique_ptr<EnvironmentROBARM3D> sbpl_arm_env_;
+    std::unique_ptr<ManipLattice> sbpl_arm_env_;
     std::unique_ptr<ManipHeuristic> m_heur;
     std::unique_ptr<SBPLPlanner> planner_;
 

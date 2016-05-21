@@ -20,7 +20,7 @@ class MultiFrameBfsHeuristic : public ManipHeuristic
 public:
 
     MultiFrameBfsHeuristic(
-        EnvironmentROBARM3D* env,
+        ManipLattice* env,
         const OccupancyGridConstPtr& grid,
         const PlanningParams* params);
 
