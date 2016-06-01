@@ -24,16 +24,29 @@ MultiFrameBfsHeuristic::~MultiFrameBfsHeuristic()
     // empty to allow forward declaration of BFS_3D
 }
 
-bool MultiFrameBfsHeuristic::setGoal(int x, int y, int z)
+bool MultiFrameBfsHeuristic::setGoal(const GoalConstraint& goal)
 {
-    ROS_INFO("Setting the BFS heuristic goal (%d, %d, %d)", x, y, z);
-    if (!m_bfs->inBounds(x, y, z) || !m_ee_bfs->inBounds(x, y, z)) {
+    int ogx, ogy, ogz;
+    m_grid->worldToGrid(
+            goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
+            ogx, ogy, ogz);
+
+    int plgx, plgy, plgz;
+    m_grid->worldToGrid(
+            goal.pose[0], goal.pose[1], goal.pose[2],
+            plgx, plgy, plgz);
+
+    ROS_INFO("Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
+
+    if (!m_bfs->inBounds(ogx, ogy, ogz) ||
+        !m_ee_bfs->inBounds(plgx, plgy, plgz))
+    {
         ROS_ERROR("Heuristic goal is out of BFS bounds");
         return false;
     }
 
-    m_bfs->run(x, y, z);
-    m_ee_bfs->run(x, y, z);
+    m_bfs->run(ogx, ogy, ogz);
+    m_ee_bfs->run(plgx, plgy, plgz);
     return true;
 }
 
@@ -42,7 +55,7 @@ double MultiFrameBfsHeuristic::getMetricGoalDistance(
 {
     int gx, gy, gz;
     m_grid->worldToGrid(x, y, z, gx, gy, gz);
-    if (m_bfs->inBounds(gx, gy, gz)) {
+    if (!m_bfs->inBounds(gx, gy, gz)) {
         return (double)BFS_3D::WALL * m_grid->getResolution();
     }
     else {
@@ -54,19 +67,23 @@ int MultiFrameBfsHeuristic::GetGoalHeuristic(int state_id)
 {
     const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
     if (state) {
+        if (state->stateID == m_manip_env->getGoalStateID()) {
+            return 0;
+        }
+
         std::vector<double> pose;
-        if (!m_manip_env->getRobotModel()->computePlanningLinkFK(
-                state->state, pose))
-        {
-            ROS_ERROR("Failed to compute FK for planning link");
+        RobotModel* robot_model = m_manip_env->getRobotModel();
+        if (!robot_model->computePlanningLinkFK(state->state, pose)) {
+            ROS_ERROR("Failed to compute FK for planning link (state = %d)", state->stateID);
             return INT_MAX;
         }
 
-        int eexyz[3];
-        m_grid->worldToGrid(pose[0], pose[1], pose[2], eexyz[0], eexyz[1], eexyz[2]);
-        const int ee_heur = getBfsCostToGoal(*m_ee_bfs, eexyz[0], eexyz[1], eexyz[2]);
+        int eex[3];
+        m_grid->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
+        const int ee_heur = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
 
-        int h = getBfsCostToGoal(*m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
+        int h = getBfsCostToGoal(
+                *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
         h += ee_heur;
         return h;
     }
@@ -92,9 +109,10 @@ int MultiFrameBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
     }
 }
 
-visualization_msgs::MarkerArray MultiFrameBfsHeuristic::getWallsVisualization() const
+visualization_msgs::MarkerArray
+MultiFrameBfsHeuristic::getWallsVisualization() const
 {
-    std::vector<geometry_msgs::Point> pnts;
+    std::vector<geometry_msgs::Point> points;
     int dimX, dimY, dimZ;
     m_grid->getGridSize(dimX, dimY, dimZ);
     for (int z = 0; z < dimZ; z++) {
@@ -103,11 +121,13 @@ visualization_msgs::MarkerArray MultiFrameBfsHeuristic::getWallsVisualization() 
                 if (m_bfs->isWall(x, y, z)) {
                     geometry_msgs::Point p;
                     m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-                    pnts.push_back(p);
+                    points.push_back(p);
                 }
             }
         }
     }
+
+    ROS_INFO("BFS Visualization contains %zu points", points.size());
 
     std_msgs::ColorRGBA color;
     color.r = 100.0f / 255.0f;
@@ -116,7 +136,7 @@ visualization_msgs::MarkerArray MultiFrameBfsHeuristic::getWallsVisualization() 
     color.a = 1.0f;
 
     visualization_msgs::Marker cubes_marker = viz::getCubesMarker(
-            pnts,
+            points,
             m_grid->getResolution(),
             color,
             m_grid->getReferenceFrame(),
@@ -128,7 +148,8 @@ visualization_msgs::MarkerArray MultiFrameBfsHeuristic::getWallsVisualization() 
     return ma;
 }
 
-visualization_msgs::MarkerArray MultiFrameBfsHeuristic::getValuesVisualization() const
+visualization_msgs::MarkerArray
+MultiFrameBfsHeuristic::getValuesVisualization() const
 {
     visualization_msgs::MarkerArray ma;
     geometry_msgs::Pose p;
@@ -167,14 +188,14 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
     int xc, yc, zc;
     m_grid->getGridSize(xc, yc, zc);
     m_bfs.reset(new BFS_3D(xc, yc, zc));
+    m_ee_bfs.reset(new BFS_3D(xc, yc, zc));
     const int cell_count = xc * yc * zc;
     int wall_count = 0;
     for (int z = 0; z < zc; ++z) {
         for (int y = 0; y < yc; ++y) {
             for (int x = 0; x < xc; ++x) {
-                if (m_grid->getDistance(x, y, z) <=
-                        m_params->planning_link_sphere_radius_)
-                {
+                const double radius = m_params->planning_link_sphere_radius_;
+                if (m_grid->getDistance(x, y, z) <= radius) {
                     m_bfs->setWall(x, y, z);
                     m_ee_bfs->setWall(x, y, z);
                     ++wall_count;
@@ -184,7 +205,6 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
     }
 
     ROS_INFO("%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
-    m_manip_env->visualizationPublisher().publish(getWallsVisualization());
 }
 
 int MultiFrameBfsHeuristic::getBfsCostToGoal(

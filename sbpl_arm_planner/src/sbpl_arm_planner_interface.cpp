@@ -47,6 +47,7 @@
 
 #include <sbpl_arm_planner/bfs_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
 #include <sbpl_manipulation_components/occupancy_grid.h>
 #include <sbpl_manipulation_components/post_processing.h>
 
@@ -81,7 +82,8 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
     m_vpub()
 {
     ros::NodeHandle nh;
-    m_vpub = nh.advertise<visualization_msgs::MarkerArray>("visualization_markers", 1);
+    m_vpub = nh.advertise<visualization_msgs::MarkerArray>(
+            "visualization_markers", 1);
 }
 
 SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
@@ -177,12 +179,14 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
         return false;
     }
 
-    BfsHeuristic* bfs_heur = new BfsHeuristic(
+//    BfsHeuristic* bfs_heur = new BfsHeuristic(
+//            sbpl_arm_env_.get(), grid_, &prm_);
+    MultiFrameBfsHeuristic* bfs_heur = new MultiFrameBfsHeuristic(
             sbpl_arm_env_.get(), grid_, &prm_);
     auto bfs_markers = bfs_heur->getWallsVisualization();
     ROS_INFO("Publishing BFS visualization with %zu markers", bfs_markers.markers.size());
-    m_vpub.publish(bfs_markers);
     ros::Duration(1.0).sleep();
+    m_vpub.publish(bfs_markers);
 
     m_heur.reset(bfs_heur);
 
@@ -445,7 +449,7 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     leatherman::getRPY(goal_pose.orientation, sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
 
     // true => 6-dof goal, false => 3-dof
-    sbpl_goal[6] = (double)true;
+    sbpl_goal[6] = (double)((int)XYZ_RPY_GOAL);
 
     std::vector<double> sbpl_goal_offset(3, 0.0);
     sbpl_goal_offset[0] = offset.x;
@@ -474,7 +478,7 @@ bool SBPLArmPlannerInterface::setGoalPosition(
             if (!bheur) {
                 continue;
             }
-            if (!bheur->setGoal(sbpl_goal[0], sbpl_goal[1], sbpl_goal[2])) {
+            if (!bheur->setGoal(sbpl_arm_env_->getCartesianGoal())) {
                 ROS_ERROR("Failed to set heuristic goal");
             }
         }
@@ -491,8 +495,11 @@ bool SBPLArmPlannerInterface::setGoalPosition(
         return false;
     }
 
+    std::vector<double> offset_goal =
+            sbpl_arm_env_->getTargetOffsetPose(sbpl_goals[0]);
+
     // set sbpl heuristic goal
-    if (!m_heur->setGoal(sbpl_goal[0], sbpl_goal[1], sbpl_goal[2])) {
+    if (!m_heur->setGoal(sbpl_arm_env_->getCartesianGoal())) {
         ROS_ERROR("Failed to set goal for the heuristic");
         return false;
     }
@@ -913,15 +920,28 @@ visualization_msgs::MarkerArray SBPLArmPlannerInterface::getVisualization(
         return getExpansionsVisualization();
     }
     else if (type =="bfs_walls") {
-        const BfsHeuristic* bfs_heur = dynamic_cast<const BfsHeuristic*>(m_heur.get());
+        const BfsHeuristic* bfs_heur =
+                dynamic_cast<const BfsHeuristic*>(m_heur.get());
         if (bfs_heur) {
             return bfs_heur->getWallsVisualization();
+        }
+
+        const MultiFrameBfsHeuristic* mfbfs_heur =
+                dynamic_cast<const MultiFrameBfsHeuristic*>(m_heur.get());
+        if (mfbfs_heur) {
+            return mfbfs_heur->getWallsVisualization();
         }
     }
     else if (type == "bfs_values") {
         const BfsHeuristic* bfs_heur = dynamic_cast<const BfsHeuristic*>(m_heur.get());
         if (bfs_heur) {
             return bfs_heur->getValuesVisualization();
+        }
+
+        const MultiFrameBfsHeuristic* mfbfs_heur =
+                dynamic_cast<const MultiFrameBfsHeuristic*>(m_heur.get());
+        if (mfbfs_heur) {
+            return mfbfs_heur->getValuesVisualization();
         }
     }
 

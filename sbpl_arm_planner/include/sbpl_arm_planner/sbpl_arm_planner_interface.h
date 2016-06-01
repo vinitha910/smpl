@@ -57,7 +57,6 @@
 namespace sbpl {
 namespace manip {
 
-class BfsHeuristic;
 class ManipLattice;
 
 class SBPLArmPlannerInterface

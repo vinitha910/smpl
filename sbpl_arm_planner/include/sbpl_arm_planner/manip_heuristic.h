@@ -23,8 +23,7 @@ public:
 
     virtual ~ManipHeuristic() { }
 
-    virtual bool setGoal(int x, int y, int z);
-    virtual bool setGoal(double x, double y, double z);
+    virtual bool setGoal(const GoalConstraint& goal);
 
     /// \brief Return the metric heuristic distance of the planning link.
     ///

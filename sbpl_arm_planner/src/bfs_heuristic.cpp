@@ -23,16 +23,21 @@ BfsHeuristic::~BfsHeuristic()
     // empty to allow forward declaration of BFS_3D
 }
 
-bool BfsHeuristic::setGoal(int x, int y, int z)
+bool BfsHeuristic::setGoal(const GoalConstraint& goal)
 {
-    ROS_INFO("Setting the BFS heuristic goal (%d, %d, %d)", x, y, z);
+    int gx, gy, gz;
+    m_grid->worldToGrid(
+            goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
+            gx, gy, gz);
 
-    if (!m_bfs->inBounds(x, y, z)) {
+    ROS_INFO("Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
+
+    if (!m_bfs->inBounds(gx, gy, gz)) {
         ROS_ERROR("Heuristic goal is out of BFS bounds");
         return false;
     }
 
-    m_bfs->run(x, y, z);
+    m_bfs->run(gx, gy, gz);
     return true;
 }
 
@@ -52,7 +57,8 @@ int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
     const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
     if (state) {
-        return getBfsCostToGoal(*m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
+        return getBfsCostToGoal(
+                *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
     }
     else {
         return 0;
@@ -93,7 +99,7 @@ visualization_msgs::MarkerArray BfsHeuristic::getWallsVisualization() const
         }
     }
 
-    ROS_INFO("BFS Visualizaton contains %zu points", points.size());
+    ROS_INFO("BFS Visualization contains %zu points", points.size());
 
     std_msgs::ColorRGBA color;
     color.r = 100.0f / 255.0f;
@@ -151,14 +157,14 @@ void BfsHeuristic::syncGridAndBfs()
 {
     int xc, yc, zc;
     m_grid->getGridSize(xc, yc, zc);
-    ROS_INFO("Initializing BFS of size %d x %d x %d = %d", xc, yc, zc, xc * yc * zc);
+//    ROS_INFO("Initializing BFS of size %d x %d x %d = %d", xc, yc, zc, xc * yc * zc);
     m_bfs.reset(new BFS_3D(xc, yc, zc));
     const int cell_count = xc * yc * zc;
     int wall_count = 0;
     for (int z = 0; z < zc; ++z) {
         for (int y = 0; y < yc; ++y) {
             for (int x = 0; x < xc; ++x) {
-                const double& radius = m_params->planning_link_sphere_radius_;
+                const double radius = m_params->planning_link_sphere_radius_;
                 if (m_grid->getDistance(x, y, z) <= radius) {
                     m_bfs->setWall(x, y, z);
                     ++wall_count;

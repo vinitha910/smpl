@@ -61,6 +61,7 @@ class ManipHeuristic;
 
 enum GoalType
 {
+    INVALID_GOAL_TYPE = -1,
     XYZ_GOAL,
     XYZ_RPY_GOAL,
     NUMBER_OF_GOAL_TYPES
@@ -68,12 +69,12 @@ enum GoalType
 
 struct GoalConstraint
 {
-    std::vector<double> pose;
-    std::vector<double> tgt_off_pose;
-    double xyz_offset[3];
-    double xyz_tolerance[3];
-    double rpy_tolerance[3];
-    int type;
+    std::vector<double> pose;           // goal pose of the planning link
+    std::vector<double> tgt_off_pose;   // goal pose offset from planning link
+    double xyz_offset[3];               // offset from the planning link
+    double xyz_tolerance[3];            // (x, y, z) tolerance
+    double rpy_tolerance[3];            // (R, P, Y) tolerance
+    GoalType type;                      // type of goal constraint
 };
 
 struct GoalConstraint7DOF
@@ -171,11 +172,19 @@ public:
     /// empty.
     const std::vector<double>& getGoal() const;
 
+    /// \brief Return the 6-dof goal pose for the offset from the tip link.
+    std::vector<double> getTargetOffsetPose(
+        const std::vector<double>& tip_pose) const;
+
+    const GoalConstraint& getCartesianGoal() const;
+
     /// \brief Return the full joint configuration goal.
     ///
     /// Return the full joint configuration goal, as last set by
     /// setGoalConfiguration().
     std::vector<double> getGoalConfiguration() const;
+
+    const GoalConstraint7DOF& getJointGoal() const;
 
     std::vector<double> getStart() const;
 
@@ -264,8 +273,6 @@ protected:
 
     bool m_initialized;
 
-    std::vector<double> getTargetOffsetPose(const std::vector<double>& tip_pose);
-
     // note: const althought RobotModel::computePlanningLinkFK used underneath
     // may not be
     bool computePlanningFrameFK(
@@ -282,15 +289,18 @@ protected:
         const std::vector<int>& coord,
         int endeff[3]);
 
-    /** coordinate frame/angle functions */
+    /// \name coordinate frame/angle functions
+    ///@{
     virtual void coordToAngles(
         const std::vector<int>& coord,
         std::vector<double>& angles) const;
     virtual void anglesToCoord(
         const std::vector<double>& angle,
         std::vector<int>& coord) const;
+    ///@}
 
-    /** planning */
+    /// \name planning
+    ///@{
     virtual bool isGoalState(
         const std::vector<double>& pose,
         GoalConstraint& goal);
@@ -300,8 +310,10 @@ protected:
     virtual bool isGoal(
         const std::vector<double>& angles,
         const std::vector<double>& pose);
+    ///@}
 
-    /** costs */
+    /// \name costs
+    ///@{
     int cost(
         EnvROBARM3DHashEntry_t* HashEntry1,
         EnvROBARM3DHashEntry_t* HashEntry2,
@@ -311,14 +323,17 @@ protected:
         const std::vector<double>& from_config,
         const std::vector<double>& to_config,
         int dist);
+    ///@}
 
-    /** output */
+    /// \name output
+    ///@{
     void printHashTableHist();
     void printJointArray(
         FILE* fOut,
         EnvROBARM3DHashEntry_t* HashEntry,
         bool bGoal,
         bool bVerbose);
+    ///@}
 
     void visualizeState(
         const std::vector<double>& jvals,

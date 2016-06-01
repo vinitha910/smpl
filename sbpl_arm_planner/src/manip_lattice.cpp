@@ -186,10 +186,16 @@ void ManipLattice::GetSuccs(
 
     assert(parent_entry);
     assert(parent_entry->coord.size() >= prm_->num_joints_);
+
+    // log expanded state details
     ROS_DEBUG_NAMED(prm_->expands_log_, "  coord: %s", to_string(parent_entry->coord).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(parent_entry->state).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
     ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(SourceStateID));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)",
+                abs(m_goal_entry->xyz[0] - parent_entry->xyz[0]),
+                abs(m_goal_entry->xyz[1] - parent_entry->xyz[1]),
+                abs(m_goal_entry->xyz[2] - parent_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
     const std::vector<double>& source_angles = parent_entry->state;
@@ -288,13 +294,6 @@ void ManipLattice::GetSuccs(
         int endeff[3];
         grid_->worldToGrid(tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2], endeff[0], endeff[1], endeff[2]);
 
-        ROS_DEBUG_NAMED(prm_->expands_log_, "      succ: %zu", i);
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)",
-                abs(m_goal_entry->xyz[0] - endeff[0]),
-                abs(m_goal_entry->xyz[1] - endeff[1]),
-                abs(m_goal_entry->xyz[2] - endeff[2]));
 
         // check if this state meets the goal criteria
         const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
@@ -317,15 +316,24 @@ void ManipLattice::GetSuccs(
             succ_entry->dist = dist;
         }
 
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        id: %5i", succ_entry->stateID);
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        coord: %s", to_string(succ_coord).c_str());
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, succ_is_goal_state));
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
-
         // put successor on successor list with the proper cost
         SuccIDV->push_back(succ_entry->stateID);
         CostV->push_back(cost(parent_entry, succ_entry, succ_is_goal_state));
+
+        // log successor details
+        ROS_DEBUG_NAMED(prm_->expands_log_, "      succ: %zu", i);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        id: %5i", succ_entry->stateID);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        coord: %s", to_string(succ_coord).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        state: %s", to_string(succ_entry->state).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        pose: %s", to_string(tgt_off_pose).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)",
+                abs(m_goal_entry->xyz[0] - endeff[0]),
+                abs(m_goal_entry->xyz[1] - endeff[1]),
+                abs(m_goal_entry->xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, succ_is_goal_state));
     }
 
     if (n_goal_succs > 0) {
@@ -538,23 +546,6 @@ void ManipLattice::printHashTableHist()
     ROS_DEBUG("hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
 }
 
-std::vector<double> ManipLattice::getTargetOffsetPose(
-    const std::vector<double>& tip_pose)
-{
-    // pose represents T_planning_eef
-    Eigen::Affine3d T_planning_tipoff =  // T_planning_eef * T_eef_tipoff
-            Eigen::Translation3d(tip_pose[0], tip_pose[1], tip_pose[2]) *
-            Eigen::AngleAxisd(tip_pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
-            Eigen::Translation3d(
-                    m_goal.xyz_offset[0],
-                    m_goal.xyz_offset[1],
-                    m_goal.xyz_offset[2]);
-    const Eigen::Vector3d voff(T_planning_tipoff.translation());
-    return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
-}
-
 bool ManipLattice::computePlanningFrameFK(
     const std::vector<double>& state,
     std::vector<double>& pose) const
@@ -690,6 +681,7 @@ bool ManipLattice::initEnvironment(ManipHeuristic* heur)
     std::vector<int> coord(prm_->num_joints_, 0);
     m_start_entry = nullptr;
     m_goal_entry = createHashEntry(coord, endeff);
+    ROS_INFO("  goal state has state ID %d", m_goal_entry->stateID);
 
     // compute the cost per cell to be used by heuristic
     computeCostPerCell();
@@ -965,7 +957,7 @@ bool ManipLattice::setGoalPosition(
     m_goal.rpy_tolerance[0] = tolerances[0][3];
     m_goal.rpy_tolerance[1] = tolerances[0][4];
     m_goal.rpy_tolerance[2] = tolerances[0][5];
-    m_goal.type = (int)goals[0][6];
+    m_goal.type = (GoalType)((int)goals[0][6]);
 
     std::vector<double> tgt_off_pose = getTargetOffsetPose(m_goal.pose);
     m_goal.tgt_off_pose = tgt_off_pose;
@@ -1157,9 +1149,36 @@ const std::vector<double>& ManipLattice::getGoal() const
     return m_goal.pose;
 }
 
+std::vector<double> ManipLattice::getTargetOffsetPose(
+    const std::vector<double>& tip_pose) const
+{
+    // pose represents T_planning_eef
+    Eigen::Affine3d T_planning_tipoff = // T_planning_eef * T_eef_tipoff
+            Eigen::Translation3d(tip_pose[0], tip_pose[1], tip_pose[2]) *
+            Eigen::AngleAxisd(tip_pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
+            Eigen::Translation3d(
+                    m_goal.xyz_offset[0],
+                    m_goal.xyz_offset[1],
+                    m_goal.xyz_offset[2]);
+    const Eigen::Vector3d voff(T_planning_tipoff.translation());
+    return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
+}
+
+const GoalConstraint& ManipLattice::getCartesianGoal() const
+{
+    return m_goal;
+}
+
 std::vector<double> ManipLattice::getGoalConfiguration() const
 {
     return m_goal_7dof.angles;
+}
+
+const GoalConstraint7DOF& ManipLattice::getJointGoal() const
+{
+    return m_goal_7dof;
 }
 
 std::vector<double> ManipLattice::getStart() const

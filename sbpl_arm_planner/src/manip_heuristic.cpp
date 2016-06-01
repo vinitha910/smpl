@@ -15,16 +15,9 @@ ManipHeuristic::ManipHeuristic(
 {
 }
 
-bool ManipHeuristic::setGoal(int x, int y, int z)
+bool ManipHeuristic::setGoal(const GoalConstraint& goal)
 {
     return true;
-}
-
-bool ManipHeuristic::setGoal(double x, double y, double z)
-{
-    int gx, gy, gz;
-    m_grid->worldToGrid(x, y, z, gx, gy, gz);
-    return setGoal(gx, gy, gz);
 }
 
 } // namespace manip

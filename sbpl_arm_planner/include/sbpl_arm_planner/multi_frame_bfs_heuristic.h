@@ -26,7 +26,7 @@ public:
 
     virtual ~MultiFrameBfsHeuristic();
 
-    bool setGoal(int x, int y, int z);
+    bool setGoal(const GoalConstraint& goal);
 
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
