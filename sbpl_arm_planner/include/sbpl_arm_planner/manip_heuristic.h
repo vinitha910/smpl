@@ -1,6 +1,10 @@
 #ifndef sbpl_manip_manip_heuristic_h
 #define sbpl_manip_manip_heuristic_h
 
+// standard includes
+#include <stdint.h>
+#include <limits>
+
 // system includes
 #include <sbpl/heuristics/heuristic.h>
 
@@ -15,6 +19,8 @@ namespace manip {
 class ManipHeuristic : public Heuristic
 {
 public:
+
+    static const int Infinity = std::numeric_limits<int16_t>::max();
 
     ManipHeuristic(
         ManipLattice* env,

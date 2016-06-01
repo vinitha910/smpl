@@ -183,11 +183,6 @@ bool SBPLArmPlannerInterface::initializePlannerAndEnvironment()
 //            sbpl_arm_env_.get(), grid_, &prm_);
     MultiFrameBfsHeuristic* bfs_heur = new MultiFrameBfsHeuristic(
             sbpl_arm_env_.get(), grid_, &prm_);
-    auto bfs_markers = bfs_heur->getWallsVisualization();
-    ROS_INFO("Publishing BFS visualization with %zu markers", bfs_markers.markers.size());
-    ros::Duration(1.0).sleep();
-    m_vpub.publish(bfs_markers);
-
     m_heur.reset(bfs_heur);
 
     if (!sbpl_arm_env_->initEnvironment(m_heur.get())) {
@@ -538,6 +533,15 @@ bool SBPLArmPlannerInterface::planKinematicPath(
 
 bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory& traj)
 {
+    // NOTE: this should be done after setting the start/goal in the environment
+    // to allow the heuristic to tailor the visualization to the current
+    // scenario
+    ros::Duration(1.0).sleep();
+    auto bfs_markers = getVisualization("bfs_walls");
+//    auto bfs_markers = getVisualization("bfs_values");
+    ROS_INFO("Publishing BFS visualization with %zu markers", bfs_markers.markers.size());
+    m_vpub.publish(bfs_markers);
+
     ROS_WARN("Planning!!!!!");
     bool b_ret = false;
     std::vector<int> solution_state_ids;
@@ -1133,7 +1137,6 @@ bool SBPLArmPlannerInterface::reinitMhaPlanner()
 
         auto entry = m_heuristics.insert(std::make_pair(
                 "embedded_heuristic", new EmbeddedHeuristic(sbpl_arm_env_.get())));
-        m_heur_vec.push_back(entry.first->second);
     }
 
     MHAPlanner* mha = new MHAPlanner(
@@ -1142,7 +1145,9 @@ bool SBPLArmPlannerInterface::reinitMhaPlanner()
             m_heur_vec.data(),
             m_heur_vec.size());
 
-    mha->set_initial_mha_eps(2.0);
+    // TODO: figure out a clean way to pass down planner-specific parameters via
+    // solve or an auxiliary member function
+    mha->set_initial_mha_eps(1.0);
 
     planner_.reset(mha);
     planner_->set_initialsolution_eps(prm_.epsilon_);

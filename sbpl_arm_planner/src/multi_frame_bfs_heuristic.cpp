@@ -65,31 +65,7 @@ double MultiFrameBfsHeuristic::getMetricGoalDistance(
 
 int MultiFrameBfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
-    if (state) {
-        if (state->stateID == m_manip_env->getGoalStateID()) {
-            return 0;
-        }
-
-        std::vector<double> pose;
-        RobotModel* robot_model = m_manip_env->getRobotModel();
-        if (!robot_model->computePlanningLinkFK(state->state, pose)) {
-            ROS_ERROR("Failed to compute FK for planning link (state = %d)", state->stateID);
-            return INT_MAX;
-        }
-
-        int eex[3];
-        m_grid->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
-        const int ee_heur = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
-
-        int h = getBfsCostToGoal(
-                *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
-        h += ee_heur;
-        return h;
-    }
-    else {
-        return 0;
-    }
+    return getGoalHeuristic(state_id, true);
 }
 
 int MultiFrameBfsHeuristic::GetStartHeuristic(int state_id)
@@ -152,10 +128,28 @@ visualization_msgs::MarkerArray
 MultiFrameBfsHeuristic::getValuesVisualization() const
 {
     visualization_msgs::MarkerArray ma;
-    geometry_msgs::Pose p;
-    p.orientation.w = 1.0;
+    geometry_msgs::Pose pose;
+    pose.orientation.w = 1.0;
     int dimX, dimY, dimZ;
     m_grid->getGridSize(dimX, dimY, dimZ);
+
+    // factor in the ee bfs values? This doesn't seem to make a whole lot of
+    // sense since the color would be derived from colocated cell values
+    const bool factor_ee = false;
+
+    // hopefully this doesn't screw anything up too badly...this will flush the
+    // bfs to a little past the start, but this would be done by the search
+    // hereafter anyway
+    int start_heur = getGoalHeuristic(m_manip_env->getStartStateID(), factor_ee);
+
+    const int edge_cost = m_params->cost_per_cell_;
+
+    int max_cost = (int)(1.1 * start_heur);
+
+    // ...and this will also flush the bfs...
+
+    std::vector<geometry_msgs::Point> points;
+    std::vector<std_msgs::ColorRGBA> colors;
     for (int z = 0; z < dimZ; ++z) {
         for (int y = 0; y < dimY; ++y) {
             for (int x = 0; x < dimX; ++x) {
@@ -164,23 +158,101 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
                     continue;
                 }
 
-                int d = m_bfs->getDistance(x, y, z);
-                int eed = m_ee_bfs->getDistance(x, y, z);
-                m_grid->gridToWorld(
-                        x, y, z, p.position.x, p.position.y, p.position.z);
-                double hue = d / 30.0 * 300;
-                ma.markers.push_back(viz::getTextMarker(
-                        p,
-                        std::to_string(d) + "," + std::to_string(eed),
-                        0.009,
-                        hue,
-                        m_grid->getReferenceFrame(),
-                        "bfs_values",
-                        ma.markers.size()));
+                int d = edge_cost * m_bfs->getDistance(x, y, z);
+                int eed = factor_ee ? edge_cost * m_ee_bfs->getDistance(x, y, z) : 0;
+                double cost_pct = (double)combine_costs(d, eed) / (double)(max_cost);
+
+                if (cost_pct > 1.0) {
+                    continue;
+                }
+
+                double hue = 300.0 - 300.0 * cost_pct;
+                double sat = 1.0;
+                double val = 1.0;
+                double r, g, b;
+                leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
+
+                std_msgs::ColorRGBA color;
+                color.r = (float)r;
+                color.g = (float)g;
+                color.b = (float)b;
+                color.a = 1.0f;
+
+                auto clamp = [](double d, double lo, double hi) {
+                    if (d < lo)
+                        return lo;
+                    else if (d > hi)
+                        return hi;
+                    else
+                        return d;
+                };
+
+                color.r = clamp(color.r, 0.0f, 1.0f);
+                color.g = clamp(color.g, 0.0f, 1.0f);
+                color.b = clamp(color.b, 0.0f, 1.0f);
+
+                geometry_msgs::Point p;
+                m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
+                points.push_back(p);
+
+                colors.push_back(color);
             }
         }
     }
+
+    visualization_msgs::Marker marker;
+    marker.header.stamp = ros::Time::now();
+    marker.header.frame_id = m_grid->getReferenceFrame();
+    marker.ns = "bfs_values";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::CUBE_LIST;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5 * m_grid->getResolution();
+    marker.scale.y = 0.5 * m_grid->getResolution();
+    marker.scale.z = 0.5 * m_grid->getResolution();
+//    marker.color;
+    marker.lifetime = ros::Duration(0.0);
+    marker.frame_locked = false;
+    marker.points = std::move(points);
+    marker.colors = std::move(colors);
+    marker.text = "";
+    marker.mesh_use_embedded_materials = false;
+
+    ma.markers.push_back(std::move(marker));
     return ma;
+}
+
+int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
+{
+    const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
+    if (state) {
+        if (state->stateID == m_manip_env->getGoalStateID()) {
+            return 0;
+        }
+
+        std::vector<double> pose;
+        RobotModel* robot_model = m_manip_env->getRobotModel();
+        if (!robot_model->computePlanningLinkFK(state->state, pose)) {
+            ROS_ERROR("Failed to compute FK for planning link (state = %d)", state->stateID);
+            return Infinity;
+        }
+
+        int eex[3];
+        m_grid->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
+        const int ee_heur = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
+
+        int h = getBfsCostToGoal(
+                *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
+
+        if (use_ee) {
+            h = combine_costs(h, ee_heur);
+        }
+        return h;
+    }
+    else {
+        return 0;
+    }
 }
 
 void MultiFrameBfsHeuristic::syncGridAndBfs()
@@ -211,14 +283,19 @@ int MultiFrameBfsHeuristic::getBfsCostToGoal(
     const BFS_3D& bfs, int x, int y, int z) const
 {
     if (!bfs.inBounds(x, y, z)) {
-        return INT_MAX;
+        return Infinity;
     }
     else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
-        return INT_MAX;
+        return Infinity;
     }
     else {
         return m_params->cost_per_cell_ * bfs.getDistance(x, y, z);
     }
+}
+
+int MultiFrameBfsHeuristic::combine_costs(int c1, int c2) const
+{
+    return c1 + c2;
 }
 
 } // namespace manip
