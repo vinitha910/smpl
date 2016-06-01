@@ -366,6 +366,17 @@ void ManipLattice::GetLazySuccs(
     assert(state_entry);
     assert(state_entry->coord.size() >= prm_->num_joints_);
 
+    // log expanded state details
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  coord: %s", to_string(state_entry->coord).c_str());
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(state_entry->state).c_str());
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", state_entry->xyz[0], state_entry->xyz[1], state_entry->xyz[2]);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(SourceStateID));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)",
+                abs(m_goal_entry->xyz[0] - state_entry->xyz[0]),
+                abs(m_goal_entry->xyz[1] - state_entry->xyz[1]),
+                abs(m_goal_entry->xyz[2] - state_entry->xyz[2]));
+//    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(state_entry->xyz[0], state_entry->xyz[1], state_entry->xyz[2]));
+
     const std::vector<double>& source_angles = state_entry->state;
     visualizeState(source_angles, "expansion");
 
@@ -375,9 +386,14 @@ void ManipLattice::GetLazySuccs(
         return;
     }
 
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  actions: %zu", actions.size());
+
     std::vector<int> succ_coord(prm_->num_joints_);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
+
+        ROS_DEBUG_NAMED(prm_->expands_log_, "    action %zu:", i);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints: %zu", action.size());
 
         anglesToCoord(action.back(), succ_coord);
 
@@ -412,6 +428,21 @@ void ManipLattice::GetLazySuccs(
         SuccIDV->push_back(succ_entry->stateID);
         CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
         isTrueCost->push_back(false);
+
+        // log successor details
+        ROS_DEBUG_NAMED(prm_->expands_log_, "      succ: %zu", i);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        id: %5i", succ_entry->stateID);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        coord: %s", to_string(succ_coord).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        state: %s", to_string(succ_entry->state).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        pose: %s", to_string(tgt_off_pose).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)",
+                abs(m_goal_entry->xyz[0] - endeff[0]),
+                abs(m_goal_entry->xyz[1] - endeff[1]),
+                abs(m_goal_entry->xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
 
     m_expanded_states.push_back(SourceStateID);
