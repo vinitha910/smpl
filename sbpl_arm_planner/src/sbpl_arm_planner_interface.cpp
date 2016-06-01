@@ -88,7 +88,7 @@ SBPLArmPlannerInterface::SBPLArmPlannerInterface(
 
 SBPLArmPlannerInterface::~SBPLArmPlannerInterface()
 {
-    if (!m_heuristic) {
+    if (m_heuristic) {
         delete m_heuristic;
     }
 
