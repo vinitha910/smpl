@@ -577,35 +577,6 @@ void ManipLattice::printHashTableHist()
     ROS_DEBUG("hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
 }
 
-bool ManipLattice::computePlanningFrameFK(
-    const std::vector<double>& state,
-    std::vector<double>& pose) const
-{
-    assert(state.size() == prm_->num_joints_);
-
-    if (!rmodel_->computePlanningLinkFK(state, pose)) {
-        return false;
-    }
-
-    // pose represents T_planning_eef
-    Eigen::Affine3d T_planning_tipoff =  // T_planning_eef * T_eef_tipoff
-            Eigen::Translation3d(pose[0], pose[1], pose[2]) *
-            Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()) *
-            Eigen::Translation3d(
-                    m_goal.xyz_offset[0],
-                    m_goal.xyz_offset[1],
-                    m_goal.xyz_offset[2]);
-    const Eigen::Vector3d voff(T_planning_tipoff.translation());
-    pose[0] = voff.x();
-    pose[1] = voff.y();
-    pose[2] = voff.z();
-
-    assert(pose.size() == 6);
-    return true;
-}
-
 EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
     const std::vector<int>& coord,
     bool bIsGoal)
@@ -645,6 +616,35 @@ EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
 bool ManipLattice::isGoal(int state_id) const
 {
     return state_id == m_goal_entry->stateID;
+}
+
+bool ManipLattice::computePlanningFrameFK(
+    const std::vector<double>& state,
+    std::vector<double>& pose) const
+{
+    assert(state.size() == prm_->num_joints_);
+
+    if (!rmodel_->computePlanningLinkFK(state, pose)) {
+        return false;
+    }
+
+    // pose represents T_planning_eef
+    Eigen::Affine3d T_planning_tipoff =  // T_planning_eef * T_eef_tipoff
+            Eigen::Translation3d(pose[0], pose[1], pose[2]) *
+            Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()) *
+            Eigen::Translation3d(
+                    m_goal.xyz_offset[0],
+                    m_goal.xyz_offset[1],
+                    m_goal.xyz_offset[2]);
+    const Eigen::Vector3d voff(T_planning_tipoff.translation());
+    pose[0] = voff.x();
+    pose[1] = voff.y();
+    pose[2] = voff.z();
+
+    assert(pose.size() == 6);
+    return true;
 }
 
 EnvROBARM3DHashEntry_t* ManipLattice::createHashEntry(
@@ -1144,15 +1144,26 @@ void ManipLattice::convertStateIDPathToShortenedJointAnglesPath(
 {
 }
 
-double ManipLattice::getDistanceToGoal(double x, double y, double z)
+double ManipLattice::getStartDistance(double x, double y, double z)
 {
-    m_heur->getMetricGoalDistance(x, y, z);
+    return m_heur->getMetricStartDistance(x, y, z);
 }
 
-double ManipLattice::getDistanceToGoal(const std::vector<double>& pose)
+double ManipLattice::getStartDistance(const std::vector<double>& pose)
 {
     std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
-    return getDistanceToGoal(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
+    return getStartDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
+}
+
+double ManipLattice::getGoalDistance(double x, double y, double z)
+{
+    return m_heur->getMetricGoalDistance(x, y, z);
+}
+
+double ManipLattice::getGoalDistance(const std::vector<double>& pose)
+{
+    std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
+    return getGoalDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
 const EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
@@ -1212,7 +1223,7 @@ const GoalConstraint7DOF& ManipLattice::getJointGoal() const
     return m_goal_7dof;
 }
 
-std::vector<double> ManipLattice::getStart() const
+std::vector<double> ManipLattice::getStartConfiguration() const
 {
     if (m_start_entry) {
         return m_start_entry->state;

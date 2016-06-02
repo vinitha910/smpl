@@ -31,6 +31,9 @@ public:
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
 
+    /// \sa ManipHeuristic::getMetricStartDistance
+    double getMetricStartDistance(double x, double y, double z);
+
     /// \brief Return the metric distance of the planning link.
     double getMetricGoalDistance(double x, double y, double z);
 

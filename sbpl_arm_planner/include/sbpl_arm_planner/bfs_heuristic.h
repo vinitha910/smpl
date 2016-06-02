@@ -31,6 +31,8 @@ public:
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
 
+    double getMetricStartDistance(double x, double y, double z);
+
     /// \name Inherited from ManipHeuristic
     ///@{
     double getMetricGoalDistance(double x, double y, double z);

@@ -31,7 +31,13 @@ public:
 
     virtual bool setGoal(const GoalConstraint& goal);
 
-    /// \brief Return the metric heuristic distance of the planning link.
+    /// \brief Return the heuristic distance of the planning link to the start.
+    ///
+    /// This distance is used by the manipulation lattice to determine whether
+    /// to activate context-aware actions.
+    virtual double getMetricStartDistance(double x, double y, double z) = 0;
+
+    /// \brief Return the heuristic distance of the planning link to the goal.
     ///
     /// This distance is used by the manipulation lattice to determine whether
     /// to activate context-aware actions.

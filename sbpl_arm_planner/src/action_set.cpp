@@ -306,13 +306,13 @@ bool ActionSet::getActionSet(
     }
 
     // get distance to the goal pose
-//    const double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
-    const double d = env_->getDistanceToGoal(pose);
+    const double goal_dist = env_->getGoalDistance(pose);
+    const double start_dist = env_->getStartDistance(pose);
 
     std::vector<Action> act;
     for (size_t i = 0; i < mp_.size(); ++i) {
         const MotionPrimitive& prim = mp_[i];
-        if (getAction(parent, d, prim, act)) {
+        if (getAction(parent, goal_dist, start_dist, prim, act)) {
             actions.insert(actions.end(), act.begin(), act.end());
         }
     }
@@ -326,13 +326,14 @@ bool ActionSet::getActionSet(
 
 bool ActionSet::getAction(
     const RobotState& parent,
-    double dist_to_goal,
+    double goal_dist,
+    double start_dist,
     const MotionPrimitive& mp,
     std::vector<Action>& actions)
 {
     std::vector<double> goal = env_->getGoal();
 
-    if (!mprimActive(dist_to_goal, mp.type)) {
+    if (!mprimActive(start_dist, goal_dist, mp.type)) {
         return false;
     }
 
@@ -352,7 +353,7 @@ bool ActionSet::getAction(
         return computeIkAction(
                 parent,
                 goal,
-                dist_to_goal,
+                goal_dist,
                 ik_option::RESTRICT_XYZ_JOINTS,
                 actions);
     }
@@ -367,7 +368,7 @@ bool ActionSet::getAction(
             return computeIkAction(
                     parent,
                     goal,
-                    dist_to_goal,
+                    goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);
         }
@@ -442,15 +443,24 @@ bool ActionSet::computeIkAction(
 }
 
 bool ActionSet::mprimActive(
-    double dist_to_goal,
+    double start_dist,
+    double goal_dist,
     MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
-        return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] &&
-            dist_to_goal <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE]);
+        const bool near_endpoint =
+                (goal_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE] ||
+                start_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE]);
+        return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] && near_endpoint);
+    }
+    else if (type == MotionPrimitive::SHORT_DISTANCE) {
+        const bool near_endpoint =
+                (goal_dist <= m_mprim_thresh[type] ||
+                start_dist <= m_mprim_thresh[type]);
+        return m_mprim_enabled[type] && near_endpoint;
     }
     else {
-        return m_mprim_enabled[type] && dist_to_goal <= m_mprim_thresh[type];
+        return m_mprim_enabled[type] && goal_dist <= m_mprim_thresh[type];
     }
 }
 

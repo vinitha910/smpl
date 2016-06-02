@@ -41,6 +41,34 @@ bool BfsHeuristic::setGoal(const GoalConstraint& goal)
     return true;
 }
 
+double BfsHeuristic::getMetricStartDistance(double x, double y, double z)
+{
+    int start_id = m_manip_env->getStartStateID();
+    const EnvROBARM3DHashEntry_t* start_state = m_manip_env->getHashEntry(start_id);
+    if (start_state) {
+        // compute the manhattan distance to the start cell
+        std::vector<double> pose;
+        if (!m_manip_env->computePlanningFrameFK(start_state->state, pose)) {
+            ROS_ERROR("Failed to compute forward kinematics for the planning frame");
+            return 0.0;
+        }
+
+        int sx, sy, sz;
+        m_grid->worldToGrid(pose[0], pose[1], pose[2], sx, sy, sz);
+
+        int gx, gy, gz;
+        m_grid->worldToGrid(x, y, z, gx, gy, gz);
+
+        const int dx = sx - gx;
+        const int dy = sy - gy;
+        const int dz = sz - gz;
+        return m_grid->getResolution() * (abs(dx) + abs(dy) + abs(dz));
+    }
+    else {
+        return 0.0;
+    }
+}
+
 double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 {
     int gx, gy, gz;

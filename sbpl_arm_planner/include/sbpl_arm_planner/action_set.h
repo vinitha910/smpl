@@ -125,11 +125,15 @@ protected:
 
     bool getAction(
         const RobotState& parent,
-        double dist_to_goal,
+        double goal_dist,
+        double start_dist,
         const MotionPrimitive& mp,
         std::vector<Action>& actions);
 
-    bool mprimActive(double dist_to_goal, MotionPrimitive::Type type) const;
+    bool mprimActive(
+        double start_dist,
+        double goal_dist,
+        MotionPrimitive::Type type) const;
 };
 
 } // namespace manip

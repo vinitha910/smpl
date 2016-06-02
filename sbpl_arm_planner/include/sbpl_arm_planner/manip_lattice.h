@@ -87,7 +87,7 @@ struct EnvROBARM3DHashEntry_t
 {
     int stateID;                // hash entry ID number
     int heur;                   // cached heuristic value (why, I don't know; it's only used in getExpandedStates and another print)
-    int xyz[3];                 // planning link pos (xyz)
+    int xyz[3];                 // planning frame cell (x, y, z)
     double dist;
     std::vector<int> coord;     // discrete coordinate
     RobotState state;           // corresponding continuous coordinate
@@ -186,16 +186,28 @@ public:
 
     const GoalConstraint7DOF& getJointGoal() const;
 
-    std::vector<double> getStart() const;
+    std::vector<double> getStartConfiguration() const;
+
+    /// \brief Get the (heuristic) distance from the planning frame position to the start
+    double getStartDistance(double x, double y, double z);
+
+    /// \brief Get the (heuristic) distance from the planning link pose to the start
+    double getStartDistance(const std::vector<double>& pose);
 
     /// \brief Get the (heuristic) distance from the planning frame position to the goal
-    double getDistanceToGoal(double x, double y, double z);
+    double getGoalDistance(double x, double y, double z);
 
     // \brief Get the (heuristic) distance from the planning link pose to the goal
-    double getDistanceToGoal(const std::vector<double>& pose);
+    double getGoalDistance(const std::vector<double>& pose);
 
     const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
     bool isGoal(int state_id) const;
+
+    // NOTE: const although RobotModel::computePlanningLinkFK used underneath
+    // may not be
+    bool computePlanningFrameFK(
+        const std::vector<double>& state,
+        std::vector<double>& pose) const;
 
     /// \name Reimplemented Public Functions
     ///@{
@@ -272,12 +284,6 @@ protected:
     ros::Publisher m_vpub;
 
     bool m_initialized;
-
-    // note: const althought RobotModel::computePlanningLinkFK used underneath
-    // may not be
-    bool computePlanningFrameFK(
-        const std::vector<double>& state,
-        std::vector<double>& pose) const;
 
     /** hash table */
     unsigned int intHash(unsigned int key);
