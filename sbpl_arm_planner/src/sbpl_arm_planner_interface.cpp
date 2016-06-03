@@ -531,7 +531,7 @@ bool SBPLArmPlannerInterface::planKinematicPath(
     return true;
 }
 
-bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory& traj)
+bool SBPLArmPlannerInterface::plan(std::vector<std::vector<double>>& path)
 {
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
@@ -570,10 +570,9 @@ bool SBPLArmPlannerInterface::plan(trajectory_msgs::JointTrajectory& traj)
         ROS_INFO("Path Length: %zu, Initial Epsilon: %0.3f, Final Epsilon: %0.3f, Solution Cost: %d",
                 solution_state_ids.size(), planner_->get_initial_eps(), planner_->get_final_epsilon(), solution_cost_);
 
-        if (!sbpl_arm_env_->convertStateIDPathToJointTrajectory(
-                solution_state_ids, traj))
-        {
-            ROS_ERROR("Failed to convert state id trajectory to joint trajectory");
+        path.clear();
+        if (!sbpl_arm_env_->extractPath(solution_state_ids, path)) {
+            ROS_ERROR("Failed to convert state id path to joint variable path");
             return false;
         }
     }
@@ -609,20 +608,15 @@ bool SBPLArmPlannerInterface::planToPosition(
         return false;
     }
 
-    if (!plan(res.trajectory.joint_trajectory)) {
+    std::vector<std::vector<double>> path;
+    if (!plan(path)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
 
-//    ROS_INFO("Planner Trajectory:");
-//    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
-
-    res.trajectory.joint_trajectory.header.seq = 0;
-    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
-
-    postProcessPath(res.trajectory.joint_trajectory);
+    postProcessPath(path, res.trajectory.joint_trajectory);
 
     visualizePath(res.trajectory_start, res.trajectory);
 
@@ -658,20 +652,15 @@ bool SBPLArmPlannerInterface::planToConfiguration(
         return false;
     }
 
-    if (!plan(res.trajectory.joint_trajectory)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds).", prm_.allowed_time_);
+    std::vector<std::vector<double>> path;
+    if (!plan(path)) {
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
 
-//    ROS_INFO("Planner Trajectory:");
-//    leatherman::printJointTrajectory(res.trajectory.joint_trajectory, "planner_path");
-
-    res.trajectory.joint_trajectory.header.seq = 0;
-    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
-
-    postProcessPath(res.trajectory.joint_trajectory);
+    postProcessPath(path, res.trajectory.joint_trajectory);
 
     visualizePath(res.trajectory_start, res.trajectory);
 
@@ -1181,9 +1170,35 @@ void SBPLArmPlannerInterface::profilePath(
     }
 }
 
+bool SBPLArmPlannerInterface::isPathValid(
+    const std::vector<std::vector<double>>& path) const
+{
+    for (const auto& point : path) {
+        double dist;
+        if (!cc_->isStateValid(point, true, true, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void SBPLArmPlannerInterface::postProcessPath(
+    const std::vector<std::vector<double>>& path,
     trajectory_msgs::JointTrajectory& traj) const
 {
+    const bool check_planned_path = true;
+    if (check_planned_path && !isPathValid(path)) {
+        ROS_ERROR("Planned path is invalid");
+    }
+
+    convertJointVariablePathToJointTrajectory(path, traj);
+
+//    ROS_INFO("Planner Trajectory:");
+//    leatherman::printJointTrajectory(traj, "planner_path");
+
+    traj.header.seq = 0;
+    traj.header.stamp = ros::Time::now();
+
     profilePath(traj);
 
     // shortcut path
@@ -1209,6 +1224,21 @@ void SBPLArmPlannerInterface::postProcessPath(
 
     if (prm_.print_path_) {
         leatherman::printJointTrajectory(traj, "path");
+    }
+}
+
+void SBPLArmPlannerInterface::convertJointVariablePathToJointTrajectory(
+    const std::vector<std::vector<double>>& path,
+    trajectory_msgs::JointTrajectory& traj) const
+{
+    traj.header.frame_id = prm_.planning_frame_;
+    traj.joint_names = prm_.planning_joints_;
+    traj.points.clear();
+    traj.points.reserve(path.size());
+    for (const auto& point : path) {
+        trajectory_msgs::JointTrajectoryPoint traj_pt;
+        traj_pt.positions = point;
+        traj.points.push_back(std::move(traj_pt));
     }
 }
 

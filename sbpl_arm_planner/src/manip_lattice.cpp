@@ -1026,17 +1026,26 @@ bool ManipLattice::setGoalPosition(
     return true;
 }
 
-void ManipLattice::StateID2Angles(
+bool ManipLattice::StateID2Angles(
     int stateID,
     std::vector<double>& angles) const
 {
+    if (stateID < 0 || stateID >= m_states.size()) {
+        return false;
+    }
+
     EnvROBARM3DHashEntry_t* HashEntry = m_states[stateID];
+    if (!HashEntry) {
+        return false;
+    }
 
     if (stateID == m_goal_entry->stateID) {
-        coordToAngles(m_goal_entry->coord, angles);
+//        coordToAngles(m_goal_entry->coord, angles);
+        angles = m_goal_entry->state;
     }
     else {
-        coordToAngles(HashEntry->coord, angles);
+//        coordToAngles(HashEntry->coord, angles);
+        angles = HashEntry->state;
     }
 
     for (size_t i = 0; i < angles.size(); i++) {
@@ -1044,6 +1053,8 @@ void ManipLattice::StateID2Angles(
             angles[i] = -2.0 * M_PI + angles[i];
         }
     }
+
+    return true;
 }
 
 void ManipLattice::printJointArray(
@@ -1092,7 +1103,9 @@ void ManipLattice::getExpandedStates(
     std::vector<double> state(7, 0); // { x, y, z, r, p, y, heur }
 
     for (size_t i = 0; i < m_expanded_states.size(); ++i) {
-        StateID2Angles(m_expanded_states[i], angles);
+        if (!StateID2Angles(m_expanded_states[i], angles)) {
+            continue;
+        }
         computePlanningFrameFK(angles, state);
         state[6] = m_states[m_expanded_states[i]]->heur;
         states.push_back(state);
@@ -1106,34 +1119,29 @@ void ManipLattice::computeCostPerCell()
     prm_->cost_per_cell_ = 100;
 }
 
-void ManipLattice::convertStateIDPathToJointAnglesPath(
+bool ManipLattice::extractPath(
     const std::vector<int>& idpath,
     std::vector<std::vector<double>>& path) const
 {
+    path.clear();
 
-}
-
-bool ManipLattice::convertStateIDPathToJointTrajectory(
-    const std::vector<int>& idpath,
-    trajectory_msgs::JointTrajectory& traj) const
-{
-    if (idpath.empty()) {
-        return false;
-    }
-
-    traj.header.frame_id = prm_->planning_frame_;
-    traj.joint_names = prm_->planning_joints_;
-    traj.points.resize(idpath.size());
-
-    std::vector<double> angles;
-    for (size_t i = 0; i < idpath.size(); ++i) {
-        traj.points[i].positions.resize(prm_->num_joints_);
-        StateID2Angles(idpath[i], angles);
-
-        for (int p = 0; p < prm_->num_joints_; ++p) {
-            traj.points[i].positions[p] = angles::normalize_angle(angles[p]);
+    for (int id : idpath) {
+        std::vector<double> angles;
+        if (!StateID2Angles(id, angles)) {
+            path.clear();
+            return false;
         }
+
+        // TODO: at some point in this planner's life, the distinction needs to
+        // be made between what variables are actually angles, but we'll keep
+        // this for now
+        for (int p = 0; p < prm_->num_joints_; ++p) {
+            angles[p] = angles::normalize_angle(angles[p]);
+        }
+
+        path.push_back(std::move(angles));
     }
+
     return true;
 }
 
