@@ -2,8 +2,8 @@
 
 #include <ros/console.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl {
+namespace manip {
 
 CollisionChecker::CollisionChecker()
 {
@@ -13,7 +13,7 @@ CollisionChecker::~CollisionChecker()
 {
 }
 
-visualization_msgs::MarkerArray 
+visualization_msgs::MarkerArray
 CollisionChecker::getCollisionModelVisualization(
     const std::vector<double> &angles)
 {
@@ -28,4 +28,5 @@ visualization_msgs::MarkerArray CollisionChecker::getVisualization(
     return visualization_msgs::MarkerArray();
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

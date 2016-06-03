@@ -58,7 +58,7 @@
 namespace sbpl {
 namespace collision {
 
-class CollisionSpace : public sbpl_arm_planner::CollisionChecker
+class CollisionSpace : public manip::CollisionChecker
 {
 public:
 
@@ -66,10 +66,10 @@ public:
     typedef CollisionWorld::ObjectPtr ObjectPtr;
     typedef CollisionWorld::ObjectConstPtr ObjectConstPtr;
 
-    CollisionSpace(sbpl_arm_planner::OccupancyGrid* grid);
+    CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
 
-    /// \name sbpl_arm_planner::CollisionChecker API Requirements
+    /// \name manip::CollisionChecker API Requirements
     ///@{
 
     bool isStateValid(
@@ -229,7 +229,7 @@ private:
     ///////////////////////////////
 
     CollisionWorld m_world;
-    sbpl_arm_planner::OccupancyGrid* grid_;
+    OccupancyGrid* grid_;
 
     ///////////////////////////////
     // Collision Robot Variables //

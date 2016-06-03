@@ -35,8 +35,7 @@
 
 using namespace std;
 
-namespace sbpl_arm_planner
-{
+namespace sbpl {
 
 OccupancyGrid::OccupancyGrid(
     double dim_x, double dim_y, double dim_z,
@@ -284,4 +283,4 @@ EigenSTL::vector_Vector3d OccupancyGrid::toAlignedVector(
     return pts;
 }
 
-} // namespace sbpl_arm_planner
+} // namespace sbpl

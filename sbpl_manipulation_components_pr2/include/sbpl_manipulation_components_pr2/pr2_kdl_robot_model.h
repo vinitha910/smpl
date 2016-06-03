@@ -27,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PR2_KDL_ROBOT_MODEL_
-#define _PR2_KDL_ROBOT_MODEL_
+#ifndef sbpl_manip_pr2_kdl_robot_model_h
+#define sbpl_manip_pr2_kdl_robot_model_h
 
 #include <string>
 #include <vector>
@@ -49,7 +49,8 @@
 
 using namespace std;
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 class PR2KDLRobotModel : public KDLRobotModel {
 
@@ -74,12 +75,14 @@ class PR2KDLRobotModel : public KDLRobotModel {
 
     pr2_arm_kinematics::PR2ArmIKSolver* pr2_ik_solver_;
 
-    sbpl_arm_planner::RPYSolver* rpy_solver_;
+    RPYSolver* rpy_solver_;
 
     std::string forearm_roll_link_name_;
     std::string wrist_pitch_joint_name_;
     std::string end_effector_link_name_;
 };
 
-}
+} // namespace manip
+} // namespace sbpl
+
 #endif

@@ -37,16 +37,17 @@
 #include <sbpl_geometry_utils/utils.h>
 #include <sbpl_geometry_utils/shortcut.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 class ShortcutPathGenerator :
-    public sbpl::shortcut::PathGenerator<std::vector<double>, int>
+    public shortcut::PathGenerator<std::vector<double>, int>
 {
 public:
 
-    typedef sbpl::shortcut::PathGenerator<std::vector<double>, int> Base;
+    typedef shortcut::PathGenerator<std::vector<double>, int> Base;
 
-    ShortcutPathGenerator(sbpl_arm_planner::CollisionChecker* cc) :
+    ShortcutPathGenerator(CollisionChecker* cc) :
         m_cc(cc)
     {
 
@@ -75,11 +76,11 @@ public:
 
 private:
 
-    sbpl_arm_planner::CollisionChecker* m_cc;
+    CollisionChecker* m_cc;
 };
 
 void shortcutPath(
-    sbpl_arm_planner::CollisionChecker* cc,
+    CollisionChecker* cc,
     std::vector<std::vector<double>>& pin,
     std::vector<std::vector<double>>& pout)
 {
@@ -90,14 +91,14 @@ void shortcutPath(
 
     std::vector<int> costs(pin.size() - 1, 1);
     std::vector<ShortcutPathGenerator> generators = { ShortcutPathGenerator(cc) };
-    sbpl::shortcut::ShortcutPath(pin, costs, generators, pout);
+    shortcut::ShortcutPath(pin, costs, generators, pout);
 
     ROS_INFO("Original path length: %zu", pin.size());
     ROS_INFO("Shortcutted path length: %zu", pout.size());
 }
 
 void shortcutTrajectory(
-    sbpl_arm_planner::CollisionChecker* cc,
+    CollisionChecker* cc,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
 {
@@ -113,7 +114,7 @@ void shortcutTrajectory(
     }
 
     if (pin.size() > 2) {
-        sbpl_arm_planner::shortcutPath(cc, pin, pout);
+        shortcutPath(cc, pin, pout);
     }
     else {
         ROS_WARN("Path is too short for shortcutting.");
@@ -130,7 +131,7 @@ void shortcutTrajectory(
 }
 
 bool interpolateTrajectory(
-    sbpl_arm_planner::CollisionChecker* cc,
+    CollisionChecker* cc,
     const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
 {
@@ -205,4 +206,5 @@ bool interpolateTrajectory(
     return true;
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

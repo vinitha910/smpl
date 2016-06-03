@@ -1,6 +1,7 @@
 #include <bfs3d/BFS_3D.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 BFS_3D::BFS_3D(int width, int height, int length) :
     m_search_thread(),
@@ -564,4 +565,5 @@ void BFS_3D::search(
 
 #undef EXPAND_NEIGHBOR_FRONTIER
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

@@ -1,12 +1,12 @@
-#ifndef _COLLISION_CHECKER_
-#define _COLLISION_CHECKER_
+#ifndef sbpl_manip_collision_checker_h
+#define sbpl_manip_collision_checker_h
 
 #include <string>
 #include <vector>
 #include <visualization_msgs/MarkerArray.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl {
+namespace manip {
 
 class CollisionChecker
 {
@@ -68,7 +68,8 @@ public:
         const std::string& type);
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif
 

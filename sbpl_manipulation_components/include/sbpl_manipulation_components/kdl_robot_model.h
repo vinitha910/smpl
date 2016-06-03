@@ -46,8 +46,8 @@
 #include <urdf/model.h>
 #include <sbpl_manipulation_components/robot_model.h>
 
-namespace sbpl_arm_planner
-{
+namespace sbpl {
+namespace manip {
 
 class KDLRobotModel : public RobotModel
 {
@@ -157,6 +157,7 @@ public:
     bool getCount(int &count, const int &max_count, const int &min_count);
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

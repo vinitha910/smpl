@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_arm_planner_ActionSet_h
-#define sbpl_arm_planner_ActionSet_h
+#ifndef sbpl_manip_action_set_h
+#define sbpl_manip_action_set_h
 
 #include <iostream>
 #include <memory>
@@ -44,9 +44,10 @@
 #include <sbpl_manipulation_components/motion_primitive.h>
 #include <sbpl_manipulation_components/robot_model.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
-class EnvironmentROBARM3D;
+class ManipLattice;
 
 class ActionSet;
 typedef std::shared_ptr<ActionSet> ActionSetPtr;
@@ -64,7 +65,7 @@ public:
 
     ActionSet();
 
-    bool init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions = false);
+    bool init(ManipLattice* env, bool use_multiple_ik_solutions = false);
 
     /// \brief Add a long or short distance motion primitive to the action set
     /// \param mprim The angle delta for each joint, in radians
@@ -108,7 +109,7 @@ protected:
 
     bool use_multiple_ik_solutions_;
 
-    EnvironmentROBARM3D *env_;
+    ManipLattice* env_;
 
     bool applyMotionPrimitive(
         const RobotState& state,
@@ -119,19 +120,24 @@ protected:
         const RobotState& state,
         const std::vector<double>& goal,
         double dist_to_goal,
-        sbpl_arm_planner::ik_option::IkOption option,
+        ik_option::IkOption option,
         std::vector<Action>& actions);
 
     bool getAction(
         const RobotState& parent,
-        double dist_to_goal,
+        double goal_dist,
+        double start_dist,
         const MotionPrimitive& mp,
         std::vector<Action>& actions);
 
-    bool mprimActive(double dist_to_goal, MotionPrimitive::Type type) const;
+    bool mprimActive(
+        double start_dist,
+        double goal_dist,
+        MotionPrimitive::Type type) const;
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif
 

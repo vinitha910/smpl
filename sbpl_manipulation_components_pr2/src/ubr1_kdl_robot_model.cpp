@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Maxim Likhachev
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the University of Pennsylvania nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,7 +36,8 @@
 
 using namespace std;
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 UBR1KDLRobotModel::UBR1KDLRobotModel() : rpy_solver_(NULL)
 {
@@ -52,7 +53,7 @@ UBR1KDLRobotModel::UBR1KDLRobotModel() : rpy_solver_(NULL)
   //if(!getJointLimits(wrist_pitch_joint_name_, wrist_min_limit, wrist_max_limit, wrist_continuous))
   //  ROS_ERROR("Failed to get wrist pitch joint limits...");
   //ROS_ERROR("Wrist limits:  {%0.3f, %0.3f}", wrist_min_limit, wrist_max_limit);
-  rpy_solver_ = new sbpl_arm_planner::RPYSolver(wrist_min_limit, wrist_max_limit);
+  rpy_solver_ = new RPYSolver(wrist_min_limit, wrist_max_limit);
 }
 
 UBR1KDLRobotModel::~UBR1KDLRobotModel()
@@ -95,7 +96,7 @@ bool UBR1KDLRobotModel::computeIK(const std::vector<double> &pose, const std::ve
   solution.resize(start.size());
 
   // choose solver
-  if(option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS)
+  if(option == ik_option::RESTRICT_XYZ_JOINTS)
   {
     std::vector<double> rpy(3,0), fpose(6,0), epose(6,0);
     frame_des.M.GetRPY(rpy[0], rpy[1], rpy[2]);
@@ -121,7 +122,7 @@ bool UBR1KDLRobotModel::computeIK(const std::vector<double> &pose, const std::ve
   {
     if(computeIKSearch(pose, start, solution, 0.01) < 0)
       return false;
-    
+
     for(size_t i = 0; i < solution.size(); ++i)
       solution[i] = jnt_pos_out_(i);
   }
@@ -129,4 +130,5 @@ bool UBR1KDLRobotModel::computeIK(const std::vector<double> &pose, const std::ve
   return true;
 }
 
-}
+} // namespace manip
+} // namespace sbpl

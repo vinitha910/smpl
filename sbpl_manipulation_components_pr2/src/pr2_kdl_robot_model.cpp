@@ -36,7 +36,8 @@
 
 using namespace std;
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 PR2KDLRobotModel::PR2KDLRobotModel() :
     pr2_ik_solver_(NULL),
@@ -163,7 +164,7 @@ bool PR2KDLRobotModel::init(std::string robot_description, std::vector<std::stri
   bool wrist_continuous;
   if(!getJointLimits(wrist_pitch_joint_name_, wrist_min_limit, wrist_max_limit, wrist_continuous))
     return false;
-  rpy_solver_ = new sbpl_arm_planner::RPYSolver(wrist_min_limit, wrist_max_limit);
+  rpy_solver_ = new RPYSolver(wrist_min_limit, wrist_max_limit);
 
   initialized_ = true;
   return true;
@@ -202,7 +203,7 @@ bool PR2KDLRobotModel::computeIK(
     solution.resize(start.size());
 
     // choose solver
-    if (option == sbpl_arm_planner::ik_option::RESTRICT_XYZ_JOINTS) {
+    if (option == ik_option::RESTRICT_XYZ_JOINTS) {
         std::vector<double> rpy(3, 0);
         std::vector<double> fpose(6, 0);
         std::vector<double> epose(6, 0);
@@ -281,4 +282,5 @@ void PR2KDLRobotModel::printRobotModelInformation()
      ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
 }
 
-}
+} // namespace manip
+} // namespace sbpl

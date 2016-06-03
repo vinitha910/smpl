@@ -1,5 +1,5 @@
-#ifndef _BFS_3D_
-#define _BFS_3D_
+#ifndef sbpl_manip_bfs3d_h
+#define sbpl_manip_bfs3d_h
 
 #include <stdio.h>
 #include <queue>
@@ -9,14 +9,15 @@
 
 #include <boost/thread.hpp>
 
-#define WALL         0x7FFFFFFF
-#define UNDISCOVERED 0xFFFFFFFF
-
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 class BFS_3D
 {
 public:
+
+    static const int WALL = 0x7FFFFFFF;
+    static const int UNDISCOVERED = 0xFFFFFFFF;
 
     BFS_3D(int length, int width, int height);
     ~BFS_3D();
@@ -24,7 +25,6 @@ public:
     void getDimensions(int* length, int* width, int* height);
 
     void setWall(int x, int y, int z);
-
 
     // \brief Clear cells around a given cell until freespace is encountered.
     //
@@ -36,7 +36,14 @@ public:
     bool escapeCell(int x, int y, int z);
 
     void run(int x, int y, int z);
+
+    /// \brief Run the BFS starting from a variable number of cells
+    template <typename InputIt>
+    void run(InputIt cells_begin, InputIt cells_end);
+
     void run_components(int gx, int gy, int gz);
+
+    bool inBounds(int x, int y, int z) const;
 
     /// \brief Return the distance, in cells, to the nearest occupied cell.
     ///
@@ -78,7 +85,6 @@ private:
     std::vector<bool> m_closed;
     std::vector<int> m_distances;
 
-    bool inBounds(int x, int y, int z) const;
     int getNode(int x, int y, int z) const;
     bool getCoord(int node, int& x, int& y, int& z) const;
     void setWall(int node);
@@ -115,6 +121,52 @@ inline bool BFS_3D::inBounds(int x, int y, int z) const
 {
     return !(x < 0 || y < 0 || z < 0 ||
             x >= m_dim_x - 2 || y >= m_dim_y - 2 || z >= m_dim_z - 2);
+}
+
+template <typename InputIt>
+void BFS_3D::run(InputIt cells_begin, InputIt cells_end)
+{
+    if (m_running) {
+        return;
+    }
+
+    for (int i = 0; i < m_dim_xyz; i++) {
+        if (m_distance_grid[i] != WALL) {
+            m_distance_grid[i] = UNDISCOVERED;
+        }
+    }
+
+    m_queue_head = 0;
+
+    // seed the search with all start cells
+    int xyz[3];
+    int ind = 0;
+    int start_count = 0;
+    for (auto it = cells_begin; it != cells_end; ++it) {
+        if (ind == 3) {
+            const int origin = getNode(xyz[0], xyz[1], xyz[2]);
+            m_queue[start_count++] = origin;
+            m_distance_grid[origin] = 0;
+            ind = 0;
+        }
+        else {
+            xyz[ind++] = *it;
+        }
+    }
+
+    m_queue_tail = start_count;
+
+    // fire off background thread to compute bfs
+    m_search_thread = boost::thread(
+            static_cast<void (BFS_3D::*)(int, int, int volatile*, int*, int&, int&)>(&BFS_3D::search),
+            this,
+            m_dim_x,
+            m_dim_xy,
+            m_distance_grid,
+            m_queue,
+            m_queue_head,
+            m_queue_tail);
+    m_running = true;
 }
 
 inline int BFS_3D::getNode(int x, int y, int z) const
@@ -166,6 +218,7 @@ inline int BFS_3D::neighbor(int node, int neighbor) const
     return node + m_neighbor_offsets[neighbor];
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif

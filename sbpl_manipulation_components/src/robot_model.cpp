@@ -33,7 +33,8 @@
 
 #include <ros/console.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 namespace ik_option {
 
@@ -182,4 +183,5 @@ void RobotModel::setKinematicsToPlanningTransform(
     planning_frame_ = name;
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

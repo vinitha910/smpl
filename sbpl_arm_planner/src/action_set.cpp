@@ -33,11 +33,12 @@
 
 #include <leatherman/print.h>
 #include <sbpl_arm_planner/action_set.h>
-#include <sbpl_arm_planner/environment_robarm3d.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 #define VERIFY_KINEMATICS 0
 
-namespace sbpl_arm_planner {
+namespace sbpl {
+namespace manip {
 
 bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
 {
@@ -142,7 +143,7 @@ ActionSet::ActionSet() :
     clear();
 }
 
-bool ActionSet::init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions)
+bool ActionSet::init(ManipLattice* env, bool use_multiple_ik_solutions)
 {
     if (!env) {
         return false;
@@ -161,10 +162,10 @@ void ActionSet::addMotionPrim(
     MotionPrimitive m;
 
     if (short_dist_mprim) {
-        m.type = sbpl_arm_planner::MotionPrimitive::SHORT_DISTANCE;
+        m.type = MotionPrimitive::SHORT_DISTANCE;
     }
     else {
-        m.type = sbpl_arm_planner::MotionPrimitive::LONG_DISTANCE;
+        m.type = MotionPrimitive::LONG_DISTANCE;
     }
 
     m.id =  mp_.size();
@@ -305,13 +306,13 @@ bool ActionSet::getActionSet(
     }
 
     // get distance to the goal pose
-//    const double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
-    const double d = env_->getDistanceToGoal(pose);
+    const double goal_dist = env_->getGoalDistance(pose);
+    const double start_dist = env_->getStartDistance(pose);
 
     std::vector<Action> act;
     for (size_t i = 0; i < mp_.size(); ++i) {
         const MotionPrimitive& prim = mp_[i];
-        if (getAction(parent, d, prim, act)) {
+        if (getAction(parent, goal_dist, start_dist, prim, act)) {
             actions.insert(actions.end(), act.begin(), act.end());
         }
     }
@@ -325,13 +326,14 @@ bool ActionSet::getActionSet(
 
 bool ActionSet::getAction(
     const RobotState& parent,
-    double dist_to_goal,
+    double goal_dist,
+    double start_dist,
     const MotionPrimitive& mp,
     std::vector<Action>& actions)
 {
     std::vector<double> goal = env_->getGoal();
 
-    if (!mprimActive(dist_to_goal, mp.type)) {
+    if (!mprimActive(start_dist, goal_dist, mp.type)) {
         return false;
     }
 
@@ -351,7 +353,7 @@ bool ActionSet::getAction(
         return computeIkAction(
                 parent,
                 goal,
-                dist_to_goal,
+                goal_dist,
                 ik_option::RESTRICT_XYZ_JOINTS,
                 actions);
     }
@@ -366,7 +368,7 @@ bool ActionSet::getAction(
             return computeIkAction(
                     parent,
                     goal,
-                    dist_to_goal,
+                    goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);
         }
@@ -408,7 +410,7 @@ bool ActionSet::computeIkAction(
     const RobotState& state,
     const std::vector<double>& goal,
     double dist_to_goal,
-    sbpl_arm_planner::ik_option::IkOption option,
+    ik_option::IkOption option,
     std::vector<Action>& actions)
 {
     if (use_multiple_ik_solutions_) {
@@ -441,16 +443,26 @@ bool ActionSet::computeIkAction(
 }
 
 bool ActionSet::mprimActive(
-    double dist_to_goal,
+    double start_dist,
+    double goal_dist,
     MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
-        return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] &&
-            dist_to_goal <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE]);
+        const bool near_endpoint =
+                (goal_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE] ||
+                start_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE]);
+        return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] && near_endpoint);
+    }
+    else if (type == MotionPrimitive::SHORT_DISTANCE) {
+        const bool near_endpoint =
+                (goal_dist <= m_mprim_thresh[type] ||
+                start_dist <= m_mprim_thresh[type]);
+        return m_mprim_enabled[type] && near_endpoint;
     }
     else {
-        return m_mprim_enabled[type] && dist_to_goal <= m_mprim_thresh[type];
+        return m_mprim_enabled[type] && goal_dist <= m_mprim_thresh[type];
     }
 }
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl

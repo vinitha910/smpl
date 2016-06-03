@@ -124,7 +124,7 @@ private:
     /* planner & environment */
     double resolution_;
     CollisionSpace* cspace_;
-    sbpl_arm_planner::OccupancyGrid* grid_;
+    OccupancyGrid* grid_;
     sbpl_arm_planner::VisualizeArm* aviz_;
     KDL::Frame kdl_transform_;
 

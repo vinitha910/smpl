@@ -29,12 +29,16 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_arm_planner_OccupancyGrid_h
-#define sbpl_arm_planner_OccupancyGrid_h
+#ifndef sbpl_occupancy_grid_h
+#define sbpl_occupancy_grid_h
 
+// standard includes
 #include <cmath>
 #include <fstream>
+#include <memory>
 #include <vector>
+
+// system includes
 #include <Eigen/Geometry>
 #include <moveit/distance_field/voxel_grid.h>
 #include <moveit/distance_field/propagation_distance_field.h>
@@ -44,7 +48,7 @@
 #include <tf/LinearMath/Vector3.h>
 #include <visualization_msgs/MarkerArray.h>
 
-namespace sbpl_arm_planner {
+namespace sbpl {
 
 /// \brief Lightweight layer on top of the PropagationDistanceField class that
 /// carries occupancy information in some reference frame as well as the
@@ -204,13 +208,13 @@ OccupancyGrid::getDistanceFieldPtr() const
     return grid_;
 }
 
-inline 
+inline
 double OccupancyGrid::getResolution() const
 {
     return grid_->getResolution();
 }
 
-inline 
+inline
 double OccupancyGrid::getMaxDistance() const
 {
     // HACK: embedded knowledge of PropagationDistanceField here
@@ -231,11 +235,6 @@ void OccupancyGrid::worldToGrid(
     int &x, int &y, int &z) const
 {
     grid_->worldToGrid(wx, wy, wz, x, y, z);
-
-    if ((x > 10000) || (y > 10000) || (z > 10000) || (x < 0) || (y < 0) || (z < 0)) {
-        ROS_ERROR("[grid] worldToGrid converted %0.5f %0.5f %0.5f to %d %d %d", wx, wy, wz, x, y, z);
-        fflush(stdout);
-    }
 }
 
 inline
@@ -292,6 +291,9 @@ bool OccupancyGrid::isInBounds(double x, double y, double z) const
     return isInBounds(gx, gy, gz);
 }
 
-} // namespace sbpl_arm_planner
+typedef std::shared_ptr<OccupancyGrid> OccupancyGridPtr;
+typedef std::shared_ptr<const OccupancyGrid> OccupancyGridConstPtr;
+
+} // namespace sbpl
 
 #endif

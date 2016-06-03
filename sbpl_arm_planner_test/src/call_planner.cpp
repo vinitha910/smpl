@@ -47,8 +47,6 @@
 //#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
-using namespace sbpl_arm_planner;
-
 void fillConstraint(const std::vector<double> &pose, std::string frame_id, moveit_msgs::Constraints &goals)
 {
 
@@ -310,11 +308,11 @@ int main(int argc, char **argv)
   // robot model
   RobotModel *rm;
 //  if(group_name.compare("right_arm") == 0)
-//    rm = new sbpl_arm_planner::PR2KDLRobotModel(); // should take in "pr2"
+//    rm = new sbpl::manip::PR2KDLRobotModel(); // should take in "pr2"
 //  else if(group_name.compare("arm") == 0)
-//    rm = new sbpl_arm_planner::UBR1KDLRobotModel();
+//    rm = new sbpl::manip::UBR1KDLRobotModel();
 //  else
-    rm  = new sbpl_arm_planner::KDLRobotModel(kinematics_frame, chain_tip_link);
+    rm  = new sbpl::manip::KDLRobotModel(kinematics_frame, chain_tip_link);
   if(!rm->init(urdf, planning_joints))
   {
     ROS_ERROR("Failed to initialize robot model.");
@@ -341,7 +339,7 @@ int main(int argc, char **argv)
   }
 
   // collision checker
-  sbpl_arm_planner::OccupancyGrid *grid = new sbpl_arm_planner::OccupancyGrid(df);
+  sbpl::OccupancyGrid *grid = new sbpl::OccupancyGrid(df);
   grid->setReferenceFrame(planning_frame);
   sbpl::collision::CollisionSpace *cc = new sbpl::collision::CollisionSpace(grid);
 
@@ -351,10 +349,10 @@ int main(int argc, char **argv)
     return false;
 
   // action set
-  sbpl_arm_planner::ActionSet *as = new sbpl_arm_planner::ActionSet(action_set_filename);
+  sbpl::manip::ActionSet *as = new sbpl::manip::ActionSet(action_set_filename);
 
   // planner interface
-  sbpl_arm_planner::SBPLArmPlannerInterface *planner = new sbpl_arm_planner::SBPLArmPlannerInterface(rm, cc, as, df);
+  sbpl::manip::SBPLArmPlannerInterface *planner = new sbpl::manip::SBPLArmPlannerInterface(rm, cc, as, df);
 
   if(!planner->init())
     return false;

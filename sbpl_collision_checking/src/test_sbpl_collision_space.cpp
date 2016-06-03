@@ -99,7 +99,7 @@ bool TestSBPLCollisionSpace::init()
 
   ROS_INFO("[test] Creating the grid.");
   const double max_dist_m = 0.40;
-  grid_ = new sbpl_arm_planner::OccupancyGrid(sizeX_, sizeY_, sizeZ_, resolution_, originX_, originY_, originZ_, max_dist_m);
+  grid_ = new sbpl::OccupancyGrid(sizeX_, sizeY_, sizeZ_, resolution_, originX_, originY_, originZ_, max_dist_m);
 
   ROS_INFO("[test] Creating the collision space.");
   cspace_ = new sbpl::collision::CollisionSpace(grid_);
