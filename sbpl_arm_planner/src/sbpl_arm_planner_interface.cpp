@@ -514,23 +514,6 @@ bool SBPLArmPlannerInterface::setGoalPosition(
     return true;
 }
 
-bool SBPLArmPlannerInterface::planKinematicPath(
-    const moveit_msgs::MotionPlanRequest& req,
-    moveit_msgs::MotionPlanResponse& res)
-{
-    if (!m_initialized) {
-        ROS_ERROR("Hold up a second...the planner isn't initialized yet. Try again in a second or two.");
-        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
-        return false;
-    }
-
-    if (!planToPosition(req, res)) {
-        return false;
-    }
-
-    return true;
-}
-
 bool SBPLArmPlannerInterface::plan(std::vector<std::vector<double>>& path)
 {
     // NOTE: this should be done after setting the start/goal in the environment

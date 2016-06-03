@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_manip_sbpl_arm_planner_interface_h
-#define sbpl_manip_sbpl_arm_planner_interface_h
+#ifndef sbpl_manip_arm_planner_interface_h
+#define sbpl_manip_arm_planner_interface_h
 
 // standard includes
 #include <map>
@@ -73,10 +73,6 @@ public:
 
     bool init();
     bool init(const PlanningParams& params);
-
-    bool planKinematicPath(
-        const moveit_msgs::MotionPlanRequest& req,
-        moveit_msgs::MotionPlanResponse& res);
 
     bool solve(
         const moveit_msgs::PlanningSceneConstPtr& planning_scene,
