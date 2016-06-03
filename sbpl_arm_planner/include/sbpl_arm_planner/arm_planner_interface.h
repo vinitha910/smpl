@@ -59,17 +59,17 @@ namespace manip {
 
 class ManipLattice;
 
-class SBPLArmPlannerInterface
+class ArmPlannerInterface
 {
 public:
 
-    SBPLArmPlannerInterface(
+    ArmPlannerInterface(
         RobotModel* rmodel,
         CollisionChecker* cc,
         ActionSet* as,
         distance_field::PropagationDistanceField* df);
 
-    ~SBPLArmPlannerInterface();
+    ~ArmPlannerInterface();
 
     bool init();
     bool init(const PlanningParams& params);

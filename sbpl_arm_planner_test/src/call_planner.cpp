@@ -41,7 +41,7 @@
 #include <leatherman/print.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/GetMotionPlan.h>
-#include <sbpl_arm_planner/sbpl_arm_planner_interface.h>
+#include <sbpl_arm_planner/arm_planner_interface.h>
 #include <sbpl_manipulation_components/kdl_robot_model.h>
 //#include <sbpl_manipulation_components_pr2/pr2_kdl_robot_model.h>
 //#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
