@@ -203,7 +203,7 @@ protected:
         moveit_msgs::MotionPlanResponse& res);
 
     // Retrieve plan from sbpl
-    bool plan(trajectory_msgs::JointTrajectory& traj);
+    bool plan(std::vector<std::vector<double>>& path);
 
     bool extractGoalPoseFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,
@@ -223,7 +223,13 @@ protected:
     bool reinitMhaPlanner();
     bool reinitLaraPlanner();
 
-    void postProcessPath(trajectory_msgs::JointTrajectory& traj) const;
+    bool isPathValid(const std::vector<std::vector<double>>& path) const;
+    void postProcessPath(
+        const std::vector<std::vector<double>>& path,
+        trajectory_msgs::JointTrajectory& traj) const;
+    void convertJointVariablePathToJointTrajectory(
+        const std::vector<std::vector<double>>& path,
+        trajectory_msgs::JointTrajectory& traj) const;
     void profilePath(trajectory_msgs::JointTrajectory& traj) const;
     void visualizePath(
         const moveit_msgs::RobotState& traj_start,

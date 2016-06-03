@@ -139,20 +139,16 @@ public:
     virtual void getExpandedStates(
         std::vector<std::vector<double>>& ara_states) const;
 
-    virtual void convertStateIDPathToJointAnglesPath(
+    virtual bool extractPath(
         const std::vector<int>& idpath,
         std::vector<std::vector<double>>& path) const;
-
-    virtual bool convertStateIDPathToJointTrajectory(
-        const std::vector<int>& idpath,
-        trajectory_msgs::JointTrajectory& traj) const;
 
     virtual void convertStateIDPathToShortenedJointAnglesPath(
         const std::vector<int>& idpath,
         std::vector<std::vector<double>>& path,
         std::vector<int>& idpath_short);
 
-    virtual void StateID2Angles(int stateID, std::vector<double>& angles) const;
+    virtual bool StateID2Angles(int stateID, std::vector<double>& angles) const;
 
     RobotModel* getRobotModel() { return rmodel_; }
     CollisionChecker* getCollisionChecker() { return cc_; }
