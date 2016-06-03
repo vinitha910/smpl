@@ -45,8 +45,8 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
-#include <sbpl_manipulation_components/collision_checker.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/collision_checker.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 

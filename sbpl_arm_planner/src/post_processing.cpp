@@ -29,8 +29,9 @@
 
 /// \author Benjamin Cohen
 
-#include <sbpl_manipulation_components/post_processing.h>
+#include <sbpl_arm_planner/post_processing.h>
 
+// system includes
 #include <leatherman/print.h>
 #include <ros/console.h>
 #include <sbpl_geometry_utils/interpolation.h>

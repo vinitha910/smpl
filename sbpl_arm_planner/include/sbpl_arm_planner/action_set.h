@@ -32,17 +32,22 @@
 #ifndef sbpl_manip_action_set_h
 #define sbpl_manip_action_set_h
 
+// standard includes
 #include <iostream>
+#include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <iterator>
-#include <ros/ros.h>
+
+// system includes
 #include <angles/angles.h>
-#include <sstream>
 #include <boost/algorithm/string.hpp>
-#include <sbpl_manipulation_components/motion_primitive.h>
-#include <sbpl_manipulation_components/robot_model.h>
+#include <ros/ros.h>
+
+// project includes
+#include <sbpl_arm_planner/motion_primitive.h>
+#include <sbpl_arm_planner/robot_model.h>
 
 namespace sbpl {
 namespace manip {

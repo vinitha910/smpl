@@ -10,7 +10,7 @@
 
 // project includes
 #include <sbpl_arm_planner/manip_lattice.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 
 namespace sbpl {

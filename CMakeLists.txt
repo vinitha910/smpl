@@ -40,15 +40,11 @@ find_package(orocos_kdl REQUIRED)
 # export libraries, headers, and dependencies
 catkin_package(
     INCLUDE_DIRS
-        bfs3d/include
         sbpl_arm_planner/include
         sbpl_collision_checking/include
-        sbpl_manipulation_components/include
         sbpl_manipulation_components_pr2/include
     LIBRARIES
-        bfs3d
         sbpl_arm_planner
-        sbpl_manipulation_components
         sbpl_collision_checking
         sbpl_manipulation_components_pr2
     CATKIN_DEPENDS
@@ -78,16 +74,12 @@ link_directories(${SBPL_LIBRARY_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
 
 # internal include directories
-include_directories(bfs3d/include)
 include_directories(sbpl_arm_planner/include)
 include_directories(sbpl_collision_checking/include)
-include_directories(sbpl_manipulation_components/include)
 include_directories(sbpl_manipulation_components_pr2/include)
 
 add_definitions(-DROS)
 
-add_subdirectory(bfs3d)
 add_subdirectory(sbpl_arm_planner)
 add_subdirectory(sbpl_collision_checking)
-add_subdirectory(sbpl_manipulation_components)
 add_subdirectory(sbpl_manipulation_components_pr2)

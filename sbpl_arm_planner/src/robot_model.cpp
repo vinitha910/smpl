@@ -29,7 +29,7 @@
 
  /// \author Benjamin Cohen
 
-#include <sbpl_manipulation_components/robot_model.h>
+#include <sbpl_arm_planner/robot_model.h>
 
 #include <ros/console.h>
 

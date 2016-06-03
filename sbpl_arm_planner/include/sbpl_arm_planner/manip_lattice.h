@@ -47,12 +47,12 @@
 #include <trajectory_msgs/JointTrajectory.h>
 
 // project includes
-#include <bfs3d/BFS_3D.h>
 #include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/bfs3d/BFS_3D.h>
+#include <sbpl_arm_planner/collision_checker.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
-#include <sbpl_manipulation_components/collision_checker.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
-#include <sbpl_manipulation_components/robot_model.h>
+#include <sbpl_arm_planner/robot_model.h>
 
 namespace sbpl {
 namespace manip {

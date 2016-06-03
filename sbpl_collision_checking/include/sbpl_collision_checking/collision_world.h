@@ -34,7 +34,7 @@
 #include <geometric_shapes/shapes.h>
 #include <moveit/collision_detection/world.h>
 #include <moveit_msgs/CollisionObject.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 

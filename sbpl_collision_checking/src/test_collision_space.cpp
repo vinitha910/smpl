@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 
 #include <ros/ros.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <visualization_msgs/MarkerArray.h>
 
 #include <sbpl_collision_checking/sbpl_collision_space.h>

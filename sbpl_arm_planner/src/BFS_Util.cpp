@@ -1,4 +1,4 @@
-#include <BFS_3D/BFS_3D.h>
+#include <sbpl_arm_planner/BFS_3D/BFS_3D.h>
 #include <distance_field/propagation_distance_field.h>
 
 void setDistanceField(

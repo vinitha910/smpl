@@ -31,11 +31,13 @@
 
 #include <sbpl_arm_planner/arm_planner_interface.h>
 
+// standard includes
 #include <assert.h>
 #include <time.h>
 #include <iostream>
 #include <map>
 
+// system includes
 #include <angles/angles.h>
 #include <geometry_msgs/Pose.h>
 #include <kdl/frames.hpp>
@@ -45,11 +47,12 @@
 #include <tf/transform_datatypes.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
+// project includes
 #include <sbpl_arm_planner/bfs_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
-#include <sbpl_manipulation_components/post_processing.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
+#include <sbpl_arm_planner/post_processing.h>
 
 namespace sbpl {
 namespace manip {

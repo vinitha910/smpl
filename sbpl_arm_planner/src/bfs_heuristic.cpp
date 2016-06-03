@@ -2,7 +2,7 @@
 
 #include <leatherman/viz.h>
 
-#include <bfs3d/BFS_3D.h>
+#include <sbpl_arm_planner/bfs3d/BFS_3D.h>
 
 namespace sbpl {
 namespace manip {

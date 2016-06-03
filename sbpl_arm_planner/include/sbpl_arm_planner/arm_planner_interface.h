@@ -48,11 +48,11 @@
 
 // project includes
 #include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
-#include <sbpl_manipulation_components/collision_checker.h>
-#include <sbpl_manipulation_components/robot_model.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/robot_model.h>
 
 namespace sbpl {
 namespace manip {

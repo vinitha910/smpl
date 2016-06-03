@@ -29,7 +29,7 @@
 
  /** \author Benjamin Cohen */
 
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <ros/console.h>
 #include <leatherman/viz.h>
 
