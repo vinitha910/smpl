@@ -1,7 +1,34 @@
-//Prepared by Gokul Subramanian, MSE, MEAM 2011
-//Working under Professor Maxim Likhachev
-//At The University of Pennsylvania
-//---14/04/2010---
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010, Gokul Subramanian, Benjamin Cohen
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Gokul Subramanian
+/// \author Benjamin Cohen
 
 #include <sbpl_manipulation_components_pr2/sbpl_math.h>
 
@@ -11,9 +38,9 @@
 
 //Multiply two matrices of matching size
 void multiply(double* C, double* A, int mrows, int ncols, double* B, int pcols) {
-    
+
     int i,j,k;
-    
+
     for(i=0; i<mrows; i++) {
         for(j=0; j<pcols; j++) {
             C[i+mrows*j]=0;
@@ -26,9 +53,9 @@ void multiply(double* C, double* A, int mrows, int ncols, double* B, int pcols) 
 
 //Multiply a matrix with a scalar
 void scalar_multiply(double* B, double*A, int mrows, int ncols, double num ) {
-    
+
     int i, j;
-    
+
     for(i=0; i<mrows; i++) {
         for(j=0; j<ncols; j++) {
             B[i+mrows*j]=num*A[i+mrows*j];
@@ -38,9 +65,9 @@ void scalar_multiply(double* B, double*A, int mrows, int ncols, double num ) {
 
 //Equate two matrices of equal size
 void equate(double* B, double* A, int m, int n) {
-    
+
     int i,j;
-    
+
     for(i=0; i<m; i++) {
         for(j=0; j<n; j++) {
             B[i+m*j]=A[i+m*j];
@@ -50,7 +77,7 @@ void equate(double* B, double* A, int m, int n) {
 
 //Add two matrices of equal size
 void matrix_add(double* C, double* A, double* B, int m, int n) {
-    
+
     int i, j;
     for(i=0; i<m; i++) {
         for(j=0; j<n; j++) {
@@ -61,7 +88,7 @@ void matrix_add(double* C, double* A, double* B, int m, int n) {
 
 //Subtract two matrices of equal size
 void subtract(double* C, double* A, double* B, int m, int n) {
-    
+
     int i, j;
     for(i=0; i<m; i++) {
         for(j=0; j<n; j++) {
@@ -72,14 +99,14 @@ void subtract(double* C, double* A, double* B, int m, int n) {
 
 //Transpose of any matrix. Use this to find inverse of orthogonal matrices
 void transpose(double* B, double* A, int m, int n) {
-    
+
     int i,j;
-    
+
     for(i=0; i<m; i++) {
         for(j=0; j<n; j++) {
             B[j+m*i]=A[i+m*j];
         }
-    }   
+    }
 }
 
 /*************************************************************************/
@@ -90,18 +117,18 @@ void transpose(double* B, double* A, int m, int n) {
 double dot_product(double* A, double* B, int n) {
     double dp;
     int i;
-    
+
     dp=0;
     for(i=0; i<n; i++) {
         dp+=A[i]*B[i];
     }
-    
+
     return dp;
 }
 
 //Cross product of two 3D vectors
 void cross_product(double* C, double* A, double* B) {
-    
+
     C[0]=A[1]*B[2]-A[2]*B[1];
     C[1]=A[2]*B[0]-A[0]*B[2];
     C[2]=A[0]*B[1]-A[1]*B[0];
@@ -111,7 +138,7 @@ void cross_product(double* C, double* A, double* B) {
 double vect_norm(double* A, int n) {
     int i;
     double nm;
-    
+
     nm=0;
     for(i=0; i<n; i++) {
         nm+=pow(A[i],2);
@@ -124,14 +151,14 @@ double vect_norm(double* A, int n) {
 //meaningful only if the two vectors are (nearly) collinear
 double vect_divide(double* A, double* B, int n) {
     double ratio;
-    
+
     if(dot_product(A,B,n)>=0) {
         ratio=vect_norm(A,n)/vect_norm(B,n);
     }
     else {
         ratio=-vect_norm(A,n)/vect_norm(B,n);
     }
-    
+
     return ratio;
 }
 
@@ -148,60 +175,60 @@ bool check_equality(double* A, double* B, int n) {
     }
     return flag;
 }
-        
+
 /*************************************************************************/
 //3D geometry
 /*************************************************************************/
 
 //Create rotation matrix from yaw, pitch and roll
 void create_rotation_matrix(double* A, double yaw, double pitch, double roll) {
-    
+
     double phi=yaw;
     double theta=pitch;
     double psi=roll;
-    
+
     double temp1[9];
     double temp2[9];
     double temp3[9];
     double temp4[9];
-    
+
     temp1[0]=cos(phi);      temp1[3]=-sin(phi);     temp1[6]=0;
     temp1[1]=sin(phi);      temp1[4]=cos(phi);      temp1[7]=0;
     temp1[2]=0;             temp1[5]=0;             temp1[8]=1;
-    
+
     temp2[0]=cos(theta);    temp2[3]=0;             temp2[6]=-sin(theta);
     temp2[1]=0;             temp2[4]=1;             temp2[7]=0;
     temp2[2]=sin(theta);    temp2[5]=0;             temp2[8]=cos(theta);
-    
+
     temp3[0]=1;             temp3[3]=0;             temp3[6]=0;
     temp3[1]=0;             temp3[4]=cos(psi);      temp3[7]=-sin(psi);
     temp3[2]=0;             temp3[5]=sin(psi);      temp3[8]=cos(psi);
-    
+
     multiply(temp4,temp2,3,3,temp3,3);
     multiply(A,temp1,3,3,temp4,3);
 }
 
 //Rotate a vector by a given angle about a given unit vector
 void rotate_vector(double (&result)[3], double* vect, double* axis, double angle) {
-	
+
 	double identity[] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 	double w_hat[] = {0, *(axis+2), -*(axis+1), -*(axis+2), 0, *(axis+0), *(axis+1), -*(axis+0), 0};
-	
+
 	double temp[9], temp2[9], temp3[9];
-	
+
 	scalar_multiply(temp, w_hat, 3, 3, sin(angle));
 	multiply(temp2, w_hat, 3, 3, w_hat, 3);
 	scalar_multiply(temp3, temp2, 3, 3, 1-cos(angle));
-	
+
 	matrix_add(temp2, identity, temp, 3, 3);
 	matrix_add(temp, temp2, temp3, 3, 3);
-	
+
 	multiply(result, temp, 3, 3, vect, 1);
 }
 
 //Distance between 2 points in any dimensions
 double distance_between(double* A, double* B, int dim) {
-	double distance = 0;	
+	double distance = 0;
 	for (int i = 0; i < dim; i++) {
 		distance += pow(*(A+i) - *(B+i), 2);
 	}
@@ -210,7 +237,7 @@ double distance_between(double* A, double* B, int dim) {
 }
 
 double distance_between(std::vector<double> A, double* B, int dim) {
-	double distance = 0;	
+	double distance = 0;
 	for (int i = 0; i < dim; i++) {
 		distance += pow(A[i] - *(B+i), 2);
 	}

@@ -1,32 +1,34 @@
-/*
- * Copyright (c) 2010, Maxim Likhachev
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the University of Pennsylvania nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/** \author Benjamin Cohen bcohen@seas.upenn.edu */
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010, Benjamin Cohen, Andrew Dornbush
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
 #include <sbpl_arm_planner/environment_cartrobarm3d.h>
 
@@ -69,16 +71,16 @@ EnvironmentCARTROBARM3D::EnvironmentCARTROBARM3D(
     grid_ = grid;
     kmodel_ = kmodel;
     cc_ = cc;
-    
+
     EnvROBARMCfg.bInitialized = false;
     save_expanded_states = true;
     using_short_mprims_ = false;
     free_angle_index_ = 2;
     ndof_ = 7;
-    
+
     mp_dist_.resize(6);
     mp_gradient_.resize(3);
-    
+
     prms_.environment_type_ = "cartesian";
 }
 
@@ -174,7 +176,7 @@ void EnvironmentCARTROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, 
     // iangles is the arm configuration between intermediate waypoints
     iangles = parent_angles;
 
-    // init_wcoord is the world coords between intermediate waypoints    
+    // init_wcoord is the world coords between intermediate waypoints
     coordToWorldPose(parent->coord, init_wcoord);
 
     // the mp is subject to change (e.g. adaptive, ik search)
@@ -212,7 +214,7 @@ void EnvironmentCARTROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, 
           // debug - remove this eventually
           if(isEqualDouble(wptraj[q], iangles))
             ROS_ERROR("  succ: %2d  waypoint: %1d  sub-waypoint: %2d(%d)  convert_code: %2d   ** Has the same angles as its parent.**", int(i), int(j), int(q), int(wptraj.size()), convert_code);
-        
+
           //ROS_DEBUG_NAMED(prms_.expands_log_, "    [%d] -> [%d-%d-%d] sub-waypoint: %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f ", SourceStateID, int(i), int(j), int(q), wptraj[q][0],wptraj[q][1],wptraj[q][2],wptraj[q][3],wptraj[q][4],wptraj[q][5],wptraj[q][6]);
 
           ROS_ERROR("Not getting clearance anymore...");
@@ -239,10 +241,10 @@ void EnvironmentCARTROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, 
           //save joint angles of current waypoint for next sub-waypoint in intermediate waypoint
           iangles = wptraj[q];
         }
-   
+
         if(invalid_prim)
           break;
-        
+
         ROS_DEBUG_NAMED(prms_.expands_log_, "  succ: %2d-%1d-%1d     mp_type: %10s  convert_code: %2d  valid_code: %2d  dist: %3d  # checks: %2d(%2d)    Valid.", int(i), int(j), int(wptraj.size()), prms_.motion_primitive_type_names_[prms_.mp_[i].type].c_str(), convert_code, motion_code, int(dist_temp), stats_.nchecks_per_solver_per_succ_[convert_code], wp_length);
         /*
         if(prms_.mp_[i].type == SNAP_TO_RPY_AT_START)
@@ -284,7 +286,7 @@ void EnvironmentCARTROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, 
 
     //compute the successor coords
     for(a = 0; a < mp_coord.size(); ++a)
-    { 
+    {
       if((succcoord[a] + mp_coord[a]) < 0)
         succcoord[a] = ((EnvROBARMCfg.coord_vals[a] + succcoord[a] + int(mp_coord[a])) % EnvROBARMCfg.coord_vals[a]);
       else
@@ -314,7 +316,7 @@ void EnvironmentCARTROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, 
 
       for (int j = 0; j < ndof_; j++)
         EnvROBARM.goalHashEntry->coord[j] = succcoord[j];
-      
+
       EnvROBARM.goalHashEntry->dist = dist;
       EnvROBARM.goalHashEntry->angles = sangles;
       ROS_DEBUG("[search] Goal state has been found. Parent StateID: %d (obstacle distance: %d)",SourceStateID, int(dist));
@@ -366,7 +368,7 @@ EnvROBARM3DHashEntry_t* EnvironmentCARTROBARM3D::getHashEntry(const std::vector<
   for(size_t ind = 0; ind < EnvROBARM.Coord2StateIDHashTable[binid].size(); ind++)
   {
     size_t j = 0;
-    
+
     for(j=0; j<coord.size(); j++)
     {
       if(EnvROBARM.Coord2StateIDHashTable[binid][ind]->coord[j] != coord[j])
@@ -401,7 +403,7 @@ EnvROBARM3DHashEntry_t* EnvironmentCARTROBARM3D::createHashEntry(const std::vect
   EnvROBARM3DHashEntry_t* HashEntry = new EnvROBARM3DHashEntry_t;
 
   HashEntry->coord = coord;
- 
+
   HashEntry->dist = 200.0;
 
   HashEntry->angles.resize(ndof_,-1);
@@ -410,7 +412,7 @@ EnvROBARM3DHashEntry_t* EnvironmentCARTROBARM3D::createHashEntry(const std::vect
   HashEntry->xyz[1] = coord[1];
   HashEntry->xyz[2] = coord[2];
 
-  //assign a stateID to HashEntry to be used 
+  //assign a stateID to HashEntry to be used
   HashEntry->stateID = EnvROBARM.StateID2CoordTable.size();
 
   //insert into the tables
@@ -674,7 +676,7 @@ void EnvironmentCARTROBARM3D::worldPoseToCoord(double *wxyz, double *wrpy, doubl
   worldToDiscXYZ(wxyz, xyz);
   worldToDiscRPY(wrpy, rpy);
   worldToDiscFAngle(wfangle, &fangle);
-  
+
   coord.resize(ndof_);
   coord[0] = xyz[0];
   coord[1] = xyz[1];
@@ -700,9 +702,9 @@ void EnvironmentCARTROBARM3D::worldPoseToState(double *wxyz, double *wrpy, doubl
 void EnvironmentCARTROBARM3D::anglesToCoord(const std::vector<double> &angles, std::vector<int> &coord)
 {
   std::vector<double> pose(6,0);
-  
+
   kmodel_->computePlanningLinkFK(angles, pose);
-  
+
   double fangle=angles[free_angle_index_];
   double wxyz[3] = {pose[0], pose[1], pose[2]};
   double wrpy[3] = {pose[3], pose[4], pose[5]};
@@ -727,7 +729,7 @@ int EnvironmentCARTROBARM3D::computeMotionCost(const std::vector<double> &a, con
     time = fabs(angles::normalize_angle(a[i]-b[i])) / prms_.joint_vel_[i];
 
    ROS_DEBUG("%d: a: %0.4f b: %0.4f dist: %0.4f vel:%0.4f time: %0.4f", int(i), a[i], b[i], fabs(angles::normalize_angle(a[i]-b[i])), prms_.joint_vel_[i], time);
- 
+
    if(time > time_max)
      time_max = time;
   }
@@ -841,7 +843,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToJointAnglesPath(const std::vec
   std::vector<std::vector<double> > interm_angles;
   std::vector<int> interm_coord(ndof_,0);
   EnvROBARM3DHashEntry_t* source_entry;
-  std::vector<int>mp_used; 
+  std::vector<int>mp_used;
   path.clear();
 
   ROS_DEBUG_NAMED(prms_.solution_log_, "[env] Path:");
@@ -892,7 +894,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToJointAnglesPath(const std::vec
       else
         ROS_WARN("[env] Failed to convert coords to angles when attempting to construct the path.");
     }
-    ROS_DEBUG_NAMED(prms_.solution_log_, "[env] [%2d] stateid: %5d mp_index: %2d mp_type: %14s mp_group: %d num_waypoints: %d  heur: %d", int(p),  idpath[p], bestsucc, prms_.motion_primitive_type_names_[prms_.mp_[bestsucc].type].c_str(), prms_.mp_[bestsucc].group, int(interm_angles.size()), source_entry->heur);  
+    ROS_DEBUG_NAMED(prms_.solution_log_, "[env] [%2d] stateid: %5d mp_index: %2d mp_type: %14s mp_group: %d num_waypoints: %d  heur: %d", int(p),  idpath[p], bestsucc, prms_.motion_primitive_type_names_[prms_.mp_[bestsucc].type].c_str(), prms_.mp_[bestsucc].group, int(interm_angles.size()), source_entry->heur);
   }
 
   for(size_t i = 0; i < mp_used.size(); ++i)
@@ -989,7 +991,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToShortenedJointAnglesPath(const
       else
         ROS_ERROR("[env] Failed to convert coords to angles when attempting to construct the path.");
     }
-    ROS_INFO("[env] [%2d] stateid: %5d mp_index: %2d mp_type: %14s mp_group: %d num_waypoints: %d  heur: %d", int(p),  idpath[p], bestsucc, prms_.motion_primitive_type_names_[prms_.mp_[bestsucc].type].c_str(), prms_.mp_[bestsucc].group, int(interm_angles.size()), source_entry->heur); 
+    ROS_INFO("[env] [%2d] stateid: %5d mp_index: %2d mp_type: %14s mp_group: %d num_waypoints: %d  heur: %d", int(p),  idpath[p], bestsucc, prms_.motion_primitive_type_names_[prms_.mp_[bestsucc].type].c_str(), prms_.mp_[bestsucc].group, int(interm_angles.size()), source_entry->heur);
   }
 }
 
@@ -998,7 +1000,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToPoints(const std::vector<int> 
   int sourceid, targetid, bestcost, bestsucc;
   std::vector<int> cost, succid, action;
   std::vector<double> interm_point(4,0), source_wcoord(ndof_,0), wcoord(ndof_,0);
- 
+
   path.clear();
 
   for(size_t p = 0; p < idpath.size()-1; ++p)
@@ -1024,14 +1026,14 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToPoints(const std::vector<int> 
       ROS_ERROR("[%i] Successor not found for transition.", int(p));
 
     coordToWorldPose(EnvROBARM.StateID2CoordTable[sourceid]->coord, source_wcoord);
-    
+
     for(size_t i = 0; i < prms_.mp_[bestsucc].m.size(); ++i)
     {
       for(size_t a = 0; a < wcoord.size(); ++a)
         wcoord[a] = source_wcoord[a] + prms_.mp_[bestsucc].m[i][a];
-      
+
       ROS_DEBUG("[%i-%i] sourceid: %d targetid: %d mprim: %d xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f fa: %0.3f",int(p),int(i), sourceid, targetid, bestsucc,wcoord[0],wcoord[1],wcoord[2],wcoord[3],wcoord[4],wcoord[5],wcoord[6]);
-      
+
       interm_point[0] = wcoord[0];
       interm_point[1] = wcoord[1];
       interm_point[2] = wcoord[2];
@@ -1050,7 +1052,7 @@ void EnvironmentCARTROBARM3D::convertStateIDPathToPoints(const std::vector<int> 
 void EnvironmentCARTROBARM3D::convertShortStateIDPathToPoints(const std::vector<int> &idpath, std::vector<std::vector<double> > &path)
 {
   std::vector<double> interm_point(4,0), wcoord(ndof_,0);
- 
+
   path.clear();
 
   for(size_t p = 0; p < idpath.size()-1; ++p)
@@ -1148,7 +1150,7 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
     mp.coord[2] = EnvROBARM.goalHashEntry->coord[2] - parent->coord[2];
     mp.coord[3] = EnvROBARM.goalHashEntry->coord[3] - parent->coord[3];
     mp.coord[4] = EnvROBARM.goalHashEntry->coord[4] - parent->coord[4];
-    mp.coord[5] = EnvROBARM.goalHashEntry->coord[5] - parent->coord[5];   
+    mp.coord[5] = EnvROBARM.goalHashEntry->coord[5] - parent->coord[5];
   }
   // first satisfy goal orientation in place, then move into the goal position
   else if(type == SNAP_TO_RPY_THEN_TO_XYZ)
@@ -1187,8 +1189,8 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
   else if(type == SNAP_TO_RPY_AT_START)
   {
     mp.m.resize(1, std::vector<double> (ndof_, 0.0));
-    getVector(EnvROBARM.goalHashEntry->coord[0], EnvROBARM.goalHashEntry->coord[1], EnvROBARM.goalHashEntry->coord[2], parent->coord[0], parent->coord[1], parent->coord[2], mp.coord[0], mp.coord[1], mp.coord[2], 5);  
-    getVector(EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], parent->coord[3], parent->coord[4], parent->coord[5], mp.coord[3], mp.coord[4], mp.coord[5], 10); 
+    getVector(EnvROBARM.goalHashEntry->coord[0], EnvROBARM.goalHashEntry->coord[1], EnvROBARM.goalHashEntry->coord[2], parent->coord[0], parent->coord[1], parent->coord[2], mp.coord[0], mp.coord[1], mp.coord[2], 5);
+    getVector(EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], parent->coord[3], parent->coord[4], parent->coord[5], mp.coord[3], mp.coord[4], mp.coord[5], 10);
 
     mp.m[0][0] = double(mp.coord[0])*EnvROBARMCfg.coord_delta[0];
     mp.m[0][1] = double(mp.coord[1])*EnvROBARMCfg.coord_delta[1];
@@ -1223,8 +1225,8 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
     mp.coord[2] = EnvROBARM.goalHashEntry->coord[2] - parent->coord[2];
     mp.coord[3] = EnvROBARM.goalHashEntry->coord[3] - parent->coord[3];
     mp.coord[4] = EnvROBARM.goalHashEntry->coord[4] - parent->coord[4];
-    mp.coord[5] = EnvROBARM.goalHashEntry->coord[5] - parent->coord[5]; 
-    
+    mp.coord[5] = EnvROBARM.goalHashEntry->coord[5] - parent->coord[5];
+
 
     // debugging
     if(mp.m.size() == 3)
@@ -1263,14 +1265,14 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
     getVector(parent->coord[0]+x, parent->coord[1]+y, parent->coord[2]+z, parent->coord[0], parent->coord[1], parent->coord[2], icoord[0], icoord[1], icoord[2], 4, false);
 
     // rotate towards rpy
-    getVector(EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], parent->coord[3], parent->coord[4], parent->coord[5], mp.coord[3], mp.coord[4], mp.coord[5], 15); 
+    getVector(EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], parent->coord[3], parent->coord[4], parent->coord[5], mp.coord[3], mp.coord[4], mp.coord[5], 15);
 
-    std::vector<double> im(ndof_, 0); 
+    std::vector<double> im(ndof_, 0);
     mp.m.resize(1, std::vector<double> (ndof_, 0.0));
     mp.m[0][0] = double(icoord[0])*EnvROBARMCfg.coord_delta[0];
     mp.m[0][1] = double(icoord[1])*EnvROBARMCfg.coord_delta[1];
     mp.m[0][2] = double(icoord[2])*EnvROBARMCfg.coord_delta[2];
-    
+
     if(mp.coord[3] != 0 || mp.coord[4] != 0 || mp.coord[5] != 0)
     {
       im[3] = angles::normalize_angle(double(mp.coord[3])*EnvROBARMCfg.coord_delta[3]);
@@ -1297,17 +1299,17 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
     getVector(parent->coord[0]+x, parent->coord[1]+y, parent->coord[2]+z, parent->coord[0], parent->coord[1], parent->coord[2], icoord[0], icoord[1], icoord[2], 4, false);
 
     // rotate towards rpy
-    getVector(EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], parent->coord[3], parent->coord[4], parent->coord[5], mp.coord[3], mp.coord[4], mp.coord[5], 10); 
+    getVector(EnvROBARM.goalHashEntry->coord[3], EnvROBARM.goalHashEntry->coord[4], EnvROBARM.goalHashEntry->coord[5], parent->coord[3], parent->coord[4], parent->coord[5], mp.coord[3], mp.coord[4], mp.coord[5], 10);
 
     // move towards xyz
     getVector(EnvROBARM.goalHashEntry->coord[0], EnvROBARM.goalHashEntry->coord[1], EnvROBARM.goalHashEntry->coord[2], parent->coord[0], parent->coord[1], parent->coord[2], mp.coord[0], mp.coord[1], mp.coord[2], 6);
 
-    std::vector<double> im(ndof_, 0); 
+    std::vector<double> im(ndof_, 0);
     mp.m.resize(1, std::vector<double> (ndof_, 0.0));
     mp.m[0][0] = double(icoord[0])*EnvROBARMCfg.coord_delta[0];
     mp.m[0][1] = double(icoord[1])*EnvROBARMCfg.coord_delta[1];
     mp.m[0][2] = double(icoord[2])*EnvROBARMCfg.coord_delta[2];
-    
+
     if(mp.coord[3] != 0 || mp.coord[4] != 0 || mp.coord[5] != 0)
     {
       im[3] = angles::normalize_angle(double(mp.coord[3])*EnvROBARMCfg.coord_delta[3]);
@@ -1315,7 +1317,7 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
       im[5] = angles::normalize_angle(double(mp.coord[5])*EnvROBARMCfg.coord_delta[5]);
       mp.m.push_back(im);
     }
-    
+
     im[0] = double(mp.coord[0])*EnvROBARMCfg.coord_delta[0];
     im[1] = double(mp.coord[1])*EnvROBARMCfg.coord_delta[1];
     im[2] = double(mp.coord[2])*EnvROBARMCfg.coord_delta[2];
@@ -1374,7 +1376,7 @@ int EnvironmentCARTROBARM3D::getJointAnglesForMotionPrimWaypoint(const std::vect
     if(!rpysolver_->isOrientationFeasible(EnvROBARMCfg.goal.rpy, seed, angles))
       status = -solver_types::ORIENTATION_SOLVER;
     else
-      return solver_types::ORIENTATION_SOLVER; 
+      return solver_types::ORIENTATION_SOLVER;
   }
 
   // analytical IK
@@ -1382,7 +1384,7 @@ int EnvironmentCARTROBARM3D::getJointAnglesForMotionPrimWaypoint(const std::vect
   if(!kmodel_->computeFastIK(pose,seed,angles[0]))
   {
     status = -solver_types::IK;
-    
+
     // IK search
     if(!kmodel_->computeIK(pose, seed, angles[0]))
       status = -solver_types::IK_SEARCH;
@@ -1500,14 +1502,14 @@ bool EnvironmentCARTROBARM3D::getMotionPrimitive(EnvROBARM3DHashEntry_t* parent,
     else
       getAdaptiveMotionPrim(RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ, parent, mp);
     */
-      
+
     getAdaptiveMotionPrim(RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ, parent, mp);
   }
   else
     ROS_WARN("Invalid motion primitive type");
 
   if(mp.coord[0] == 0 && mp.coord[1] == 0 && mp.coord[2] == 0 &&
-      mp.coord[3] == 0 && mp.coord[4] == 0 && mp.coord[5] == 0 && mp.coord[6] == 0) 
+      mp.coord[3] == 0 && mp.coord[4] == 0 && mp.coord[5] == 0 && mp.coord[6] == 0)
   {
     ROS_DEBUG("Not using adaptive mprim cause its all zeros. We should be at goal??? (type: %s)", prms_.motion_primitive_type_names_[mp.type].c_str());
     return false;
@@ -1542,7 +1544,7 @@ void EnvironmentCARTROBARM3D::getVector(int x1, int y1, int z1, int x2, int y2, 
 
     if(dz != 0)
       zout = (dz*multiplier)/length + 0.5;
-    else 
+    else
       zout = 0;
   }
   else
@@ -1565,7 +1567,7 @@ void EnvironmentCARTROBARM3D::getVector(int x1, int y1, int z1, int x2, int y2, 
       zout = min((dz*multiplier)/length + 0.5, dz);
     else if(dz < 0)
       zout = max((dz*multiplier)/length + 0.5, dz);
-    else 
+    else
       zout = 0;
   }
   ROS_DEBUG("xyz1: %d %d %d    xyz2: %d %d %d", x1, y1, z1, x2, y2, z2);
@@ -1600,7 +1602,7 @@ bool EnvironmentCARTROBARM3D::getDistanceGradient(int &x, int &y, int &z)
   if(mp_gradient_[0] == 0 && mp_gradient_[1] == 0 && mp_gradient_[2] == 0)
     return false;
 
-  //ROS_INFO("[env] dist:  %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f  (%s)", mp_dist_[0], mp_dist_[1], mp_dist_[2], mp_dist_[3], mp_dist_[4], mp_dist_[5], cspace_->collision_name_.c_str());      
+  //ROS_INFO("[env] dist:  %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f  (%s)", mp_dist_[0], mp_dist_[1], mp_dist_[2], mp_dist_[3], mp_dist_[4], mp_dist_[5], cspace_->collision_name_.c_str());
   double norm = sqrt(mp_gradient_[0]*mp_gradient_[0] + mp_gradient_[1]*mp_gradient_[1] + mp_gradient_[2]*mp_gradient_[2]);
   ROS_INFO("[env] gradient_x: %2.2f   gradient_y: %2.2f   gradient_z: %2.2f  norm: %2.2f", mp_gradient_[0], mp_gradient_[1], mp_gradient_[2], norm);
   return true;
@@ -1612,7 +1614,7 @@ void EnvironmentCARTROBARM3D::computeGradient(const MotionPrimitive &mp, unsigne
   {
     if(d == 100)
       mp_dist_[mp.id] = -1;
-    else 
+    else
       mp_dist_[mp.id] = d;
     /*
     if(d == 0)
@@ -1633,7 +1635,7 @@ void EnvironmentCARTROBARM3D::computeGradient(const MotionPrimitive &mp, unsigne
       aviz_->visualizeText(pose, cspace_->collision_name_, "mp_gradient_"+boost::lexical_cast<std::string>(mp.id), 3, color, 0.02);
       //aviz_->visualizeText(pose, cspace_->collision_name_, "collision_sphere", 3, color, 0.02);
     //}
-    //ROS_INFO("[env] %s %d", cspace_->collision_name_.c_str(), int(d)); 
+    //ROS_INFO("[env] %s %d", cspace_->collision_name_.c_str(), int(d));
     */
   }
 }
@@ -1652,7 +1654,7 @@ int EnvironmentCARTROBARM3D::getXYZRPYHeuristic(int FromStateID, int ToStateID)
   rpy_heur = (abs(r)+abs(p)+abs(y)) * prms_.cost_per_cell_;
   ROS_DEBUG("stateid: %5d   xyz: %2d %2d %2d  rpy: %2d %2d %2d  (goal-rpy: %2d %2d %2d)", FromStateID, state->coord[0], state->coord[1], state->coord[2],state->coord[3], state->coord[4], state->coord[5], EnvROBARM.goalHashEntry->coord[3],EnvROBARM.goalHashEntry->coord[4],EnvROBARM.goalHashEntry->coord[5]);
   ROS_DEBUG("               xyz-heur: %4d  rpy-heur: %4d  (r: %2d  p:%2d  y: %2d)", xyz_heur, rpy_heur, r, p, y);
-  
+
   state->heur = xyz_heur + rpy_heur;
   return xyz_heur + rpy_heur;
 }

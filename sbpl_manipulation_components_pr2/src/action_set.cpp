@@ -1,36 +1,37 @@
-/*
- * Copyright (c) 2010, Maxim Likhachev
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the University of Pennsylvania nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
- /** \author Benjamin Cohen */
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010, Benjamin Cohen
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Benjamin Cohen
 
 #include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/environment_robarm3d.h>
- 
+
 namespace sbpl_arm_planner {
 
 ActionSet::ActionSet()
@@ -80,7 +81,7 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
   }
 
   if(fscanf(fCfg,"%s",sTemp) < 1)
-    ROS_WARN("Parsed string has length < 1."); 
+    ROS_WARN("Parsed string has length < 1.");
   if(strcmp(sTemp, "Motion_Primitives(degrees):") != 0)
   {
     ROS_ERROR("ERROR: First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
@@ -88,14 +89,14 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
   }
 
   //number of actions
-  if(fscanf(fCfg,"%s",sTemp) < 1) 
+  if(fscanf(fCfg,"%s",sTemp) < 1)
   {
     ROS_WARN("Parsed string has length < 1.");
     return false;
   }
   else
     nrows = atoi(sTemp);
-  
+
   //length of joint array
   if(fscanf(fCfg,"%s",sTemp) < 1)
   {
@@ -107,7 +108,7 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
 
   //number of short distance motion primitives
   if(fscanf(fCfg,"%s",sTemp) < 1)
-  { 
+  {
     ROS_WARN("Parsed string has length < 1.");
     return false;
   }
@@ -123,7 +124,7 @@ bool ActionSet::getMotionPrimitivesFromFile(FILE* fCfg)
   {
     for(int j=0; j < ncols; ++j)
     {
-      if(fscanf(fCfg,"%s",sTemp) < 1) 
+      if(fscanf(fCfg,"%s",sTemp) < 1)
         ROS_WARN("Parsed string has length < 1.");
       if(!feof(fCfg) && strlen(sTemp) != 0)
         mprim[j] = angles::from_degrees(atof(sTemp));
@@ -174,7 +175,7 @@ void ActionSet::addMotionPrim(const std::vector<double> &mprim, bool add_convers
   }
 
   m.id =  mp_.size();
-  m.action.push_back(mprim);    
+  m.action.push_back(mprim);
   mp_.push_back(m);
 
   if(add_converse)
@@ -196,7 +197,7 @@ void ActionSet::addMotionPrim(const std::vector<double> &mprim, bool add_convers
 void ActionSet::print()
 {
   for(size_t i = 0; i < mp_.size(); ++i)
-   mp_[i].print(); 
+   mp_[i].print();
 }
 
 bool ActionSet::getActionSet(
@@ -208,22 +209,22 @@ bool ActionSet::getActionSet(
         ROS_ERROR("Failed to compute forward kinematics for planning link");
         return false;
     }
-    
+
     // get distance to the goal pose
     double d = env_->getDistanceToGoal(pose[0], pose[1], pose[2]);
-    
+
     Action a;
     for (size_t i = 0; i < mp_.size(); ++i) {
         if (getAction(parent, d, mp_[i], a)) {
             actions.push_back(a);
         }
     }
-    
+
     if (actions.empty()) {
         ROS_ERROR("No motion primitives specified");
         return false;
     }
-    
+
     return true;
 }
 
@@ -240,7 +241,7 @@ bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionP
   {
     if(dist_to_goal > short_dist_mprims_thresh_m_ && use_multires_mprims_)
       return false;
-    
+
     return applyMotionPrimitive(parent, mp, action);
   }
   else if(mp.type == SNAP_TO_XYZ_RPY)
@@ -258,8 +259,8 @@ bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionP
       return false;
     }
     std::vector<double> p(6,0);
-  
-    env_->getRobotModel()->computeFK(action[0], "name", p); 
+
+    env_->getRobotModel()->computeFK(action[0], "name", p);
 
     ROS_ERROR("[ik] goal:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
     //ROS_ERROR("[ik]   fk:  xyz: % 0.3f % 0.3f % 0.3f rpy: % 0.3f % 0.3f % 0.3f", p[0], p[1], p[2], p[3], p[4], p[5]);
@@ -268,7 +269,7 @@ bool ActionSet::getAction(const RobotState &parent, double dist_to_goal, MotionP
   else
   {
     ROS_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
-    return false; 
+    return false;
   }
 
   return true;
