@@ -55,7 +55,7 @@ include_directories(include)
 
 add_library(
     sbpl_arm_planner
-    src/BFS_3D.cpp
+    src/bfs3d.cpp
     src/action_set.cpp
     src/arm_planner_interface.cpp
     src/bfs_heuristic.cpp

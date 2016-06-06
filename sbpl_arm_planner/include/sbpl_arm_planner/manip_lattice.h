@@ -49,7 +49,7 @@
 
 // project includes
 #include <sbpl_arm_planner/action_set.h>
-#include <sbpl_arm_planner/bfs3d/BFS_3D.h>
+#include <sbpl_arm_planner/bfs3d/bfs3d.h>
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
