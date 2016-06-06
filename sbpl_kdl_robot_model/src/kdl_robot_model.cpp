@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_manipulation_components/kdl_robot_model.h>
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
 
 // system includes
 #include <kdl/tree.hpp>

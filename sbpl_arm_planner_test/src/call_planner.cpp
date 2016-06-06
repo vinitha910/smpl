@@ -37,9 +37,9 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/GetMotionPlan.h>
 #include <sbpl_arm_planner/arm_planner_interface.h>
-#include <sbpl_manipulation_components/kdl_robot_model.h>
-//#include <sbpl_manipulation_components_pr2/pr2_kdl_robot_model.h>
-//#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
+//#include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
+//#include <sbpl_pr2_robot_model/ubr1_kdl_robot_model.h>
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
 void fillConstraint(const std::vector<double> &pose, std::string frame_id, moveit_msgs::Constraints &goals)
