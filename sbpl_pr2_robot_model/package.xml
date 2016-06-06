@@ -1,5 +1,5 @@
 <package format="2">
-    <name>sbpl_manipulation_components_pr2</name>
+    <name>sbpl_pr2_robot_model</name>
     <version>0.0.0</version>
     <description>Implementation of an sbpl robot model for the PR2</description>
     <author email="bcohen@seas.upenn.edu">Benjamin Cohen</author>
