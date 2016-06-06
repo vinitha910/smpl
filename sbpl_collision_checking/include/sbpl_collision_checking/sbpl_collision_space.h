@@ -89,7 +89,6 @@ public:
     bool interpolatePath(
         const std::vector<double>& start,
         const std::vector<double>& end,
-        const std::vector<double>& inc,
         std::vector<std::vector<double>>& path);
 
     ///@}

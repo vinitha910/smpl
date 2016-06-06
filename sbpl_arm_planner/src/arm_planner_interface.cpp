@@ -1190,20 +1190,20 @@ void ArmPlannerInterface::postProcessPath(
     // shortcut path
     if (prm_.shortcut_path_) {
         trajectory_msgs::JointTrajectory straj;
-        if (!interpolateTrajectory(cc_, traj.points, straj.points)) {
+        if (!InterpolateTrajectory(cc_, traj.points, straj.points)) {
             ROS_WARN("Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
             trajectory_msgs::JointTrajectory orig_traj = traj;
-            shortcutTrajectory(cc_, orig_traj.points, traj.points);
+            ShortcutTrajectory(rm_, cc_, orig_traj.points, traj.points);
         }
         else {
-            shortcutTrajectory(cc_, straj.points, traj.points);
+            ShortcutTrajectory(rm_, cc_, straj.points, traj.points);
         }
     }
 
     // interpolate path
     if (prm_.interpolate_path_) {
         trajectory_msgs::JointTrajectory itraj = traj;
-        if (!interpolateTrajectory(cc_, itraj.points, traj.points)) {
+        if (!InterpolateTrajectory(cc_, itraj.points, traj.points)) {
             ROS_WARN("Failed to interpolate trajectory");
         }
     }

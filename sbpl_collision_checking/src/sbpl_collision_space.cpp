@@ -464,7 +464,7 @@ bool CollisionSpace::checkPathForCollision(
         end_norm[i] = angles::normalize_angle(end[i]);
     }
 
-    if (!interpolatePath(start_norm, end_norm, inc_, path)) {
+    if (!interpolatePath(start_norm, end_norm, path)) {
         path_length = 0;
         ROS_ERROR_ONCE("[cspace] Failed to interpolate the path. It's probably infeasible due to joint limits.");
         ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
@@ -882,10 +882,9 @@ void CollisionSpace::setWorldToModelTransform(
 bool CollisionSpace::interpolatePath(
     const std::vector<double>& start,
     const std::vector<double>& end,
-    const std::vector<double>& inc,
     std::vector<std::vector<double>>& path)
 {
-    return sbpl::interp::InterpolatePath(start, end, min_limits_, max_limits_, inc, path);
+    return sbpl::interp::InterpolatePath(start, end, min_limits_, max_limits_, inc_, path);
 }
 
 bool CollisionSpace::getClearance(

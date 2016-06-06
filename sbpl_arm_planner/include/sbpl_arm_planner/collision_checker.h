@@ -82,17 +82,17 @@ public:
         double& dist) = 0;
 
     /// \brief Return a linearly interpolated path between two joint states.
-    ///        Oddly pure virtual because of its usage in post_processing.cpp.
-    /// \param[in] start The start configuration of the default joint group
-    /// \param[in] end The end configuration of the default joint group
-    /// \param[in] inc The maximum joint angle increment to be applied between
-    ///     each set of waypoints
+    ///
+    /// This intended use is for this member function should return the path
+    /// interpolated at the resolution used internally by isStateToStateValid.
+    ///
+    /// \param[in] start The start configuration of the joint group
+    /// \param[in] end The end configuration of the joint group
     /// \param[out] path The output path
     /// \return Whether a valid linearly interpolated path could be constructed
     virtual bool interpolatePath(
         const std::vector<double>& start,
         const std::vector<double>& end,
-        const std::vector<double>& inc,
         std::vector<std::vector<double>>& path) = 0;
 
     /* Visualizations */

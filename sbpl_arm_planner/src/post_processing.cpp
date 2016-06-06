@@ -33,11 +33,13 @@
 #include <sbpl_arm_planner/post_processing.h>
 
 // system includes
+#include <Eigen/Dense>
 #include <leatherman/print.h>
 #include <ros/console.h>
 #include <sbpl_geometry_utils/interpolation.h>
 #include <sbpl_geometry_utils/utils.h>
 #include <sbpl_geometry_utils/shortcut.h>
+#include <tf/LinearMath/Matrix3x3.h>
 
 namespace sbpl {
 namespace manip {
@@ -81,7 +83,114 @@ private:
     CollisionChecker* m_cc;
 };
 
-void shortcutPath(
+class EuclideanShortcutPathGenerator :
+    public shortcut::PathGenerator<std::vector<double>, int>
+{
+public:
+
+    typedef shortcut::PathGenerator<std::vector<double>, int> Base;
+
+    EuclideanShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
+        m_rm(rm),
+        m_cc(cc)
+    { }
+
+    virtual ~EuclideanShortcutPathGenerator() { }
+
+    virtual bool generate_path(
+        const Base::Point& start, const Base::Point& end,
+        Base::PathContainer& path, Base::Cost& cost) const
+    {
+        // compute forward kinematics for the start an end configurations
+        std::vector<double> from_pose, to_pose;
+        if (!m_rm->computePlanningLinkFK(start, from_pose) ||
+            !m_rm->computePlanningLinkFK(end, to_pose))
+        {
+            return false;
+        }
+
+        Eigen::Vector3d pstart(from_pose[0], from_pose[1], from_pose[2]);
+        Eigen::Vector3d pend(to_pose[0], to_pose[1], to_pose[2]);
+
+        Eigen::Quaterniond qstart(
+                Eigen::AngleAxisd(from_pose[5], Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(from_pose[4], Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(from_pose[3], Eigen::Vector3d::UnitX()));
+        Eigen::Quaterniond qend(
+                Eigen::AngleAxisd(to_pose[5], Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(to_pose[4], Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(to_pose[3], Eigen::Vector3d::UnitX()));
+
+        // compute the number of path waypoints
+        double posdiff = (pend - pstart).norm();
+        double rotdiff = Eigen::AngleAxisd(qstart.inverse() * qend).angle();
+
+        const double interp_pres = 0.01;
+        const double interp_rres = sbpl::utils::ToRadians(5.0);
+
+        int num_points = 2;
+        num_points = std::max(num_points, (int)ceil(posdiff / interp_pres));
+        num_points = std::max(num_points, (int)ceil(rotdiff / interp_rres));
+
+        std::vector<std::vector<double>> cpath;
+
+        cpath.push_back(start);
+        for (int i = 1; i < num_points; ++i) {
+            // compute the intermediate pose
+            double alpha = (double)i / (double)(num_points - 1);
+            Eigen::Vector3d ppos = (1.0 - alpha) * pstart + alpha * pend;
+            Eigen::Quaterniond prot = qstart.slerp(alpha, qend);
+
+            const Eigen::Affine3d ptrans = prot * Eigen::Translation3d(ppos);
+
+            tf::Matrix3x3 mat;
+            mat.setValue(
+                ptrans(0, 0), ptrans(0, 1), ptrans(0, 2),
+                ptrans(1, 0), ptrans(1, 1), ptrans(1, 2),
+                ptrans(2, 0), ptrans(2, 1), ptrans(2, 2));
+            double R, P, Y;
+            mat.getEulerYPR(Y, P, R);
+
+            std::vector<double> ipose(6, 0.0);
+            ipose[0] = ppos.x();
+            ipose[1] = ppos.y();
+            ipose[2] = ppos.z();
+            ipose[3] = R;
+            ipose[4] = P;
+            ipose[5] = Y;
+
+            // run inverse kinematics with the previous pose as the seed state
+            const std::vector<double>& prev_wp = cpath.back();
+            std::vector<double> wp(m_rm->getPlanningJoints().size(), 0.0);
+            if (!m_rm->computeIK(ipose, prev_wp, wp)) {
+                return false;
+            }
+
+            // check the path segment for collisions
+            int path_length, num_checks;
+            double dist;
+            if (!m_cc->isStateToStateValid(
+                    prev_wp, wp, path_length, num_checks, dist))
+            {
+                return false;
+            }
+
+            cpath.push_back(wp);
+        }
+
+        path = std::move(cpath);
+        cost = 0;
+        return true;
+    }
+
+private:
+
+    RobotModel* m_rm;
+    CollisionChecker* m_cc;
+};
+
+void ShortcutPath(
+    RobotModel* rm,
     CollisionChecker* cc,
     std::vector<std::vector<double>>& pin,
     std::vector<std::vector<double>>& pout)
@@ -92,14 +201,25 @@ void shortcutPath(
     }
 
     std::vector<int> costs(pin.size() - 1, 1);
-    std::vector<ShortcutPathGenerator> generators = { ShortcutPathGenerator(cc) };
-    shortcut::ShortcutPath(pin, costs, generators, pout);
+
+    const bool euclidean_shortcutter = false;
+    if (euclidean_shortcutter) {
+        std::vector<EuclideanShortcutPathGenerator> generators =
+                { EuclideanShortcutPathGenerator(rm, cc) };
+        shortcut::ShortcutPath(pin, costs, generators, pout);
+    }
+    else {
+        std::vector<ShortcutPathGenerator> generators =
+                { ShortcutPathGenerator(cc) };
+        shortcut::ShortcutPath(pin, costs, generators, pout);
+    }
 
     ROS_INFO("Original path length: %zu", pin.size());
     ROS_INFO("Shortcutted path length: %zu", pout.size());
 }
 
-void shortcutTrajectory(
+void ShortcutTrajectory(
+    RobotModel* rm,
     CollisionChecker* cc,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
@@ -116,7 +236,7 @@ void shortcutTrajectory(
     }
 
     if (pin.size() > 2) {
-        shortcutPath(cc, pin, pout);
+        ShortcutPath(rm, cc, pin, pout);
     }
     else {
         ROS_WARN("Path is too short for shortcutting.");
@@ -132,7 +252,7 @@ void shortcutTrajectory(
     }
 }
 
-bool interpolateTrajectory(
+bool InterpolateTrajectory(
     CollisionChecker* cc,
     const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
@@ -152,7 +272,6 @@ bool interpolateTrajectory(
     std::vector<std::vector<double>> path;
     std::vector<double> start(num_joints, 0);
     std::vector<double> end(num_joints, 0);
-    std::vector<double> inc(num_joints, sbpl::utils::ToRadians(1.0));
 
     // tack on the first point of the trajectory
     path.push_back(traj.front().positions);
@@ -165,7 +284,7 @@ bool interpolateTrajectory(
         ROS_DEBUG_STREAM("Interpolating between " << start << " and " << end);
 
         std::vector<std::vector<double>> ipath;
-        if (!cc->interpolatePath(start, end, inc, ipath)) {
+        if (!cc->interpolatePath(start, end, ipath)) {
             ROS_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
         }
