@@ -71,8 +71,8 @@ public:
 
     /// @brief Construct a KDL Robot Model.
     KDLRobotModel(
-            const std::string &chain_root_link,
-            const std::string &chain_tip_link,
+            const std::string& chain_root_link,
+            const std::string& chain_tip_link,
             int free_angle = DEFAULT_FREE_ANGLE_INDEX);
 
     virtual ~KDLRobotModel();
@@ -95,7 +95,7 @@ public:
 
     /* Joint Limits */
     virtual bool checkJointLimits(
-        const std::vector<double> &angles,
+        const std::vector<double>& angles,
         bool verbose = false);
 
     /* Forward Kinematics */
@@ -117,32 +117,32 @@ public:
 
     /* Inverse Kinematics */
     virtual bool computeIK(
-            const std::vector<double> &pose,
-            const std::vector<double> &start,
-            std::vector<double> &solution,
-            ik_option::IkOption option = ik_option::UNRESTRICTED);
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution,
+        ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeIK(
-            const std::vector<double> &pose,
-            const std::vector<double> &start,
-            std::vector< std::vector<double> > &solutions,
-            ik_option::IkOption option = ik_option::UNRESTRICTED);
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector< std::vector<double>>& solutions,
+        ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeFastIK(
-            const std::vector<double> &pose,
-            const std::vector<double> &start,
-            std::vector<double> &solution);
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution);
 
     bool computeIKSearch(
-            const std::vector<double> &pose,
-            const std::vector<double> &start,
-            std::vector<double> &solution,
-            double timeout);
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution,
+        double timeout);
 
     /* Debug Output */
     virtual void printRobotModelInformation();
 
-  protected:
+protected:
 
     /** \brief frame that the kinematics is computed in (i.e. robot base) */
     std::string kinematics_frame_;
@@ -173,9 +173,17 @@ public:
     std::map<std::string, int> joint_map_;
     std::map<std::string, int> link_map_;
 
-    bool getJointLimits(std::vector<std::string> &joint_names, std::vector<double> &min_limits, std::vector<double> &max_limits, std::vector<bool> &continuous);
-    bool getJointLimits(std::string joint_name, double &min_limit, double &max_limit, bool &continuous);
-    bool getCount(int &count, const int &max_count, const int &min_count);
+    bool getJointLimits(
+        std::vector<std::string>& joint_names,
+        std::vector<double>& min_limits,
+        std::vector<double>& max_limits,
+        std::vector<bool>& continuous);
+    bool getJointLimits(
+        std::string joint_name,
+        double& min_limit,
+        double& max_limit,
+        bool& continuous);
+    bool getCount(int& count, const int& max_count, const int& min_count);
 };
 
 } // namespace manip
