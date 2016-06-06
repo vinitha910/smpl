@@ -154,6 +154,20 @@ bool KDLRobotModel::init(
     return true;
 }
 
+const std::string& KDLRobotModel::getKinematicsFrame() const
+{
+  return kinematics_frame_;
+}
+
+void KDLRobotModel::setKinematicsToPlanningTransform(
+      const KDL::Frame& f,
+      const std::string& name)
+{
+    T_kinematics_to_planning_ = f;
+    T_planning_to_kinematics_ = f.Inverse();
+    planning_frame_ = name;
+}
+
 bool KDLRobotModel::getJointLimits(std::vector<std::string> &joint_names, std::vector<double> &min_limits, std::vector<double> &max_limits, std::vector<bool> &continuous)
 {
   min_limits.resize(joint_names.size());

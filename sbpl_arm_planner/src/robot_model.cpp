@@ -96,37 +96,6 @@ const std::string& RobotModel::getPlanningFrame() const
     return planning_frame_;
 }
 
-const std::string& RobotModel::getKinematicsFrame() const
-{
-    return kinematics_frame_;
-}
-
-bool RobotModel::computeFK(
-    const std::vector<double>& angles,
-    const std::string& name,
-    KDL::Frame& f)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
-}
-
-bool RobotModel::computeFK(
-    const std::vector<double>& angles,
-    const std::string& name,
-    std::vector<double>& pose)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
-}
-
-bool RobotModel::computePlanningLinkFK(
-    const std::vector<double>& angles,
-    std::vector<double>& pose)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
-}
-
 bool RobotModel::computeIK(
     const std::vector<double>& pose,
     const std::vector<double>& start,
@@ -172,15 +141,6 @@ bool RobotModel::checkJointLimits(
 {
     ROS_ERROR("Function not filled in.");
     return false;
-}
-
-void RobotModel::setKinematicsToPlanningTransform(
-    const KDL::Frame& f,
-    const std::string& name)
-{
-    T_kinematics_to_planning_ = f;
-    T_planning_to_kinematics_ = f.Inverse();
-    planning_frame_ = name;
 }
 
 } // namespace manip

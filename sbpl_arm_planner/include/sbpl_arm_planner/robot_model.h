@@ -29,14 +29,13 @@
 
 /// \author Benjamin Cohen
 
-#ifndef _ROBOT_MODEL_
-#define _ROBOT_MODEL_
+#ifndef sbpl_manip_robot_model_h
+#define sbpl_manip_robot_model_h
 
 #include <string>
 #include <vector>
 
 #include <angles/angles.h>
-#include <kdl/frames.hpp>
 
 namespace sbpl {
 namespace manip {
@@ -78,8 +77,6 @@ public:
     void setPlanningFrame(const std::string& name);
     const std::string& getPlanningFrame() const;
 
-    const std::string& getKinematicsFrame() const;
-
     ///@}
 
     /// \brief Joint Limits
@@ -94,13 +91,7 @@ public:
     virtual bool computeFK(
         const std::vector<double>& angles,
         const std::string& name,
-        KDL::Frame& f);
-
-    /// \brief Compute the forward kinematics pose of a link in the robot model.
-    virtual bool computeFK(
-        const std::vector<double>& angles,
-        const std::string& name,
-        std::vector<double>& pose);
+        std::vector<double>& pose) = 0;
 
     /// \brief Compute forward kinematics of the planning link.
     ///
@@ -110,7 +101,7 @@ public:
     /// \return true if forward kinematics were computed; false otherwise
     virtual bool computePlanningLinkFK(
         const std::vector<double>& angles,
-        std::vector<double>& pose);
+        std::vector<double>& pose) = 0;
 
     ///@}
 
@@ -145,27 +136,17 @@ public:
 
     ///@}
 
-    /// \brief Transform between Kinematics frame <-> Planning frame
-    void setKinematicsToPlanningTransform(
-        const KDL::Frame& f,
-        const std::string& name);
-
 protected:
 
     /** \brief frame that the planning is done in (i.e. map) */
     std::string planning_frame_;
 
-    /** \brief frame that the kinematics is computed in (i.e. robot base) */
     std::string kinematics_frame_;
 
     /** \brief the link that is being planned for (i.e. wrist) */
     std::string planning_link_;
 
     std::vector<std::string> planning_joints_;
-
-    KDL::Frame T_kinematics_to_planning_;
-
-    KDL::Frame T_planning_to_kinematics_;
 
     /** \brief ROS logger stream name */
     std::string logger_;

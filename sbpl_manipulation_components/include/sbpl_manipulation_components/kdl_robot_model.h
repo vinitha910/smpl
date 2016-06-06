@@ -60,7 +60,7 @@ public:
     /// Expects ROS Parameters:
     ///     robot_model/chain_root_link : string
     ///     robot_model/chain_tip_link : string
-    ///     robot_model/free_angle : int (defualt: 2)
+    ///     robot_model/free_angle : int (default: 2)
     KDLRobotModel();
 
     /// @brief Construct a KDL Robot Model.
@@ -76,6 +76,13 @@ public:
         const std::string& robot_description,
         const std::vector<std::string>& planning_joints);
 
+    const std::string& getKinematicsFrame() const;
+
+    /// \brief Transform between Kinematics frame <-> Planning frame
+    void setKinematicsToPlanningTransform(
+        const KDL::Frame& f,
+        const std::string& name);
+
     virtual double minVarLimit(int jidx) const { return min_limits_[jidx]; }
     virtual double maxVarLimit(int jidx) const { return max_limits_[jidx]; }
     virtual bool   hasVarLimit(int jidx) const { return continuous_[jidx]; }
@@ -86,6 +93,8 @@ public:
         bool verbose = false);
 
     /* Forward Kinematics */
+
+    /// \brief Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
         const std::vector<double>& angles,
         const std::string& name,
@@ -128,6 +137,12 @@ public:
     virtual void printRobotModelInformation();
 
   protected:
+
+    /** \brief frame that the kinematics is computed in (i.e. robot base) */
+    std::string kinematics_frame_;
+
+    KDL::Frame T_kinematics_to_planning_;
+    KDL::Frame T_planning_to_kinematics_;
 
     bool initialized_;
 
