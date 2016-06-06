@@ -30,7 +30,7 @@
 /// \author Gokul Subramanian
 /// \author Benjamin Cohen
 
-#include <sbpl_manipulation_components_pr2/sbpl_math.h>
+#include <sbpl_pr2_robot_model/sbpl_math.h>
 
 /*************************************************************************/
 //Basic operations

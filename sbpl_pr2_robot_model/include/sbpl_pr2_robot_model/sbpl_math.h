@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016, Benjamin Cohen
+// Copyright (c) 2010, Gokul Subramanian, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,63 +27,35 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
+/// \author Gokul Subramanian
 /// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
-#ifndef _PR2_ACTION_SET_
-#define _PR2_ACTION_SET_
+#ifndef sbpl_math_h
+#define sbpl_math_h
 
-#include <sbpl_arm_planner/action_set.h>
+#include <math.h>
+#include <vector>
 
-namespace sbpl_arm_planner {
+/* Basic Operations */
+void multiply(double*, double*, int, int, double*, int);
+void scalar_multiply(double*, double*, int, int, double);
+void equate(double*, double*, int, int);
+void matrix_add(double*, double*, double*, int, int);
+void subtract(double*, double*, double*, int, int);
+void transpose(double*, double*, int, int);
 
-class EnvironmentROBARM3D;
+/* Vector Operations */
+double dot_product(double*, double*, int);
+void cross_product(double*, double*, double*);
+double vect_norm(double*, int);
+double vect_divide(double*, double*, int);
+bool check_equality(double*, double*, int);
 
-enum MotionPrimitiveType {
-  LONG_DISTANCE,
-  SHORT_DISTANCE,
-  SNAP_TO_RPY,
-  SNAP_TO_XYZ_RPY,
-  NUMBER_OF_MPRIM_TYPES
-};
+/* 3D Geometry */
+void create_rotation_matrix(double*, double, double, double);
+void rotate_vector(double (&result)[3], double*, double*, double);
+double distance_between(double*,  double*, int);
+double distance_between(std::vector<double>, double*, int);
 
-class ActionSet
-{
-  public:
-    ActionSet();
-
-    ~ActionSet(){};
-
-    bool init(std::string filename, EnvironmentROBARM3D *env);
-
-    bool getActionSet(const RobotState &parent, std::vector<Action> &actions);
-
-    void print();
-
-  private:
-
-    bool use_multires_mprims_;
-
-    bool use_ik_;
-
-    double short_dist_mprims_thresh_m_;
-
-    double ik_amp_dist_thresh_m_;
-
-    EnvironmentROBARM3D *env_;
-
-    std::vector<MotionPrimitive> mp_;
-
-    std::vector<std::string> motion_primitive_type_names_;
-
-    bool getMotionPrimitivesFromFile(FILE* fCfg);
-
-    void addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim);
-
-    bool applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action);
-
-    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, Action &action);
-};
-
-}
 #endif
-

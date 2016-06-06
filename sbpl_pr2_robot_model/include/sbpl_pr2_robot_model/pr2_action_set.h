@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2010, Benjamin Cohen
+// Copyright (c) 2016, Benjamin Cohen
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,62 +29,62 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_manip_pr2_kdl_robot_model_h
-#define sbpl_manip_pr2_kdl_robot_model_h
+#ifndef sbpl_manip_pr2_action_set_h
+#define sbpl_manip_pr2_action_set_h
 
-#include <string>
-#include <vector>
-#include <ros/console.h>
-#include <angles/angles.h>
-#include <urdf/model.h>
-#include <kdl/frames.hpp>
-#include <kdl_parser/kdl_parser.hpp>
-#include <kdl/jntarray.hpp>
-#include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/chain.hpp>
-#include <kdl/chainiksolverpos_nr_jl.hpp>
-#include <kdl/chainiksolvervel_pinv.hpp>
-#include <sbpl_geometry_utils/interpolation.h>
-#include <sbpl_manipulation_components/kdl_robot_model.h>
-#include <sbpl_manipulation_components_pr2/orientation_solver.h>
-#include <pr2_arm_kinematics/pr2_arm_ik_solver.h>
+// system includes
+#include <sbpl_arm_planner/action_set.h>
 
-using namespace std;
+namespace sbpl_arm_planner {
 
-namespace sbpl {
-namespace manip {
+class EnvironmentROBARM3D;
 
-class PR2KDLRobotModel : public KDLRobotModel {
+enum MotionPrimitiveType {
+  LONG_DISTANCE,
+  SHORT_DISTANCE,
+  SNAP_TO_RPY,
+  SNAP_TO_XYZ_RPY,
+  NUMBER_OF_MPRIM_TYPES
+};
 
+class ActionSet
+{
   public:
+    ActionSet();
 
-    PR2KDLRobotModel();
+    ~ActionSet(){};
 
-    ~PR2KDLRobotModel();
+    bool init(std::string filename, EnvironmentROBARM3D *env);
 
-    /* Initialization */
-    virtual bool init(std::string robot_description, std::vector<std::string> &planning_joints);
+    bool getActionSet(const RobotState &parent, std::vector<Action> &actions);
 
-    /* Inverse Kinematics */
-    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
-
-    virtual bool computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution);
-
-    /* Debug Output */
-    virtual void printRobotModelInformation();
+    void print();
 
   private:
 
-    pr2_arm_kinematics::PR2ArmIKSolver* pr2_ik_solver_;
+    bool use_multires_mprims_;
 
-    RPYSolver* rpy_solver_;
+    bool use_ik_;
 
-    std::string forearm_roll_link_name_;
-    std::string wrist_pitch_joint_name_;
-    std::string end_effector_link_name_;
+    double short_dist_mprims_thresh_m_;
+
+    double ik_amp_dist_thresh_m_;
+
+    EnvironmentROBARM3D *env_;
+
+    std::vector<MotionPrimitive> mp_;
+
+    std::vector<std::string> motion_primitive_type_names_;
+
+    bool getMotionPrimitivesFromFile(FILE* fCfg);
+
+    void addMotionPrim(const std::vector<double> &mprim, bool add_converse, bool short_dist_mprim);
+
+    bool applyMotionPrimitive(const RobotState &state, MotionPrimitive &mp, Action &action);
+
+    bool getAction(const RobotState &parent, double dist_to_goal, MotionPrimitive &mp, Action &action);
 };
 
-} // namespace manip
-} // namespace sbpl
-
+}
 #endif
+

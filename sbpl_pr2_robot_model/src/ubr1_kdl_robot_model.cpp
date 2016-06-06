@@ -29,7 +29,7 @@
 
 /// \author Benjamin Cohen
 
-#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
+#include <sbpl_pr2_robot_model/ubr1_kdl_robot_model.h>
 #include <ros/ros.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2010, Gokul Subramanian, Benjamin Cohen, Andrew Dornbush
+// Copyright (c) 2010, Benjamin Cohen
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,36 +27,60 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-/// \author Gokul Subramanian
 /// \author Benjamin Cohen
-/// \author Andrew Dornbush
 
-#ifndef _SBPL_MATH_
-#define _SBPL_MATH_
+#ifndef sbpl_manip_ubr1_kdl_robot_model_h
+#define sbpl_manip_ubr1_kdl_robot_model_h
 
-#include <math.h>
+// standard includes
+#include <string>
 #include <vector>
 
-/* Basic Operations */
-void multiply(double*, double*, int, int, double*, int);
-void scalar_multiply(double*, double*, int, int, double);
-void equate(double*, double*, int, int);
-void matrix_add(double*, double*, double*, int, int);
-void subtract(double*, double*, double*, int, int);
-void transpose(double*, double*, int, int);
+// system includes
+#include <angles/angles.h>
+#include <kdl/chain.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/chainiksolverpos_nr_jl.hpp>
+#include <kdl/chainiksolvervel_pinv.hpp>
+#include <kdl/frames.hpp>
+#include <kdl/jntarray.hpp>
+#include <kdl_parser/kdl_parser.hpp>
+#include <ros/console.h>
+#include <sbpl_geometry_utils/interpolation.h>
+#include <urdf/model.h>
 
-/* Vector Operations */
-double dot_product(double*, double*, int);
-void cross_product(double*, double*, double*);
-double vect_norm(double*, int);
-double vect_divide(double*, double*, int);
-bool check_equality(double*, double*, int);
+// project includes
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
+#include <sbpl_pr2_robot_model/orientation_solver.h>
 
-/* 3D Geometry */
-void create_rotation_matrix(double*, double, double, double);
-void rotate_vector(double (&result)[3], double*, double*, double);
-double distance_between(double*,  double*, int);
-double distance_between(std::vector<double>, double*, int);
+namespace sbpl {
+namespace manip {
 
+class UBR1KDLRobotModel : public KDLRobotModel
+{
+public:
+
+    UBR1KDLRobotModel();
+
+    virtual ~UBR1KDLRobotModel();
+
+    /* Inverse Kinematics */
+    virtual bool computeIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution,
+        int option = ik_option::UNRESTRICTED);
+
+  private:
+
+    RPYSolver* rpy_solver_;
+
+    std::string forearm_roll_link_name_;
+    std::string wrist_pitch_joint_name_;
+    std::string end_effector_link_name_;
+};
+
+} // namespace manip
+} // namespace sbpl
 
 #endif

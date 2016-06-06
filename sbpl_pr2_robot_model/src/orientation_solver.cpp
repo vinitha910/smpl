@@ -31,8 +31,9 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_manipulation_components_pr2/sbpl_math.h>
-#include <sbpl_manipulation_components_pr2/orientation_solver.h>
+// project includes
+#include <sbpl_pr2_robot_model/sbpl_math.h>
+#include <sbpl_pr2_robot_model/orientation_solver.h>
 
 namespace sbpl {
 namespace manip {

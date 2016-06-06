@@ -11,6 +11,7 @@ find_package(catkin
         pr2_arm_kinematics
         roscpp
         sbpl_geometry_utils
+        sbpl_kdl_robot_model
         urdf)
 
 find_package(orocos_kdl REQUIRED)
@@ -25,6 +26,7 @@ catkin_package(
         pr2_arm_kinematics
         roscpp
         sbpl_geometry_utils
+        sbpl_kdl_robot_model
         urdf
     DEPENDS
         orocos_kdl)
@@ -36,8 +38,8 @@ include_directories(include)
 add_library(
     sbpl_pr2_robot_model
     src/sbpl_math.cpp
-    src/orientation_solver.cpp)
-#    src/pr2_kdl_robot_model.cpp)
+    src/orientation_solver.cpp
+    src/pr2_kdl_robot_model.cpp)
 #    src/ubr1_kdl_robot_model.cpp)
 
 target_link_libraries(sbpl_pr2_robot_model ${catkin_LIBRARIES})

@@ -292,5 +292,4 @@ bool ActionSet::applyMotionPrimitive(const RobotState &state, MotionPrimitive &m
   return true;
 }
 
-
-}
+} // namespace sbpl_arm_planner

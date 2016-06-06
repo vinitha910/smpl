@@ -29,42 +29,65 @@
 
 /// \author Benjamin Cohen
 
-#ifndef _UBR1_KDL_ROBOT_MODEL_
-#define _UBR1_KDL_ROBOT_MODEL_
+#ifndef sbpl_manip_pr2_kdl_robot_model_h
+#define sbpl_manip_pr2_kdl_robot_model_h
 
+// standard includes
 #include <string>
 #include <vector>
-#include <ros/console.h>
+
+// system includes
 #include <angles/angles.h>
-#include <urdf/model.h>
-#include <kdl/frames.hpp>
-#include <kdl_parser/kdl_parser.hpp>
-#include <kdl/jntarray.hpp>
-#include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chain.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>
+#include <kdl/frames.hpp>
+#include <kdl/jntarray.hpp>
+#include <kdl_parser/kdl_parser.hpp>
+#include <pr2_arm_kinematics/pr2_arm_ik_solver.h>
+#include <ros/console.h>
 #include <sbpl_geometry_utils/interpolation.h>
-#include <sbpl_manipulation_components/kdl_robot_model.h>
-#include <sbpl_manipulation_components_pr2/orientation_solver.h>
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
+#include <urdf/model.h>
 
-using namespace std;
+// project includes
+#include <sbpl_pr2_robot_model/orientation_solver.h>
 
 namespace sbpl {
 namespace manip {
 
-class UBR1KDLRobotModel : public KDLRobotModel
+class PR2KDLRobotModel : public KDLRobotModel
 {
 public:
 
-    UBR1KDLRobotModel();
+    PR2KDLRobotModel();
 
-    ~UBR1KDLRobotModel();
+    virtual ~PR2KDLRobotModel();
+
+    /* Initialization */
+    virtual bool init(
+        const std::string& robot_description,
+        const std::vector<std::string>& planning_joints);
 
     /* Inverse Kinematics */
-    virtual bool computeIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution, int option=0);
+    virtual bool computeIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution,
+        int option = ik_option::UNRESTRICTED);
 
-  private:
+    virtual bool computeFastIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution);
+
+    /* Debug Output */
+    virtual void printRobotModelInformation();
+
+private:
+
+    pr2_arm_kinematics::PR2ArmIKSolver* pr2_ik_solver_;
 
     RPYSolver* rpy_solver_;
 
