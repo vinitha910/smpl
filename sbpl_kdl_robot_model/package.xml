@@ -1,5 +1,5 @@
 <package format="2">
-    <name>sbpl_manipulation_components</name>
+    <name>sbpl_kdl_robot_model</name>
     <version>0.0.0</version>
     <description>Implementation of an sbpl robot model using KDL</description>
     <author email="bcohen@seas.upenn.edu">Benjamin Cohen</author>
