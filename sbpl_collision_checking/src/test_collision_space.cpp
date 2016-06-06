@@ -29,10 +29,12 @@
 
 /// \author Benjamin Cohen
 
+// system includes
 #include <ros/ros.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <visualization_msgs/MarkerArray.h>
 
+// project includes
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
 int main(int argc, char **argv)

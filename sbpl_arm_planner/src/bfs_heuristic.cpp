@@ -1,7 +1,9 @@
 #include <sbpl_arm_planner/bfs_heuristic.h>
 
+// system includes
 #include <leatherman/viz.h>
 
+// project includes
 #include <sbpl_arm_planner/bfs3d/BFS_3D.h>
 
 namespace sbpl {

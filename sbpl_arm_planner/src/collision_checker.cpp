@@ -1,5 +1,6 @@
 #include <sbpl_arm_planner/collision_checker.h>
 
+// system includes
 #include <ros/console.h>
 
 namespace sbpl {

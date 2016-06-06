@@ -237,7 +237,10 @@ bool PR2KDLRobotModel::computeIK(
     return true;
 }
 
-bool PR2KDLRobotModel::computeFastIK(const std::vector<double> &pose, const std::vector<double> &start, std::vector<double> &solution)
+bool PR2KDLRobotModel::computeFastIK(
+  const std::vector<double> &pose,
+  const std::vector<double> &start,
+  std::vector<double> &solution)
 {
   //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
   KDL::Frame frame_des;

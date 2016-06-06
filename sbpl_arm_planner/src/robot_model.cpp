@@ -31,6 +31,7 @@
 
 #include <sbpl_arm_planner/robot_model.h>
 
+// system includes
 #include <ros/console.h>
 
 namespace sbpl {

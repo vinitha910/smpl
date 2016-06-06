@@ -32,10 +32,12 @@
 #ifndef sbpl_collision_Group_h
 #define sbpl_collision_Group_h
 
+// standard includes
 #include <algorithm>
 #include <string>
 #include <vector>
 
+// system includes
 #include <boost/algorithm/string.hpp>
 #include <boost/shared_ptr.hpp>
 #include <kdl/chain.hpp>
@@ -47,6 +49,7 @@
 #include <ros/ros.h>
 #include <urdf/model.h>
 
+// project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 
 namespace sbpl {
@@ -104,7 +107,7 @@ public:
     const std::string& getReferenceFrame() const { return root_name_; }
     const std::vector<const Sphere*>& getSpheres() const { return spheres_; }
     bool getFrameInfo(const std::string& name, int& chain, int& segment) const;
-    
+
     void setModelToGroupTransform(const KDL::Frame& f) { m_T_model_group = f; }
     const KDL::Frame& getModelToGroupTransform() const { return m_T_model_group; }
 
@@ -133,10 +136,10 @@ private:
 
     // decomposition of group into a set of kinematic chains beginning at group
     // root
-    std::vector<KDL::Chain> chains_; 
+    std::vector<KDL::Chain> chains_;
 
     // per-chain fk solvers, joint name arrays, and joint variable arrays
-    std::vector<KDL::ChainFkSolverPos_recursive*> solvers_; 
+    std::vector<KDL::ChainFkSolverPos_recursive*> solvers_;
     std::vector<std::vector<std::string>> jntarray_names_;
     std::vector<KDL::JntArray> joint_positions_;
 

@@ -33,13 +33,16 @@
 
 #include "collision_model_impl.h"
 
+// standard includes
 #include <queue>
 
+// system includes
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <kdl/tree.hpp>
 #include <leatherman/print.h>
 
+// project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 
 namespace sbpl {

@@ -32,30 +32,32 @@
 #ifndef sbpl_collision_TestSBPLCollisionSpace_h
 #define sbpl_collision_TestSBPLCollisionSpace_h
 
+// standard includes
 #include <iostream>
 #include <map>
-#include <ros/ros.h>
-#include <boost/thread/mutex.hpp>
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-#include <message_filters/subscriber.h>
-#include <tf/message_filter.h>
-#include <tf/transform_datatypes.h>
-#include <kdl/chain.hpp>
-#include <kdl/frames.hpp>
-#include <kdl/chainjnttojacsolver.hpp>
-#include <angles/angles.h>
-#include <sbpl_collision_checking/occupancy_grid.h>
-#include <sbpl_collision_checking/sbpl_collision_space.h>
-#include <visualize_arm/visualize_arm.h>
 
-/** Messages **/
+// system includes
+#include <angles/angles.h>
+#include <boost/thread/mutex.hpp>
 #include <geometry_msgs/Pose.h>
+#include <kdl/chain.hpp>
+#include <kdl/chainjnttojacsolver.hpp>
+#include <kdl/frames.hpp>
+#include <kinematics_msgs/GetPositionFK.h>
+#include <message_filters/subscriber.h>
 #include <moveit_msgs/CollisionMap.h>
 #include <moveit_msgs/CollisionObject.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h>
-#include <kinematics_msgs/GetPositionFK.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
+#include <ros/ros.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
+#include <tf/message_filter.h>
+#include <tf/tf.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <trajectory_msgs/JointTrajectoryPoint.h>
+
+// project includes
+#include <sbpl_collision_checking/sbpl_collision_space.h>
 
 namespace sbpl {
 namespace collision {

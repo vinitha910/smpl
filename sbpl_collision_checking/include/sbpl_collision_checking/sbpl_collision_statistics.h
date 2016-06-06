@@ -32,11 +32,14 @@
 #ifndef sbpl_collision_SBPLCollisionStatistics_h
 #define sbpl_collision_SBPLCollisionStatistics_h
 
+// standard includes
 #include <map>
 #include <string>
 
+// system includes
 #include <kdl/frames.hpp>
 
+// project includes
 #include <sbpl_collision_checking/sbpl_collision_model.h>
 
 namespace sbpl {
@@ -67,7 +70,7 @@ private:
 
     /** \brief log the number of collisions per collision sphere **/
     std::map<Sphere*, int> col_sph_map_;
-            
+
     /** \brief log the number of collisions per cell **/
     std::map<KDL::Vector, int> col_cell_map_;
 };

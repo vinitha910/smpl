@@ -29,6 +29,7 @@
 
 /// \author Benjamin Cohen
 
+// project includes
 #include <sbpl_collision_checking/sbpl_collision_model.h>
 #include "collision_model_impl.h"
 

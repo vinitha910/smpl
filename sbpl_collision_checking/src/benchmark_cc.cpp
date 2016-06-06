@@ -29,8 +29,10 @@
 
 /// \author Benjamin Cohen
 
+// standard includes
 #include <iostream>
 
+// project includes
 #include <sbpl_collision_checking/test_sbpl_collision_space.h>
 
 using namespace sbpl_arm_planner;

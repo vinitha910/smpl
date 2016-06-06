@@ -1,5 +1,6 @@
 #include <sbpl_arm_planner/euclid_dist_heuristic.h>
 
+// standard includes
 #include <math.h>
 
 namespace sbpl {

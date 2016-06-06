@@ -1,17 +1,18 @@
 <package format="2">
-    <name>sbpl_manipulation_components_pr2</name>
+    <name>sbpl_manipulation_components</name>
     <version>0.0.0</version>
-    <description>Implementation of an sbpl robot model for the PR2</description>
+    <description>Implementation of an sbpl robot model using KDL</description>
     <author email="bcohen@seas.upenn.edu">Benjamin Cohen</author>
-    <maintainer email="bcohen@seas.upenn.edu">Benjamin Cohen</maintainer>
+    <maintainer email="andrew.dornbush@gmail.com">Andrew Dornbush</maintainer>
     <license>BSD</license>
 
     <buildtool_depend>catkin</buildtool_depend>
 
     <depend>angles</depend>
+    <depend>leatherman</depend>
     <depend>orocos_kdl</depend>
-    <depend>pr2_arm_kinematics</depend>
     <depend>roscpp</depend>
+    <depend>sbpl_arm_planner</depend>
     <depend>sbpl_geometry_utils</depend>
     <depend>urdf</depend>
 </package>

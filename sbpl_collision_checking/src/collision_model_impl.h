@@ -34,10 +34,12 @@
 #ifndef sbpl_collision_CollisionModelImpl_h
 #define sbpl_collision_CollisionModelImpl_h
 
+// standard includes
 #include <map>
 #include <string>
 #include <vector>
 
+// system includes
 #include <kdl/kdl.hpp>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
@@ -46,6 +48,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/MultiDOFJointState.h>
 
+// project includes
 #include <sbpl_collision_checking/group.h>
 
 namespace sbpl {

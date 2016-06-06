@@ -31,10 +31,12 @@
 
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
+// standard includes
 #include <assert.h>
 #include <limits>
 #include <utility>
 
+// system includes
 #include <angles/angles.h>
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>

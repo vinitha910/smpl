@@ -32,17 +32,20 @@
 #ifndef sbpl_collision_SBPLCollisionModel_h
 #define sbpl_collision_SBPLCollisionModel_h
 
+// standard includes
 #include <iostream>
 #include <map>
 #include <memory>
 #include <vector>
 
+// system includes
 #include <boost/shared_ptr.hpp>
 #include <moveit_msgs/RobotState.h>
 #include <ros/ros.h>
 #include <sensor_msgs/MultiDOFJointState.h>
 #include <urdf/model.h>
 
+// project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/group.h>
 

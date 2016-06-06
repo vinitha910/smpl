@@ -1,8 +1,11 @@
 #ifndef sbpl_manip_collision_checker_h
 #define sbpl_manip_collision_checker_h
 
+// standard includes
 #include <string>
 #include <vector>
+
+// system includes
 #include <visualization_msgs/MarkerArray.h>
 
 namespace sbpl {

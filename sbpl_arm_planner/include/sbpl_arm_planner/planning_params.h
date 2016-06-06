@@ -30,13 +30,16 @@
 #ifndef sbpl_manip_planning_params_h
 #define sbpl_manip_planning_params_h
 
+// standard includes
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <ros/ros.h>
+
+// system includes
 #include <angles/angles.h>
-#include <sstream>
 #include <boost/algorithm/string.hpp>
+#include <ros/ros.h>
 
 namespace sbpl {
 namespace manip {

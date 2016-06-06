@@ -32,9 +32,11 @@
 #ifndef sbpl_manip_robot_model_h
 #define sbpl_manip_robot_model_h
 
+// standard includes
 #include <string>
 #include <vector>
 
+// system includes
 #include <angles/angles.h>
 
 namespace sbpl {
@@ -82,7 +84,7 @@ public:
     /// \brief Joint Limits
     virtual bool checkJointLimits(
         const std::vector<double>& angles,
-        bool verbose = false);
+        bool verbose = false) = 0;
 
     /// \name Forward Kinematics
     ///@{
@@ -108,18 +110,22 @@ public:
     /// \name Inverse Kinematics
     ///@{
 
+    /// \brief Compute an inverse kinematics solution.
     virtual bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<double>& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED);
 
+    /// \brief Compute multiple inverse kinematic solutions.
     virtual bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
-        std::vector<std::vector<double> >& solutions,
+        std::vector<std::vector<double>>& solutions,
         ik_option::IkOption option = ik_option::UNRESTRICTED);
 
+    /// \brief Compute an inverse kinematics solution while restricting any
+    ///     redundant joint variables.
     virtual bool computeFastIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,

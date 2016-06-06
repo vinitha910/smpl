@@ -29,11 +29,13 @@
  /** \author Benjamin Cohen */
 
 #include <sbpl_manipulation_components/kdl_robot_model.h>
-#include <ros/ros.h>
+
+// system includes
+#include <kdl/tree.hpp>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
+#include <ros/ros.h>
 #include <sbpl_geometry_utils/utils.h>
-#include <kdl/tree.hpp>
 
 using namespace std;
 

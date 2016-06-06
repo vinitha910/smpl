@@ -29,10 +29,15 @@
 
  /// \author Benjamin Cohen
 
+#include <sbpl_arm_planner/action_set.h>
+
+// standard includes
 #include <limits>
 
+// system includes
 #include <leatherman/print.h>
-#include <sbpl_arm_planner/action_set.h>
+
+// project includes
 #include <sbpl_arm_planner/manip_lattice.h>
 
 #define VERIFY_KINEMATICS 0

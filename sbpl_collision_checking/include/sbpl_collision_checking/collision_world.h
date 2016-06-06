@@ -24,6 +24,9 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef sbpl_collision_collision_world_h
+#define sbpl_collision_collision_world_h
+
 // standard includes
 #include <map>
 #include <string>
@@ -37,9 +40,6 @@
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
-
-#ifndef sbpl_collision_collision_world_h
-#define sbpl_collision_collision_world_h
 
 namespace sbpl {
 namespace collision {

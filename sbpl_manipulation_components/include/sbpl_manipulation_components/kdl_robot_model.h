@@ -27,24 +27,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _KDL_ROBOT_MODEL_
-#define _KDL_ROBOT_MODEL_
+#ifndef sbpl_manip_kdl_robot_model_h
+#define sbpl_manip_kdl_robot_model_h
 
+// standard includes
 #include <memory>
 #include <string>
 #include <vector>
+
+// system includes
 #include <angles/angles.h>
-#include <kdl/frames.hpp>
-#include <kdl_parser/kdl_parser.hpp>
-#include <kdl/jntarray.hpp>
-#include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chain.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>
+#include <kdl/frames.hpp>
+#include <kdl/jntarray.hpp>
+#include <kdl_parser/kdl_parser.hpp>
 #include <ros/console.h>
+#include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_geometry_utils/interpolation.h>
 #include <urdf/model.h>
-#include <sbpl_manipulation_components/robot_model.h>
 
 namespace sbpl {
 namespace manip {

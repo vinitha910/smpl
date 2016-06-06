@@ -30,6 +30,8 @@
  /** \author Benjamin Cohen */
 
 #include <sbpl_arm_planner/occupancy_grid.h>
+
+ // system includes
 #include <ros/console.h>
 #include <leatherman/viz.h>
 

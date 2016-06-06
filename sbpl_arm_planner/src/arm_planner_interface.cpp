@@ -40,7 +40,6 @@
 // system includes
 #include <angles/angles.h>
 #include <geometry_msgs/Pose.h>
-#include <kdl/frames.hpp>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>

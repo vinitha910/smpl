@@ -32,9 +32,13 @@
 #ifndef sbpl_manip_post_processing_h
 #define sbpl_manip_post_processing_h
 
+// standard includes
 #include <vector>
 
+// system includes
 #include <trajectory_msgs/JointTrajectoryPoint.h>
+
+// project includes
 #include <sbpl_arm_planner/collision_checker.h>
 
 namespace sbpl {
