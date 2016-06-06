@@ -47,34 +47,55 @@
 namespace sbpl {
 namespace manip {
 
+enum ShortcutType
+{
+    INVALID_SHORTCUT_TYPE = -1,
+    JOINT_SPACE,
+    EUCLID_SPACE,
+    NUM_SHORTCUT_TYPES
+};
+
+std::string to_string(ShortcutType type);
+
 class PlanningParams
 {
 public:
 
-    static const bool DefaultSearchMode = false;
-    static const bool DefaultShortcutPath = false;
-    static const bool DefaultInterpolatePath = false;
-    static const bool DefaultUseMultipleIkSolutions = false;
-    static constexpr double DefaultAllowedTime = 10.0;
-    static constexpr double DefaultWaypointTime = 0.35;
-
-    static const bool DefaultUseBfsHeuristic = true;
-    static constexpr double DefaultEpsilon = 10.0;
-    static constexpr double DefaultPlanningLinkSphereRadius = 0.08;
-
+    // manipulation lattice parameters
     static const int DefaultCostMultiplier = 1000;
     static const int DefaultCostPerCell = 1;
     static const int DefaultCostPerMeter = 50;
     static const int DefaultCostPerSecond = DefaultCostMultiplier;
     static constexpr double DefaultTimePerCell = 0.05;
     static constexpr double DefaultMaxMprimOffset = 0.0;
+    static const bool DefaultUseMultipleIkSolutions = false;
 
+    // heuristic parameters
+    static const bool DefaultUseBfsHeuristic = true;
+    static constexpr double DefaultPlanningLinkSphereRadius = 0.08;
+
+    // search parameters
+    static const bool DefaultSearchMode = false;
+    static constexpr double DefaultAllowedTime = 10.0;
+    static constexpr double DefaultEpsilon = 10.0;
+
+    // profiling parameters
+    static constexpr double DefaultWaypointTime = 0.35;
+
+    // post processing parameters
+    static const bool DefaultShortcutPath = false;
+    static const bool DefaultInterpolatePath = false;
+    static const ShortcutType DefaultShortcutType = ShortcutType::JOINT_SPACE;
+
+    // logging parameters
     static const std::string DefaultExpandsLog;
     static const std::string DefaultExpands2Log;
     static const std::string DefaultIkLog;
     static const std::string DefaultRobotModelLog;
     static const std::string DefaultCspaceLog;
     static const std::string DefaultSolutionLog;
+
+    // TODO: visualization parameters
 
     PlanningParams();
 
@@ -99,9 +120,9 @@ public:
 
     /// \name Costs
     ///@{
-    int cost_multiplier_;
-    int cost_per_cell_;
-    int cost_per_meter_;
+    int cost_multiplier_;           ///< uniform cost of actions
+    int cost_per_cell_;             ///< uniform cost of cells in heuristic
+    int cost_per_meter_;            ///< euclidean distance heuristic cost
     int cost_per_second_;
     double time_per_cell_;
     double max_mprim_offset_;
@@ -126,6 +147,7 @@ public:
     bool shortcut_path_;
     bool interpolate_path_;
     double waypoint_time_;
+    ShortcutType shortcut_type;
     ///@}
 
     /// \name Logging

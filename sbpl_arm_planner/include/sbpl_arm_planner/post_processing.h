@@ -42,6 +42,7 @@
 // project includes
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/robot_model.h>
+#include <sbpl_arm_planner/planning_params.h>
 
 namespace sbpl {
 namespace manip {
@@ -50,13 +51,15 @@ void ShortcutPath(
     RobotModel* rm,
     CollisionChecker* cc,
     std::vector<std::vector<double>>& pin,
-    std::vector<std::vector<double>>& pout);
+    std::vector<std::vector<double>>& pout,
+    ShortcutType type);
 
 void ShortcutTrajectory(
     RobotModel* rm,
     CollisionChecker* cc,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out);
+    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out,
+    ShortcutType type);
 
 bool InterpolateTrajectory(
     CollisionChecker* cc,

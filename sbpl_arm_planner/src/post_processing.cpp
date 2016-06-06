@@ -193,7 +193,8 @@ void ShortcutPath(
     RobotModel* rm,
     CollisionChecker* cc,
     std::vector<std::vector<double>>& pin,
-    std::vector<std::vector<double>>& pout)
+    std::vector<std::vector<double>>& pout,
+    ShortcutType type)
 {
     if (pin.size() < 2) {
         pout = pin;
@@ -202,16 +203,21 @@ void ShortcutPath(
 
     std::vector<int> costs(pin.size() - 1, 1);
 
-    const bool euclidean_shortcutter = false;
-    if (euclidean_shortcutter) {
-        std::vector<EuclideanShortcutPathGenerator> generators =
-                { EuclideanShortcutPathGenerator(rm, cc) };
-        shortcut::ShortcutPath(pin, costs, generators, pout);
-    }
-    else {
+    switch (type) {
+    case ShortcutType::JOINT_SPACE:
+    {
         std::vector<ShortcutPathGenerator> generators =
                 { ShortcutPathGenerator(cc) };
         shortcut::ShortcutPath(pin, costs, generators, pout);
+    }   break;
+    case ShortcutType::EUCLID_SPACE:
+    {
+        std::vector<EuclideanShortcutPathGenerator> generators =
+                { EuclideanShortcutPathGenerator(rm, cc) };
+        shortcut::ShortcutPath(pin, costs, generators, pout);
+    }   break;
+    default:
+        break;
     }
 
     ROS_INFO("Original path length: %zu", pin.size());
@@ -222,7 +228,8 @@ void ShortcutTrajectory(
     RobotModel* rm,
     CollisionChecker* cc,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
+    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out,
+    ShortcutType type)
 {
     std::vector<std::vector<double>> pin(traj_in.size());
     std::vector<std::vector<double>> pout;
@@ -236,7 +243,7 @@ void ShortcutTrajectory(
     }
 
     if (pin.size() > 2) {
-        ShortcutPath(rm, cc, pin, pout);
+        ShortcutPath(rm, cc, pin, pout, type);
     }
     else {
         ROS_WARN("Path is too short for shortcutting.");
@@ -258,7 +265,7 @@ bool InterpolateTrajectory(
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
 {
     if (traj.empty()) {
-        return false;
+        return true;
     }
 
     const size_t num_joints = traj.front().positions.size();

@@ -145,6 +145,7 @@ bool ArmPlannerInterface::init(const PlanningParams& params)
     ROS_INFO("  Search Mode: %s", params.search_mode_ ? "true" : "false");
 
     ROS_INFO("  Shortcut Path: %s", params.shortcut_path_ ? "true" : "false");
+    ROS_INFO("  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
     ROS_INFO("  Interpolate Path: %s", params.interpolate_path_ ? "true" : "false");
     ROS_INFO("  Waypoint Time: %0.3f", params.waypoint_time_);
 
@@ -1192,11 +1193,13 @@ void ArmPlannerInterface::postProcessPath(
         trajectory_msgs::JointTrajectory straj;
         if (!InterpolateTrajectory(cc_, traj.points, straj.points)) {
             ROS_WARN("Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
-            trajectory_msgs::JointTrajectory orig_traj = traj;
-            ShortcutTrajectory(rm_, cc_, orig_traj.points, traj.points);
+            trajectory_msgs::JointTrajectory otraj = traj;
+            ShortcutTrajectory(
+                    rm_, cc_, otraj.points, traj.points, prm_.shortcut_type);
         }
         else {
-            ShortcutTrajectory(rm_, cc_, straj.points, traj.points);
+            ShortcutTrajectory(
+                    rm_, cc_, straj.points, traj.points, prm_.shortcut_type);
         }
     }
 

@@ -46,6 +46,18 @@ const std::string PlanningParams::DefaultRobotModelLog = "info";
 const std::string PlanningParams::DefaultCspaceLog = "info";
 const std::string PlanningParams::DefaultSolutionLog = "info";
 
+std::string to_string(ShortcutType type)
+{
+    switch (type) {
+    case ShortcutType::JOINT_SPACE:
+        return "JOINT_SPACE";
+    case ShortcutType::EUCLID_SPACE:
+        return "EUCLID_SPACE";
+    default:
+        return "INVALID_SHORTCUT_TYPE";
+    }
+}
+
 PlanningParams::PlanningParams() :
     planning_frame_(),
     group_name_(),
@@ -74,6 +86,7 @@ PlanningParams::PlanningParams() :
     shortcut_path_(DefaultShortcutPath),
     interpolate_path_(DefaultInterpolatePath),
     waypoint_time_(DefaultWaypointTime),
+    shortcut_type(DefaultShortcutType),
 
     print_path_(true),
     verbose_(false),
@@ -106,6 +119,7 @@ bool PlanningParams::init(const std::string& ns)
     nh.param("planning/verbose_collisions", verbose_collisions_, false);
     nh.param("planning/search_mode", search_mode_, false); //true: stop after first solution
     nh.param("planning/shortcut_path", shortcut_path_, false);
+    // TODO: shortcut_type
     nh.param("planning/interpolate_path", interpolate_path_, false);
     nh.param("planning/use_multiple_ik_solutions", use_multiple_ik_solutions_, false);
     nh.param("planning/seconds_per_waypoint", waypoint_time_, 0.35);
