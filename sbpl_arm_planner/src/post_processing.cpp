@@ -32,6 +32,9 @@
 
 #include <sbpl_arm_planner/post_processing.h>
 
+// standard includes
+#include <chrono>
+
 // system includes
 #include <Eigen/Dense>
 #include <leatherman/print.h>
@@ -83,23 +86,21 @@ private:
     CollisionChecker* m_cc;
 };
 
-class EuclideanShortcutPathGenerator :
-    public shortcut::PathGenerator<std::vector<double>, int>
+class EuclideanShortcutPathGenerator
 {
 public:
-
-    typedef shortcut::PathGenerator<std::vector<double>, int> Base;
 
     EuclideanShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
         m_rm(rm),
         m_cc(cc)
     { }
 
-    virtual ~EuclideanShortcutPathGenerator() { }
+    ~EuclideanShortcutPathGenerator() { }
 
-    virtual bool generate_path(
-        const Base::Point& start, const Base::Point& end,
-        Base::PathContainer& path, Base::Cost& cost) const
+    template <typename OutputIt>
+    bool operator()(
+        const std::vector<double>& start, const std::vector<double>& end,
+        OutputIt ofirst, int& cost) const
     {
         // compute forward kinematics for the start an end configurations
         std::vector<double> from_pose, to_pose;
@@ -178,7 +179,9 @@ public:
             cpath.push_back(wp);
         }
 
-        path = std::move(cpath);
+        for (auto& point : cpath) {
+            *ofirst++ = std::move(point);
+        }
         cost = 0;
         return true;
     }
@@ -212,9 +215,17 @@ void ShortcutPath(
     }   break;
     case ShortcutType::EUCLID_SPACE:
     {
-        std::vector<EuclideanShortcutPathGenerator> generators =
+        EuclideanShortcutPathGenerator generators[] =
                 { EuclideanShortcutPathGenerator(rm, cc) };
-        shortcut::ShortcutPath(pin, costs, generators, pout);
+
+        auto then = std::chrono::high_resolution_clock::now();
+        shortcut::ShortcutPath(
+                pin.begin(), pin.end(),
+                costs.begin(), costs.end(),
+                generators, generators + 1,
+                std::back_inserter(pout));
+        auto now = std::chrono::high_resolution_clock::now();
+        ROS_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
     }   break;
     default:
         break;
