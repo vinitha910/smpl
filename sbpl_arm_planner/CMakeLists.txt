@@ -22,7 +22,18 @@ find_package(catkin
         visualization_msgs)
 
 find_package(Eigen REQUIRED)
-find_package(sbpl REQUIRED)
+
+find_package(
+    sbpl
+    REQUIRED
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH
+    NO_CMAKE_BUILDS_PATH
+#    NO_CMAKE_SYSTEM_PATH
+    NO_CMAKE_PACKAGE_REGISTRY
+    NO_CMAKE_SYSTEM_PACKAGE_REGISTRY
+    NO_CMAKE_SYSTEM_PATH)
 
 set(sbpl_INCLUDE_DIRS ${SBPL_INCLUDE_DIRS})
 set(sbpl_LIBRARIES ${SBPL_LIBRARIES})
