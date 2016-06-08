@@ -1,18 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015, Benjamin Cohen
+// Copyright (c) 2015, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//     * Neither the name of the University of Pennsylvania nor the names of its
-//       contributors may be used to endorse or promote products derived from
-//       this software without specific prior written permission.
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,25 +28,32 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
-#ifndef sbpl_arm_planner_ActionSet_h
-#define sbpl_arm_planner_ActionSet_h
+#ifndef sbpl_manip_action_set_h
+#define sbpl_manip_action_set_h
 
+// standard includes
 #include <iostream>
+#include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <iterator>
-#include <ros/ros.h>
+
+// system includes
 #include <angles/angles.h>
-#include <sstream>
 #include <boost/algorithm/string.hpp>
-#include <sbpl_manipulation_components/motion_primitive.h>
-#include <sbpl_manipulation_components/robot_model.h>
+#include <ros/ros.h>
 
-namespace sbpl_arm_planner {
+// project includes
+#include <sbpl_arm_planner/motion_primitive.h>
+#include <sbpl_arm_planner/robot_model.h>
 
-class EnvironmentROBARM3D;
+namespace sbpl {
+namespace manip {
+
+class ManipLattice;
 
 class ActionSet;
 typedef std::shared_ptr<ActionSet> ActionSetPtr;
@@ -64,7 +71,7 @@ public:
 
     ActionSet();
 
-    bool init(EnvironmentROBARM3D* env, bool use_multiple_ik_solutions = false);
+    bool init(ManipLattice* env, bool use_multiple_ik_solutions = false);
 
     /// \brief Add a long or short distance motion primitive to the action set
     /// \param mprim The angle delta for each joint, in radians
@@ -108,7 +115,7 @@ protected:
 
     bool use_multiple_ik_solutions_;
 
-    EnvironmentROBARM3D *env_;
+    ManipLattice* env_;
 
     bool applyMotionPrimitive(
         const RobotState& state,
@@ -119,19 +126,24 @@ protected:
         const RobotState& state,
         const std::vector<double>& goal,
         double dist_to_goal,
-        sbpl_arm_planner::ik_option::IkOption option,
+        ik_option::IkOption option,
         std::vector<Action>& actions);
 
     bool getAction(
         const RobotState& parent,
-        double dist_to_goal,
+        double goal_dist,
+        double start_dist,
         const MotionPrimitive& mp,
         std::vector<Action>& actions);
 
-    bool mprimActive(double dist_to_goal, MotionPrimitive::Type type) const;
+    bool mprimActive(
+        double start_dist,
+        double goal_dist,
+        MotionPrimitive::Type type) const;
 };
 
-} // namespace sbpl_arm_planner
+} // namespace manip
+} // namespace sbpl
 
 #endif
 

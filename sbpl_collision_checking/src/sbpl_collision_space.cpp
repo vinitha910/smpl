@@ -1,18 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2011, Maxim Likhachev
+// Copyright (c) 2011, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//     * Neither the name of the University of Pennsylvania nor the names of its
-//       contributors may be used to endorse or promote products derived from
-//       this software without specific prior written permission.
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,13 +28,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
 #include <sbpl_collision_checking/sbpl_collision_space.h>
 
+// standard includes
 #include <assert.h>
 #include <limits>
 #include <utility>
 
+// system includes
 #include <angles/angles.h>
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
@@ -51,7 +54,7 @@
 namespace sbpl {
 namespace collision {
 
-CollisionSpace::CollisionSpace(sbpl_arm_planner::OccupancyGrid* grid) :
+CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_world(grid),
     grid_(grid),
     model_(),
@@ -461,7 +464,7 @@ bool CollisionSpace::checkPathForCollision(
         end_norm[i] = angles::normalize_angle(end[i]);
     }
 
-    if (!interpolatePath(start_norm, end_norm, inc_, path)) {
+    if (!interpolatePath(start_norm, end_norm, path)) {
         path_length = 0;
         ROS_ERROR_ONCE("[cspace] Failed to interpolate the path. It's probably infeasible due to joint limits.");
         ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
@@ -879,10 +882,9 @@ void CollisionSpace::setWorldToModelTransform(
 bool CollisionSpace::interpolatePath(
     const std::vector<double>& start,
     const std::vector<double>& end,
-    const std::vector<double>& inc,
     std::vector<std::vector<double>>& path)
 {
-    return sbpl::interp::InterpolatePath(start, end, min_limits_, max_limits_, inc, path);
+    return sbpl::interp::InterpolatePath(start, end, min_limits_, max_limits_, inc_, path);
 }
 
 bool CollisionSpace::getClearance(

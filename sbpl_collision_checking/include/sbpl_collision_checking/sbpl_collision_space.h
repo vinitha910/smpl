@@ -1,18 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2011, Willow Garage, Inc.
+// Copyright (c) 2011, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Willow Garage, Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived from
-//       this software without specific prior written permission.
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,6 +28,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
 #ifndef sbpl_collision_collision_space_h
 #define sbpl_collision_collision_space_h
@@ -45,8 +46,8 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
-#include <sbpl_manipulation_components/collision_checker.h>
-#include <sbpl_manipulation_components/occupancy_grid.h>
+#include <sbpl_arm_planner/collision_checker.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -58,7 +59,7 @@
 namespace sbpl {
 namespace collision {
 
-class CollisionSpace : public sbpl_arm_planner::CollisionChecker
+class CollisionSpace : public manip::CollisionChecker
 {
 public:
 
@@ -66,10 +67,10 @@ public:
     typedef CollisionWorld::ObjectPtr ObjectPtr;
     typedef CollisionWorld::ObjectConstPtr ObjectConstPtr;
 
-    CollisionSpace(sbpl_arm_planner::OccupancyGrid* grid);
+    CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
 
-    /// \name sbpl_arm_planner::CollisionChecker API Requirements
+    /// \name manip::CollisionChecker API Requirements
     ///@{
 
     bool isStateValid(
@@ -88,7 +89,6 @@ public:
     bool interpolatePath(
         const std::vector<double>& start,
         const std::vector<double>& end,
-        const std::vector<double>& inc,
         std::vector<std::vector<double>>& path);
 
     ///@}
@@ -229,7 +229,7 @@ private:
     ///////////////////////////////
 
     CollisionWorld m_world;
-    sbpl_arm_planner::OccupancyGrid* grid_;
+    OccupancyGrid* grid_;
 
     ///////////////////////////////
     // Collision Robot Variables //

@@ -1,18 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2011, Willow Garage, Inc.
+// Copyright (c) 2011, Benjamin Cohen
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Willow Garage, Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived from
-//       this software without specific prior written permission.
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -32,30 +32,32 @@
 #ifndef sbpl_collision_TestSBPLCollisionSpace_h
 #define sbpl_collision_TestSBPLCollisionSpace_h
 
+// standard includes
 #include <iostream>
 #include <map>
-#include <ros/ros.h>
-#include <boost/thread/mutex.hpp>
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-#include <message_filters/subscriber.h>
-#include <tf/message_filter.h>
-#include <tf/transform_datatypes.h>
-#include <kdl/chain.hpp>
-#include <kdl/frames.hpp>
-#include <kdl/chainjnttojacsolver.hpp>
-#include <angles/angles.h>
-#include <sbpl_collision_checking/occupancy_grid.h>
-#include <sbpl_collision_checking/sbpl_collision_space.h>
-#include <visualize_arm/visualize_arm.h>
 
-/** Messages **/
+// system includes
+#include <angles/angles.h>
+#include <boost/thread/mutex.hpp>
 #include <geometry_msgs/Pose.h>
+#include <kdl/chain.hpp>
+#include <kdl/chainjnttojacsolver.hpp>
+#include <kdl/frames.hpp>
+#include <kinematics_msgs/GetPositionFK.h>
+#include <message_filters/subscriber.h>
 #include <moveit_msgs/CollisionMap.h>
 #include <moveit_msgs/CollisionObject.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h>
-#include <kinematics_msgs/GetPositionFK.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
+#include <ros/ros.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
+#include <tf/message_filter.h>
+#include <tf/tf.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <trajectory_msgs/JointTrajectoryPoint.h>
+
+// project includes
+#include <sbpl_collision_checking/sbpl_collision_space.h>
 
 namespace sbpl {
 namespace collision {
@@ -124,7 +126,7 @@ private:
     /* planner & environment */
     double resolution_;
     CollisionSpace* cspace_;
-    sbpl_arm_planner::OccupancyGrid* grid_;
+    OccupancyGrid* grid_;
     sbpl_arm_planner::VisualizeArm* aviz_;
     KDL::Frame kdl_transform_;
 

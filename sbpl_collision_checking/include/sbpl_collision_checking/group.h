@@ -1,18 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015, Benjamin Cohen
+// Copyright (c) 2015, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//     * Neither the name of the University of Pennsylvania nor the names of its
-//       contributors may be used to endorse or promote products derived from
-//       this software without specific prior written permission.
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,14 +28,17 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
 #ifndef sbpl_collision_Group_h
 #define sbpl_collision_Group_h
 
+// standard includes
 #include <algorithm>
 #include <string>
 #include <vector>
 
+// system includes
 #include <boost/algorithm/string.hpp>
 #include <boost/shared_ptr.hpp>
 #include <kdl/chain.hpp>
@@ -47,6 +50,7 @@
 #include <ros/ros.h>
 #include <urdf/model.h>
 
+// project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 
 namespace sbpl {
@@ -104,7 +108,7 @@ public:
     const std::string& getReferenceFrame() const { return root_name_; }
     const std::vector<const Sphere*>& getSpheres() const { return spheres_; }
     bool getFrameInfo(const std::string& name, int& chain, int& segment) const;
-    
+
     void setModelToGroupTransform(const KDL::Frame& f) { m_T_model_group = f; }
     const KDL::Frame& getModelToGroupTransform() const { return m_T_model_group; }
 
@@ -133,10 +137,10 @@ private:
 
     // decomposition of group into a set of kinematic chains beginning at group
     // root
-    std::vector<KDL::Chain> chains_; 
+    std::vector<KDL::Chain> chains_;
 
     // per-chain fk solvers, joint name arrays, and joint variable arrays
-    std::vector<KDL::ChainFkSolverPos_recursive*> solvers_; 
+    std::vector<KDL::ChainFkSolverPos_recursive*> solvers_;
     std::vector<std::vector<std::string>> jntarray_names_;
     std::vector<KDL::JntArray> joint_positions_;
 

@@ -1,38 +1,33 @@
-/*********************************************************************
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2012, Willow Garage, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of Willow Garage, Inc. nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- *
- *********************************************************************/
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2012, Benjamin Cohen
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     1. Redistributions of source code must retain the above copyright notice
+//        this list of conditions and the following disclaimer.
+//     2. Redistributions in binary form must reproduce the above copyright
+//        notice, this list of conditions and the following disclaimer in the
+//        documentation and/or other materials provided with the distribution.
+//     3. Neither the name of the copyright holder nor the names of its
+//        contributors may be used to endorse or promote products derived from
+//        this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+////////////////////////////////////////////////////////////////////////////////
+
+/// \author Benjamin Cohen
 
 #include <ros/ros.h>
 #include <signal.h>
@@ -41,13 +36,11 @@
 #include <leatherman/print.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/GetMotionPlan.h>
-#include <sbpl_arm_planner/sbpl_arm_planner_interface.h>
-#include <sbpl_manipulation_components/kdl_robot_model.h>
-//#include <sbpl_manipulation_components_pr2/pr2_kdl_robot_model.h>
-//#include <sbpl_manipulation_components_pr2/ubr1_kdl_robot_model.h>
+#include <sbpl_arm_planner/arm_planner_interface.h>
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
+//#include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
+//#include <sbpl_pr2_robot_model/ubr1_kdl_robot_model.h>
 #include <sbpl_collision_checking/sbpl_collision_space.h>
-
-using namespace sbpl_arm_planner;
 
 void fillConstraint(const std::vector<double> &pose, std::string frame_id, moveit_msgs::Constraints &goals)
 {
@@ -310,11 +303,11 @@ int main(int argc, char **argv)
   // robot model
   RobotModel *rm;
 //  if(group_name.compare("right_arm") == 0)
-//    rm = new sbpl_arm_planner::PR2KDLRobotModel(); // should take in "pr2"
+//    rm = new sbpl::manip::PR2KDLRobotModel(); // should take in "pr2"
 //  else if(group_name.compare("arm") == 0)
-//    rm = new sbpl_arm_planner::UBR1KDLRobotModel();
+//    rm = new sbpl::manip::UBR1KDLRobotModel();
 //  else
-    rm  = new sbpl_arm_planner::KDLRobotModel(kinematics_frame, chain_tip_link);
+    rm  = new sbpl::manip::KDLRobotModel(kinematics_frame, chain_tip_link);
   if(!rm->init(urdf, planning_joints))
   {
     ROS_ERROR("Failed to initialize robot model.");
@@ -341,7 +334,7 @@ int main(int argc, char **argv)
   }
 
   // collision checker
-  sbpl_arm_planner::OccupancyGrid *grid = new sbpl_arm_planner::OccupancyGrid(df);
+  sbpl::OccupancyGrid *grid = new sbpl::OccupancyGrid(df);
   grid->setReferenceFrame(planning_frame);
   sbpl::collision::CollisionSpace *cc = new sbpl::collision::CollisionSpace(grid);
 
@@ -351,10 +344,10 @@ int main(int argc, char **argv)
     return false;
 
   // action set
-  sbpl_arm_planner::ActionSet *as = new sbpl_arm_planner::ActionSet(action_set_filename);
+  sbpl::manip::ActionSet *as = new sbpl::manip::ActionSet(action_set_filename);
 
   // planner interface
-  sbpl_arm_planner::SBPLArmPlannerInterface *planner = new sbpl_arm_planner::SBPLArmPlannerInterface(rm, cc, as, df);
+  sbpl::manip::SBPLArmPlannerInterface *planner = new sbpl::manip::SBPLArmPlannerInterface(rm, cc, as, df);
 
   if(!planner->init())
     return false;
