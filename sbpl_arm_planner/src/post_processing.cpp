@@ -47,32 +47,27 @@
 namespace sbpl {
 namespace manip {
 
-class ShortcutPathGenerator :
-    public shortcut::PathGenerator<std::vector<double>, int>
+class ShortcutPathGenerator
 {
 public:
 
-    typedef shortcut::PathGenerator<std::vector<double>, int> Base;
-
     ShortcutPathGenerator(CollisionChecker* cc) :
         m_cc(cc)
-    {
+    { }
 
-    }
-
-    virtual ~ShortcutPathGenerator() { }
-
-    virtual bool generate_path(
-        const Base::Point& start,
-        const Base::Point& end,
-        Base::PathContainer& path,
-        Base::Cost& cost) const
+    template <typename OutputIt>
+    bool operator()(
+        const std::vector<double>& start, const std::vector<double>& end,
+        OutputIt ofirst, int& cost) const
     {
         int path_length;
         int num_checks;
         double dist;
-        if (m_cc->isStateToStateValid(start, end, path_length, num_checks, dist)) {
-            path = { start, end };
+        if (m_cc->isStateToStateValid(
+                start, end, path_length, num_checks, dist))
+        {
+            *ofirst++ = start;
+            *ofirst++ = end;
             cost = 0;
             return true;
         }
@@ -86,16 +81,14 @@ private:
     CollisionChecker* m_cc;
 };
 
-class EuclideanShortcutPathGenerator
+class EuclidShortcutPathGenerator
 {
 public:
 
-    EuclideanShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
+    EuclidShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
         m_rm(rm),
         m_cc(cc)
     { }
-
-    ~EuclideanShortcutPathGenerator() { }
 
     template <typename OutputIt>
     bool operator()(
@@ -209,14 +202,17 @@ void ShortcutPath(
     switch (type) {
     case ShortcutType::JOINT_SPACE:
     {
-        std::vector<ShortcutPathGenerator> generators =
-                { ShortcutPathGenerator(cc) };
-        shortcut::ShortcutPath(pin, costs, generators, pout);
+        ShortcutPathGenerator generators[] = { ShortcutPathGenerator(cc) };
+        shortcut::ShortcutPath(
+                pin.begin(), pin.end(),
+                costs.begin(), costs.end(),
+                generators, generators + 1,
+                std::back_inserter(pout));
     }   break;
     case ShortcutType::EUCLID_SPACE:
     {
-        EuclideanShortcutPathGenerator generators[] =
-                { EuclideanShortcutPathGenerator(rm, cc) };
+        EuclidShortcutPathGenerator generators[] =
+                { EuclidShortcutPathGenerator(rm, cc) };
 
         auto then = std::chrono::high_resolution_clock::now();
         shortcut::ShortcutPath(
