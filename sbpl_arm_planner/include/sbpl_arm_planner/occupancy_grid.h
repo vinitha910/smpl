@@ -114,10 +114,15 @@ public:
         int x, int y, int z,
         double &wx, double &wy, double &wz) const;
 
-    /// \brief Convert world coords into grid cell coords*/
+    /// \brief Convert world coords into grid cell coords
     void worldToGrid(
         double wx, double wy, double wz,
         int &x, int &y, int &z) const;
+
+    /// \brief Convert world coords into grid cell coords
+    /// \param wx A double array of size 3 containing the world coordinates
+    /// \param gx An int array of size 3 for storing the grid cell coordinates
+    void worldToGrid(double* wx, int* gx) const;
 
     unsigned char getCell(int x, int y, int z) const;
 
@@ -236,6 +241,12 @@ void OccupancyGrid::worldToGrid(
     int &x, int &y, int &z) const
 {
     grid_->worldToGrid(wx, wy, wz, x, y, z);
+}
+
+inline
+void OccupancyGrid::worldToGrid(double* wx, int* gx) const
+{
+    grid_->worldToGrid(wx[0], wx[1], wx[2], gx[0], gx[1], gx[2]);
 }
 
 inline
