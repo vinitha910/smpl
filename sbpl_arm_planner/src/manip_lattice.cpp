@@ -228,17 +228,18 @@ void ManipLattice::GetSuccs(
 
         // check intermediate states for collisions
         for (size_t j = 0; j < action.size(); ++j) {
-            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", j, to_string(action[j]).c_str());
+            const RobotState& istate = action[j];
+            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", j, to_string(istate).c_str());
 
             // check joint limits
-            if (!rmodel_->checkJointLimits(action[j])) {
+            if (!rmodel_->checkJointLimits(istate)) {
                 ROS_DEBUG_NAMED(prm_->expands_log_, "        -> violates joint limits");
                 violation_mask |= 0x00000001;
             }
 
             // check for collisions
             if (!cc_->isStateValid(
-                    action[j], prm_->verbose_collisions_, false, dist))
+                    istate, prm_->verbose_collisions_, false, dist))
             {
                 ROS_DEBUG_NAMED(prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
                 violation_mask |= 0x00000002;
@@ -267,8 +268,10 @@ void ManipLattice::GetSuccs(
 
         // check for collisions between waypoints
         for (size_t j = 1; j < action.size(); ++j) {
+            const RobotState& prev_istate = action[j - 1];
+            const RobotState& curr_istate = action[j];
             if (!cc_->isStateToStateValid(
-                    action[j - 1], action[j], path_length, nchecks, dist))
+                    prev_istate, curr_istate, path_length, nchecks, dist))
             {
                 ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, path_length);
                 violation_mask |= 0x00000008;
@@ -307,7 +310,7 @@ void ManipLattice::GetSuccs(
             m_goal_entry->xyz[2] = endeff[2];
             m_goal_entry->state = action.back();
             m_goal_entry->dist = dist;
-            n_goal_succs++;
+            ++n_goal_succs;
         }
 
         // check if hash entry already exists, if not then create one
@@ -390,6 +393,8 @@ void ManipLattice::GetLazySuccs(
 
     ROS_DEBUG_NAMED(prm_->expands_log_, "  actions: %zu", actions.size());
 
+    int n_goal_succs = 0;
+
     std::vector<int> succ_coord(prm_->num_joints_);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
@@ -417,6 +422,7 @@ void ManipLattice::GetLazySuccs(
             m_goal_entry->xyz[2] = endeff[2];
             m_goal_entry->state = action.back();
             m_goal_entry->dist = 0.0; //dist; // TODO: cached distance useful for anything?
+            ++n_goal_succs;
         }
 
         // check if hash entry already exists, if not then create one
@@ -447,11 +453,17 @@ void ManipLattice::GetLazySuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
 
+    if (n_goal_succs > 0) {
+        ROS_DEBUG("Got %d goal successors!", n_goal_succs);
+    }
+
     m_expanded_states.push_back(SourceStateID);
 }
 
 int ManipLattice::GetTrueCost(int parentID, int childID)
 {
+    ROS_DEBUG_NAMED(prm_->expands_log_, "evaluating cost of transition %d -> %d", parentID, childID);
+
     assert(parentID >= 0 && parentID < (int)m_states.size());
     assert(childID >= 0 && childID < (int)m_states.size());
 
@@ -469,6 +481,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         return -1;
     }
 
+    // check actions for validity
     std::vector<int> succ_coord(prm_->num_joints_);
     for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
         const Action& action = actions[aidx];
@@ -484,17 +497,18 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
         // check intermediate states for collisions
         for (size_t imidx = 0; imidx < action.size(); ++imidx) {
-            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", imidx, to_string(action[imidx]).c_str());
+            const RobotState& istate = action[imidx];
+            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", imidx, to_string(istate).c_str());
 
             // check joint limits
-            if (!rmodel_->checkJointLimits(action[imidx])) {
+            if (!rmodel_->checkJointLimits(istate)) {
                 ROS_DEBUG_NAMED(prm_->expands_log_, "        -> violates joint limits");
                 return -1;
             }
 
             // check for collisions
             if (!cc_->isStateValid(
-                    action[imidx], prm_->verbose_collisions_, false, dist))
+                    istate, prm_->verbose_collisions_, false, dist))
             {
                 ROS_DEBUG_NAMED(prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
                 return -1;
@@ -511,8 +525,10 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
         // check for collisions between waypoints
         for (size_t j = 1; j < action.size(); ++j) {
+            const RobotState& prev_istate = action[j - 1];
+            const RobotState& curr_istate = action[j];
             if (!cc_->isStateToStateValid(
-                    action[j - 1], action[j], path_length, nchecks, dist))
+                    prev_istate, curr_istate, path_length, nchecks, dist))
             {
                 ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, path_length);
                 return -1;
