@@ -158,8 +158,7 @@ void ManipLattice::PrintState(int stateID, bool bVerbose, FILE* fOut)
 
     EnvROBARM3DHashEntry_t* HashEntry = m_states[stateID];
 
-    const bool is_goal = (stateID == m_goal_entry->stateID);
-    printJointArray(fOut, HashEntry, is_goal, bVerbose);
+    printJointArray(fOut, HashEntry, bVerbose);
 }
 
 void ManipLattice::PrintEnv_Config(FILE* fOut)
@@ -179,7 +178,7 @@ void ManipLattice::GetSuccs(
 
     ROS_DEBUG_NAMED(prm_->expands_log_, "expanding state %d", SourceStateID);
 
-    //goal state should be absorbing
+    // goal state should be absorbing
     if (SourceStateID == m_goal_entry->stateID) {
         return;
     }
@@ -194,10 +193,7 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(parent_entry->state).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
     ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(SourceStateID));
-    ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)",
-                abs(m_goal_entry->xyz[0] - parent_entry->xyz[0]),
-                abs(m_goal_entry->xyz[1] - parent_entry->xyz[1]),
-                abs(m_goal_entry->xyz[2] - parent_entry->xyz[2]));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - parent_entry->xyz[0]), abs(m_goal.xyz[1] - parent_entry->xyz[1]), abs(m_goal.xyz[2] - parent_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
     const std::vector<double>& source_angles = parent_entry->state;
@@ -221,65 +217,8 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "    action %zu:", i);
         ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints: %zu", action.size());
 
-        std::uint32_t violation_mask = 0x00000000;
-        int path_length = 0;
-        int nchecks = 0;
-        double dist = 0.0;
-
-        // check intermediate states for collisions
-        for (size_t j = 0; j < action.size(); ++j) {
-            const RobotState& istate = action[j];
-            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", j, to_string(istate).c_str());
-
-            // check joint limits
-            if (!rmodel_->checkJointLimits(istate)) {
-                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> violates joint limits");
-                violation_mask |= 0x00000001;
-            }
-
-            // check for collisions
-            if (!cc_->isStateValid(
-                    istate, prm_->verbose_collisions_, false, dist))
-            {
-                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
-                violation_mask |= 0x00000002;
-            }
-
-            if (violation_mask) {
-                break;
-            }
-        }
-
-        if (violation_mask) {
-            continue;
-        }
-
-        // check for collisions along path from parent to first waypoint
-        if (!cc_->isStateToStateValid(
-                source_angles, action[0], path_length, nchecks, dist))
-        {
-            ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, path_length);
-            violation_mask |= 0x00000004;
-        }
-
-        if (violation_mask) {
-            continue;
-        }
-
-        // check for collisions between waypoints
-        for (size_t j = 1; j < action.size(); ++j) {
-            const RobotState& prev_istate = action[j - 1];
-            const RobotState& curr_istate = action[j];
-            if (!cc_->isStateToStateValid(
-                    prev_istate, curr_istate, path_length, nchecks, dist))
-            {
-                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, path_length);
-                violation_mask |= 0x00000008;
-                break;
-            }
-        }
-
-        if (violation_mask) {
+        double dist;
+        if (!checkAction(source_angles, action, true, dist)) {
             continue;
         }
 
@@ -304,25 +243,24 @@ void ManipLattice::GetSuccs(
         const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
         if (succ_is_goal_state) {
             // update goal state
-            m_goal_entry->coord = succ_coord;
-            m_goal_entry->xyz[0] = endeff[0];
-            m_goal_entry->xyz[1] = endeff[1];
-            m_goal_entry->xyz[2] = endeff[2];
-            m_goal_entry->state = action.back();
-            m_goal_entry->dist = dist;
             ++n_goal_succs;
         }
 
         // check if hash entry already exists, if not then create one
         EnvROBARM3DHashEntry_t* succ_entry;
-        if (!(succ_entry = getHashEntry(succ_coord, succ_is_goal_state))) {
+        if (!(succ_entry = getHashEntry(succ_coord))) {
             succ_entry = createHashEntry(succ_coord, endeff);
             succ_entry->state = action.back();
             succ_entry->dist = dist;
         }
 
         // put successor on successor list with the proper cost
-        SuccIDV->push_back(succ_entry->stateID);
+        if (succ_is_goal_state) {
+            SuccIDV->push_back(m_goal_entry->stateID);
+        }
+        else {
+            SuccIDV->push_back(succ_entry->stateID);
+        }
         CostV->push_back(cost(parent_entry, succ_entry, succ_is_goal_state));
 
         // log successor details
@@ -332,10 +270,7 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "        state: %s", to_string(succ_entry->state).c_str());
         ROS_DEBUG_NAMED(prm_->expands_log_, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
         ROS_DEBUG_NAMED(prm_->expands_log_, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)",
-                abs(m_goal_entry->xyz[0] - endeff[0]),
-                abs(m_goal_entry->xyz[1] - endeff[1]),
-                abs(m_goal_entry->xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - endeff[0]), abs(m_goal.xyz[1] - endeff[1]), abs(m_goal.xyz[2] - endeff[2]));
         ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
         ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
         ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, succ_is_goal_state));
@@ -362,6 +297,7 @@ void ManipLattice::GetLazySuccs(
 
     ROS_DEBUG_NAMED(prm_->expands_log_, "expanding state %d", SourceStateID);
 
+    // goal state should be absorbing
     if (SourceStateID == m_goal_entry->stateID) {
         return;
     }
@@ -376,10 +312,7 @@ void ManipLattice::GetLazySuccs(
     ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(state_entry->state).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", state_entry->xyz[0], state_entry->xyz[1], state_entry->xyz[2]);
     ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(SourceStateID));
-    ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)",
-                abs(m_goal_entry->xyz[0] - state_entry->xyz[0]),
-                abs(m_goal_entry->xyz[1] - state_entry->xyz[1]),
-                abs(m_goal_entry->xyz[2] - state_entry->xyz[2]));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - state_entry->xyz[0]), abs(m_goal.xyz[1] - state_entry->xyz[1]), abs(m_goal.xyz[2] - state_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(state_entry->xyz[0], state_entry->xyz[1], state_entry->xyz[2]));
 
     const std::vector<double>& source_angles = state_entry->state;
@@ -394,7 +327,6 @@ void ManipLattice::GetLazySuccs(
     ROS_DEBUG_NAMED(prm_->expands_log_, "  actions: %zu", actions.size());
 
     int n_goal_succs = 0;
-
     std::vector<int> succ_coord(prm_->num_joints_);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
@@ -415,25 +347,23 @@ void ManipLattice::GetLazySuccs(
 
         const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
         if (succ_is_goal_state) {
-            // update goal state
-            m_goal_entry->coord = succ_coord;
-            m_goal_entry->xyz[0] = endeff[0];
-            m_goal_entry->xyz[1] = endeff[1];
-            m_goal_entry->xyz[2] = endeff[2];
-            m_goal_entry->state = action.back();
-            m_goal_entry->dist = 0.0; //dist; // TODO: cached distance useful for anything?
             ++n_goal_succs;
         }
 
         // check if hash entry already exists, if not then create one
         EnvROBARM3DHashEntry_t* succ_entry;
-        if (!(succ_entry = getHashEntry(succ_coord, succ_is_goal_state))) {
+        if (!(succ_entry = getHashEntry(succ_coord))) {
             succ_entry = createHashEntry(succ_coord, endeff);
             succ_entry->state = action.back();
             succ_entry->dist = 0.0; //dist;
         }
 
-        SuccIDV->push_back(succ_entry->stateID);
+        if (succ_is_goal_state) {
+            SuccIDV->push_back(m_goal_entry->stateID);
+        }
+        else {
+            SuccIDV->push_back(succ_entry->stateID);
+        }
         CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
         isTrueCost->push_back(false);
 
@@ -444,10 +374,7 @@ void ManipLattice::GetLazySuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "        state: %s", to_string(succ_entry->state).c_str());
         ROS_DEBUG_NAMED(prm_->expands_log_, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
         ROS_DEBUG_NAMED(prm_->expands_log_, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)",
-                abs(m_goal_entry->xyz[0] - endeff[0]),
-                abs(m_goal_entry->xyz[1] - endeff[1]),
-                abs(m_goal_entry->xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - endeff[0]), abs(m_goal.xyz[1] - endeff[1]), abs(m_goal.xyz[2] - endeff[2]));
         ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
         ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
         ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
@@ -481,70 +408,64 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         return -1;
     }
 
-    // check actions for validity
+    const bool goal_edge = (child_entry == m_goal_entry);
+
+    size_t num_actions = 0;
+
+    // check actions for validity and find the valid action with the least cost
     std::vector<int> succ_coord(prm_->num_joints_);
+    int best_cost = std::numeric_limits<int>::max();
     for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
         const Action& action = actions[aidx];
+
         anglesToCoord(action.back(), succ_coord);
-        if (succ_coord != child_entry->coord) {
-            continue;
-        }
-
-        std::uint32_t violation_mask = 0x00000000;
-        int path_length = 0;
-        int nchecks = 0;
-        double dist = 0.0;
-
-        // check intermediate states for collisions
-        for (size_t imidx = 0; imidx < action.size(); ++imidx) {
-            const RobotState& istate = action[imidx];
-            ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", imidx, to_string(istate).c_str());
-
-            // check joint limits
-            if (!rmodel_->checkJointLimits(istate)) {
-                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> violates joint limits");
-                return -1;
-            }
-
-            // check for collisions
-            if (!cc_->isStateValid(
-                    istate, prm_->verbose_collisions_, false, dist))
-            {
-                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
-                return -1;
-            }
-        }
-
-        // check for collisions along path from parent to first waypoint
-        if (!cc_->isStateToStateValid(
-                parent_angles, action[0], path_length, nchecks, dist))
-        {
-            ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, path_length);
-            return -1;
-        }
-
-        // check for collisions between waypoints
-        for (size_t j = 1; j < action.size(); ++j) {
-            const RobotState& prev_istate = action[j - 1];
-            const RobotState& curr_istate = action[j];
-            if (!cc_->isStateToStateValid(
-                    prev_istate, curr_istate, path_length, nchecks, dist))
-            {
-                ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, path_length);
-                return -1;
-            }
-        }
 
         std::vector<double> tgt_off_pose;
         if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
             ROS_WARN("Failed to compute FK for planning frame");
-            return -1;
+            continue;
         }
+
+        // check whether this action leads to the child state
+        if (goal_edge) {
+            // skip actions which don't end up at a goal state
+            if (!isGoal(action.back(), tgt_off_pose)) {
+                continue;
+            }
+        }
+        else {
+            // skip actions which don't end up at the child state
+            if (succ_coord != child_entry->coord) {
+                continue;
+            }
+        }
+
+        ROS_DEBUG_NAMED(prm_->expands_log_, "    action %zu:", num_actions++);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints %zu:", action.size());
+
+        double dist;
+        if (!checkAction(parent_angles, action, true, dist)) {
+            continue;
+        }
+
+        // get the unique state
+        EnvROBARM3DHashEntry_t* succ_entry = goal_edge ?
+                getHashEntry(succ_coord) : child_entry;
+        assert(succ_entry);
+
         const bool is_goal = isGoal(action.back(), tgt_off_pose);
-        return cost(parent_entry, child_entry, is_goal);
+        const int edge_cost = cost(parent_entry, succ_entry, is_goal);
+        if (edge_cost < best_cost) {
+            best_cost = edge_cost;
+        }
     }
 
-    return -1;
+    if (best_cost != std::numeric_limits<int>::max()) {
+        return best_cost;
+    }
+    else {
+        return -1;
+    }
 }
 
 void ManipLattice::GetPreds(
@@ -596,14 +517,8 @@ void ManipLattice::printHashTableHist()
 }
 
 EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
-    const std::vector<int>& coord,
-    bool bIsGoal)
+    const std::vector<int>& coord)
 {
-    // if it is goal
-    if (bIsGoal) {
-        return m_goal_entry;
-    }
-
     int binid = getHashBin(coord);
 
 #if DEBUG
@@ -629,11 +544,6 @@ EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
     }
 
     return NULL;
-}
-
-bool ManipLattice::isGoal(int state_id) const
-{
-    return state_id == m_goal_entry->stateID;
 }
 
 bool ManipLattice::computePlanningFrameFK(
@@ -754,8 +664,8 @@ bool ManipLattice::isGoalState(
             if (!m_near_goal) {
                 m_time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
                 m_near_goal = true;
-                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %.4f sec. (after %d expansions)",
-                        pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2], m_time_to_goal_region, (int)m_expanded_states.size());
+                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
+                        pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2], m_time_to_goal_region, m_expanded_states.size());
             }
             const double droll = fabs(angles::shortest_angular_distance(pose[3], goal.tgt_off_pose[3]));
             const double dpitch = fabs(angles::shortest_angular_distance(pose[4], goal.tgt_off_pose[4]));
@@ -846,6 +756,72 @@ int ManipLattice::getActionCost(
     return cost;
 }
 
+bool ManipLattice::checkAction(
+    const RobotState& state,
+    const Action& action,
+    bool debug,
+    double& dist) const
+{
+    std::uint32_t violation_mask = 0x00000000;
+    int plen = 0;
+    int nchecks = 0;
+    dist = 0.0;
+
+    // check intermediate states for collisions
+    for (size_t iidx = 0; iidx < action.size(); ++iidx) {
+        const RobotState& istate = action[iidx];
+        ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        %zu: %s", iidx, to_string(istate).c_str());
+
+        // check joint limits
+        if (!rmodel_->checkJointLimits(istate)) {
+            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> violates joint limits");
+            violation_mask |= 0x00000001;
+            break;
+        }
+
+        // check for collisions
+        if (!cc_->isStateValid(istate, prm_->verbose_collisions_, false, dist))
+        {
+            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+            violation_mask |= 0x00000002;
+            break;
+        }
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    // check for collisions along path from parent to first waypoint
+    if (!cc_->isStateToStateValid(state, action[0], plen, nchecks, dist)) {
+        ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
+        violation_mask |= 0x00000004;
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    // check for collisions between waypoints
+    for (size_t j = 1; j < action.size(); ++j) {
+        const RobotState& prev_istate = action[j - 1];
+        const RobotState& curr_istate = action[j];
+        if (!cc_->isStateToStateValid(
+                prev_istate, curr_istate, plen, nchecks, dist))
+        {
+            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
+            violation_mask |= 0x00000008;
+            break;
+        }
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    return true;
+}
+
 bool ManipLattice::setStartConfiguration(
     const std::vector<double>& angles)
 {
@@ -892,7 +868,7 @@ bool ManipLattice::setStartConfiguration(
     // TODO: check for within grid bounds?
 
     EnvROBARM3DHashEntry_t* start_entry;
-    if (!(start_entry = getHashEntry(start_coord, false))) {
+    if (!(start_entry = getHashEntry(start_coord))) {
         start_entry = createHashEntry(start_coord, endeff);
         start_entry->state = angles;
         start_entry->dist = dist;
@@ -1018,14 +994,10 @@ bool ManipLattice::setGoalPosition(
     m_vpub.publish(goal_markers);
 
     int eexyz[3];
-    grid_->worldToGrid(
-            m_goal.pose[0], m_goal.pose[1], m_goal.pose[2],
-            eexyz[0], eexyz[1], eexyz[2]);
+    grid_->worldToGrid(m_goal.pose.data(), eexyz);
 
     // set goal hash entry
-    grid_->worldToGrid(
-            tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2],
-            m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[2]);
+    grid_->worldToGrid(tgt_off_pose.data(), m_goal.xyz);
 
     for (int i = 0; i < prm_->num_joints_; i++) {
         m_goal_entry->coord[i] = 0;
@@ -1044,64 +1016,32 @@ bool ManipLattice::setGoalPosition(
     return true;
 }
 
-bool ManipLattice::StateID2Angles(
-    int stateID,
-    std::vector<double>& angles) const
-{
-    if (stateID < 0 || stateID >= m_states.size()) {
-        return false;
-    }
-
-    EnvROBARM3DHashEntry_t* HashEntry = m_states[stateID];
-    if (!HashEntry) {
-        return false;
-    }
-
-    if (stateID == m_goal_entry->stateID) {
-//        coordToAngles(m_goal_entry->coord, angles);
-        angles = m_goal_entry->state;
-    }
-    else {
-//        coordToAngles(HashEntry->coord, angles);
-        angles = HashEntry->state;
-    }
-
-    for (size_t i = 0; i < angles.size(); i++) {
-        if (angles[i] >= M_PI) {
-            angles[i] = -2.0 * M_PI + angles[i];
-        }
-    }
-
-    return true;
-}
-
 void ManipLattice::printJointArray(
     FILE* fOut,
     EnvROBARM3DHashEntry_t* HashEntry,
-    bool bGoal,
     bool bVerbose)
 {
     std::vector<double> angles(prm_->num_joints_, 0.0);
 
-    if (bGoal) {
-        coordToAngles(m_goal_entry->coord, angles);
+    std::stringstream ss;
+
+    if (HashEntry->stateID == m_goal_entry->stateID) {
+        ss << "<goal state>";
     }
     else {
         coordToAngles(HashEntry->coord, angles);
-    }
-
-    std::stringstream ss;
-    if (bVerbose) {
-        ss << "angles: ";
-    }
-    ss << "{ ";
-    for (size_t i = 0; i < angles.size(); ++i) {
-        ss << std::setprecision(3) << angles[i];
-        if (i != angles.size() - 1) {
-            ss << ", ";
+        if (bVerbose) {
+            ss << "angles: ";
         }
+        ss << "{ ";
+        for (size_t i = 0; i < angles.size(); ++i) {
+            ss << std::setprecision(3) << angles[i];
+            if (i != angles.size() - 1) {
+                ss << ", ";
+            }
+        }
+        ss << " }";
     }
-    ss << " }";
 
     if (fOut == stdout) {
         ROS_INFO("%s", ss.str().c_str());
@@ -1139,27 +1079,135 @@ void ManipLattice::computeCostPerCell()
 
 bool ManipLattice::extractPath(
     const std::vector<int>& idpath,
-    std::vector<std::vector<double>>& path) const
+    std::vector<std::vector<double>>& path)
 {
-    path.clear();
+    std::vector<std::vector<double>> opath;
 
-    for (int id : idpath) {
+    // attempt to handle paths of length 1...do any of the sbpl planners still
+    // return a single-point path in some cases?
+    if (idpath.size() == 1) {
+        const int state_id = idpath[0];
+
+        if (state_id == getGoalStateID()) {
+            std::vector<double> angles;
+            if (!StateID2Angles(getStartStateID(), angles)) {
+                ROS_ERROR("Failed to get robot state from state id %d", getStartStateID());
+                return false;
+            }
+
+            opath.push_back(std::move(angles));
+        }
+        else {
+            std::vector<double> angles;
+            if (!StateID2Angles(state_id, angles)) {
+                ROS_ERROR("Failed to get robot state from state id %d", state_id);
+                return false;
+            }
+
+            opath.push_back(std::move(angles));
+        }
+
+        return true;
+    }
+
+    if (idpath[0] == getGoalStateID()) {
+        ROS_ERROR("Cannot extract a non-trivial path starting from the goal state");
+        return false;
+    }
+
+    // grab the first point
+    {
         std::vector<double> angles;
-        if (!StateID2Angles(id, angles)) {
-            path.clear();
+        if (!StateID2Angles(idpath[0], angles)) {
+            ROS_ERROR("Failed to get robot state from state id %d", idpath[0]);
+            return false;
+        }
+        opath.push_back(std::move(angles));
+    }
+
+    // grab the rest of the points
+    for (size_t i = 1; i < idpath.size(); ++i) {
+        const int prev_id = idpath[i - 1];
+        const int curr_id = idpath[i];
+
+        if (prev_id == getGoalStateID()) {
+            ROS_ERROR("Cannot determine goal state predecessor state during path extraction");
             return false;
         }
 
-        // TODO: at some point in this planner's life, the distinction needs to
-        // be made between what variables are actually angles, but we'll keep
-        // this for now
-        for (int p = 0; p < prm_->num_joints_; ++p) {
-            angles[p] = angles::normalize_angle(angles[p]);
-        }
+        if (curr_id == getGoalStateID()) {
+            // find the goal state corresponding to the cheapest valid action
 
-        path.push_back(std::move(angles));
+            EnvROBARM3DHashEntry_t* prev_entry = m_states[prev_id];
+            const RobotState& prev_state = prev_entry->state;
+
+            std::vector<Action> actions;
+            if (!as_->getActionSet(prev_state, actions)) {
+                ROS_ERROR("Failed to get actions while extracting the path");
+                return false;
+            }
+
+            EnvROBARM3DHashEntry_t* best_goal_state = nullptr;
+            std::vector<int> succ_coord(prm_->num_joints_);
+            int best_cost = std::numeric_limits<int>::max();
+            for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
+                const Action& action = actions[aidx];
+
+                std::vector<double> tgt_off_pose;
+                if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
+                    ROS_WARN("Failed to compute FK for planning frame");
+                    continue;
+                }
+
+                // skip non-goal states
+                if (!isGoal(action.back(), tgt_off_pose)) {
+                    continue;
+                }
+
+                // check the validity of this transition
+                double dist;
+                if (!checkAction(prev_state, action, false, dist)) {
+                    continue;
+                }
+
+                anglesToCoord(action.back(), succ_coord);
+                EnvROBARM3DHashEntry_t* succ_entry = getHashEntry(succ_coord);
+                assert(succ_entry);
+
+                const int edge_cost = cost(prev_entry, succ_entry, true);
+                if (edge_cost < best_cost) {
+                    best_cost = edge_cost;
+                    best_goal_state = succ_entry;
+                }
+            }
+
+            if (!best_goal_state) {
+                ROS_ERROR("Failed to find valid goal successor during path extraction");
+                return false;
+            }
+
+            opath.push_back(best_goal_state->state);
+        }
+        else {
+            RobotState curr_state;
+            if (!StateID2Angles(curr_id, curr_state)) {
+                ROS_ERROR("Failed to get robot state from state id %d", curr_id);
+                return false;
+            }
+
+            opath.push_back(std::move(curr_state));
+        }
     }
 
+//        // TODO: at some point in this planner's life, the distinction needs to
+//        // be made between what variables are actually angles, but we'll keep
+//        // this for now
+//        for (int p = 0; p < prm_->num_joints_; ++p) {
+//            angles[p] = angles::normalize_angle(angles[p]);
+//        }
+
+    // we made it!
+    path = std::move(opath);
     return true;
 }
 
@@ -1192,8 +1240,7 @@ double ManipLattice::getGoalDistance(const std::vector<double>& pose)
     return getGoalDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
-const EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
-    int state_id) const
+const EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(int state_id) const
 {
     if (state_id < 0 || state_id >= m_states.size()) {
         return nullptr;
@@ -1269,6 +1316,35 @@ void ManipLattice::visualizeState(
         marker.ns = ns;
     }
     m_vpub.publish(ma);
+}
+
+bool ManipLattice::StateID2Angles(
+    int stateID,
+    std::vector<double>& angles) const
+{
+    if (stateID < 0 || stateID >= m_states.size()) {
+        return false;
+    }
+
+    EnvROBARM3DHashEntry_t* HashEntry = m_states[stateID];
+    if (!HashEntry) {
+        return false;
+    }
+
+    if (stateID == m_goal_entry->stateID) {
+        angles = m_goal_entry->state;
+    }
+    else {
+        angles = HashEntry->state;
+    }
+
+    for (size_t i = 0; i < angles.size(); i++) {
+        if (angles[i] >= M_PI) {
+            angles[i] = -2.0 * M_PI + angles[i];
+        }
+    }
+
+    return true;
 }
 
 inline

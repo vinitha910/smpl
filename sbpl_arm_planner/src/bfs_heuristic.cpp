@@ -134,7 +134,7 @@ int BfsHeuristic::GetStartHeuristic(int state_id)
 
 int BfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    if (m_manip_env->isGoal(to_id)) {
+    if (to_id == m_manip_env->getGoalStateID()) {
         return GetGoalHeuristic(from_id);
     }
     else {
