@@ -70,9 +70,21 @@ public:
     void setPlanningJoints(const std::vector<std::string>& joints);
     const std::vector<std::string>& getPlanningJoints() const;
 
-    virtual double minVarLimit(int jidx) const = 0;
-    virtual double maxVarLimit(int jidx) const = 0;
-    virtual bool   hasVarLimit(int jidx) const = 0;
+    /// \brief Return the lower position limit for a joint.
+    virtual double minPosLimit(int jidx) const = 0;
+
+    /// \brief Return the upper position limit for a joint.
+    virtual double maxPosLimit(int jidx) const = 0;
+
+    /// \brief Return whether a joint has position limits
+    virtual bool   hasPosLimit(int jidx) const = 0;
+
+    /// \brief Return the velocity limit for a joint with 0 = unlimited
+    virtual double velLimit(int jidx) const = 0;
+
+    /// \brief Return the acceleration limit for a joint with 0 = unlimited
+    virtual double accLimit(int jidx) const = 0;
+
 
     void setPlanningLink(const std::string& name);
     const std::string& getPlanningLink() const;

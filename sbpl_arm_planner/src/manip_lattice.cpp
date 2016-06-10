@@ -88,9 +88,9 @@ ManipLattice::ManipLattice(
     m_max_limits.resize(prm_->num_joints_);
     m_continuous.resize(prm_->num_joints_);
     for (int jidx = 0; jidx < prm_->num_joints_; ++jidx) {
-        m_min_limits[jidx] = rmodel->minVarLimit(jidx);
-        m_max_limits[jidx] = rmodel->maxVarLimit(jidx);
-        m_continuous[jidx] = rmodel->hasVarLimit(jidx);
+        m_min_limits[jidx] = rmodel->minPosLimit(jidx);
+        m_max_limits[jidx] = rmodel->maxPosLimit(jidx);
+        m_continuous[jidx] = rmodel->hasPosLimit(jidx);
     }
 }
 
