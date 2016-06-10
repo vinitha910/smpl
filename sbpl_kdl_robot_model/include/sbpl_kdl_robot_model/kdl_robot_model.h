@@ -89,9 +89,11 @@ public:
         const KDL::Frame& f,
         const std::string& name);
 
-    virtual double minVarLimit(int jidx) const { return min_limits_[jidx]; }
-    virtual double maxVarLimit(int jidx) const { return max_limits_[jidx]; }
-    virtual bool   hasVarLimit(int jidx) const { return continuous_[jidx]; }
+    virtual double minPosLimit(int jidx) const { return min_limits_[jidx]; }
+    virtual double maxPosLimit(int jidx) const { return max_limits_[jidx]; }
+    virtual bool   hasPosLimit(int jidx) const { return continuous_[jidx]; }
+    virtual double velLimit(int jidx) const { return vel_limits_[jidx]; }
+    virtual double accLimit(int jidx) const { return 0.0; }
 
     /* Joint Limits */
     virtual bool checkJointLimits(
@@ -170,6 +172,8 @@ protected:
     std::vector<bool> continuous_;
     std::vector<double> min_limits_;
     std::vector<double> max_limits_;
+    std::vector<double> vel_limits_;
+    std::vector<double> eff_limits_;
     std::map<std::string, int> joint_map_;
     std::map<std::string, int> link_map_;
 
@@ -177,12 +181,16 @@ protected:
         std::vector<std::string>& joint_names,
         std::vector<double>& min_limits,
         std::vector<double>& max_limits,
-        std::vector<bool>& continuous);
+        std::vector<bool>& continuous,
+        std::vector<double>& vel_limits,
+        std::vector<double>& acc_limits);
     bool getJointLimits(
         std::string joint_name,
         double& min_limit,
         double& max_limit,
-        bool& continuous);
+        bool& continuous,
+        double& vel_limit,
+        double& acc_limit);
     bool getCount(int& count, const int& max_count, const int& min_count);
 };
 

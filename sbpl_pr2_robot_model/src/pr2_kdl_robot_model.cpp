@@ -115,7 +115,14 @@ bool PR2KDLRobotModel::init(
 
     // joint limits
     planning_joints_ = planning_joints;
-    if (!getJointLimits(planning_joints_, min_limits_, max_limits_, continuous_)) {
+    if (!getJointLimits(
+            planning_joints_,
+            min_limits_,
+            max_limits_,
+            continuous_,
+            vel_limits_,
+            eff_limits_))
+    {
         ROS_ERROR("Failed to get the joint limits.");
         return false;
     }
@@ -159,7 +166,15 @@ bool PR2KDLRobotModel::init(
     // initialize rpy solver
     double wrist_min_limit, wrist_max_limit;
     bool wrist_continuous;
-    if (!getJointLimits(wrist_pitch_joint_name_, wrist_min_limit, wrist_max_limit, wrist_continuous)) {
+    double wrist_vel_limit, wrist_eff_limit;
+    if (!getJointLimits(
+            wrist_pitch_joint_name_,
+            wrist_min_limit,
+            wrist_max_limit,
+            wrist_continuous,
+            wrist_vel_limit,
+            wrist_eff_limit))
+    {
         return false;
     }
     rpy_solver_ = new RPYSolver(wrist_min_limit, wrist_max_limit);

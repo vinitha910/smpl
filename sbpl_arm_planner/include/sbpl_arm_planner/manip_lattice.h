@@ -75,6 +75,7 @@ struct GoalConstraint
     double xyz_offset[3];               // offset from the planning link
     double xyz_tolerance[3];            // (x, y, z) tolerance
     double rpy_tolerance[3];            // (R, P, Y) tolerance
+    int xyz[3];                         // planning frame cell (x, y, z)
     GoalType type;                      // type of goal constraint
 };
 
@@ -142,14 +143,12 @@ public:
 
     virtual bool extractPath(
         const std::vector<int>& idpath,
-        std::vector<std::vector<double>>& path) const;
+        std::vector<std::vector<double>>& path);
 
     virtual void convertStateIDPathToShortenedJointAnglesPath(
         const std::vector<int>& idpath,
         std::vector<std::vector<double>>& path,
         std::vector<int>& idpath_short);
-
-    virtual bool StateID2Angles(int stateID, std::vector<double>& angles) const;
 
     RobotModel* getRobotModel() { return rmodel_; }
     CollisionChecker* getCollisionChecker() { return cc_; }
@@ -160,6 +159,9 @@ public:
     int getGoalStateID() const;
 
     /// \brief Return the ID of the start state or -1 if no start has been set.
+    ///
+    /// This returns the reserved id corresponding to all states which are goal
+    /// states and not the state id of any particular unique state.
     int getStartStateID() const;
 
     /// \brief Return the 6-dof goal pose for the tip link.
@@ -198,7 +200,6 @@ public:
     double getGoalDistance(const std::vector<double>& pose);
 
     const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
-    bool isGoal(int state_id) const;
 
     // NOTE: const although RobotModel::computePlanningLinkFK used underneath
     // may not be
@@ -208,34 +209,35 @@ public:
 
     /// \name Reimplemented Public Functions
     ///@{
-    bool InitializeMDPCfg(MDPConfig* MDPCfg);
-    virtual int GetFromToHeuristic(int FromStateID, int ToStateID);
-    virtual int GetGoalHeuristic(int stateID);
-    virtual int GetStartHeuristic(int stateID);
+    virtual bool InitializeMDPCfg(MDPConfig* MDPCfg) override;
+    virtual int GetFromToHeuristic(int FromStateID, int ToStateID) override;
+    virtual int GetGoalHeuristic(int stateID) override;
+    virtual int GetStartHeuristic(int stateID) override;
     virtual void GetSuccs(
         int SourceStateID,
         std::vector<int>* SuccIDV,
-        std::vector<int>* CostV);
+        std::vector<int>* CostV) override;
     virtual void GetLazySuccs(
         int SourceStateID,
         std::vector<int>* SuccIDV,
         std::vector<int>* CostV,
-        std::vector<bool>* isTrueCost);
-    virtual int GetTrueCost(int parentID, int childID);
-    int SizeofCreatedEnv();
-    void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
+        std::vector<bool>* isTrueCost) override;
+    virtual int GetTrueCost(int parentID, int childID) override;
+    virtual int SizeofCreatedEnv() override;
+    virtual void PrintState(
+        int stateID, bool bVerbose, FILE* fOut = NULL) override;
     ///@}
 
     /// \name Reimplemented Public Functions (Unused)
     ///@{
-    virtual bool InitializeEnv(const char* sEnvFile) { return false; }
-    void GetPreds(
+    virtual bool InitializeEnv(const char* sEnvFile) override { return false; }
+    virtual void GetPreds(
         int TargetStateID,
         std::vector<int>* PredIDV,
-        std::vector<int>* CostV);
-    void SetAllActionsandAllOutcomes(CMDPSTATE* state);
-    void SetAllPreds(CMDPSTATE* state);
-    void PrintEnv_Config(FILE* fOut);
+        std::vector<int>* CostV) override;
+    virtual void SetAllActionsandAllOutcomes(CMDPSTATE* state) override;
+    virtual void SetAllPreds(CMDPSTATE* state) override;
+    virtual void PrintEnv_Config(FILE* fOut) override;
     ///@}
 
 protected:
@@ -282,12 +284,12 @@ protected:
 
     bool m_initialized;
 
+    virtual bool StateID2Angles(int stateID, RobotState& angles) const;
+
     /** hash table */
     unsigned int intHash(unsigned int key);
     unsigned int getHashBin(const std::vector<int>& coord);
-    virtual EnvROBARM3DHashEntry_t* getHashEntry(
-        const std::vector<int>& coord,
-        bool bIsGoal);
+    virtual EnvROBARM3DHashEntry_t* getHashEntry(const std::vector<int>& coord);
     virtual EnvROBARM3DHashEntry_t* createHashEntry(
         const std::vector<int>& coord,
         int endeff[3]);
@@ -326,6 +328,13 @@ protected:
         const std::vector<double>& from_config,
         const std::vector<double>& to_config,
         int dist);
+
+    // NOTE: const although CollisionChecker used underneath may not be
+    bool checkAction(
+        const RobotState& state,
+        const Action& action,
+        bool debug,
+        double& dist) const;
     ///@}
 
     /// \name output
@@ -334,7 +343,6 @@ protected:
     void printJointArray(
         FILE* fOut,
         EnvROBARM3DHashEntry_t* HashEntry,
-        bool bGoal,
         bool bVerbose);
     ///@}
 
