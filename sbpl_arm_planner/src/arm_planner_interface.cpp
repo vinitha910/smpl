@@ -1150,10 +1150,44 @@ bool ArmPlannerInterface::reinitLaraPlanner()
 void ArmPlannerInterface::profilePath(
     trajectory_msgs::JointTrajectory& traj) const
 {
-    traj.points[0].time_from_start.fromSec(prm_.waypoint_time_);
-    for (size_t i = 1; i < traj.points.size(); i++) {
-        const double prev_time_s = traj.points[i - 1].time_from_start.toSec();
-        traj.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
+    if (traj.points.empty()) {
+        return;
+    }
+
+    const std::vector<std::string>& joint_names = traj.joint_names;
+
+    for (size_t i = 1; i < traj.points.size(); ++i) {
+        trajectory_msgs::JointTrajectoryPoint& prev_point = traj.points[i - 1];
+        trajectory_msgs::JointTrajectoryPoint& curr_point = traj.points[i];
+
+        // find the maximum distance traveled by any joint
+        // find the time required for each joint to travel to the next waypoint
+        // set the time from the start as the time to get to the previous point
+        //     plus the time required for the slowest joint to reach the waypoint
+
+        double max_time = 0.0;
+        for (size_t jidx = 0; jidx < joint_names.size(); ++jidx) {
+            const double from_pos = prev_point.positions[jidx];
+            const double to_pos = curr_point.positions[jidx];
+            const double vel = rm_->velLimit(jidx);
+            double t = 0.0;
+            if (rm_->hasPosLimit(jidx)) {
+                const double dist = fabs(to_pos - from_pos);
+                t = dist / vel;
+            }
+            else {
+                // use the shortest angular distance
+                const double dist = fabs(angles::shortest_angular_distance(
+                        from_pos, to_pos));
+                t = dist / vel;
+            }
+
+            if (t > max_time) {
+                max_time = t;
+            }
+        }
+
+        curr_point.time_from_start = prev_point.time_from_start + ros::Duration(max_time);
     }
 }
 
@@ -1186,8 +1220,6 @@ void ArmPlannerInterface::postProcessPath(
     traj.header.seq = 0;
     traj.header.stamp = ros::Time::now();
 
-    profilePath(traj);
-
     // shortcut path
     if (prm_.shortcut_path_) {
         trajectory_msgs::JointTrajectory straj;
@@ -1214,6 +1246,8 @@ void ArmPlannerInterface::postProcessPath(
     if (prm_.print_path_) {
         leatherman::printJointTrajectory(traj, "path");
     }
+
+    profilePath(traj);
 }
 
 void ArmPlannerInterface::convertJointVariablePathToJointTrajectory(
