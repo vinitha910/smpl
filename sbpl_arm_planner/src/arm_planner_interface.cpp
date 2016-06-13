@@ -526,7 +526,7 @@ bool ArmPlannerInterface::plan(std::vector<std::vector<double>>& path)
     ros::Duration(1.0).sleep();
     auto bfs_markers = getVisualization("bfs_walls");
 //    auto bfs_markers = getVisualization("bfs_values");
-    ROS_INFO("Publishing BFS visualization with %zu markers", bfs_markers.markers.size());
+    ROS_DEBUG("Publishing BFS visualization with %zu markers", bfs_markers.markers.size());
     m_vpub.publish(bfs_markers);
 
     ROS_WARN("Planning!!!!!");

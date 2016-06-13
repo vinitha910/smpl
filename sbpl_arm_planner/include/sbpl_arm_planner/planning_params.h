@@ -88,10 +88,11 @@ public:
     static const ShortcutType DefaultShortcutType = ShortcutType::JOINT_SPACE;
 
     // logging parameters
-    static const std::string DefaultExpandsLog;
-    static const std::string DefaultIkLog;
     static const std::string DefaultRobotModelLog;
-    static const std::string DefaultCspaceLog;
+    static const std::string DefaultGraphLog;
+    static const std::string DefaultHeuristicLog;
+    static const std::string DefaultExpandsLog;
+    static const std::string DefaultPostProcessingLog;
     static const std::string DefaultSolutionLog;
 
     // TODO: visualization parameters
@@ -156,17 +157,12 @@ public:
     bool verbose_heuristics_;
     bool verbose_collisions_;
 
+    std::string graph_log_;
+    std::string heuristic_log_;
     std::string expands_log_;
-    std::string ik_log_;
     std::string rmodel_log_;
-    std::string cspace_log_;
+    std::string post_processing_log_;
     std::string solution_log_;
-
-    std::string expands_log_level_;
-    std::string ik_log_level_;
-    std::string rmodel_log_level_;
-    std::string cspace_log_level_;
-    std::string solution_log_level_;
     ///@}
 };
 
