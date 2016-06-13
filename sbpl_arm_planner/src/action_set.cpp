@@ -355,8 +355,6 @@ bool ActionSet::getAction(
     const MotionPrimitive& mp,
     std::vector<Action>& actions)
 {
-    std::vector<double> goal = env_->getGoal();
-
     if (!mprimActive(start_dist, goal_dist, mp.type)) {
         return false;
     }
@@ -376,7 +374,7 @@ bool ActionSet::getAction(
     {
         return computeIkAction(
                 parent,
-                goal,
+                env_->getGoal(),
                 goal_dist,
                 ik_option::RESTRICT_XYZ_JOINTS,
                 actions);
@@ -391,7 +389,7 @@ bool ActionSet::getAction(
         if (env_->getGoalConstraints().type != GoalType::JOINT_STATE_GOAL) {
             return computeIkAction(
                     parent,
-                    goal,
+                    env_->getGoal(),
                     goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);

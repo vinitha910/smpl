@@ -653,7 +653,7 @@ void ManipLattice::insertStartObserver(ManipLatticeStartObserver* observer)
 {
     auto it = std::find(
             m_start_observers.begin(), m_start_observers.end(), observer);
-    if (it != m_start_observers.end()) {
+    if (it == m_start_observers.end()) {
         m_start_observers.push_back(observer);
     }
 }
@@ -671,7 +671,7 @@ void ManipLattice::insertGoalObserver(ManipLatticeGoalObserver* observer)
 {
     auto it = std::find(
             m_goal_observers.begin(), m_goal_observers.end(), observer);
-    if (it != m_goal_observers.end()) {
+    if (it == m_goal_observers.end()) {
         m_goal_observers.push_back(observer);
     }
 }
