@@ -51,39 +51,16 @@
 #include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/bfs3d/bfs3d.h>
 #include <sbpl_arm_planner/collision_checker.h>
+#include <sbpl_arm_planner/manip_lattice_observers.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
+#include <sbpl_arm_planner/types.h>
 
 namespace sbpl {
 namespace manip {
 
 class ManipHeuristic;
-
-enum GoalType
-{
-    INVALID_GOAL_TYPE = -1,
-    XYZ_GOAL,
-    XYZ_RPY_GOAL,
-    NUMBER_OF_GOAL_TYPES
-};
-
-struct GoalConstraint
-{
-    std::vector<double> pose;           // goal pose of the planning link
-    std::vector<double> tgt_off_pose;   // goal pose offset from planning link
-    double xyz_offset[3];               // offset from the planning link
-    double xyz_tolerance[3];            // (x, y, z) tolerance
-    double rpy_tolerance[3];            // (R, P, Y) tolerance
-    int xyz[3];                         // planning frame cell (x, y, z)
-    GoalType type;                      // type of goal constraint
-};
-
-struct GoalConstraint7DOF
-{
-    std::vector<double> angles;
-    std::vector<double> angle_tolerances;
-};
 
 struct EnvROBARM3DHashEntry_t
 {
@@ -110,6 +87,11 @@ public:
     ~ManipLattice();
 
     bool initEnvironment(ManipHeuristic* heur);
+
+    void insertStartObserver(ManipLatticeStartObserver* observer);
+    void removeStartObserver(ManipLatticeStartObserver* observer);
+    void insertGoalObserver(ManipLatticeGoalObserver* observer);
+    void removeGoalObserver(ManipLatticeGoalObserver* observer);
 
     virtual bool setStartConfiguration(const std::vector<double>& angles);
 
@@ -153,7 +135,6 @@ public:
     RobotModel* getRobotModel() { return rmodel_; }
     CollisionChecker* getCollisionChecker() { return cc_; }
     ros::Publisher& visualizationPublisher() { return m_vpub; }
-    bool use7DOFGoal() const { return m_use_7dof_goal; }
 
     /// \brief Return the ID of the goal state or -1 if no goal has been set.
     int getGoalStateID() const;
@@ -175,15 +156,13 @@ public:
     std::vector<double> getTargetOffsetPose(
         const std::vector<double>& tip_pose) const;
 
-    const GoalConstraint& getCartesianGoal() const;
+    const GoalConstraint& getGoalConstraints() const;
 
     /// \brief Return the full joint configuration goal.
     ///
     /// Return the full joint configuration goal, as last set by
     /// setGoalConfiguration().
     std::vector<double> getGoalConfiguration() const;
-
-    const GoalConstraint7DOF& getJointGoal() const;
 
     std::vector<double> getStartConfiguration() const;
 
@@ -242,6 +221,9 @@ public:
 
 protected:
 
+    std::vector<ManipLatticeStartObserver*> m_start_observers;
+    std::vector<ManipLatticeGoalObserver*> m_goal_observers;
+
     // Context Interfaces
     OccupancyGrid* grid_;
     RobotModel* rmodel_;
@@ -261,10 +243,7 @@ protected:
     clock_t m_t_start;
     double m_time_to_goal_region;
 
-    bool m_use_7dof_goal;
-
     GoalConstraint m_goal;
-    GoalConstraint7DOF m_goal_7dof;
 
     EnvROBARM3DHashEntry_t* m_goal_entry;
     EnvROBARM3DHashEntry_t* m_start_entry;
@@ -306,12 +285,6 @@ protected:
 
     /// \name planning
     ///@{
-    virtual bool isGoalState(
-        const std::vector<double>& pose,
-        GoalConstraint& goal);
-    virtual bool isGoalState(
-        const std::vector<double>& angles,
-        GoalConstraint7DOF& goal);
     virtual bool isGoal(
         const std::vector<double>& angles,
         const std::vector<double>& pose);

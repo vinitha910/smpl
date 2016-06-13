@@ -370,7 +370,7 @@ bool ActionSet::getAction(
     }
     case MotionPrimitive::SNAP_TO_XYZ_RPY:
     {
-        if (!env_->use7DOFGoal()) {
+        if (env_->getGoalConstraints().type != GoalType::JOINT_STATE_GOAL) {
             return computeIkAction(
                     parent,
                     goal,

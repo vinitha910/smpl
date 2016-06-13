@@ -69,9 +69,7 @@ ManipLattice::ManipLattice(
     m_near_goal(false),
     m_t_start(),
     m_time_to_goal_region(),
-    m_use_7dof_goal(false),
     m_goal(),
-    m_goal_7dof(),
     m_goal_entry(nullptr),
     m_start_entry(nullptr),
     m_HashTableSize(32 * 1024),
@@ -651,71 +649,97 @@ bool ManipLattice::initEnvironment(ManipHeuristic* heur)
     return true;
 }
 
-bool ManipLattice::isGoalState(
-    const std::vector<double>& pose, // tgt_off_pose
-    GoalConstraint& goal)
+void ManipLattice::insertStartObserver(ManipLatticeStartObserver* observer)
 {
-    if (goal.type == XYZ_RPY_GOAL) {
-        if (fabs(pose[0] - goal.tgt_off_pose[0]) <= goal.xyz_tolerance[0] &&
-            fabs(pose[1] - goal.tgt_off_pose[1]) <= goal.xyz_tolerance[1] &&
-            fabs(pose[2] - goal.tgt_off_pose[2]) <= goal.xyz_tolerance[2])
-        {
-            // log the amount of time required for the search to get close to the goal
-            if (!m_near_goal) {
-                m_time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
-                m_near_goal = true;
-                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
-                        pose[0], pose[1], pose[2], goal.xyz_tolerance[0], goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2], m_time_to_goal_region, m_expanded_states.size());
-            }
-            const double droll = fabs(angles::shortest_angular_distance(pose[3], goal.tgt_off_pose[3]));
-            const double dpitch = fabs(angles::shortest_angular_distance(pose[4], goal.tgt_off_pose[4]));
-            const double dyaw = fabs(angles::shortest_angular_distance(pose[5], goal.tgt_off_pose[5]));
-            ROS_DEBUG("Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
-            if (droll < goal.rpy_tolerance[0] &&
-                dpitch < goal.rpy_tolerance[1] &&
-                dyaw < goal.rpy_tolerance[2])
-            {
-                return true;
-            }
-        }
+    auto it = std::find(
+            m_start_observers.begin(), m_start_observers.end(), observer);
+    if (it != m_start_observers.end()) {
+        m_start_observers.push_back(observer);
     }
-    else if (goal.type == XYZ_GOAL) {
-        if (fabs(pose[0] - goal.tgt_off_pose[0]) <= goal.xyz_tolerance[0] &&
-            fabs(pose[1] - goal.tgt_off_pose[1]) <= goal.xyz_tolerance[1] &&
-            fabs(pose[2] - goal.tgt_off_pose[2]) <= goal.xyz_tolerance[2])
-        {
-            return true;
-        }
-    }
-    else {
-        ROS_ERROR("Unknown goal type.");
-    }
-
-    return false;
 }
 
-bool ManipLattice::isGoalState(
-    const std::vector<double>& angles,
-    GoalConstraint7DOF& goal)
+void ManipLattice::removeStartObserver(ManipLatticeStartObserver* observer)
 {
-    if (!m_use_7dof_goal) {
-        SBPL_WARN("using 7dof isGoalState checking, but not using 7dof goal!");
+    auto it = std::find(
+            m_start_observers.begin(), m_start_observers.end(), observer);
+    if (it != m_start_observers.end()) {
+        m_start_observers.erase(it);
     }
+}
 
-    for (int i = 0; i < goal.angles.size(); i++) {
-        if (fabs(angles[i] - goal.angles[i]) > goal.angle_tolerances[i]) {
-            return false;
-        }
+void ManipLattice::insertGoalObserver(ManipLatticeGoalObserver* observer)
+{
+    auto it = std::find(
+            m_goal_observers.begin(), m_goal_observers.end(), observer);
+    if (it != m_goal_observers.end()) {
+        m_goal_observers.push_back(observer);
     }
-    return true;
+}
+
+void ManipLattice::removeGoalObserver(ManipLatticeGoalObserver* observer)
+{
+    auto it = std::find(
+            m_goal_observers.begin(), m_goal_observers.end(), observer);
+    if (it != m_goal_observers.end()) {
+        m_goal_observers.erase(it);
+    }
 }
 
 bool ManipLattice::isGoal(
     const std::vector<double>& angles,
     const std::vector<double>& pose)
 {
-    return (!m_use_7dof_goal && isGoalState(pose, m_goal)) ||
-            (m_use_7dof_goal && isGoalState(angles, m_goal_7dof));
+    switch (m_goal.type) {
+    case GoalType::JOINT_STATE_GOAL:
+    {
+        for (int i = 0; i < m_goal.angles.size(); i++) {
+            if (fabs(angles[i] - m_goal.angles[i]) > m_goal.angle_tolerances[i]) {
+                return false;
+            }
+        }
+        return true;
+    }   break;
+    case GoalType::XYZ_RPY_GOAL:
+    {
+        if (fabs(pose[0] - m_goal.tgt_off_pose[0]) <= m_goal.xyz_tolerance[0] &&
+            fabs(pose[1] - m_goal.tgt_off_pose[1]) <= m_goal.xyz_tolerance[1] &&
+            fabs(pose[2] - m_goal.tgt_off_pose[2]) <= m_goal.xyz_tolerance[2])
+        {
+            // log the amount of time required for the search to get close to the goal
+            if (!m_near_goal) {
+                m_time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
+                m_near_goal = true;
+                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
+                        pose[0], pose[1], pose[2], m_goal.xyz_tolerance[0], m_goal.tgt_off_pose[0], m_goal.tgt_off_pose[1], m_goal.tgt_off_pose[2], m_time_to_goal_region, m_expanded_states.size());
+            }
+            const double droll = fabs(angles::shortest_angular_distance(pose[3], m_goal.tgt_off_pose[3]));
+            const double dpitch = fabs(angles::shortest_angular_distance(pose[4], m_goal.tgt_off_pose[4]));
+            const double dyaw = fabs(angles::shortest_angular_distance(pose[5], m_goal.tgt_off_pose[5]));
+            ROS_DEBUG("Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
+            if (droll < m_goal.rpy_tolerance[0] &&
+                dpitch < m_goal.rpy_tolerance[1] &&
+                dyaw < m_goal.rpy_tolerance[2])
+            {
+                return true;
+            }
+        }
+    }   break;
+    case GoalType::XYZ_GOAL:
+    {
+        if (fabs(pose[0] - m_goal.tgt_off_pose[0]) <= m_goal.xyz_tolerance[0] &&
+            fabs(pose[1] - m_goal.tgt_off_pose[1]) <= m_goal.xyz_tolerance[1] &&
+            fabs(pose[2] - m_goal.tgt_off_pose[2]) <= m_goal.xyz_tolerance[2])
+        {
+            return true;
+        }
+    }   break;
+    default:
+    {
+        ROS_ERROR("Unknown goal type.");
+    }   break;
+    }
+
+    return false;
 }
 
 int ManipLattice::getActionCost(
@@ -908,9 +932,13 @@ bool ManipLattice::setGoalConfiguration(
     }
 
     // fill in m_goal
-    m_goal_7dof.angles = goal;
-    m_goal_7dof.angle_tolerances = goal_tolerances;
-    m_use_7dof_goal = true;
+    m_goal.angles = goal;
+    m_goal.angle_tolerances = goal_tolerances;
+    m_goal.type = GoalType::JOINT_STATE_GOAL;
+
+    for (auto observer : m_goal_observers) {
+        observer->updateGoal(m_goal);
+    }
     return true;
 }
 
@@ -962,8 +990,6 @@ bool ManipLattice::setGoalPosition(
         }
     }
 
-    m_use_7dof_goal = false;
-
     m_goal.pose.resize(6, 0.0);
     m_goal.pose[0] = goals[0][0];
     m_goal.pose[1] = goals[0][1];
@@ -1013,6 +1039,10 @@ bool ManipLattice::setGoalPosition(
 
     m_near_goal = false;
     m_t_start = clock();
+
+    for (auto observer : m_goal_observers) {
+        observer->updateGoal(m_goal);
+    }
     return true;
 }
 
@@ -1281,19 +1311,14 @@ std::vector<double> ManipLattice::getTargetOffsetPose(
     return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
 }
 
-const GoalConstraint& ManipLattice::getCartesianGoal() const
+const GoalConstraint& ManipLattice::getGoalConstraints() const
 {
     return m_goal;
 }
 
 std::vector<double> ManipLattice::getGoalConfiguration() const
 {
-    return m_goal_7dof.angles;
-}
-
-const GoalConstraint7DOF& ManipLattice::getJointGoal() const
-{
-    return m_goal_7dof;
+    return m_goal.angles;
 }
 
 std::vector<double> ManipLattice::getStartConfiguration() const

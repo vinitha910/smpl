@@ -376,7 +376,7 @@ bool ArmPlannerInterface::setGoalConfiguration(
     ROS_INFO("Setting goal configuration");
 
     std::vector<double> sbpl_angle_goal(7, 0);
-    std::vector<double> sbpl_angle_tolerance(7,0.05); //~3 degrees tolerance by default
+    std::vector<double> sbpl_angle_tolerance(7, 0.05); //~3 degrees tolerance by default
 
     if (goal_constraints.joint_constraints.size() < 7) {
         ROS_WARN("All 7 arm joint constraints must be specified for goal!");
@@ -448,7 +448,7 @@ bool ArmPlannerInterface::setGoalPosition(
     leatherman::getRPY(goal_pose.orientation, sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
 
     // true => 6-dof goal, false => 3-dof
-    sbpl_goal[6] = (double)((int)XYZ_RPY_GOAL);
+    sbpl_goal[6] = (double)((int)GoalType::XYZ_RPY_GOAL);
 
     std::vector<double> sbpl_goal_offset(3, 0.0);
     sbpl_goal_offset[0] = offset.x;
@@ -477,7 +477,7 @@ bool ArmPlannerInterface::setGoalPosition(
             if (!bheur) {
                 continue;
             }
-            if (!bheur->setGoal(sbpl_arm_env_->getCartesianGoal())) {
+            if (!bheur->setGoal(sbpl_arm_env_->getGoalConstraints())) {
                 ROS_ERROR("Failed to set heuristic goal");
             }
         }
@@ -498,7 +498,7 @@ bool ArmPlannerInterface::setGoalPosition(
             sbpl_arm_env_->getTargetOffsetPose(sbpl_goals[0]);
 
     // set sbpl heuristic goal
-    if (!m_heur->setGoal(sbpl_arm_env_->getCartesianGoal())) {
+    if (!m_heur->setGoal(sbpl_arm_env_->getGoalConstraints())) {
         ROS_ERROR("Failed to set goal for the heuristic");
         return false;
     }
