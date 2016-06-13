@@ -49,6 +49,7 @@
 // project includes
 #include <sbpl_arm_planner/motion_primitive.h>
 #include <sbpl_arm_planner/robot_model.h>
+#include <sbpl_arm_planner/manip_lattice_observers.h>
 
 namespace sbpl {
 namespace manip {
@@ -59,7 +60,9 @@ class ActionSet;
 typedef std::shared_ptr<ActionSet> ActionSetPtr;
 typedef std::shared_ptr<ActionSet> ActionSetConstPtr;
 
-class ActionSet
+class ActionSet :
+    public ManipLatticeStartObserver,
+    public ManipLatticeGoalObserver
 {
 public:
 
@@ -70,6 +73,7 @@ public:
     static const double DefaultAmpThreshold;
 
     ActionSet();
+    virtual ~ActionSet();
 
     bool init(ManipLattice* env, bool use_multiple_ik_solutions = false);
 
@@ -103,6 +107,12 @@ public:
     bool getActionSet(const RobotState& parent, std::vector<Action>& actions);
 
     void print() const;
+
+    /// \name Reimplemented Public Functions
+    ///@{
+    void updateStart(const RobotState& start) override;
+    void updateGoal(const GoalConstraint& goal) override;
+    ///@}
 
 protected:
 

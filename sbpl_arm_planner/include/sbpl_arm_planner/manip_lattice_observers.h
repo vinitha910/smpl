@@ -46,7 +46,7 @@ public:
 
     virtual ~ManipLatticeGoalObserver() { }
 
-    virtual bool updateGoal(const GoalConstraint& goal) { return true; }
+    virtual void updateGoal(const GoalConstraint& goal) { }
 };
 
 class ManipLatticeStartObserver
@@ -55,7 +55,7 @@ public:
 
     virtual ~ManipLatticeStartObserver() { }
 
-    virtual bool updateStart(const RobotState& angles) { return true; }
+    virtual void updateStart(const RobotState& angles) { }
 };
 
 } // namespace manip

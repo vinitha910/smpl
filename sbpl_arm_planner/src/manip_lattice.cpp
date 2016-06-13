@@ -846,8 +846,7 @@ bool ManipLattice::checkAction(
     return true;
 }
 
-bool ManipLattice::setStartConfiguration(
-    const std::vector<double>& angles)
+bool ManipLattice::setStartConfiguration(const RobotState& angles)
 {
     ROS_INFO("Setting the start state");
 
@@ -900,6 +899,10 @@ bool ManipLattice::setStartConfiguration(
 
     m_start_entry = start_entry;
 
+    for (auto obs : m_start_observers) {
+        obs->updateStart(angles);
+    }
+
     return true;
 }
 
@@ -936,8 +939,8 @@ bool ManipLattice::setGoalConfiguration(
     m_goal.angle_tolerances = goal_tolerances;
     m_goal.type = GoalType::JOINT_STATE_GOAL;
 
-    for (auto observer : m_goal_observers) {
-        observer->updateGoal(m_goal);
+    for (auto obs : m_goal_observers) {
+        obs->updateGoal(m_goal);
     }
     return true;
 }
@@ -1040,9 +1043,10 @@ bool ManipLattice::setGoalPosition(
     m_near_goal = false;
     m_t_start = clock();
 
-    for (auto observer : m_goal_observers) {
-        observer->updateGoal(m_goal);
+    for (auto obs : m_goal_observers) {
+        obs->updateGoal(m_goal);
     }
+
     return true;
 }
 

@@ -141,10 +141,13 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
 const double ActionSet::DefaultAmpThreshold = 0.2;
 
 ActionSet::ActionSet() :
+    ManipLatticeStartObserver(),
+    ManipLatticeGoalObserver(),
     mp_(),
     m_mprim_enabled(),
     m_mprim_thresh(),
-    use_multiple_ik_solutions_(false)
+    use_multiple_ik_solutions_(false),
+    env_(nullptr)
 {
     clear();
 }
@@ -156,8 +159,18 @@ bool ActionSet::init(ManipLattice* env, bool use_multiple_ik_solutions)
     }
 
     env_ = env;
+    env_->insertStartObserver(this);
+    env_->insertGoalObserver(this);
     use_multiple_ik_solutions_ = use_multiple_ik_solutions;
     return true;
+}
+
+ActionSet::~ActionSet()
+{
+    if (env_) {
+        env_->removeStartObserver(this);
+        env_->removeGoalObserver(this);
+    }
 }
 
 void ActionSet::addMotionPrim(
@@ -294,6 +307,16 @@ void ActionSet::print() const
     for (size_t i = 0; i < mp_.size(); ++i) {
         mp_[i].print();
     }
+}
+
+void ActionSet::updateStart(const RobotState& start)
+{
+    ManipLatticeStartObserver::updateStart(start);
+}
+
+void ActionSet::updateGoal(const GoalConstraint& goal)
+{
+    ManipLatticeGoalObserver::updateGoal(goal);
 }
 
 bool ActionSet::getActionSet(

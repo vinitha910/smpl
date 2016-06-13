@@ -93,7 +93,7 @@ public:
     void insertGoalObserver(ManipLatticeGoalObserver* observer);
     void removeGoalObserver(ManipLatticeGoalObserver* observer);
 
-    virtual bool setStartConfiguration(const std::vector<double>& angles);
+    virtual bool setStartConfiguration(const RobotState& angles);
 
     /// \brief Set a 6-dof goal pose for the tip link.
     ///
