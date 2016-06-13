@@ -110,8 +110,8 @@ public:
 
     /// \name Reimplemented Public Functions
     ///@{
-    void updateStart(const RobotState& start) override;
-    void updateGoal(const GoalConstraint& goal) override;
+    virtual void updateStart(const RobotState& start) override;
+    virtual void updateGoal(const GoalConstraint& goal) override;
     ///@}
 
 protected:
@@ -139,7 +139,7 @@ protected:
         ik_option::IkOption option,
         std::vector<Action>& actions);
 
-    bool getAction(
+    virtual bool getAction(
         const RobotState& parent,
         double goal_dist,
         double start_dist,
