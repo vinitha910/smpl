@@ -89,7 +89,6 @@ public:
 
     // logging parameters
     static const std::string DefaultExpandsLog;
-    static const std::string DefaultExpands2Log;
     static const std::string DefaultIkLog;
     static const std::string DefaultRobotModelLog;
     static const std::string DefaultCspaceLog;
@@ -158,14 +157,12 @@ public:
     bool verbose_collisions_;
 
     std::string expands_log_;
-    std::string expands2_log_;
     std::string ik_log_;
     std::string rmodel_log_;
     std::string cspace_log_;
     std::string solution_log_;
 
     std::string expands_log_level_;
-    std::string expands2_log_level_;
     std::string ik_log_level_;
     std::string rmodel_log_level_;
     std::string cspace_log_level_;

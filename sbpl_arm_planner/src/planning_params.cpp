@@ -40,7 +40,6 @@ namespace sbpl {
 namespace manip {
 
 const std::string PlanningParams::DefaultExpandsLog = "info";
-const std::string PlanningParams::DefaultExpands2Log = "info";
 const std::string PlanningParams::DefaultIkLog = "info";
 const std::string PlanningParams::DefaultRobotModelLog = "info";
 const std::string PlanningParams::DefaultCspaceLog = "info";
@@ -93,13 +92,11 @@ PlanningParams::PlanningParams() :
     verbose_heuristics_(false),
     verbose_collisions_(false),
     expands_log_("expands"),
-    expands2_log_("expands2"),
     ik_log_("ik"),
     rmodel_log_("arm"),
     cspace_log_("cspace"),
     solution_log_("solution"),
     expands_log_level_(DefaultExpandsLog),
-    expands2_log_level_(DefaultExpands2Log),
     ik_log_level_(DefaultIkLog),
     rmodel_log_level_(DefaultRobotModelLog),
     cspace_log_level_(DefaultCspaceLog),
@@ -129,7 +126,6 @@ bool PlanningParams::init(const std::string& ns)
     /* logging */
     nh.param ("debug/print_out_path", print_path_, true);
     nh.param<std::string>("debug/logging/expands", expands_log_level_, "info");
-    nh.param<std::string>("debug/logging/expands2", expands2_log_level_, "info");
     nh.param<std::string>("debug/logging/ik", ik_log_level_, "info");
     nh.param<std::string>("debug/logging/robot_model", rmodel_log_level_, "info");
     nh.param<std::string>("/debug/logging/collisions", cspace_log_level_, "info");
@@ -170,7 +166,6 @@ bool PlanningParams::init(const std::string& ns)
     }
 
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + expands_log_, expands_log_level_);
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + expands2_log_, expands2_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + solution_log_, solution_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + ik_log_, ik_log_level_);
     leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + rmodel_log_, rmodel_log_level_);
