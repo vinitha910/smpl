@@ -803,13 +803,20 @@ bool ManipLattice::checkAction(
             break;
         }
 
-        // check for collisions
-        if (!cc_->isStateValid(istate, prm_->verbose_collisions_, false, dist))
-        {
-            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
-            violation_mask |= 0x00000002;
-            break;
-        }
+        // TODO/NOTE: this can result in an unnecessary number of collision
+        // checks per each action; leaving commented here as it might hint at
+        // an optimization where actions are checked at a coarse resolution as
+        // a way of speeding up overall collision checking; in that case, the
+        // isStateToStateValid function on CollisionChecker would have semantics
+        // meaning "collision check a waypoint path without including the
+        // endpoints".
+//        // check for collisions
+//        if (!cc_->isStateValid(istate, prm_->verbose_collisions_, false, dist))
+//        {
+//            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+//            violation_mask |= 0x00000002;
+//            break;
+//        }
     }
 
     if (violation_mask) {
