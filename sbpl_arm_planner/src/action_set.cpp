@@ -141,10 +141,13 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
 const double ActionSet::DefaultAmpThreshold = 0.2;
 
 ActionSet::ActionSet() :
+    ManipLatticeStartObserver(),
+    ManipLatticeGoalObserver(),
     mp_(),
     m_mprim_enabled(),
     m_mprim_thresh(),
-    use_multiple_ik_solutions_(false)
+    use_multiple_ik_solutions_(false),
+    env_(nullptr)
 {
     clear();
 }
@@ -156,8 +159,18 @@ bool ActionSet::init(ManipLattice* env, bool use_multiple_ik_solutions)
     }
 
     env_ = env;
+    env_->insertStartObserver(this);
+    env_->insertGoalObserver(this);
     use_multiple_ik_solutions_ = use_multiple_ik_solutions;
     return true;
+}
+
+ActionSet::~ActionSet()
+{
+    if (env_) {
+        env_->removeStartObserver(this);
+        env_->removeGoalObserver(this);
+    }
 }
 
 void ActionSet::addMotionPrim(
@@ -174,7 +187,6 @@ void ActionSet::addMotionPrim(
         m.type = MotionPrimitive::LONG_DISTANCE;
     }
 
-    m.id =  mp_.size();
     m.action.push_back(mprim);
     mp_.push_back(m);
 
@@ -188,7 +200,6 @@ void ActionSet::addMotionPrim(
             }
         }
         m.action = a;
-        m.id =  mp_.size();
         mp_.push_back(m);
     }
 }
@@ -201,17 +212,14 @@ void ActionSet::clear()
     MotionPrimitive mprim;
 
     mprim.type = MotionPrimitive::SNAP_TO_RPY;
-    mprim.id = 0;
     mprim.action.clear();
     mp_.push_back(mprim);
 
     mprim.type = MotionPrimitive::SNAP_TO_XYZ;
-    mprim.id = 1;
     mprim.action.clear();
     mp_.push_back(mprim);
 
     mprim.type = MotionPrimitive::SNAP_TO_XYZ_RPY;
-    mprim.id = 2;
     mprim.action.clear();
     mp_.push_back(mprim);
 
@@ -301,6 +309,16 @@ void ActionSet::print() const
     }
 }
 
+void ActionSet::updateStart(const RobotState& start)
+{
+    ManipLatticeStartObserver::updateStart(start);
+}
+
+void ActionSet::updateGoal(const GoalConstraint& goal)
+{
+    ManipLatticeGoalObserver::updateGoal(goal);
+}
+
 bool ActionSet::getActionSet(
     const RobotState& parent,
     std::vector<Action>& actions)
@@ -337,8 +355,6 @@ bool ActionSet::getAction(
     const MotionPrimitive& mp,
     std::vector<Action>& actions)
 {
-    std::vector<double> goal = env_->getGoal();
-
     if (!mprimActive(start_dist, goal_dist, mp.type)) {
         return false;
     }
@@ -358,7 +374,7 @@ bool ActionSet::getAction(
     {
         return computeIkAction(
                 parent,
-                goal,
+                env_->getGoal(),
                 goal_dist,
                 ik_option::RESTRICT_XYZ_JOINTS,
                 actions);
@@ -370,10 +386,10 @@ bool ActionSet::getAction(
     }
     case MotionPrimitive::SNAP_TO_XYZ_RPY:
     {
-        if (!env_->use7DOFGoal()) {
+        if (env_->getGoalConstraints().type != GoalType::JOINT_STATE_GOAL) {
             return computeIkAction(
                     parent,
-                    goal,
+                    env_->getGoal(),
                     goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);

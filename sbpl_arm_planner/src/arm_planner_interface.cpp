@@ -376,7 +376,7 @@ bool ArmPlannerInterface::setGoalConfiguration(
     ROS_INFO("Setting goal configuration");
 
     std::vector<double> sbpl_angle_goal(7, 0);
-    std::vector<double> sbpl_angle_tolerance(7,0.05); //~3 degrees tolerance by default
+    std::vector<double> sbpl_angle_tolerance(7, 0.05); //~3 degrees tolerance by default
 
     if (goal_constraints.joint_constraints.size() < 7) {
         ROS_WARN("All 7 arm joint constraints must be specified for goal!");
@@ -448,7 +448,7 @@ bool ArmPlannerInterface::setGoalPosition(
     leatherman::getRPY(goal_pose.orientation, sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
 
     // true => 6-dof goal, false => 3-dof
-    sbpl_goal[6] = (double)((int)XYZ_RPY_GOAL);
+    sbpl_goal[6] = (double)((int)GoalType::XYZ_RPY_GOAL);
 
     std::vector<double> sbpl_goal_offset(3, 0.0);
     sbpl_goal_offset[0] = offset.x;
@@ -477,7 +477,7 @@ bool ArmPlannerInterface::setGoalPosition(
             if (!bheur) {
                 continue;
             }
-            if (!bheur->setGoal(sbpl_arm_env_->getCartesianGoal())) {
+            if (!bheur->setGoal(sbpl_arm_env_->getGoalConstraints())) {
                 ROS_ERROR("Failed to set heuristic goal");
             }
         }
@@ -498,7 +498,7 @@ bool ArmPlannerInterface::setGoalPosition(
             sbpl_arm_env_->getTargetOffsetPose(sbpl_goals[0]);
 
     // set sbpl heuristic goal
-    if (!m_heur->setGoal(sbpl_arm_env_->getCartesianGoal())) {
+    if (!m_heur->setGoal(sbpl_arm_env_->getGoalConstraints())) {
         ROS_ERROR("Failed to set goal for the heuristic");
         return false;
     }
@@ -1150,10 +1150,44 @@ bool ArmPlannerInterface::reinitLaraPlanner()
 void ArmPlannerInterface::profilePath(
     trajectory_msgs::JointTrajectory& traj) const
 {
-    traj.points[0].time_from_start.fromSec(prm_.waypoint_time_);
-    for (size_t i = 1; i < traj.points.size(); i++) {
-        const double prev_time_s = traj.points[i - 1].time_from_start.toSec();
-        traj.points[i].time_from_start.fromSec(prev_time_s + prm_.waypoint_time_);
+    if (traj.points.empty()) {
+        return;
+    }
+
+    const std::vector<std::string>& joint_names = traj.joint_names;
+
+    for (size_t i = 1; i < traj.points.size(); ++i) {
+        trajectory_msgs::JointTrajectoryPoint& prev_point = traj.points[i - 1];
+        trajectory_msgs::JointTrajectoryPoint& curr_point = traj.points[i];
+
+        // find the maximum distance traveled by any joint
+        // find the time required for each joint to travel to the next waypoint
+        // set the time from the start as the time to get to the previous point
+        //     plus the time required for the slowest joint to reach the waypoint
+
+        double max_time = 0.0;
+        for (size_t jidx = 0; jidx < joint_names.size(); ++jidx) {
+            const double from_pos = prev_point.positions[jidx];
+            const double to_pos = curr_point.positions[jidx];
+            const double vel = rm_->velLimit(jidx);
+            double t = 0.0;
+            if (rm_->hasPosLimit(jidx)) {
+                const double dist = fabs(to_pos - from_pos);
+                t = dist / vel;
+            }
+            else {
+                // use the shortest angular distance
+                const double dist = fabs(angles::shortest_angular_distance(
+                        from_pos, to_pos));
+                t = dist / vel;
+            }
+
+            if (t > max_time) {
+                max_time = t;
+            }
+        }
+
+        curr_point.time_from_start = prev_point.time_from_start + ros::Duration(max_time);
     }
 }
 
@@ -1186,8 +1220,6 @@ void ArmPlannerInterface::postProcessPath(
     traj.header.seq = 0;
     traj.header.stamp = ros::Time::now();
 
-    profilePath(traj);
-
     // shortcut path
     if (prm_.shortcut_path_) {
         trajectory_msgs::JointTrajectory straj;
@@ -1214,6 +1246,8 @@ void ArmPlannerInterface::postProcessPath(
     if (prm_.print_path_) {
         leatherman::printJointTrajectory(traj, "path");
     }
+
+    profilePath(traj);
 }
 
 void ArmPlannerInterface::convertJointVariablePathToJointTrajectory(

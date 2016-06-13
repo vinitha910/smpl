@@ -335,7 +335,6 @@ bool InterpolateTrajectory(
         for (size_t j = 0; j < path[i].size(); ++j) {
             traj_out[i].positions[j] = path[i][j];
         }
-        traj_out[i].time_from_start.fromSec(double(i+1) * (traj.back().time_from_start.toSec()/double(path.size())));
     }
     ROS_INFO("Original path length: %d   Interpolated path length: %d", int(traj.size()), int(traj_out.size()));
     return true;
