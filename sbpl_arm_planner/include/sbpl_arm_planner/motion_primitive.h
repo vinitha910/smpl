@@ -60,7 +60,6 @@ struct MotionPrimitive
     };
 
     Type type;
-    int id;
     Action action;
 
     void print() const;
@@ -99,7 +98,7 @@ std::string to_string(MotionPrimitive::Type type)
 inline
 void MotionPrimitive::print() const
 {
-    ROS_INFO("type: %d  id: %d  nsteps: %d ", type, id, int(action.size()));
+    ROS_INFO("type: %d  nsteps: %d ", type, int(action.size()));
     std::stringstream os;
     for (std::size_t j = 0; j < action.size(); ++j) {
         os.str("");

@@ -174,7 +174,6 @@ void ActionSet::addMotionPrim(
         m.type = MotionPrimitive::LONG_DISTANCE;
     }
 
-    m.id =  mp_.size();
     m.action.push_back(mprim);
     mp_.push_back(m);
 
@@ -188,7 +187,6 @@ void ActionSet::addMotionPrim(
             }
         }
         m.action = a;
-        m.id =  mp_.size();
         mp_.push_back(m);
     }
 }
@@ -201,17 +199,14 @@ void ActionSet::clear()
     MotionPrimitive mprim;
 
     mprim.type = MotionPrimitive::SNAP_TO_RPY;
-    mprim.id = 0;
     mprim.action.clear();
     mp_.push_back(mprim);
 
     mprim.type = MotionPrimitive::SNAP_TO_XYZ;
-    mprim.id = 1;
     mprim.action.clear();
     mp_.push_back(mprim);
 
     mprim.type = MotionPrimitive::SNAP_TO_XYZ_RPY;
-    mprim.id = 2;
     mprim.action.clear();
     mp_.push_back(mprim);
 
