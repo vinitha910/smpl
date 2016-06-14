@@ -39,12 +39,12 @@
 namespace sbpl {
 namespace manip {
 
-const std::string PlanningParams::DefaultExpandsLog = "info";
-const std::string PlanningParams::DefaultExpands2Log = "info";
-const std::string PlanningParams::DefaultIkLog = "info";
-const std::string PlanningParams::DefaultRobotModelLog = "info";
-const std::string PlanningParams::DefaultCspaceLog = "info";
-const std::string PlanningParams::DefaultSolutionLog = "info";
+const std::string PlanningParams::DefaultRobotModelLog = "robot";
+const std::string PlanningParams::DefaultGraphLog = "graph";
+const std::string PlanningParams::DefaultHeuristicLog = "heuristic";
+const std::string PlanningParams::DefaultExpandsLog = "expands";
+const std::string PlanningParams::DefaultPostProcessingLog = "post_process";
+const std::string PlanningParams::DefaultSolutionLog = "solution";
 
 std::string to_string(ShortcutType type)
 {
@@ -92,18 +92,12 @@ PlanningParams::PlanningParams() :
     verbose_(false),
     verbose_heuristics_(false),
     verbose_collisions_(false),
-    expands_log_("expands"),
-    expands2_log_("expands2"),
-    ik_log_("ik"),
-    rmodel_log_("arm"),
-    cspace_log_("cspace"),
-    solution_log_("solution"),
-    expands_log_level_(DefaultExpandsLog),
-    expands2_log_level_(DefaultExpands2Log),
-    ik_log_level_(DefaultIkLog),
-    rmodel_log_level_(DefaultRobotModelLog),
-    cspace_log_level_(DefaultCspaceLog),
-    solution_log_level_(DefaultSolutionLog)
+    rmodel_log_(DefaultRobotModelLog),
+    graph_log_(DefaultGraphLog),
+    heuristic_log_(DefaultHeuristicLog),
+    expands_log_(DefaultExpandsLog),
+    post_processing_log_(DefaultPostProcessingLog),
+    solution_log_(DefaultSolutionLog)
 {
 }
 
@@ -128,12 +122,6 @@ bool PlanningParams::init(const std::string& ns)
 
     /* logging */
     nh.param ("debug/print_out_path", print_path_, true);
-    nh.param<std::string>("debug/logging/expands", expands_log_level_, "info");
-    nh.param<std::string>("debug/logging/expands2", expands2_log_level_, "info");
-    nh.param<std::string>("debug/logging/ik", ik_log_level_, "info");
-    nh.param<std::string>("debug/logging/robot_model", rmodel_log_level_, "info");
-    nh.param<std::string>("/debug/logging/collisions", cspace_log_level_, "info");
-    nh.param<std::string>("debug/logging/solution", solution_log_level_, "info");
 
     /* planning joints */
     XmlRpc::XmlRpcValue xlist;
@@ -168,13 +156,6 @@ bool PlanningParams::init(const std::string& ns)
         ROS_ERROR("Discretization of statespace has not been defined.");
         return false;
     }
-
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + expands_log_, expands_log_level_);
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + expands2_log_, expands2_log_level_);
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + solution_log_, solution_log_level_);
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + ik_log_, ik_log_level_);
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + rmodel_log_, rmodel_log_level_);
-    leatherman::setLoggerLevel(ROSCONSOLE_DEFAULT_NAME + std::string(".") + cspace_log_, cspace_log_level_);
 
     return true;
 }

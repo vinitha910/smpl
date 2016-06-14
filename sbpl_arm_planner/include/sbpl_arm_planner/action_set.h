@@ -104,6 +104,13 @@ public:
     void useMultipleIkSolutions(bool enable);
     void ampThresh(MotionPrimitive::Type type, double thresh);
 
+    /// \brief Return the set of actions available from a state.
+    ///
+    /// Each action consists of a sequence of waypoints From the source state
+    /// describing the approximate motion the robot will take to reach a
+    /// successor state. The sequence of waypoints need not contain the the
+    /// source state. The motion between waypoints will be checked via the set
+    /// CollisionChecker's isStateToStateValid function during a search.
     bool getActionSet(const RobotState& parent, std::vector<Action>& actions);
 
     void print() const;

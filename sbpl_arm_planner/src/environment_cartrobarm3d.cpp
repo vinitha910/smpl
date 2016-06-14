@@ -160,7 +160,7 @@ void EnvironmentCARTROBARM3D::GetSuccs(int SourceStateID, vector<int>* SuccIDV, 
     // should we use this mprim or skip it?
     if(!getMotionPrimitive(parent, prms_.mp_[i]))
     {
-      ROS_DEBUG_NAMED(prms_.expands2_log_, "  skipping motion primitive: %s  (dist: %d)", prms_.motion_primitive_type_names_[int(prms_.mp_[i].type)].c_str(), parent->heur);
+      ROS_DEBUG_NAMED(prms_.expands_log_, "  skipping motion primitive: %s  (dist: %d)", prms_.motion_primitive_type_names_[int(prms_.mp_[i].type)].c_str(), parent->heur);
       continue;
     }
     stats_.updateExpand();
@@ -1198,8 +1198,8 @@ void EnvironmentCARTROBARM3D::getAdaptiveMotionPrim(int type, EnvROBARM3DHashEnt
     mp.m[0][3] = angles::normalize_angle(double(mp.coord[3])*EnvROBARMCfg.coord_delta[3]);
     mp.m[0][4] = angles::normalize_angle(double(mp.coord[4])*EnvROBARMCfg.coord_delta[4]);
     mp.m[0][5] = angles::normalize_angle(double(mp.coord[5])*EnvROBARMCfg.coord_delta[5]);
-    ROS_DEBUG_NAMED(prms_.expands2_log_, "     [snap_to_rpy_at_start] xyz-coord: %d %d %d  rpy-coord: %d %d %d  fa-coord: %d", mp.coord[0], mp.coord[1], mp.coord[2], mp.coord[3], mp.coord[4], mp.coord[5], mp.coord[6]);
-    ROS_DEBUG_NAMED(prms_.expands2_log_, "     [snap_to_rpy_at_start] xyz: %0.3f %0.3f %0.3f    rpy: %0.3f %0.3f %0.3f   fa: %0.3f   (parent-dist: %d)",mp.m[0][0],mp.m[0][1],mp.m[0][2],mp.m[0][3],mp.m[0][4],mp.m[0][5],mp.m[0][6], parent->heur);
+    ROS_DEBUG_NAMED(prms_.expands_log_, "     [snap_to_rpy_at_start] xyz-coord: %d %d %d  rpy-coord: %d %d %d  fa-coord: %d", mp.coord[0], mp.coord[1], mp.coord[2], mp.coord[3], mp.coord[4], mp.coord[5], mp.coord[6]);
+    ROS_DEBUG_NAMED(prms_.expands_log_, "     [snap_to_rpy_at_start] xyz: %0.3f %0.3f %0.3f    rpy: %0.3f %0.3f %0.3f   fa: %0.3f   (parent-dist: %d)",mp.m[0][0],mp.m[0][1],mp.m[0][2],mp.m[0][3],mp.m[0][4],mp.m[0][5],mp.m[0][6], parent->heur);
   }
   else if(type == RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ)
   {
@@ -1479,7 +1479,7 @@ bool EnvironmentCARTROBARM3D::getMotionPrimitive(EnvROBARM3DHashEntry_t* parent,
         EnvROBARM.goalHashEntry->coord[4] == parent->coord[4] &&
         EnvROBARM.goalHashEntry->coord[5] == parent->coord[5])
     {
-        ROS_DEBUG_NAMED(prms_.expands2_log_, "Already at goal rpy. Not doing the retract motion.");
+        ROS_DEBUG_NAMED(prms_.expands_log_, "Already at goal rpy. Not doing the retract motion.");
         return false;
     }
 

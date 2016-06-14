@@ -275,7 +275,7 @@ void ManipLattice::GetSuccs(
     }
 
     if (n_goal_succs > 0) {
-        ROS_DEBUG("Got %d goal successors!", n_goal_succs);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "Got %d goal successors!", n_goal_succs);
     }
 
     m_expanded_states.push_back(SourceStateID);
@@ -379,7 +379,7 @@ void ManipLattice::GetLazySuccs(
     }
 
     if (n_goal_succs > 0) {
-        ROS_DEBUG("Got %d goal successors!", n_goal_succs);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "Got %d goal successors!", n_goal_succs);
     }
 
     m_expanded_states.push_back(SourceStateID);
@@ -476,12 +476,12 @@ void ManipLattice::GetPreds(
 
 void ManipLattice::SetAllActionsandAllOutcomes(CMDPSTATE* state)
 {
-    ROS_ERROR("SetAllActionsandAllOutcomes unimplemented");
+    ROS_ERROR_NAMED(prm_->graph_log_, "SetAllActionsandAllOutcomes unimplemented");
 }
 
 void ManipLattice::SetAllPreds(CMDPSTATE* state)
 {
-    ROS_ERROR("SetAllPreds unimplemented");
+    ROS_ERROR_NAMED(prm_->graph_log_, "SetAllPreds unimplemented");
 }
 
 void ManipLattice::printHashTableHist()
@@ -511,7 +511,7 @@ void ManipLattice::printHashTableHist()
             slarge++;
         }
     }
-    ROS_DEBUG("hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
 }
 
 EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
@@ -604,7 +604,7 @@ EnvROBARM3DHashEntry_t* ManipLattice::createHashEntry(
     }
 
     if (HashEntry->stateID != (int)StateID2IndexMapping.size()-1) {
-        ROS_ERROR("ERROR in Env... function: last state has incorrect stateID");
+        ROS_ERROR_NAMED(prm_->graph_log_, "last state has incorrect stateID");
         throw new SBPL_Exception();
     }
     return HashEntry;
@@ -621,13 +621,13 @@ int ManipLattice::cost(
 bool ManipLattice::initEnvironment(ManipHeuristic* heur)
 {
     if (!heur) {
-        ROS_ERROR("Heuristic is null");
+        ROS_ERROR_NAMED(prm_->graph_log_, "Heuristic is null");
         return false;
     }
 
     m_heur = heur;
 
-    ROS_INFO("Initializing environment");
+    ROS_DEBUG_NAMED(prm_->graph_log_, "Initializing environment");
 
     // initialize environment data
     m_Coord2StateIDHashTable = new std::vector<EnvROBARM3DHashEntry_t*>[m_HashTableSize];
@@ -638,14 +638,14 @@ bool ManipLattice::initEnvironment(ManipHeuristic* heur)
     std::vector<int> coord(prm_->num_joints_, 0);
     m_start_entry = nullptr;
     m_goal_entry = createHashEntry(coord, endeff);
-    ROS_INFO("  goal state has state ID %d", m_goal_entry->stateID);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "  goal state has state ID %d", m_goal_entry->stateID);
 
     // compute the cost per cell to be used by heuristic
     computeCostPerCell();
 
     // set 'environment is initialized' flag
     m_initialized = true;
-    ROS_INFO("Environment has been initialized.");
+    ROS_DEBUG_NAMED(prm_->graph_log_, "Environment has been initialized.");
     return true;
 }
 
@@ -709,13 +709,13 @@ bool ManipLattice::isGoal(
             if (!m_near_goal) {
                 m_time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
                 m_near_goal = true;
-                ROS_INFO("Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
+                ROS_INFO_NAMED(prm_->expands_log_, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
                         pose[0], pose[1], pose[2], m_goal.xyz_tolerance[0], m_goal.tgt_off_pose[0], m_goal.tgt_off_pose[1], m_goal.tgt_off_pose[2], m_time_to_goal_region, m_expanded_states.size());
             }
             const double droll = fabs(angles::shortest_angular_distance(pose[3], m_goal.tgt_off_pose[3]));
             const double dpitch = fabs(angles::shortest_angular_distance(pose[4], m_goal.tgt_off_pose[4]));
             const double dyaw = fabs(angles::shortest_angular_distance(pose[5], m_goal.tgt_off_pose[5]));
-            ROS_DEBUG("Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
+            ROS_DEBUG_NAMED(prm_->expands_log_, "Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
             if (droll < m_goal.rpy_tolerance[0] &&
                 dpitch < m_goal.rpy_tolerance[1] &&
                 dyaw < m_goal.rpy_tolerance[2])
@@ -735,7 +735,7 @@ bool ManipLattice::isGoal(
     }   break;
     default:
     {
-        ROS_ERROR("Unknown goal type.");
+        ROS_ERROR_NAMED(prm_->graph_log_, "Unknown goal type.");
     }   break;
     }
 
@@ -774,8 +774,6 @@ int ManipLattice::getActionCost(
     for (size_t i = 0; i < from_config.size(); ++i) {
         from_config_norm[i] = angles::normalize_angle(from_config[i]);
     }
-    ROS_DEBUG_NAMED("search", "from: %s", to_string(from_config_norm).c_str());
-    ROS_DEBUG_NAMED("search", "  to: %s diff: %0.2f num_prims: %d cost: %d (mprim_size: %0.3f)", to_string(to_config).c_str(), max_diff, num_prims, cost, prm_->max_mprim_offset_);
 
     return cost;
 }
@@ -803,13 +801,20 @@ bool ManipLattice::checkAction(
             break;
         }
 
-        // check for collisions
-        if (!cc_->isStateValid(istate, prm_->verbose_collisions_, false, dist))
-        {
-            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
-            violation_mask |= 0x00000002;
-            break;
-        }
+        // TODO/NOTE: this can result in an unnecessary number of collision
+        // checks per each action; leaving commented here as it might hint at
+        // an optimization where actions are checked at a coarse resolution as
+        // a way of speeding up overall collision checking; in that case, the
+        // isStateToStateValid function on CollisionChecker would have semantics
+        // meaning "collision check a waypoint path without including the
+        // endpoints".
+//        // check for collisions
+//        if (!cc_->isStateValid(istate, prm_->verbose_collisions_, false, dist))
+//        {
+//            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+//            violation_mask |= 0x00000002;
+//            break;
+//        }
     }
 
     if (violation_mask) {
@@ -848,14 +853,14 @@ bool ManipLattice::checkAction(
 
 bool ManipLattice::setStartConfiguration(const RobotState& angles)
 {
-    ROS_INFO("Setting the start state");
+    ROS_DEBUG_NAMED(prm_->graph_log_, "Setting the start state");
 
     if ((int)angles.size() < prm_->num_joints_) {
-        ROS_ERROR("Start state does not contain enough enough joint positions.");
+        ROS_ERROR_NAMED(prm_->graph_log_, "Start state does not contain enough enough joint positions.");
         return false;
     }
 
-    ROS_INFO("  angles: %s", to_string(angles).c_str());
+    ROS_DEBUG_NAMED(prm_->graph_log_, "  angles: %s", to_string(angles).c_str());
 
     //get joint positions of starting configuration
     std::vector<double> pose(6, 0.0);
@@ -863,7 +868,7 @@ bool ManipLattice::setStartConfiguration(const RobotState& angles)
         ROS_WARN(" -> unable to compute forward kinematics");
         return false;
     }
-    ROS_INFO("  planning link pose: { x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f }", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "  planning link pose: { x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f }", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
     // check joint limits of starting configuration
     if (!rmodel_->checkJointLimits(angles, true)) {
@@ -883,11 +888,11 @@ bool ManipLattice::setStartConfiguration(const RobotState& angles)
     //get arm position in environment
     std::vector<int> start_coord(prm_->num_joints_);
     anglesToCoord(angles, start_coord);
-    ROS_INFO("  coord: %s", to_string(start_coord).c_str());
+    ROS_DEBUG_NAMED(prm_->graph_log_, "  coord: %s", to_string(start_coord).c_str());
 
     int endeff[3];
     grid_->worldToGrid(pose[0], pose[1], pose[2], endeff[0], endeff[1], endeff[2]);
-    ROS_INFO("  pose: (%d, %d, %d)", endeff[0], endeff[1], endeff[2]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "  pose: (%d, %d, %d)", endeff[0], endeff[1], endeff[2]);
     // TODO: check for within grid bounds?
 
     EnvROBARM3DHashEntry_t* start_entry;
@@ -911,7 +916,7 @@ bool ManipLattice::setGoalConfiguration(
     const std::vector<double>& goal_tolerances)
 {
     if (!m_initialized) {
-        ROS_ERROR("Cannot set goal position because environment is not initialized.");
+        ROS_ERROR_NAMED(prm_->graph_log_, "Cannot set goal position because environment is not initialized.");
         return false;
     }
 
@@ -951,44 +956,44 @@ bool ManipLattice::setGoalPosition(
     const std::vector<std::vector<double>>& tolerances)
 {
     if (!m_initialized) {
-        ROS_ERROR("Cannot set goal position because environment is not initialized.");
+        ROS_ERROR_NAMED(prm_->graph_log_, "Cannot set goal position because environment is not initialized.");
         return false;
     }
 
     // check arguments
 
     if (goals.empty()) {
-        ROS_ERROR("goals vector is empty");
+        ROS_ERROR_NAMED(prm_->graph_log_, "goals vector is empty");
         return false;
     }
 
     for (const auto& goal : goals) {
         if (goal.size() != 7) {
-            ROS_ERROR("goal element has incorrect format");
+            ROS_ERROR_NAMED(prm_->graph_log_, "goal element has incorrect format");
             return false;
         }
     }
 
     if (offsets.size() != goals.size()) {
-        ROS_ERROR("setGoalPosition requires as many offset elements as goal elements");
+        ROS_ERROR_NAMED(prm_->graph_log_, "setGoalPosition requires as many offset elements as goal elements");
         return false;
     }
 
     for (const auto& offset : offsets) {
         if (offset.size() != 3) {
-            ROS_ERROR("offset element has incorrect format");
+            ROS_ERROR_NAMED(prm_->graph_log_, "offset element has incorrect format");
             return false;
         }
     }
 
     if (tolerances.size() != goals.size()) {
-        ROS_ERROR("setGoalPosition requires as many tolerance elements as goal elements");
+        ROS_ERROR_NAMED(prm_->graph_log_, "setGoalPosition requires as many tolerance elements as goal elements");
         return false;
     }
 
     for (const auto& tol : tolerances) {
         if (tol.size() != 6) {
-            ROS_ERROR("tolerance element has incorrect format");
+            ROS_ERROR_NAMED(prm_->graph_log_, "tolerance element has incorrect format");
             return false;
         }
     }
@@ -1032,13 +1037,13 @@ bool ManipLattice::setGoalPosition(
         m_goal_entry->coord[i] = 0;
     }
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "time: %f", clock() / (double)CLOCKS_PER_SEC);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "A new goal has been set.");
-    ROS_DEBUG_NAMED(prm_->expands_log_, "    grid (cells): (%d, %d, %d)", m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[2]);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", m_goal.pose[0], m_goal.pose[1], m_goal.pose[2]);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "    tol (meters): %0.3f", m_goal.xyz_tolerance[0]);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", m_goal.pose[3], m_goal.pose[4], m_goal.pose[5]);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "    tol (radians): %0.3f", m_goal.rpy_tolerance[0]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "time: %f", clock() / (double)CLOCKS_PER_SEC);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "A new goal has been set.");
+    ROS_DEBUG_NAMED(prm_->graph_log_, "    grid (cells): (%d, %d, %d)", m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[2]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", m_goal.pose[0], m_goal.pose[1], m_goal.pose[2]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "    tol (meters): %0.3f", m_goal.xyz_tolerance[0]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", m_goal.pose[3], m_goal.pose[4], m_goal.pose[5]);
+    ROS_DEBUG_NAMED(prm_->graph_log_, "    tol (radians): %0.3f", m_goal.rpy_tolerance[0]);
 
     m_near_goal = false;
     m_t_start = clock();
@@ -1078,7 +1083,7 @@ void ManipLattice::printJointArray(
     }
 
     if (fOut == stdout) {
-        ROS_INFO("%s", ss.str().c_str());
+        ROS_DEBUG_NAMED(prm_->graph_log_, "%s", ss.str().c_str());
     }
     else if (fOut == stderr) {
         ROS_WARN("%s", ss.str().c_str());
@@ -1101,13 +1106,13 @@ void ManipLattice::getExpandedStates(
         computePlanningFrameFK(angles, state);
         state[6] = m_states[m_expanded_states[i]]->heur;
         states.push_back(state);
-        ROS_DEBUG("[%d] id: %d  xyz: %s", int(i), m_expanded_states[i], to_string(state).c_str());
+        ROS_DEBUG_NAMED(prm_->graph_log_, "[%d] id: %d  xyz: %s", int(i), m_expanded_states[i], to_string(state).c_str());
     }
 }
 
 void ManipLattice::computeCostPerCell()
 {
-    ROS_WARN("Cell Cost: Uniform 100");
+    ROS_WARN_NAMED(prm_->graph_log_, "Cell Cost: Uniform 100");
     prm_->cost_per_cell_ = 100;
 }
 
@@ -1125,7 +1130,7 @@ bool ManipLattice::extractPath(
         if (state_id == getGoalStateID()) {
             std::vector<double> angles;
             if (!StateID2Angles(getStartStateID(), angles)) {
-                ROS_ERROR("Failed to get robot state from state id %d", getStartStateID());
+                ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", getStartStateID());
                 return false;
             }
 
@@ -1134,7 +1139,7 @@ bool ManipLattice::extractPath(
         else {
             std::vector<double> angles;
             if (!StateID2Angles(state_id, angles)) {
-                ROS_ERROR("Failed to get robot state from state id %d", state_id);
+                ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", state_id);
                 return false;
             }
 
@@ -1145,7 +1150,7 @@ bool ManipLattice::extractPath(
     }
 
     if (idpath[0] == getGoalStateID()) {
-        ROS_ERROR("Cannot extract a non-trivial path starting from the goal state");
+        ROS_ERROR_NAMED(prm_->graph_log_, "Cannot extract a non-trivial path starting from the goal state");
         return false;
     }
 
@@ -1153,7 +1158,7 @@ bool ManipLattice::extractPath(
     {
         std::vector<double> angles;
         if (!StateID2Angles(idpath[0], angles)) {
-            ROS_ERROR("Failed to get robot state from state id %d", idpath[0]);
+            ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", idpath[0]);
             return false;
         }
         opath.push_back(std::move(angles));
@@ -1165,7 +1170,7 @@ bool ManipLattice::extractPath(
         const int curr_id = idpath[i];
 
         if (prev_id == getGoalStateID()) {
-            ROS_ERROR("Cannot determine goal state predecessor state during path extraction");
+            ROS_ERROR_NAMED(prm_->graph_log_, "Cannot determine goal state predecessor state during path extraction");
             return false;
         }
 
@@ -1177,7 +1182,7 @@ bool ManipLattice::extractPath(
 
             std::vector<Action> actions;
             if (!as_->getActionSet(prev_state, actions)) {
-                ROS_ERROR("Failed to get actions while extracting the path");
+                ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get actions while extracting the path");
                 return false;
             }
 
@@ -1216,7 +1221,7 @@ bool ManipLattice::extractPath(
             }
 
             if (!best_goal_state) {
-                ROS_ERROR("Failed to find valid goal successor during path extraction");
+                ROS_ERROR_NAMED(prm_->graph_log_, "Failed to find valid goal successor during path extraction");
                 return false;
             }
 
@@ -1225,7 +1230,7 @@ bool ManipLattice::extractPath(
         else {
             RobotState curr_state;
             if (!StateID2Angles(curr_id, curr_state)) {
-                ROS_ERROR("Failed to get robot state from state id %d", curr_id);
+                ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", curr_id);
                 return false;
             }
 
