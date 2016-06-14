@@ -67,7 +67,7 @@ public:
         RobotModel* rmodel,
         CollisionChecker* cc,
         ActionSet* as,
-        distance_field::PropagationDistanceField* df);
+        OccupancyGrid* grid);
 
     ~ArmPlannerInterface();
 
@@ -132,7 +132,7 @@ public:
     ///
     bool addBfsHeuristic(
         const std::string& name,
-        distance_field::PropagationDistanceField* df,
+        OccupancyGrid* grid,
         double radius);
 
     bool removeHeuristic(const std::string& name);
@@ -150,19 +150,22 @@ protected:
     // planner components
     RobotModel* rm_;
     CollisionChecker* cc_;
-    distance_field::PropagationDistanceField* df_;
+    OccupancyGrid* grid_;
     ActionSet* as_;
 
     // planner & environment
     MDPConfig mdp_cfg_;
-    OccupancyGridPtr grid_;
     std::unique_ptr<ManipLattice> sbpl_arm_env_;
     std::unique_ptr<ManipHeuristic> m_heur;
     std::unique_ptr<SBPLPlanner> planner_;
 
-    Heuristic* m_heuristic; // lazily-initialized upon using mha*
+    /// \name MHA*-Specific Heuristics
+    ///@{
+    typedef std::shared_ptr<Heuristic> HeuristicPtr;
+    HeuristicPtr m_heuristic; // lazily-initialized upon using mha*
     std::vector<Heuristic*> m_heur_vec;
-    std::map<std::string, Heuristic*> m_heuristics;
+    std::map<std::string, HeuristicPtr> m_heuristics;
+    ///@}
 
     std::string m_planner_id;
 
@@ -173,6 +176,8 @@ protected:
     ros::Publisher m_vpub;
 
     clock_t m_starttime;
+
+    bool checkConstructionArgs() const;
 
     bool initializeParamsFromParamServer();
 

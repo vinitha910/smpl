@@ -51,6 +51,9 @@
 
 namespace sbpl {
 
+typedef std::shared_ptr<distance_field::PropagationDistanceField> PropagationDistanceFieldPtr;
+typedef std::shared_ptr<const distance_field::PropagationDistanceField> PropagationDistanceFieldConstPtr;
+
 /// \brief Lightweight layer on top of the PropagationDistanceField class that
 /// carries occupancy information in some reference frame as well as the
 /// distance transform
@@ -59,9 +62,9 @@ class OccupancyGrid
 public:
 
     /// \brief Construct an Occupancy Grid
-    /// \param dim_x Dimension of the grid along the X axis, in meters
-    /// \param dim_y Dimension of the grid along the Y axis, in meters
-    /// \param dim_z Dimension of the grid along the Z axis, in meters
+    /// \param size_x Dimension of the grid along the X axis, in meters
+    /// \param size_y Dimension of the grid along the Y axis, in meters
+    /// \param size_z Dimension of the grid along the Z axis, in meters
     /// \param resolution Resolution of the grid, in meters
     /// \param origin_x X Coordinate of origin, in meters
     /// \param origin_y Y Coordinate of origin, in meters
@@ -69,19 +72,39 @@ public:
     /// \param max_dist The maximum distance away from obstacles to propagate
     ///     the distance field, in meters
     OccupancyGrid(
-        double dim_x, double dim_y, double dim_z,
+        double size_x, double size_y, double size_z,
         double resolution,
         double origin_x, double origin_y, double origin_z,
-        double max_dist);
+        double max_dist,
+        bool propagate_negative_distances = false);
+
+    /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(
+    ///         const octomap::OcTree&,
+    ///         const octomap::point3d&,
+    ///         const octomap::point3d&,
+    ///         double, bool);
+    OccupancyGrid(
+        const octomap::OcTree& octree,
+        const octomap::point3d& bbx_min,
+        const octomap::point3d& bby_min,
+        double max_distance,
+        bool propagate_negative_distances = false);
+
+    /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(
+    //         std::istream&, double, bool);
+    OccupancyGrid(
+        std::istream& stream,
+        double max_distance,
+        bool propagate_negative_distances = false);
 
     /// \brief Construct an OccupancyGrid with an unmanaged distance field
     /// \param df A pointer to the unmanaged distance field
-    OccupancyGrid(distance_field::PropagationDistanceField* df);
+    OccupancyGrid(const PropagationDistanceFieldPtr& df);
 
     ~OccupancyGrid();
 
     /// \brief Return a pointer to the distance field
-    distance_field::PropagationDistanceField* getDistanceFieldPtr() const;
+    const PropagationDistanceFieldPtr& getDistanceField() const;
 
     /// \name Attributes
     ///@{
@@ -199,17 +222,18 @@ public:
 
 private:
 
-    bool delete_grid_;
     std::string reference_frame_;
-    distance_field::PropagationDistanceField* grid_;
+    PropagationDistanceFieldPtr grid_;
+
+    bool m_ref_counted;
+    std::vector<int> m_counts;
 
     EigenSTL::vector_Vector3d toAlignedVector(
         const std::vector<Eigen::Vector3d>& v) const;
 };
 
 inline
-distance_field::PropagationDistanceField*
-OccupancyGrid::getDistanceFieldPtr() const
+const PropagationDistanceFieldPtr& OccupancyGrid::getDistanceField() const
 {
     return grid_;
 }

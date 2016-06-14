@@ -52,7 +52,7 @@ public:
 
     BfsHeuristic(
         ManipLattice* env,
-        const OccupancyGridConstPtr& grid,
+        const OccupancyGrid* grid,
         const PlanningParams* params);
 
     virtual ~BfsHeuristic();

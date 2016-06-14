@@ -42,7 +42,7 @@ namespace manip {
 
 BfsHeuristic::BfsHeuristic(
     ManipLattice* env,
-    const OccupancyGridConstPtr& grid,
+    const OccupancyGrid* grid,
     const PlanningParams* params)
 :
     ManipHeuristic(env, grid, params),

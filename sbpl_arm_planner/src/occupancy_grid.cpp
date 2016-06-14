@@ -41,27 +41,62 @@ using namespace std;
 namespace sbpl {
 
 OccupancyGrid::OccupancyGrid(
-    double dim_x, double dim_y, double dim_z,
+    double size_x, double size_y, double size_z,
     double resolution,
     double origin_x, double origin_y, double origin_z,
-    double max_dist)
+    double max_dist,
+    bool propagate_negative_distances)
+:
+    reference_frame_(),
+    grid_(std::make_shared<distance_field::PropagationDistanceField>(
+            size_x, size_y, size_z,
+            resolution,
+            origin_x, origin_y, origin_z,
+            max_dist, propagate_negative_distances)),
+    m_ref_counted(false),
+    m_counts()
 {
-    grid_ = new distance_field::PropagationDistanceField(
-        dim_x, dim_y, dim_z, resolution, origin_x, origin_y, origin_z, max_dist);
-    grid_->reset();
-    delete_grid_ = true;
 }
 
-OccupancyGrid::OccupancyGrid(distance_field::PropagationDistanceField* df)
+OccupancyGrid::OccupancyGrid(
+    const octomap::OcTree& octree,
+    const octomap::point3d& bbx_min,
+    const octomap::point3d& bby_min,
+    double max_distance,
+    bool propagate_negative_distances)
+:
+    reference_frame_(),
+    grid_(std::make_shared<distance_field::PropagationDistanceField>(
+            octree, bbx_min, bby_min, max_distance, propagate_negative_distances)),
+    m_ref_counted(false),
+    m_counts()
 {
-    grid_ = df;
-    delete_grid_ = false;
+}
+
+OccupancyGrid::OccupancyGrid(
+    std::istream& stream,
+    double max_distance,
+    bool propagate_negative_distances)
+:
+    reference_frame_(),
+    grid_(std::make_shared<distance_field::PropagationDistanceField>(
+            stream, max_distance, propagate_negative_distances)),
+    m_ref_counted(false),
+    m_counts()
+{
+}
+
+OccupancyGrid::OccupancyGrid(const PropagationDistanceFieldPtr& df)
+:
+    reference_frame_(),
+    grid_(df),
+    m_ref_counted(false),
+    m_counts()
+{
 }
 
 OccupancyGrid::~OccupancyGrid()
 {
-    if (grid_ && delete_grid_)
-        delete grid_;
 }
 
 void OccupancyGrid::getGridSize(int &dim_x, int &dim_y, int &dim_z) const

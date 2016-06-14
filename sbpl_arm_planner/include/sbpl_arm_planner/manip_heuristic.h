@@ -55,7 +55,7 @@ public:
 
     ManipHeuristic(
         ManipLattice* env,
-        const OccupancyGridConstPtr& grid,
+        const OccupancyGrid* grid,
         const PlanningParams* params);
 
     virtual ~ManipHeuristic() { }
@@ -77,7 +77,7 @@ public:
 protected:
 
     ManipLattice* m_manip_env;
-    OccupancyGridConstPtr m_grid;
+    const OccupancyGrid* m_grid;
     const PlanningParams* m_params;
 };
 

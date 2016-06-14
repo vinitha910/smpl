@@ -36,7 +36,7 @@ namespace manip {
 
 ManipHeuristic::ManipHeuristic(
     ManipLattice* env,
-    const OccupancyGridConstPtr& grid,
+    const OccupancyGrid* grid,
     const PlanningParams* params)
 :
     Heuristic(env),

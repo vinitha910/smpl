@@ -76,9 +76,9 @@ int main(int argc, char **argv)
     }
     ROS_INFO("Retrieved %d planning joints from param server.", int(joint_names.size()));
 
-    distance_field::PropagationDistanceField* df =
-            new distance_field::PropagationDistanceField(
-                dims[0], dims[1], dims[2], 0.02, origin[0], origin[1], origin[2], 0.4);
+    sbpl::PropagationDistanceFieldPtr df =
+            std::make_shared<distance_field::PropagationDistanceField>(
+                    dims[0], dims[1], dims[2], 0.02, origin[0], origin[1], origin[2], 0.4);
     df->reset();
 
     sbpl::OccupancyGrid* grid = new sbpl::OccupancyGrid(df);
@@ -149,6 +149,5 @@ int main(int argc, char **argv)
     ROS_INFO("Done");
     delete cspace;
     delete grid;
-    delete df;
     return 0;
 }

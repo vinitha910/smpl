@@ -52,7 +52,7 @@ public:
 
     MultiFrameBfsHeuristic(
         ManipLattice* env,
-        const OccupancyGridConstPtr& grid,
+        const OccupancyGrid* grid,
         const PlanningParams* params);
 
     virtual ~MultiFrameBfsHeuristic();

@@ -61,17 +61,16 @@ ArmPlannerInterface::ArmPlannerInterface(
     RobotModel* rm,
     CollisionChecker* cc,
     ActionSet* as,
-    distance_field::PropagationDistanceField* df)
+    OccupancyGrid* grid)
 :
     m_initialized(false),
     solution_cost_(INFINITECOST),
     prm_(),
     rm_(rm),
     cc_(cc),
-    df_(df),
     as_(as),
+    grid_(grid),
     mdp_cfg_(),
-    grid_(),
     sbpl_arm_env_(),
     planner_(),
     m_heuristic(nullptr),
@@ -91,22 +90,14 @@ ArmPlannerInterface::ArmPlannerInterface(
 
 ArmPlannerInterface::~ArmPlannerInterface()
 {
-    if (m_heuristic) {
-        delete m_heuristic;
-    }
-
-    for (Heuristic* heur : m_heur_vec) {
-        if (heur) {
-            delete heur;
-        }
-    }
-
-    m_heuristics.clear();
-    m_heur_vec.clear();
 }
 
 bool ArmPlannerInterface::init()
 {
+    if (!checkConstructionArgs()) {
+        return false;
+    }
+
     if (!initializeParamsFromParamServer()) {
         return false;
     }
@@ -151,6 +142,10 @@ bool ArmPlannerInterface::init(const PlanningParams& params)
 
     prm_ = params;
 
+    if (!checkConstructionArgs()) {
+        return false;
+    }
+
     if (!checkParams(prm_)) {
         return false;
     }
@@ -164,6 +159,31 @@ bool ArmPlannerInterface::init(const PlanningParams& params)
     return true;
 }
 
+bool ArmPlannerInterface::checkConstructionArgs() const
+{
+    if (!rm_) {
+        ROS_ERROR("Robot Model given to Arm Planner Interface must be non-null");
+        return false;
+    }
+
+    if (!cc_) {
+        ROS_ERROR("Collision Checker given to Arm Planner Interface must be non-null");
+        return false;
+    }
+
+    if (!grid_) {
+        ROS_ERROR("Occupancy Grid given to Arm Planner Interface must be non-null");
+        return false;
+    }
+
+    if (!as_) {
+        ROS_ERROR("Action Set given to Arm Planner Interface must be non-null");
+        return false;
+    }
+
+    return true;
+}
+
 bool ArmPlannerInterface::initializeParamsFromParamServer()
 {
     if (!prm_.init()) {
@@ -174,9 +194,9 @@ bool ArmPlannerInterface::initializeParamsFromParamServer()
 
 bool ArmPlannerInterface::initializePlannerAndEnvironment()
 {
-    grid_.reset(new OccupancyGrid(df_));
     grid_->setReferenceFrame(prm_.planning_frame_);
-    sbpl_arm_env_.reset(new ManipLattice(grid_.get(), rm_, cc_, as_, &prm_));
+
+    sbpl_arm_env_.reset(new ManipLattice(grid_, rm_, cc_, as_, &prm_));
 
     if (!as_->init(sbpl_arm_env_.get(), prm_.use_multiple_ik_solutions_)) {
         ROS_ERROR("Failed to initialize the action set.");
@@ -762,10 +782,10 @@ ArmPlannerInterface::getCollisionModelTrajectoryVisualization(
 
 bool ArmPlannerInterface::addBfsHeuristic(
     const std::string& name,
-    distance_field::PropagationDistanceField* df,
+    OccupancyGrid* grid,
     double radius)
 {
-    if (!df) {
+    if (!grid) {
         ROS_ERROR("Null distance field");
         return false;
     }
@@ -777,12 +797,9 @@ bool ArmPlannerInterface::addBfsHeuristic(
 
     auto entry = m_heuristics.insert(std::make_pair(
             name,
-            new BfsHeuristic(
-                    sbpl_arm_env_.get(),
-                    OccupancyGridConstPtr(new OccupancyGrid(df)),
-                    &prm_)));
+            std::make_shared<BfsHeuristic>(sbpl_arm_env_.get(), grid, &prm_)));
 
-    m_heur_vec.push_back(entry.first->second);
+    m_heur_vec.push_back(entry.first->second.get());
 
     if (m_planner_id == "MHA*") {
         reinitMhaPlanner();
@@ -801,7 +818,7 @@ bool ArmPlannerInterface::removeHeuristic(
         return false;
     }
 
-    Heuristic* heur = it->second;
+    Heuristic* heur = it->second.get();
 
     // remove from the name -> heur map
     m_heuristics.erase(it);
@@ -811,8 +828,6 @@ bool ArmPlannerInterface::removeHeuristic(
     if (vit != m_heur_vec.end()) {
         m_heur_vec.erase(vit);
     }
-
-    delete heur;
 
     if (m_planner_id == "MHA*") {
         reinitMhaPlanner();
@@ -1109,15 +1124,16 @@ bool ArmPlannerInterface::reinitMhaPlanner()
     clearGraphStateToPlannerStateMap();
 
     if (!m_heuristic) {
-        m_heuristic = new EmbeddedHeuristic(sbpl_arm_env_.get());
+        m_heuristic = std::make_shared<EmbeddedHeuristic>(sbpl_arm_env_.get());
 
         auto entry = m_heuristics.insert(std::make_pair(
-                "embedded_heuristic", new EmbeddedHeuristic(sbpl_arm_env_.get())));
+                "embedded_heuristic",
+                std::make_shared<EmbeddedHeuristic>(sbpl_arm_env_.get())));
     }
 
     MHAPlanner* mha = new MHAPlanner(
             sbpl_arm_env_.get(),
-            m_heuristic,
+            m_heuristic.get(),
             m_heur_vec.data(),
             m_heur_vec.size());
 
