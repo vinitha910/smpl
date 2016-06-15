@@ -47,9 +47,7 @@ namespace sbpl {
 namespace collision {
 
 CollisionModelImpl::CollisionModelImpl() :
-    nh_(),
-    ph_("~"),
-    urdf_(),
+    m_urdf(),
     m_model_frame(),
     m_tree(),
     m_chains(),
@@ -159,7 +157,7 @@ bool CollisionModelImpl::initAllGroups(const CollisionModelConfig& config)
 
 
         Group* gc = new Group;
-        if (!gc->init(urdf_, group_config, config.collision_spheres)) {
+        if (!gc->init(m_urdf, group_config, config.collision_spheres)) {
             ROS_ERROR("Failed to get all params for %s", group_name.c_str());
             delete gc;
             return false;
@@ -288,7 +286,7 @@ bool CollisionModelImpl::getJointLimits(
     const std::string& root_link_name = git->getReferenceFrame();
     const std::string& tip_link_name = git->tip_name_;
     if (!leatherman::getJointLimits(
-            urdf_.get(),
+            m_urdf.get(),
             root_link_name,
             tip_link_name,
             joint_name,
@@ -346,13 +344,13 @@ void CollisionModelImpl::setReferenceFrame(const std::string& frame)
 
 bool CollisionModelImpl::initURDF(const std::string& urdf_string)
 {
-    urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
-    if (!urdf_->initString(urdf_string)) {
+    m_urdf = boost::shared_ptr<urdf::Model>(new urdf::Model());
+    if (!m_urdf->initString(urdf_string)) {
         ROS_WARN("Failed to parse the URDF");
         return false;
     }
 
-    auto root_link = urdf_->getRoot();
+    auto root_link = m_urdf->getRoot();
     std::queue<boost::shared_ptr<const urdf::Link>> links;
     links.push(root_link);
     while (!links.empty()) {
@@ -373,7 +371,7 @@ bool CollisionModelImpl::initURDF(const std::string& urdf_string)
         }
     }
 
-    setReferenceFrame(urdf_->getRoot()->name);
+    setReferenceFrame(m_urdf->getRoot()->name);
     ROS_DEBUG("Collision Robot Frame: %s", getReferenceFrame().c_str());
 
     return true;
@@ -381,9 +379,9 @@ bool CollisionModelImpl::initURDF(const std::string& urdf_string)
 
 bool CollisionModelImpl::initKdlRobotModel()
 {
-    assert((bool)urdf_);
+    assert((bool)m_urdf);
 
-    if (!kdl_parser::treeFromUrdfModel(*urdf_, m_tree)) {
+    if (!kdl_parser::treeFromUrdfModel(*m_urdf, m_tree)) {
         ROS_ERROR("Failed to parse URDF into KDL tree");
         return false;
     }
@@ -589,7 +587,7 @@ bool CollisionModelImpl::isDescendantOf(
     const std::string& link_a_name,
     const std::string& link_b_name) const
 {
-    auto link = urdf_->getLink(link_a_name);
+    auto link = m_urdf->getLink(link_a_name);
     if (!link) {
         ROS_ERROR("Failed to find link '%s'", link_a_name.c_str());
         return false;
@@ -619,7 +617,7 @@ bool CollisionModelImpl::jointInfluencesLink(
     const std::string& joint_name,
     const std::string& link_name) const
 {
-    auto joint = urdf_->getJoint(joint_name);
+    auto joint = m_urdf->getJoint(joint_name);
     if (!joint) {
         ROS_ERROR("Failed to find joint '%s'", joint_name.c_str());
         return false;

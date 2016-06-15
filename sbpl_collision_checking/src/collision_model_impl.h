@@ -54,9 +54,45 @@ namespace collision {
 
 struct CollisionModelConfig;
 
+struct CollisionGroup
+{
+    std::vector<int> m_link_indices;
+};
+
+struct VoxelCollisionModel
+{
+    int m_link_index;
+};
+
+struct VoxelCollisionState
+{
+    std::vector<Eigen::Vector3d> voxels; // in the model frame
+};
+
+struct SphereCollisionModel
+{
+    int m_link_index;
+    std::string name;
+    Eigen::Vector3d center; ///< offset from link center
+    double radius;
+    int priority;
+};
+
+struct SphereCollisionState
+{
+};
+
+struct SpheresCollisionModel
+{
+    std::vector<SphereCollisionModel> spheres;
+};
+
 class CollisionModelImpl
 {
 public:
+
+    typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
+    typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
 
     CollisionModelImpl();
     ~CollisionModelImpl();
@@ -65,93 +101,168 @@ public:
         const std::string& urdf_string,
         const CollisionModelConfig& config);
 
-    bool setDefaultGroup(const std::string& group_name);
+    /// \name Robot Model
+    ///@{
+    const std::string& name() const;
+    const std::string& modelFrame() const { return m_model_frame; }
 
-    void setOrderOfJointPositions(
-        const std::vector<std::string>& joint_names,
-        const std::string& group_name);
-
-    const std::string& getReferenceFrame() const { return m_model_frame; }
-    std::string getReferenceFrame(const std::string& group_name) const;
-
-    void getGroupNames(std::vector<std::string>& names) const;
-
-    bool getJointLimits(
-        const std::string& group_name,
-        const std::string& joint_name,
-        double& min_limit,
-        double& max_limit,
-        bool& continuous) const;
-
-    bool getFrameInfo(
-        const std::string& name,
-        const std::string& group_name,
-        int& chain,
-        int& segment) const;
-
+    size_t                          jointCount() const;
     const std::vector<std::string>& jointNames() const;
-    const std::vector<double>& jointPositions() const;
 
-    double getJointPosition(int joint_index) const;
-    double getJointPosition(const std::string& joint_name) const;
+    bool                hasJoint(const std::string& joint_name) const;
+    int                 jointIndex(const std::string& joint_name) const;
+    const std::string&  jointName(int jidx) const;
 
-    bool doesLinkExist(const std::string& name, const std::string& group_name) const;
+    double jointHasPositionBounds(const std::string& joint_name) const;
+    double jointMaxPosition(const std::string& joint_name) const;
+    double jointMinPosition(const std::string& joint_name) const;
+    double jointIsContinuous(const std::string& joint_name) const;
 
-    const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
+    double jointHasPositionBounds(int jidx) const;
+    double jointMinPosition(int jidx) const;
+    double jointMaxPosition(int jidx) const;
+    double jointIsContinuous(int jidx) const;
 
-    void setWorldToModelTransform(const KDL::Frame& f) { m_T_world_model = f; }
-    const KDL::Frame& worldToModelTransform() const { return m_T_world_model; }
+    size_t                          linkCount() const;
+    const std::vector<std::string>& linkNames() const;
 
-    void setJointPosition(const std::string& name, double position);
+    bool                hasLink(const std::string& link_name) const;
+    int                 linkIndex(const std::string& link_name) const;
+    const std::string&  linkName(int lidx) const;
+    ///@}
 
-    Group* getGroup(const std::string& name);
+    /// \name Collision Model
+    ///@{
 
-    void getVoxelGroups(std::vector<Group*>& vg);
+    bool hasVoxelModel(const std::string& link_name) const;
+    bool hasVoxelModel(int lidx) const;
+    bool hasSpheresModel(const std::string& link_name) const;
+    bool hasSpheresModel(int lidx) const;
 
-    bool computeDefaultGroupFK(
-        const std::vector<double>& angles,
-        std::vector<std::vector<KDL::Frame>>& frames);
+    // changed = set all requested joint positions and world-to-model transform
+    //
+    // if not changed, skip transforms and just check the spheres again
+    //
+    // for each voxel collision state : voxel collision states that are not part of the active group
+    //      if the voxel collision state transform is dirty
+    //          remove old voxels
+    //          update the transform
+    //          insert new voxels
+    //
+    // for each sphere collision state : sphere collision states that are part of the active group
+    //      if the sphere collision state transform is dirty
+    //          update the transform
+    //      if the sphere is in collision with the collision space
+    //          return false;
 
-    bool computeGroupFK(
-            const std::vector<double>& angles,
-            Group* group,
-            std::vector<std::vector<KDL::Frame>>& frames);
+    // get link names outside of a collision group with voxel models
+    // get link indices outside of a collision group with voxel models
+    // get link indices
 
-    void printGroups() const;
+    size_t                          groupCount() const;
+    const std::vector<std::string>& groupNames() const;
+    bool                            hasGroup(const std::string& group_name) const;
 
-    void printDebugInfo(const std::string& group_name) const;
+    const std::vector<int>& groupSpheresModelIndices(
+        const std::string& group_name) const;
+    const std::vector<int>& groupSpheresModelIndices(
+        int gidx) const;
+    const std::vector<const SpheresCollisionModel*>& groupSpheresModels(
+        const std::string& group_name) const;
+    const std::vector<const SpheresCollisionModel*>& groupSpheresModels(
+        int gidx) const;
+
+    std::vector<std::string> linksWithVoxelModels() const;
+    std::vector<std::string> linksWithSphereModels() const;
+    ///@}
+
+    /// \name RobotState
+    ///@{
+    const Affine3d& worldToModelTransform() const;
+    bool setWorldToModelTransform(const Eigen::Affine3d& transform);
+
+    const std::vector<double>&      jointPositions() const;
+    const Affine3dVector&           linkTransforms() const;
+
+    double jointPosition(const std::string& joint_name) const;
+    double jointPosition(int joint_index) const;
+
+    bool setJointPosition(const std::string& name, double position);
+    bool setJointPosition(int jidx, double position);
+
+    const Eigen::Affine3d& linkTransform(const std::string& link_name) const;
+    const Eigen::Affine3d& linkTransform(int lidx) const;
+
+    bool linkTransformDirty(const std::string& link_name) const;
+    bool linkTransformDirty(int lidx) const;
+
+    bool updateLinkTransforms();
+    bool updateLinkTransform(int lidx) const;
+    bool updateLinkTransform(const std::string& link_name) const;
+    ///@}
+
+    /// \name CollisionState
+    ///@{
+    const std::vector<Eigen::Vector3d>& spherePositions() const;
+
+    const std::vector<int>& groupVoxelModelIndices(
+        const std::string& group_name) const;
+    const std::vector<int>& groupVoxelModelIndices(
+        int gidx) const;
+    const std::vector<VoxelCollisionModel*> groupVoxelModels(
+        const std::string& group_name) const;
+    const std::vector<VoxelCollisionModel*> groupVoxelModels(
+        int gidx) const;
+
+    const std::vector<const SpheresCollisionModel*>& groupSpheres(
+        const std::string& group_name) const;
+    const std::vector<const SpheresCollisionModel*>& groupSpheres(
+        int gidx) const;
+
+    bool spherePositionDirty(int sidx) const;
+
+    bool updateSpherePositions() const;
+    bool updateSpherePositions(const std::string& group_name) const;
+    bool updateSpherePositions(int gidx) const;
+    bool updateSpherePosition(int sidx) const;
+    ///@}
+
+    // goal: iterate over all spheres in the active collision group and check
+    // their positions
 
 private:
 
-    struct KDLJointMapping
-    {
-        std::vector<int> chain_indices;
-        std::vector<int> joint_indices;
-    };
+    /// \name Robot Model
+    ///@{
+    boost::shared_ptr<urdf::Model>  m_urdf;
+    std::string                     m_model_frame;
+    std::vector<std::string>        m_joint_names;
+    std::vector<std::string>        m_link_names;
+    std::map<std::string, int>      m_joint_name_to_index;
+    std::map<std::string, int>      m_link_name_to_index;
+    ///@}
 
-    ros::NodeHandle nh_;
-    ros::NodeHandle ph_;
+    /// \name Collision Model
+    ///@{
+    std::vector<CollisionGroup>         m_collision_groups;
+    std::vector<SpheresCollisionModel*> m_spheres_models;       // per-link
+    ///@}
 
-    boost::shared_ptr<urdf::Model> urdf_;
-    std::string m_model_frame;
-    std::vector<std::string> m_joint_names;
-    std::vector<double> m_joint_positions;
-    std::map<std::string, int> m_joint_to_index;
+    /// \name Robot State
+    ///@{
+    Eigen::Affine3d                 m_T_world_model;
+    std::vector<double>             m_joint_positions;
+    std::vector<bool>               m_dirty_link_transforms;    // per-link
+    Affine3dVector                  m_link_transforms;          // per-link
+    ///@}
 
-    KDL::Tree m_tree;
-
-    // chains leading up to root links of groups
-    std::vector<KDL::Chain>                         m_chains;
-    std::vector<Group*>                             m_chain_index_to_group;
-    std::vector<std::unique_ptr<KDL::ChainFkSolverPos_recursive>> m_solvers;
-    std::vector<KDL::JntArray>                      m_joint_arrays;
-
-    std::map<std::string, KDLJointMapping> m_joint_map; // joint_name -> mapping
-
-    std::map<std::string, Group*> group_config_map_;
-    Group* dgroup_;
-
-    KDL::Frame m_T_world_model;
+    /// \name Collision State
+    ///@{
+    std::vector<bool>                   m_dirty_voxels_transforms; // per-link
+    std::vector<VoxelCollisionModel*>   m_voxel_models;            // per-link
+    std::vector<bool>                   m_dirty_sphere_transforms; // per-sphere
+    std::vector<Eigen::Vector3d>        m_sphere_transforms;       // per-sphere
+    ///@}
 
     void setReferenceFrame(const std::string& frame);
 
