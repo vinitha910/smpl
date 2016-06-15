@@ -76,7 +76,8 @@ public:
         double resolution,
         double origin_x, double origin_y, double origin_z,
         double max_dist,
-        bool propagate_negative_distances = false);
+        bool propagate_negative_distances = false,
+        bool ref_counted = false);
 
     /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(
     ///         const octomap::OcTree&,
@@ -88,18 +89,20 @@ public:
         const octomap::point3d& bbx_min,
         const octomap::point3d& bby_min,
         double max_distance,
-        bool propagate_negative_distances = false);
+        bool propagate_negative_distances = false,
+        bool ref_counted = false);
 
     /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(
     //         std::istream&, double, bool);
     OccupancyGrid(
         std::istream& stream,
         double max_distance,
-        bool propagate_negative_distances = false);
+        bool propagate_negative_distances = false,
+        bool ref_counted = false);
 
     /// \brief Construct an OccupancyGrid with an unmanaged distance field
     /// \param df A pointer to the unmanaged distance field
-    OccupancyGrid(const PropagationDistanceFieldPtr& df);
+    OccupancyGrid(const PropagationDistanceFieldPtr& df, bool ref_counted = false);
 
     ~OccupancyGrid();
 
@@ -147,12 +150,16 @@ public:
     /// \param gx An int array of size 3 for storing the grid cell coordinates
     void worldToGrid(double* wx, int* gx) const;
 
+    /// \brief Get the distance, in cells, to the nearest occupied cell
     unsigned char getCell(int x, int y, int z) const;
 
+    /// \brief Get the distance, in meters, to the nearest occupied cell
     double getCell(const int* xyz) const;
 
+    /// \brief Get the distance, in meters, to the nearest occupied cell
     double getDistance(int x, int y, int z) const;
 
+    /// \brief Get the distance, in meters, to the nearest occupied cell
     double getDistanceFromPoint(double x, double y, double z) const;
 
     // TODO: this whole implicit casting nonsense makes me nervous...factor
@@ -169,7 +176,7 @@ public:
         const std::vector<double>& dim,
         std::vector<Eigen::Vector3d>& voxels) const;
 
-    /// \brief Get all occupied voxels within a spherical region of the grid
+    /// \brief Get all occupied voxels within a cubic region of the grid
     void getOccupiedVoxels(
         double x_center,
         double y_center,
@@ -226,7 +233,24 @@ private:
     PropagationDistanceFieldPtr grid_;
 
     bool m_ref_counted;
+    int m_x_stride;
+    int m_y_stride;
     std::vector<int> m_counts;
+
+    void initRefCounts();
+
+    int coordToIndex(int x, int y, int z) const;
+
+    int getCellCount() const;
+
+    template <typename CellFunction>
+    void iterateCells(CellFunction f) const;
+
+    template <typename CellFunction>
+    void iterateCells(
+        int fx, int fy, int fz,
+        int tx, int ty, int tz,
+        CellFunction f) const;
 
     EigenSTL::vector_Vector3d toAlignedVector(
         const std::vector<Eigen::Vector3d>& v) const;
@@ -325,6 +349,18 @@ bool OccupancyGrid::isInBounds(double x, double y, double z) const
     int gx, gy, gz;
     worldToGrid(x, y, z, gx, gy, gz);
     return isInBounds(gx, gy, gz);
+}
+
+inline
+int OccupancyGrid::coordToIndex(int x, int y, int z) const
+{
+    return x * m_x_stride + y * m_y_stride + z;
+}
+
+inline
+int OccupancyGrid::getCellCount() const
+{
+    return grid_->getXNumCells() * grid_->getYNumCells() * grid_->getZNumCells();
 }
 
 typedef std::shared_ptr<OccupancyGrid> OccupancyGridPtr;
