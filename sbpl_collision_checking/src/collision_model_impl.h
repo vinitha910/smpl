@@ -52,39 +52,54 @@
 namespace sbpl {
 namespace collision {
 
+template <
+    class Key,
+    class T,
+    class Hash = std::hash<Key>,
+    class KeyEqual = std::equal_to<Key>,
+    class Allocator<std::pair<const Key, T>>>
+using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
+
 struct CollisionModelConfig;
 
+/// \brief Collision Group Specification
 struct CollisionGroup
 {
+    std::string name;
     std::vector<int> m_link_indices;
 };
 
+/// \brief Voxel Collision Model Specification
 struct VoxelCollisionModel
 {
     int m_link_index;
 };
 
+/// \brief Voxel Collision State Specification
 struct VoxelCollisionState
 {
     std::vector<Eigen::Vector3d> voxels; // in the model frame
 };
 
+/// \brief Sphere Collision Model Specification
 struct SphereCollisionModel
 {
-    int m_link_index;
     std::string name;
     Eigen::Vector3d center; ///< offset from link center
     double radius;
     int priority;
 };
 
+/// \brief Sphere Collision State Specification
 struct SphereCollisionState
 {
+    Eigen::Vector3d pos;
 };
 
 struct SpheresCollisionModel
 {
-    std::vector<SphereCollisionModel> spheres;
+    std::vector<SphereCollisionModel*> models;
+    std::vector<SphereCollisionState*> states;
 };
 
 class CollisionModelImpl
@@ -131,49 +146,80 @@ public:
     const std::string&  linkName(int lidx) const;
     ///@}
 
-    /// \name Collision Model
+    /// \name Collision Model Information
     ///@{
-
     bool hasVoxelModel(const std::string& link_name) const;
     bool hasVoxelModel(int lidx) const;
     bool hasSpheresModel(const std::string& link_name) const;
     bool hasSpheresModel(int lidx) const;
+    ///@}
 
-    // changed = set all requested joint positions and world-to-model transform
-    //
-    // if not changed, skip transforms and just check the spheres again
-    //
-    // for each voxel collision state : voxel collision states that are not part of the active group
-    //      if the voxel collision state transform is dirty
-    //          remove old voxels
-    //          update the transform
-    //          insert new voxels
-    //
-    // for each sphere collision state : sphere collision states that are part of the active group
-    //      if the sphere collision state transform is dirty
-    //          update the transform
-    //      if the sphere is in collision with the collision space
-    //          return false;
+    /// \name Collision Model Group Information
+    ///@{
 
-    // get link names outside of a collision group with voxel models
-    // get link indices outside of a collision group with voxel models
-    // get link indices
-
+    /// \brief Return the number of collision groups
     size_t                          groupCount() const;
+
+    /// \brief Return the names of the collision groups
     const std::vector<std::string>& groupNames() const;
+
+    /// \brief Return whether a collision group exists within the model
     bool                            hasGroup(const std::string& group_name) const;
 
-    const std::vector<int>& groupSpheresModelIndices(
+    /// \brief Return the index for a collision group
+    int                             groupIndex(const std::string& group_name) const;
+
+    /// \brief Return the name of a collision group from its index
+    const std::string&              groupName(int gidx) const;
+
+    /// \brief Return the indices of the links belonging to a group
+    const std::vector<int>& groupLinkIndices(const std::string& group_name) const;
+    const std::vector<int>& groupLinkIndices(int gidx) const;
+
+    /// \brief Return the indices of the sphere collision states belonging to this group
+    const std::vector<int>& groupSphereModelIndices(const std::string& group_name) const;
+    const std::vector<int>& groupSphereModelIndices(int gidx) const;
+
+    /// \brief Return the indices of the voxel collision states NOT belonging to this group
+    const std::vector<int>& groupOutsideVoxelModelIndices(const std::string& group_name);
+    const std::vector<int>& groupOutsideVoxelModelIndices(int gidx) const;
+
+    const std::vector<int>& groupVoxelModelIndices(
         const std::string& group_name) const;
-    const std::vector<int>& groupSpheresModelIndices(
+    const std::vector<int>& groupVoxelModelIndices(
         int gidx) const;
-    const std::vector<const SpheresCollisionModel*>& groupSpheresModels(
+    const std::vector<VoxelCollisionModel*> groupVoxelModels(
         const std::string& group_name) const;
-    const std::vector<const SpheresCollisionModel*>& groupSpheresModels(
+    const std::vector<VoxelCollisionModel*> groupVoxelModels(
         int gidx) const;
 
-    std::vector<std::string> linksWithVoxelModels() const;
-    std::vector<std::string> linksWithSphereModels() const;
+    const std::vector<const SpheresCollisionModel*>& groupSpheres(
+        const std::string& group_name) const;
+    const std::vector<const SpheresCollisionModel*>& groupSpheres(
+        int gidx) const;
+
+    ///@}
+
+    /// \name Sphere Collision Model Information
+    ///@{
+
+    /// \brief Return the number of sphere collision models
+    size_t                                   sphereModelCount() const;
+
+    /// \brief Return the sphere collision model for a given sphere collision state
+    const SphereCollisionModel&              sphereModel(int sidx) const;
+
+    ///@}
+
+    /// \name Voxel Collision Model Information
+    ///@{
+
+    /// \brief Return the number of voxel model collision states
+    size_t                      voxelModelCount() const;
+
+    /// \brief Return the voxel collision model for a given voxel collision state
+    const VoxelCollisionModel&  voxelModel(int vsidx) const;
+
     ///@}
 
     /// \name RobotState
@@ -203,21 +249,12 @@ public:
 
     /// \name CollisionState
     ///@{
-    const std::vector<Eigen::Vector3d>& spherePositions() const;
 
-    const std::vector<int>& groupVoxelModelIndices(
-        const std::string& group_name) const;
-    const std::vector<int>& groupVoxelModelIndices(
-        int gidx) const;
-    const std::vector<VoxelCollisionModel*> groupVoxelModels(
-        const std::string& group_name) const;
-    const std::vector<VoxelCollisionModel*> groupVoxelModels(
-        int gidx) const;
+    bool voxelStateDirty(int vsidx) const;
 
-    const std::vector<const SpheresCollisionModel*>& groupSpheres(
-        const std::string& group_name) const;
-    const std::vector<const SpheresCollisionModel*>& groupSpheres(
-        int gidx) const;
+    const VoxelCollisionState& voxelState(int vsidx) const;
+
+    const Eigen::Vector3d& spherePosition(int sidx) const;
 
     bool spherePositionDirty(int sidx) const;
 
@@ -227,9 +264,6 @@ public:
     bool updateSpherePosition(int sidx) const;
     ///@}
 
-    // goal: iterate over all spheres in the active collision group and check
-    // their positions
-
 private:
 
     /// \name Robot Model
@@ -238,35 +272,43 @@ private:
     std::string                     m_model_frame;
     std::vector<std::string>        m_joint_names;
     std::vector<std::string>        m_link_names;
-    std::map<std::string, int>      m_joint_name_to_index;
-    std::map<std::string, int>      m_link_name_to_index;
+    hash_map<std::string, int>      m_joint_name_to_index;
+    hash_map<std::string, int>      m_link_name_to_index;
     ///@}
 
     /// \name Collision Model
     ///@{
     std::vector<CollisionGroup>         m_collision_groups;
-    std::vector<SpheresCollisionModel*> m_spheres_models;       // per-link
+    hash_map<std::string, int>          m_group_name_to_index;
+    std::vector<VoxelCollisionModel>    m_voxel_models;
+    std::vector<SphereCollisionModel>   m_sphere_models;
+    std::vector<SpheresCollisionModel>  m_spheres_models;
+
+    std::vector<SpheresCollisionModel*> m_link_spheres_models;  // per link
+    std::vector<VoxelColisionModel*>    m_link_voxel_models;    // per link
     ///@}
 
     /// \name Robot State
     ///@{
     Eigen::Affine3d                 m_T_world_model;
-    std::vector<double>             m_joint_positions;
-    std::vector<bool>               m_dirty_link_transforms;    // per-link
-    Affine3dVector                  m_link_transforms;          // per-link
+    std::vector<double>             m_joint_positions;          // per joint
+    std::vector<bool>               m_dirty_link_transforms;    // per link
+    Affine3dVector                  m_link_transforms;          // per link
     ///@}
 
     /// \name Collision State
     ///@{
-    std::vector<bool>                   m_dirty_voxels_transforms; // per-link
-    std::vector<VoxelCollisionModel*>   m_voxel_models;            // per-link
-    std::vector<bool>                   m_dirty_sphere_transforms; // per-sphere
-    std::vector<Eigen::Vector3d>        m_sphere_transforms;       // per-sphere
+    std::vector<bool>                       m_dirty_voxel_states;   // per voxel state
+    std::vector<VoxelCollisionState>        m_voxel_states;         // per voxel state
+    std::vector<bool>                       m_dirty_sphere_states;  // per sphere state
+    std::vector<SphereCollisionState>       m_sphere_states;        // per sphere state
+    std::vector<VoxelCollisionState*>       m_link_voxel_states;    // per link
+    std::vector<SphereCollisionState*>      m_b
     ///@}
 
-    void setReferenceFrame(const std::string& frame);
+    bool initRobotModel(const std::string& urdf_string);
+    bool initRobotState();
 
-    bool initURDF(const std::string& urdf_string);
     bool initKdlRobotModel();
     bool initAllGroups(const CollisionModelConfig& config);
 
@@ -279,6 +321,8 @@ private:
     bool jointInfluencesLink(
         const std::string& joint_name,
         const std::string& link_name) const;
+
+    void clear();
 };
 
 } // namespace collision

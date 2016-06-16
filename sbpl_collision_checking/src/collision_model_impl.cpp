@@ -76,57 +76,10 @@ bool CollisionModelImpl::init(
     const std::string& urdf_string,
     const CollisionModelConfig& config)
 {
-    return initURDF(urdf_string) &&
+    return initRobotModel(urdf_string) &&
+            initRobotState() &&
             initAllGroups(config) &&
             initKdlRobotModel();
-}
-
-void CollisionModelImpl::getGroupNames(std::vector<std::string>& names) const
-{
-    for (auto iter = group_config_map_.begin();
-        iter != group_config_map_.end();
-        ++iter)
-    {
-        names.push_back(iter->first);
-    }
-}
-
-bool CollisionModelImpl::setDefaultGroup(const std::string& group_name)
-{
-    if (group_config_map_.find(group_name) == group_config_map_.end()) {
-        ROS_ERROR("Failed to find group '%s' in group_config_map_", group_name.c_str());
-        ROS_ERROR("Expecting one of the following group names:");
-        for (auto it = group_config_map_.cbegin();
-            it != group_config_map_.cend();
-            ++it)
-        {
-            ROS_ERROR("%s", it->first.c_str());
-        }
-        return false;
-    }
-
-    dgroup_ = group_config_map_[group_name];
-    return true;
-}
-
-void CollisionModelImpl::printGroups() const
-{
-    if (group_config_map_.begin() == group_config_map_.end()) {
-        ROS_ERROR("No groups found.");
-        return;
-    }
-
-    for (auto iter = group_config_map_.begin();
-        iter != group_config_map_.end();
-        ++iter)
-    {
-        if (!iter->second->init_) {
-            ROS_ERROR("Failed to print %s group information because has not yet been initialized.", iter->second->getName().c_str());
-            continue;
-        }
-        iter->second->print();
-        ROS_INFO("----------------------------------");
-    }
 }
 
 bool CollisionModelImpl::getFrameInfo(
@@ -337,31 +290,40 @@ bool CollisionModelImpl::doesLinkExist(
     return getFrameInfo(name, group_name, chain, segment);
 }
 
-void CollisionModelImpl::setReferenceFrame(const std::string& frame)
+bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
 {
-    m_model_frame = frame;
-}
-
-bool CollisionModelImpl::initURDF(const std::string& urdf_string)
-{
-    m_urdf = boost::shared_ptr<urdf::Model>(new urdf::Model());
+    m_urdf = boost::make_shared<urdf::Model>();
     if (!m_urdf->initString(urdf_string)) {
         ROS_WARN("Failed to parse the URDF");
         return false;
     }
 
     auto root_link = m_urdf->getRoot();
+    m_model_frame = root_link->name;
+
+    // breadth-first traversal of all links in the robot
+
     std::queue<boost::shared_ptr<const urdf::Link>> links;
     links.push(root_link);
     while (!links.empty()) {
         boost::shared_ptr<const urdf::Link> link = links.front();
         links.pop();
 
+        m_link_names.push_back(link->name);
+        m_link_name_to_index[m_link_names.back()] = m_link_names.size() - 1;
+
         // for each joint
         for (const auto& joint : link->child_joints) {
+            if (joint->type != urdf::Joint::REVOLUTE &&
+                joint->type != urdf::Joint::PRISMATIC &&
+                joint->type != urdf::Joint::PRISMATIC)
+            {
+                ROS_ERROR("Collision Model currently only supports single-dof joint types");
+                return false;
+            }
+
             const std::string& joint_name = joint->name;
             m_joint_names.push_back(joint_name);
-            m_joint_positions.push_back(0.0);
             m_joint_to_index[m_joint_names.back()] = m_joint_names.size() - 1;
         }
 
@@ -371,9 +333,18 @@ bool CollisionModelImpl::initURDF(const std::string& urdf_string)
         }
     }
 
-    setReferenceFrame(m_urdf->getRoot()->name);
-    ROS_DEBUG("Collision Robot Frame: %s", getReferenceFrame().c_str());
+    ROS_DEBUG("Robot Model Frame: %s", m_model_frame.c_str());
+    m_joint_positions.push_back(0.0);
 
+    return true;
+}
+
+bool CollisionModelImpl::initRobotState()
+{
+    m_T_world_model = Eigen::Affine3d::Identity();
+    m_joint_positions.resize(m_joint_names.size(), 0.0);
+    m_dirty_link_transforms.resize(m_link_names.size(), true);
+    m_link_transforms.resize(m_link_names.size(), Eigen::Affine3d::Identity());
     return true;
 }
 
@@ -625,6 +596,16 @@ bool CollisionModelImpl::jointInfluencesLink(
 
     const std::string& parent_link_name = joint->parent_link_name;
     return isDescendantOf(parent_link_name, link_name);
+}
+
+void CollisionModelImpl::clear()
+{
+    m_urdf.reset();
+    m_model_frame = "";
+    m_joint_names.clear();
+    m_link_names.clear();
+    m_joint_name_to_index.clear();
+    m_link_name_to_index.clear();
 }
 
 } // namespace collision

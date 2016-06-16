@@ -60,9 +60,6 @@ struct CollisionLinkConfig
 struct CollisionGroupConfig
 {
     std::string name;
-    std::string type; // "voxels" or "spheres"
-    std::string root_name;
-    std::string tip_name; // TODO: find out why this is necessary
     std::vector<CollisionLinkConfig> collision_links;
 
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionGroupConfig& cfg);
@@ -82,9 +79,14 @@ struct CollisionSphereConfig
 
 struct CollisionModelConfig
 {
-    std::vector<CollisionGroupConfig> collision_groups;
-    std::vector<CollisionSphereConfig> collision_spheres;
+    std::vector<CollisionSphereConfig>          spheres;
+    std::vector<CollisionSpheresModelConfig>    spheres_models;
+    std::vector<CollisionVoxelModelConfig>      voxel_models;
+    std::vector<CollisionGroupConfig>           groups;
     collision_detection::AllowedCollisionMatrix acm;
+
+//    std::vector<CollisionGroupConfig> collision_groups;
+//    std::vector<CollisionSphereConfig> collision_spheres;
 
     static bool Load(const ros::NodeHandle& nh, CollisionModelConfig& cfg);
 };

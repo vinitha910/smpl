@@ -1,0 +1,70 @@
+# occupancy grid information
+collision_world:
+    size_x: 3.5
+    size_y: 3.0
+    size_z: 2.5
+    origin_x: -1.0
+    origin_y: -1.5
+    origin_z: -1.25
+    res_m: 0.02
+    max_distance: 0.2
+
+# all collision spheres defined separately
+collision_spheres:
+  - { name: sh0, x: 0.0, y:  0.000, z:  0.000, radius: 0.080, priority: 5 }
+  - { name: sh1, x: 0.0, y:  0.070, z:  0.000, radius: 0.080, priority: 5 }
+  - { name: ua0, x: 0.0, y:  0.000, z:  0.000, radius: 0.080, priority: 4 }
+  - { name: ua1, x: 0.0, y:  0.000, z:  0.105, radius: 0.080, priority: 4 }
+  - { name: ua2, x: 0.0, y:  0.000, z:  0.210, radius: 0.080, priority: 4 }
+  - { name: ua3, x: 0.0, y:  0.000, z:  0.315, radius: 0.080, priority: 2 }
+  - { name: ua4, x: 0.0, y:  0.000, z:  0.420, radius: 0.080, priority: 2 }
+  - { name: fa0, x: 0.0, y:  0.000, z:  0.000, radius: 0.060, priority: 4 }
+  - { name: fa1, x: 0.0, y:  0.000, z:  0.100, radius: 0.060, priority: 4 }
+  - { name: fa2, x: 0.0, y:  0.000, z:  0.200, radius: 0.060, priority: 4 }
+  - { name: fa3, x: 0.0, y:  0.000, z:  0.300, radius: 0.060, priority: 2 }
+  - { name: fa4, x: 0.0, y: -0.019, z:  0.390, radius: 0.050, priority: 2 }
+  - { name: fa5, x: 0.0, y:  0.019, z:  0.390, radius: 0.050, priority: 2 }
+  - { name: w10, x: 0.0, y:  0.090, z: -0.018, radius: 0.050, priority: 2 }
+  - { name: w11, x: 0.0, y:  0.090, z:  0.018, radius: 0.050, priority: 2 }
+  - { name: w20, x: 0.0, y: -0.018, z:  0.090, radius: 0.055, priority: 1 }
+  - { name: w21, x: 0.0, y:  0.018, z:  0.090, radius: 0.050, priority: 1 }
+
+spheres_models:
+  - link_name: shoulder_link
+    spheres: sh0 sh1
+  - link_name: upper_arm_link
+    spheres: ua0 ua1 ua2 ua3 ua4 #ua5
+  - link_name: forearm_link
+    spheres: fa0 fa1 fa2 fa3 fa4 fa5
+  - link_name: wrist_1_link
+    spheres: w10 w11
+  - link_name: wrist_2_link
+    spheres: w20 w21
+  - link_name: wrist_3_link
+    spheres: #rf0 rf1
+  - link_name: ee_link
+    spheres:
+
+#voxel_models:
+#  - link_name: world
+
+collision_groups:
+  - name: manipulator
+    links:
+      - name: shoulder_link
+      - name: upper_arm_link
+      - name: forearm_link
+      - name: wrist_1_link
+      - name: wrist_2_link
+      - name: wrist_3_link
+      - name: ee_link
+
+allowed_collisions:
+  - { sphere1: sh0, sphere2: ua0 }
+  - { sphere1: sh1, sphere2: ua0 }
+  - { sphere1: sh1, sphere2: ua1 }
+  - { sphere1: ua4, sphere2: fa0 }
+  - { sphere1: fa5, sphere2: w10 }
+  - { sphere1: fa5, sphere2: w11 }
+  - { sphere1: w11, sphere2: w20 }
+  - { sphere1: w11, sphere2: w21 }
