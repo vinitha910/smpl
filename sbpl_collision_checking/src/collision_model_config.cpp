@@ -36,6 +36,9 @@
 #include <sstream>
 #include <utility>
 
+// system includes
+#include <leatherman/print.h>
+
 namespace sbpl {
 namespace collision {
 
@@ -58,119 +61,6 @@ double ToDouble(XmlRpc::XmlRpcValue& value)
     }
 }
 
-bool CollisionLinkConfig::Load(
-    XmlRpc::XmlRpcValue& config,
-    CollisionLinkConfig& cfg)
-{
-    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        !config.hasMember("name") ||
-        !config.hasMember("root"))
-        // note: spheres member optional
-    {
-        ROS_WARN("collision_links config is malformed");
-        return false;
-    }
-
-    XmlRpc::XmlRpcValue& name_value = config["name"];
-    XmlRpc::XmlRpcValue& root_value = config["root"];
-
-    if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Collision link config 'name' element must be a string");
-        return false;
-    }
-
-    if (root_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Collision link config 'root' element must be a string");
-        return false;
-    }
-
-    cfg.name = (std::string)name_value;
-    cfg.root = (std::string)root_value;
-
-    // TODO: value checking? enforce spheres if parent group type is 'spheres'?
-
-    if (config.hasMember("spheres")) {
-        XmlRpc::XmlRpcValue& spheres_value = config["spheres"];
-        if (spheres_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-            ROS_WARN("Collision link config 'spheres' value must be a string");
-            return false;
-        }
-
-        std::stringstream ss((std::string)spheres_value);
-        std::string sphere_name;
-        while (ss >> sphere_name) {
-            cfg.spheres.push_back(sphere_name);
-        }
-    }
-
-    return true;
-}
-
-bool CollisionGroupConfig::Load(
-    XmlRpc::XmlRpcValue& config,
-    CollisionGroupConfig& cfg)
-{
-    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        !config.hasMember("name") ||
-        !config.hasMember("type") ||
-        !config.hasMember("root_name") ||
-        !config.hasMember("tip_name") ||
-        !config.hasMember("collision_links"))
-    {
-        ROS_WARN("Group config is malformed");
-        return false;
-    }
-
-    XmlRpc::XmlRpcValue& name_value = config["name"];
-    XmlRpc::XmlRpcValue& type_value = config["type"];
-    XmlRpc::XmlRpcValue& root_name_value = config["root_name"];
-    XmlRpc::XmlRpcValue& tip_name_value = config["tip_name"];
-    XmlRpc::XmlRpcValue& collision_links_value = config["collision_links"];
-
-    if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Collision group config 'name' element must be a string");
-        return false;
-    }
-    if (type_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Collision group config 'type' element must be a string");
-        return false;
-    }
-    if (root_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Collision group config 'root_name' element must be a string");
-        return false;
-    }
-    if (tip_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Collision group config 'tip_name' element must be a string");
-        return false;
-    }
-    if (collision_links_value.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_WARN("Collision group config 'collision_links' element must be an array");
-        return false;
-    }
-
-    // TODO: value checking?
-
-    cfg.name = (std::string)name_value;
-    cfg.type = (std::string)type_value;
-    cfg.root_name = (std::string)root_name_value;
-    cfg.tip_name = (std::string)tip_name_value;
-    cfg.collision_links.reserve(collision_links_value.size());
-
-    // read in collision links
-    for (int j = 0; j < collision_links_value.size(); ++j) {
-        XmlRpc::XmlRpcValue& link_config = collision_links_value[j];
-        CollisionLinkConfig collision_link_config;
-        if (!CollisionLinkConfig::Load(link_config, collision_link_config)) {
-            ROS_WARN("Failed to load collision link config");
-            return false;
-        }
-
-        cfg.collision_links.push_back(std::move(collision_link_config));
-    }
-
-    return true;
-}
-
 bool CollisionSphereConfig::Load(
     XmlRpc::XmlRpcValue& config,
     CollisionSphereConfig& cfg)
@@ -184,7 +74,7 @@ bool CollisionSphereConfig::Load(
         !config.hasMember("priority") ||
         !config.hasMember("radius"))
     {
-        ROS_WARN("Sphere config is malformed");
+        ROS_ERROR("sphere config is malformed");
         return false;
     }
 
@@ -198,27 +88,27 @@ bool CollisionSphereConfig::Load(
     XmlRpc::XmlRpcValue& priority_value = config["priority"];
 
     if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_WARN("Sphere config 'name' element must be a string");
+        ROS_ERROR("sphere config 'name' element must be a string");
         return false;
     }
     if (!IsNumeric(x_value)) {
-        ROS_WARN("Sphere config 'x' element must be numeric");
+        ROS_ERROR("sphere config 'x' element must be numeric");
         return false;
     }
     if (!IsNumeric(y_value)) {
-        ROS_WARN("Sphere config 'y' element must be numeric");
+        ROS_ERROR("sphere config 'y' element must be numeric");
         return false;
     }
     if (!IsNumeric(z_value)) {
-        ROS_WARN("Sphere config 'z' element must be numeric");
+        ROS_ERROR("sphere config 'z' element must be numeric");
         return false;
     }
     if (!IsNumeric(radius_value)) {
-        ROS_WARN("Sphere config 'radius' element must be numeric");
+        ROS_ERROR("sphere config 'radius' element must be numeric");
         return false;
     }
     if (priority_value.getType() != XmlRpc::XmlRpcValue::TypeInt) {
-        ROS_WARN("Sphere config 'priority' element must be an integer");
+        ROS_ERROR("sphere config 'priority' element must be an integer");
         return false;
     }
 
@@ -233,116 +123,224 @@ bool CollisionSphereConfig::Load(
     return true;
 }
 
-bool CollisionModelConfig::Load(
-    const ros::NodeHandle& nh,
-    CollisionModelConfig& cfg)
+std::ostream& operator<<(std::ostream& o, const CollisionSphereConfig& c)
 {
-    std::vector<CollisionSphereConfig> spheres_config;
-    std::vector<CollisionSpheresModelConfig> spheres_models_config;
-    std::vector<CollisionVoxelModelConfig> voxel_models_config;
-    std::vector<CollisionGroupConfig> groups_config;
+    o << "{ name: " << c.name << ", x: " << c.x << ", y: " << c.y << ", z: " <<
+            c.z << ", radius: " << c.radius << ", priority: " << c.priority <<
+            " }";
+    return o;
+}
 
-    // read in collision_spheres
-    const std::string spheres_param_name = "collision_spheres";
-    if (nh.hasParam(spheres_param_name)) {
-        XmlRpc::XmlRpcValue all_spheres;
-        nh.getParam(spheres_param_name, all_spheres);
+bool CollisionSpheresModelConfig::Load(
+    XmlRpc::XmlRpcValue& config,
+    CollisionSpheresModelConfig& cfg)
+{
+    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+        !config.hasMember("link_name") ||
+        !config.hasMember("spheres"))
+    {
+        ROS_ERROR("spheres model config is malformed");
+        return false;
+    }
 
-        if (all_spheres.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-            ROS_ERROR("param '%s' must be an array", spheres_param_name.c_str());
+    XmlRpc::XmlRpcValue& link_name_value = config["link_name"];
+    XmlRpc::XmlRpcValue& spheres_value = config["spheres"];
+
+    if (link_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+        ROS_ERROR("spheres model config 'link_name' element must be a string");
+        return false;
+    }
+
+    if (spheres_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+        ROS_ERROR("spheres model config 'spheres' element must be an array");
+        return false;
+    }
+
+    cfg.link_name = (std::string)link_name_value;
+
+    std::stringstream ss((std::string)spheres_value);
+    std::string sphere_name;
+    while (ss >> sphere_name) {
+        cfg.spheres.push_back(sphere_name);
+    }
+
+    return true;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionSpheresModelConfig& c)
+{
+    o << "{ link_name: " << c.link_name << ", spheres: " << c.spheres << " }";
+    return o;
+}
+
+bool CollisionVoxelModelConfig::Load(
+    XmlRpc::XmlRpcValue& config,
+    CollisionVoxelModelConfig& cfg)
+{
+    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+        !config.hasMember("link_name"))
+    {
+        ROS_ERROR("voxel model config is malformed");
+        return false;
+    }
+
+    XmlRpc::XmlRpcValue& link_name_value = config["link_name"];
+
+    if (link_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+        ROS_ERROR("voxel model config 'link_name' element must be a string");
+        return false;
+    }
+
+    cfg.link_name = (std::string)link_name_value;
+
+    return true;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionVoxelModelConfig& c)
+{
+    o << "{ link_name: " << c.link_name << " }";
+    return o;
+}
+
+bool CollisionGroupConfig::Load(
+    XmlRpc::XmlRpcValue& config,
+    CollisionGroupConfig& cfg)
+{
+    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+        !config.hasMember("name") ||
+        !config.hasMember("links"))
+    {
+        ROS_ERROR("group config is malformed");
+        return false;
+    }
+
+    XmlRpc::XmlRpcValue& name_value = config["name"];
+    XmlRpc::XmlRpcValue& links_value = config["links"];
+
+    if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+        ROS_ERROR("group config 'name' element must be a string");
+        return false;
+    }
+
+    if (links_value.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+        ROS_ERROR("group config 'links' element must be an array");
+        return false;
+    }
+
+
+    std::vector<std::string> group_links;
+    group_links.reserve(links_value.size());
+    for (int i = 0; i < links_value.size(); ++i) {
+        XmlRpc::XmlRpcValue& link_value = links_value[i];
+        if (link_value.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+            !link_value.hasMember("name"))
+        {
+            ROS_ERROR("links config is malformed");
             return false;
         }
 
-        if (all_spheres.size() == 0) {
-            ROS_WARN("No spheres in %s", spheres_param_name.c_str());
+        XmlRpc::XmlRpcValue& link_name_value = link_value["name"];
+        if (link_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+            ROS_ERROR("links config 'name' element must be a string");
+            return false;
         }
 
-        spheres_config.reserve(all_spheres.size());
-        for (int i = 0; i < all_spheres.size(); ++i) {
-            XmlRpc::XmlRpcValue& sphere_config = all_spheres[i];
-            CollisionSphereConfig collision_sphere_config;
-            if (!CollisionSphereConfig::Load(
-                    sphere_config, collision_sphere_config))
-            {
+        group_links.push_back((std::string)link_name_value);
+    }
+
+    cfg.name = (std::string)name_value;
+    cfg.links = std::move(group_links);
+
+    return true;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionGroupConfig& c)
+{
+    o << "{ name: " << c.name << ", links: " << c.links << " }";
+    return o;
+}
+
+template <typename T>
+bool LoadConfigArray(
+    const ros::NodeHandle& nh,
+    const std::string& param_name,
+    std::vector<T>& configs)
+{
+    std::vector<T> out;
+    if (nh.hasParam(param_name)) {
+        XmlRpc::XmlRpcValue all_configs;
+        nh.getParam(param_name, all_configs);
+
+        if (all_configs.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+            ROS_ERROR("param '%s' must be an array", param_name.c_str());
+            return false;
+        }
+
+        if (all_configs.size() == 0) {
+            ROS_WARN("No spheres in %s", param_name.c_str());
+        }
+
+        out.reserve(all_configs.size());
+        for (int i = 0; i < all_configs.size(); ++i) {
+            XmlRpc::XmlRpcValue& config = all_configs[i];
+            T collision_config;
+            if (!T::Load(config, collision_config)) {
                 ROS_ERROR("Failed to load collision sphere config");
                 return false;
             }
-            spheres_config.push_back(std::move(collision_sphere_config));
+            out.push_back(std::move(collision_config));
         }
     }
     else {
-        ROS_WARN("No param '%s' on the param server", spheres_param_name.c_str());
+        ROS_WARN("No param '%s' on the param server", param_name.c_str());
     }
 
-    // read in spheres models
+    configs = std::move(out);
+    return true;
+}
+
+static
+bool LoadCollisionSphereConfigs(
+    const ros::NodeHandle& nh,
+    std::vector<CollisionSphereConfig>& configs)
+{
+    const std::string spheres_param_name = "collision_spheres";
+    return LoadConfigArray(nh, spheres_param_name, configs);
+}
+
+static
+bool LoadCollisionSpheresModelConfigs(
+    const ros::NodeHandle& nh,
+    std::vector<CollisionSpheresModelConfig>& configs)
+{
     const std::string spheres_models_param_name = "spheres_models";
-    if (nh.hasParam(spheres_models_param_name)) {
-        XmlRpc::XmlRpcValue all_spheres_models;
-        nh.getParam(spheres_models_param_name, all_spheres_models);
+    return LoadConfigArray(nh, spheres_models_param_name, configs);
+}
 
-        if (all_spheres_models.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-            ROS_ERROR("param '%s' must be an array", spheres_models_param_name.c_str());
-            return false;
-        }
+static
+bool LoadCollisionVoxelModelConfigs(
+    const ros::NodeHandle& nh,
+    std::vector<CollisionVoxelModelConfig>& configs)
+{
+    const std::string voxel_models_param_name = "voxel_models";
+    return LoadConfigArray(nh, voxel_models_param_name, configs);
+}
 
-        if (all_spheres_models.size() == 0) {
-            ROS_WARN("No spheres models in '%s'", spheres_models_param_name.c_str());
-        }
-
-        spheres_models_config.reserve(all_spheres_models.size());
-        for (int i = 0; i < all_spheres_models.size(); ++i) {
-            XmlRpc::XmlRpcValue& spheres_models_config = all_spheres_models[i];
-            CollisionSpheresModelConfig collision_spheres_models_config;
-            if (!CollisionSpheresModelConfig::Load(
-                    spheres_model_config, collision_spheres_models_config))
-            {
-                ROS_ERROR("Faile to load collision spheres model config");
-                return false;
-            }
-            spheres_models_config.push_back(std::move(collision_spheres_model_config));
-        }
-    }
-    else {
-        ROS_WARN("No param '%s' on the param server")
-    }
-
-    // read in collision_groups
-
+static
+bool LoadCollisionGroupConfigs(
+    const ros::NodeHandle& nh,
+    std::vector<CollisionGroupConfig>& configs)
+{
     const std::string groups_param_name = "collision_groups";
-    if (!nh.hasParam(groups_param_name)) {
-        ROS_WARN_STREAM("No groups for planning specified in " << groups_param_name);
-        return false;
-    }
+    return LoadConfigArray(nh, groups_param_name, configs);
+}
 
-    XmlRpc::XmlRpcValue all_groups;
-    nh.getParam(groups_param_name, all_groups);
-
-    if (all_groups.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_WARN("param '%s' is not an array", groups_param_name.c_str());
-        return false;
-    }
-
-    if (all_groups.size() == 0) {
-        ROS_WARN("No groups in groups");
-        return false;
-    }
-
-    std::vector<CollisionGroupConfig> collision_groups_config;
-    collision_groups_config.reserve(all_groups.size());
-    for (int i = 0; i < all_groups.size(); ++i) {
-        XmlRpc::XmlRpcValue& group_config = all_groups[i];
-        CollisionGroupConfig collision_group_config;
-        if (!CollisionGroupConfig::Load(group_config, collision_group_config)) {
-            ROS_WARN("Failed to load collision group config");
-            return false;
-        }
-        collision_groups_config.push_back(collision_group_config);
-    }
-
-    // TODO: check references to spheres in collision_groups?
-
+static
+bool LoadAllowedCollisionsConfig(
+    const ros::NodeHandle& nh,
+    collision_detection::AllowedCollisionMatrix& acm)
+{
     const std::string acm_param_name = "allowed_collisions";
-    collision_detection::AllowedCollisionMatrix acm;
     if (nh.hasParam(acm_param_name)) {
         XmlRpc::XmlRpcValue all_entries;
         nh.getParam(acm_param_name, all_entries);
@@ -376,11 +374,39 @@ bool CollisionModelConfig::Load(
             acm.setEntry(sphere1_value, sphere2_value, true);
         }
     }
+    else {
+        ROS_WARN("No param '%s' found on the param server", acm_param_name.c_str());
+    }
 
-    // TODO: check references to spheres?
+    return true;
+}
 
-    cfg.collision_groups = std::move(collision_groups_config);
-    cfg.collision_spheres = std::move(collision_spheres_config);
+bool CollisionModelConfig::Load(
+    const ros::NodeHandle& nh,
+    CollisionModelConfig& cfg)
+{
+    std::vector<CollisionSphereConfig> spheres_config;
+    std::vector<CollisionSpheresModelConfig> spheres_models_config;
+    std::vector<CollisionVoxelModelConfig> voxel_models_config;
+    std::vector<CollisionGroupConfig> groups_config;
+    collision_detection::AllowedCollisionMatrix acm;
+
+    if (!LoadCollisionSphereConfigs(nh, spheres_config) ||
+        !LoadCollisionSpheresModelConfigs(nh, spheres_models_config) ||
+        !LoadCollisionVoxelModelConfigs(nh, voxel_models_config) ||
+        !LoadCollisionGroupConfigs(nh, groups_config) ||
+        !LoadAllowedCollisionsConfig(nh, acm))
+    {
+        // errors printed within Load* functions
+        return false;
+    }
+
+    // TODO: check references to spheres in collision_groups?
+
+    cfg.spheres = std::move(spheres_config);
+    cfg.spheres_models = std::move(spheres_models_config);
+    cfg.voxel_models = std::move(voxel_models_config);
+    cfg.groups = std::move(groups_config);
     cfg.acm = acm;
     return true;
 }

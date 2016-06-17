@@ -34,12 +34,6 @@
 // standard includes
 #include <queue>
 
-// system includes
-#include <eigen_conversions/eigen_kdl.h>
-#include <eigen_conversions/eigen_msg.h>
-#include <kdl/tree.hpp>
-#include <leatherman/print.h>
-
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 
@@ -48,28 +42,39 @@ namespace collision {
 
 CollisionModelImpl::CollisionModelImpl() :
     m_urdf(),
+    m_name(),
     m_model_frame(),
-    m_tree(),
-    m_chains(),
-    m_solvers(),
-    m_joint_arrays(),
-    m_joint_map(),
-    group_config_map_(),
-    dgroup_(nullptr),
-    m_T_world_model(KDL::Frame::Identity())
+    m_joint_names(),
+    m_joint_max_positions(),
+    m_joint_min_positions(),
+    m_joint_has_position_bounds(),
+    m_joint_continuous(),
+    m_link_names(),
+    m_joint_name_to_index(),
+    m_link_name_to_index(),
+    m_sphere_models(),
+    m_spheres_models(),
+    m_voxels_models(),
+    m_group_models(),
+    m_group_name_to_index(),
+    m_link_spheres_models(),
+    m_link_voxels_models(),
+    m_T_world_model(),
+    m_joint_positions(),
+    m_dirty_link_transforms(),
+    m_link_transforms(),
+    m_dirty_voxels_states(),
+    m_voxels_states(),
+    m_dirty_sphere_states(),
+    m_sphere_states(),
+    m_link_voxels_states(),
+    m_link_sphere_states(),
+    m_group_states()
 {
 }
 
 CollisionModelImpl::~CollisionModelImpl()
 {
-    for (auto iter = group_config_map_.begin();
-        iter != group_config_map_.end();
-        iter++)
-    {
-        if (iter->second != NULL) {
-            delete iter->second;
-        }
-    }
 }
 
 bool CollisionModelImpl::init(
@@ -78,216 +83,62 @@ bool CollisionModelImpl::init(
 {
     return initRobotModel(urdf_string) &&
             initRobotState() &&
-            initAllGroups(config) &&
-            initKdlRobotModel();
+            initCollisionModel(config) &&
+            initCollisionState();
 }
 
-bool CollisionModelImpl::getFrameInfo(
-    const std::string& name,
-    const std::string& group_name,
-    int& chain,
-    int& segment) const
+bool CollisionModelImpl::setWorldToModelTransform(
+    const Eigen::Affine3d& transform)
 {
-    auto git = group_config_map_.find(group_name);
-    if (git == group_config_map_.end()) {
-        ROS_ERROR("No group named '%s'", name.c_str());
-        return false;
-    }
-    else {
-        return git->second->getFrameInfo(name, chain, segment);
-    }
+    // TODO: implement: dirty the transforms of all affected links, sphere models,
+    // and voxels models
+    return false;
 }
 
-bool CollisionModelImpl::initAllGroups(const CollisionModelConfig& config)
+bool CollisionModelImpl::setJointPosition(int jidx, double position)
 {
-    for (const CollisionGroupConfig& group_config : config.collision_groups) {
-        const std::string& group_name = group_config.name;
+    ASSERT_VECTOR_RANGE(m_joint_positions, jidx);
 
-        if (group_config_map_.find(group_name) != group_config_map_.end()) {
-            ROS_WARN("Already have group name '%s'", group_name.c_str());
-            continue;
-        }
+    // TODO: implement: set the joint position and dirty the transforms of all
+    // affected links, sphere models, and voxels models
 
-
-        Group* gc = new Group;
-        if (!gc->init(m_urdf, group_config, config.collision_spheres)) {
-            ROS_ERROR("Failed to get all params for %s", group_name.c_str());
-            delete gc;
-            return false;
-        }
-
-        group_config_map_[group_name] = gc;
-    }
-
-    ROS_DEBUG("Successfully initialized collision groups");
-    return true;
+    return false;
 }
 
-bool CollisionModelImpl::computeDefaultGroupFK(
-    const std::vector<double>& angles,
-    std::vector<std::vector<KDL::Frame>>& frames)
+bool CollisionModelImpl::updateLinkTransforms()
 {
-    return computeGroupFK(angles, dgroup_, frames);
+    // TODO: implement
+    return false;
 }
 
-bool CollisionModelImpl::computeGroupFK(
-    const std::vector<double>& angles,
-    Group* group,
-    std::vector<std::vector<KDL::Frame>>& frames)
+bool CollisionModelImpl::updateLinkTransform(int lidx)
 {
-    if (group->computeFK(angles, frames)) {
-        for (size_t i = 0; i < frames.size(); ++i) {
-            for (size_t j = 0; j < frames[i].size(); ++j) {
-                frames[i][j] = m_T_world_model * frames[i][j];
-            }
-        }
-        return true;
-    }
-    else {
-        return false;
-    }
+    // TODO: implement
+    return false;
 }
 
-void CollisionModelImpl::setOrderOfJointPositions(
-    const std::vector<std::string>& joint_names,
-    const std::string& group_name)
+bool CollisionModelImpl::updateVoxelsStates()
 {
-    group_config_map_[group_name]->setOrderOfJointPositions(joint_names);
+    // TODO: implement
+    return false;
 }
 
-void CollisionModelImpl::setJointPosition(
-    const std::string& name,
-    double position)
+bool CollisionModelImpl::updateVoxelsState(int vsidx)
 {
-    std::vector<bool> dirty_chains(m_chains.size(), false);
-
-    auto kjmit = m_joint_map.find(name);
-    if (kjmit == m_joint_map.end()) {
-        ROS_ERROR("Collision Robot doesn't know about joint '%s'", name.c_str());
-        return;
-    }
-
-    // set the joint position in any corresponding chains to groups
-    const KDLJointMapping& kjm = kjmit->second;
-    for (size_t i = 0; i < kjm.chain_indices.size(); ++i) {
-        int chidx = kjm.chain_indices[i];
-        int jidx = kjm.joint_indices[i];
-        m_joint_arrays[chidx](jidx) = position;
-        dirty_chains[chidx] = true;
-    }
-
-    // update any model->group transforms
-    for (size_t chidx = 0; chidx < m_chains.size(); ++chidx) {
-        const bool dirty = dirty_chains[chidx];
-        if (dirty) {
-            // update this chain and set the model frame
-            KDL::Frame f(KDL::Frame::Identity());
-            if (m_solvers[chidx]->JntToCart(m_joint_arrays[chidx], f) < 0) {
-                ROS_WARN("Solver failed to compute forward kinematics for chain %zu", chidx);
-            }
-
-            ROS_INFO("Updating model-to-group transform for group %s", m_chain_index_to_group[chidx]->getName().c_str());
-            m_chain_index_to_group[chidx]->setModelToGroupTransform(f);
-        }
-    }
-
-    for (auto iter = group_config_map_.begin();
-        iter != group_config_map_.end();
-        iter++)
-    {
-        iter->second->setJointPosition(name, position);
-    }
+    // TODO: implement
+    return false;
 }
 
-void CollisionModelImpl::printDebugInfo(const std::string& group_name) const
+bool CollisionModelImpl::updateSpherePositions()
 {
-    auto git = group_config_map_.find(group_name);
-    if (git == group_config_map_.end()) {
-        ROS_INFO("No group '%s' found", group_name.c_str());
-    }
-    else {
-        Group* group = git->second;
-        group->printDebugInfo();
-    }
+    // TODO: implement
+    return false;
 }
 
-const std::vector<const Sphere*>&
-CollisionModelImpl::getDefaultGroupSpheres() const
+bool CollisionModelImpl::updateSpherePosition(int sidx)
 {
-    return dgroup_->getSpheres();
-}
-
-bool CollisionModelImpl::getJointLimits(
-    const std::string& group_name,
-    const std::string& joint_name,
-    double& min_limit,
-    double& max_limit,
-    bool& continuous) const
-{
-    if (group_config_map_.find(group_name) == group_config_map_.end()) {
-        ROS_ERROR("Collision Model does not contain group '%s'", group_name.c_str());
-        return false;
-    }
-
-    auto git = group_config_map_.at(group_name);
-
-    if (!git->init_) {
-        ROS_ERROR("Collision Model Group '%s' is not initialized", group_name.c_str());
-        return false;
-    }
-
-    const std::string& root_link_name = git->getReferenceFrame();
-    const std::string& tip_link_name = git->tip_name_;
-    if (!leatherman::getJointLimits(
-            m_urdf.get(),
-            root_link_name,
-            tip_link_name,
-            joint_name,
-            min_limit,
-            max_limit,
-            continuous))
-    {
-        ROS_ERROR("Failed to find joint limits for joint '%s' between links '%s' and '%s'", joint_name.c_str(), root_link_name.c_str(), tip_link_name.c_str());
-        return false;
-    }
-
-    return true;
-}
-
-std::string CollisionModelImpl::getReferenceFrame(
-    const std::string& group_name) const
-{
-    return m_model_frame;
-}
-
-Group* CollisionModelImpl::getGroup(const std::string& name)
-{
-    Group* r = NULL;
-    if (group_config_map_.find(name) == group_config_map_.end()) {
-        return r;
-    }
-    return group_config_map_[name];
-}
-
-void CollisionModelImpl::getVoxelGroups(std::vector<Group*>& vg)
-{
-    vg.clear();
-    for (auto iter = group_config_map_.begin();
-        iter != group_config_map_.end();
-        ++iter)
-    {
-        if (iter->second->type_ == Group::VOXELS) {
-            vg.push_back(iter->second);
-        }
-    }
-}
-
-bool CollisionModelImpl::doesLinkExist(
-    const std::string& name,
-    const std::string& group_name) const
-{
-    int chain, segment;
-    return getFrameInfo(name, group_name, chain, segment);
+    // TODO: implement
+    return false;
 }
 
 bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
@@ -297,6 +148,8 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
         ROS_WARN("Failed to parse the URDF");
         return false;
     }
+
+    m_name = m_urdf->getName();
 
     auto root_link = m_urdf->getRoot();
     m_model_frame = root_link->name;
@@ -324,7 +177,7 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
 
             const std::string& joint_name = joint->name;
             m_joint_names.push_back(joint_name);
-            m_joint_to_index[m_joint_names.back()] = m_joint_names.size() - 1;
+            m_joint_name_to_index[m_joint_names.back()] = m_joint_names.size() - 1;
         }
 
         // add all child links
@@ -348,210 +201,53 @@ bool CollisionModelImpl::initRobotState()
     return true;
 }
 
-bool CollisionModelImpl::initKdlRobotModel()
+bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
 {
-    assert((bool)m_urdf);
-
-    if (!kdl_parser::treeFromUrdfModel(*m_urdf, m_tree)) {
-        ROS_ERROR("Failed to parse URDF into KDL tree");
-        return false;
+    // initialize sphere models
+    m_sphere_models.resize(config.spheres.size());
+    for (size_t i = 0; i < m_sphere_models.size(); ++i) {
+        const CollisionSphereConfig& sphere_config = config.spheres[i];
+        CollisionSphereModel& sphere_model = m_sphere_models[i];
+        sphere_model.name = sphere_config.name;
+        sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+        sphere_model.radius = sphere_config.radius;
+        sphere_model.priority = sphere_config.priority;
     }
 
-    std::string kdl_root = m_tree.getRootSegment()->second.segment.getName();
-    if (kdl_root != getReferenceFrame()) {
-        ROS_ERROR("Root frame of KDL tree is not the reference frame of the robot");
-        return false;
-    }
-
-    // initialize kinematic chain and joint array for each group to get the
-    // transform from the model root to the group root
-    m_chains.reserve(group_config_map_.size());
-    m_chain_index_to_group.reserve(group_config_map_.size());
-    m_solvers.reserve(group_config_map_.size());
-    m_joint_arrays.reserve(group_config_map_.size());
-
-    for (const auto& ent : group_config_map_) {
-        const std::string& group_name = ent.first;
-        Group* group = ent.second;
-
-        // create kinematic chain
-        KDL::Chain chain;
-        if (!m_tree.getChain(
-                getReferenceFrame(), group->getReferenceFrame(), chain))
-        {
-            ROS_ERROR("Failed to get kinematic chain from reference from '%s' to group reference frame '%s'",
-                    getReferenceFrame().c_str(), group->getReferenceFrame().c_str());
-            return false;
-        }
-        m_chains.push_back(chain);
-        m_chain_index_to_group.push_back(group);
-        m_solvers.push_back(
-                std::unique_ptr<KDL::ChainFkSolverPos_recursive>(
-                        new KDL::ChainFkSolverPos_recursive(m_chains.back())));
-
-        // fill joint array with 0's
-        KDL::JntArray jarray;
-        jarray.resize(m_chains.back().getNrOfJoints());
-        m_joint_arrays.push_back(jarray);
-        KDL::SetToZero(m_joint_arrays.back());
-    }
-
-    ROS_DEBUG("Chains from robot root to group root");
-    for (size_t chidx = 0; chidx < m_chains.size(); ++chidx) {
-        ROS_DEBUG("Chain %zu", chidx);
-        ROS_DEBUG("  Segment Count: %u", m_chains[chidx].getNrOfSegments());
-        ROS_DEBUG("  Joint Count: %u", m_chains[chidx].getNrOfJoints());
-        ROS_DEBUG("  Group Tip: %s", m_chain_index_to_group[chidx]->getName().c_str());
-    }
-
-    // map every joint to its chain and index within that chain; a joint may be
-    // part of multiple chains (these chains are used to link between the root
-    // and the root of a group)
-    for (const auto& joint_name : m_joint_names) {
-        // create an entry from joint name -> kdl mappings
-        auto vit = m_joint_map.insert(std::make_pair(
-                joint_name, KDLJointMapping())).first;
-
-        // for each chain
-        for (size_t chidx = 0; chidx < m_chains.size(); ++chidx) {
-            // find the joint index of this joint in the chain, if any
-            const KDL::Chain& chain = m_chains[chidx];
-            int jidx = 0;
-            for (int sidx = 0; sidx < chain.getNrOfSegments(); ++sidx) {
-                const KDL::Segment& seg = chain.getSegment(sidx);
-
-                if (seg.getJoint().getTypeName() == "None") {
-                    // skip these joints; they don't contribute to state and
-                    // won't have values in the joint array
-                    continue;
-                }
-
-                if (seg.getJoint().getName() == joint_name) {
-                    ROS_DEBUG("Found joint contributor '%s' of type '%s' to chain", joint_name.c_str(), seg.getJoint().getTypeName().c_str());
-                    vit->second.chain_indices.push_back(chidx);
-                    vit->second.joint_indices.push_back(jidx);
-                    break;
-                }
-
-                ++jidx;
-            }
-        }
-    }
-
-    ROS_DEBUG("Joint -> KDL Map");
-    for (const auto& ent : m_joint_map) {
-        ROS_DEBUG("  %s -> (chains: %s, joints: %s)", ent.first.c_str(), to_string(ent.second.chain_indices).c_str(), to_string(ent.second.joint_indices).c_str());
-    }
-
-    return true;
-}
-
-// this might be a useful decomposition for the group class instead of the way
-// it currently works
-bool CollisionModelImpl::decomposeRobotModel()
-{
-    // std::map<std::string, TreeElement>::const_iterator
-    typedef KDL::SegmentMap::const_iterator segment_iterator;
-
-    std::queue<segment_iterator> q;
-    q.push(m_tree.getRootSegment());
-
-    ROS_INFO("Root segment: %s", q.front()->first.c_str());
-
-    // gather leaf nodes
-    std::vector<segment_iterator> leaves;
-    while (!q.empty()) {
-        segment_iterator sit = q.front();
-        q.pop();
-
-        const KDL::TreeElement& e = sit->second;
-
-        ROS_INFO("Segment %s: Joint %s, Type: %s",
-                e.segment.getName().c_str(),
-                e.segment.getJoint().getName().c_str(),
-                e.segment.getJoint().getTypeName().c_str());
-
-        if (e.children.empty()) {
-            leaves.push_back(sit);
-        }
-        else {
-            for (auto child : e.children) {
-                q.push(child);
-            }
-        }
-    }
-
-    ROS_INFO("Found %zu leaves", leaves.size());
-    for (auto leaf : leaves) {
-        const std::string& name = leaf->first;
-        ROS_INFO("  %s", name.c_str());
-    }
-
-    std::set<std::string> chain_roots;
-
-    std::vector<KDL::Chain> chains;
-
-    while (!leaves.empty()) {
-        auto liit = leaves.end(); // last leaf so we can pop_back later
-        --liit;
-        segment_iterator tit = *liit;
-
-        leaves.pop_back();
-
-        const KDL::TreeElement& e = tit->second;
-
-        auto rit = tit;
-        while (rit != m_tree.getRootSegment() &&
-            rit->second.parent->second.children.size() == 1)
-        {
-            rit = rit->second.parent;
-        }
-
-        // either we'll end at the root or we'll end at a node whose parent has
-        // children
-
-        if (rit == m_tree.getRootSegment()) {
-            if (tit == m_tree.getRootSegment()) {
-
-            }
-            else {
-                KDL::Chain chain;
-                if (!m_tree.getChain(rit->first, tit->first, chain)) {
-                    ROS_ERROR("Something went wrong getting chain");
-                    return false;
-                }
-
-                chains.push_back(chain);
-                ROS_INFO("Created chain from %s to %s with %u joints",
-                        rit->first.c_str(),
-                        tit->first.c_str(),
-                        chains.back().getNrOfJoints());
-            }
-        }
-        else {
-            auto pit = rit;
-            pit = pit->second.parent; // may be root
-
-            KDL::Chain chain;
-            if (!m_tree.getChain(pit->first, tit->first, chain)) {
-                ROS_ERROR("Something went wrong getting chain");
+    // initialize spheres models
+    m_spheres_models.resize(config.spheres_models.size());
+    for (size_t i = 0; i < m_spheres_models.size(); ++i) {
+        const CollisionSpheresModelConfig& spheres_config = config.spheres_models[i];
+        CollisionSpheresModel& spheres_model = m_spheres_models[i];
+        for (const std::string& sphere_name : spheres_config.spheres) {
+            // find the sphere model with this name
+            auto sit = std::find_if(m_sphere_models.begin(), m_sphere_models.end(),
+                    [&sphere_name](const CollisionSphereModel& sphere)
+                    {
+                        return sphere.name == sphere_name;
+                    });
+            if (sit == m_sphere_models.end()) {
+                ROS_ERROR("Failed to find sphere '%s' specified in spheres model for link '%s'", sphere_name.c_str(), spheres_config.link_name.c_str());
                 return false;
             }
-
-            chains.push_back(chain);
-            ROS_INFO("Created chain from %s to %s with %u joints",
-                    pit->first.c_str(),
-                    tit->first.c_str(),
-                    chains.back().getNrOfJoints());
-
-            if (chain_roots.find(pit->first) == chain_roots.end()) {
-                leaves.push_back(pit);
-                chain_roots.insert(pit->first);
-            }
+            const CollisionSphereModel* sphere_model =
+                    m_sphere_models.data() +
+                    std::distance(m_sphere_models.begin(), sit);
+            spheres_model.spheres.push_back(sphere_model);
         }
     }
 
-    return true;
+    m_voxels_models.resize(config.voxel_models.size());
+    for (size_t i = 0; i < m_voxels_models.size(); ++i) {
+        CollisionVoxelsModel& voxel_model = m_voxels_models[i];
+        const std::string& link_name = config.voxel_models[i].link_name;
+        voxel_model.link_index = linkIndex(link_name);
+    }
+}
+
+bool CollisionModelImpl::initCollisionState()
+{
+    return false;
 }
 
 bool CollisionModelImpl::isDescendantOf(

@@ -33,6 +33,7 @@
 #define sbpl_collision_CollisionModelConfig_h
 
 // standard includes
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -42,28 +43,6 @@
 
 namespace sbpl {
 namespace collision {
-
-struct CollisionLinkConfig
-{
-    /// \brief name of the collision link
-    std::string name;
-
-    /// \brief name of the link this collision link is attached to
-    std::string root;
-
-    /// \brief list of sphere names that are part of this collision link
-    std::vector<std::string> spheres;
-
-    static bool Load(XmlRpc::XmlRpcValue& config, CollisionLinkConfig& cfg);
-};
-
-struct CollisionGroupConfig
-{
-    std::string name;
-    std::vector<CollisionLinkConfig> collision_links;
-
-    static bool Load(XmlRpc::XmlRpcValue& config, CollisionGroupConfig& cfg);
-};
 
 struct CollisionSphereConfig
 {
@@ -77,6 +56,37 @@ struct CollisionSphereConfig
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionSphereConfig& cfg);
 };
 
+std::ostream& operator<<(std::ostream&, const CollisionSphereConfig&);
+
+struct CollisionSpheresModelConfig
+{
+    std::string link_name;
+    std::vector<std::string> spheres;
+
+    static bool Load(XmlRpc::XmlRpcValue& config, CollisionSpheresModelConfig& cfg);
+};
+
+std::ostream& operator<<(std::ostream&, const CollisionSpheresModelConfig&);
+
+struct CollisionVoxelModelConfig
+{
+    std::string link_name;
+
+    static bool Load(XmlRpc::XmlRpcValue& config, CollisionVoxelModelConfig& cfg);
+};
+
+std::ostream& operator<<(std::ostream&, const CollisionVoxelModelConfig&);
+
+struct CollisionGroupConfig
+{
+    std::string name;
+    std::vector<std::string> links;
+
+    static bool Load(XmlRpc::XmlRpcValue& config, CollisionGroupConfig& cfg);
+};
+
+std::ostream& operator<<(std::ostream&, const CollisionGroupConfig&);
+
 struct CollisionModelConfig
 {
     std::vector<CollisionSphereConfig>          spheres;
@@ -84,9 +94,6 @@ struct CollisionModelConfig
     std::vector<CollisionVoxelModelConfig>      voxel_models;
     std::vector<CollisionGroupConfig>           groups;
     collision_detection::AllowedCollisionMatrix acm;
-
-//    std::vector<CollisionGroupConfig> collision_groups;
-//    std::vector<CollisionSphereConfig> collision_spheres;
 
     static bool Load(const ros::NodeHandle& nh, CollisionModelConfig& cfg);
 };

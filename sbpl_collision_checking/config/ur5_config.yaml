@@ -40,10 +40,10 @@ spheres_models:
     spheres: w10 w11
   - link_name: wrist_2_link
     spheres: w20 w21
-  - link_name: wrist_3_link
-    spheres: #rf0 rf1
-  - link_name: ee_link
-    spheres:
+#  - link_name: wrist_3_link
+#    spheres: rf0 rf1
+#  - link_name: ee_link
+#    spheres:
 
 #voxel_models:
 #  - link_name: world
@@ -68,3 +68,4 @@ allowed_collisions:
   - { sphere1: fa5, sphere2: w11 }
   - { sphere1: w11, sphere2: w20 }
   - { sphere1: w11, sphere2: w21 }
+
