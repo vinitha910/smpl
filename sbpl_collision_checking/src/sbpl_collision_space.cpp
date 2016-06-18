@@ -93,7 +93,7 @@ bool CollisionSpace::setPlanningJoints(
     assert(!group_name_.empty());
 
     // set the order of the planning joints
-    model_.setOrderOfJointPositions(joint_names, group_name_);
+//    model_.setOrderOfJointPositions(joint_names, group_name_);
 
     inc_.resize(joint_names.size(), sbpl::utils::ToRadians(2.0));
     min_limits_.resize(joint_names.size(), 0.0);
@@ -101,13 +101,13 @@ bool CollisionSpace::setPlanningJoints(
     continuous_.resize(joint_names.size(), false);
     for (size_t i = 0; i < joint_names.size(); ++i) {
         bool cont = false;
-        if (!model_.getJointLimits(
-                group_name_, joint_names[i],
-                min_limits_[i], max_limits_[i], cont))
-        {
-            ROS_ERROR("Failed to retrieve joint limits for '%s'.", joint_names[i].c_str());
-            return false;
-        }
+//        if (!model_.getJointLimits(
+//                group_name_, joint_names[i],
+//                min_limits_[i], max_limits_[i], cont))
+//        {
+//            ROS_ERROR("Failed to retrieve joint limits for '%s'.", joint_names[i].c_str());
+//            return false;
+//        }
         continuous_[i] = cont;
     }
 
@@ -136,17 +136,17 @@ bool CollisionSpace::init(
     m_acm.print(std::cout);
 
     std::vector<std::string> group_names;
-    model_.getGroupNames(group_names);
+//    model_.getGroupNames(group_names);
     if (std::find(group_names.begin(), group_names.end(), group_name) == group_names.end()) {
         ROS_ERROR("Group '%s' was not found in collision model config", group_name.c_str());
         return false;
     }
 
     // choose the group we are planning for
-    if (!model_.setDefaultGroup(group_name)) {
-        ROS_ERROR("Failed to set the default group to '%s'.", group_name.c_str());
-        return false;
-    }
+//    if (!model_.setDefaultGroup(group_name)) {
+//        ROS_ERROR("Failed to set the default group to '%s'.", group_name.c_str());
+//        return false;
+//    }
 
     group_name_ = group_name;
 
@@ -156,7 +156,7 @@ bool CollisionSpace::init(
     }
 
     // get the collision spheres for the robot
-    spheres_ = model_.getDefaultGroupSpheres();
+//    spheres_ = model_.getDefaultGroupSpheres();
 
     return true;
 }
@@ -175,10 +175,10 @@ bool CollisionSpace::checkCollision(
     }
 
     // compute foward kinematics
-    if (!model_.computeDefaultGroupFK(angles, frames_)) {
-        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-        return false;
-    }
+//    if (!model_.computeDefaultGroupFK(angles, frames_)) {
+//        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
+//        return false;
+//    }
 
     // check attached object
     if (object_attached_) {
@@ -309,8 +309,8 @@ bool CollisionSpace::checkCollision(
 
 bool CollisionSpace::updateVoxelGroup(const std::string& name)
 {
-    Group* g = model_.getGroup(name);
-    return updateVoxelGroup(g);
+//    Group* g = model_.getGroup(name);
+//    return updateVoxelGroup(g);
 }
 
 void CollisionSpace::initAllowedCollisionMatrix(
@@ -413,10 +413,10 @@ bool CollisionSpace::updateVoxelGroup(Group* g)
     std::vector<double> angles;
     std::vector<std::vector<KDL::Frame>> frames;
 
-    if (!model_.computeGroupFK(angles, g, frames)) {
-        ROS_ERROR("Failed to compute foward kinematics for group '%s'.", g->getName().c_str());
-        return false;
-    }
+//    if (!model_.computeGroupFK(angles, g, frames)) {
+//        ROS_ERROR("Failed to compute foward kinematics for group '%s'.", g->getName().c_str());
+//        return false;
+//    }
 
     for (size_t i = 0; i < g->links_.size(); ++i) {
         Link* l = &(g->links_[i]);
@@ -586,10 +586,10 @@ CollisionSpace::getCollisionSpheres(
     KDL::Vector v;
 
     // compute foward kinematics
-    if (!model_.computeDefaultGroupFK(angles, frames_)) {
-        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-        return false;
-    }
+//    if (!model_.computeDefaultGroupFK(angles, frames_)) {
+//        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
+//        return false;
+//    }
 
     // robot
     for (size_t i = 0; i < spheres_.size(); ++i) {
@@ -625,19 +625,19 @@ void CollisionSpace::setAllowedCollisionMatrix(
 
 bool CollisionSpace::updateVoxelGroups()
 {
-    m_world.reset();
-
-    bool ret = true;
-    std::vector<Group*> vg;
-    model_.getVoxelGroups(vg);
-
-    for (size_t i = 0; i < vg.size(); ++i) {
-        if (!updateVoxelGroup(vg[i])) {
-            ROS_ERROR("Failed to update the '%s' voxel group.", vg[i]->getName().c_str());
-            ret = false;
-        }
-    }
-    return ret;
+//    m_world.reset();
+//
+//    bool ret = true;
+//    std::vector<Group*> vg;
+//    model_.getVoxelGroups(vg);
+//
+//    for (size_t i = 0; i < vg.size(); ++i) {
+//        if (!updateVoxelGroup(vg[i])) {
+//            ROS_ERROR("Failed to update the '%s' voxel group.", vg[i]->getName().c_str());
+//            ret = false;
+//        }
+//    }
+//    return ret;
 }
 
 bool CollisionSpace::insertObject(const CollisionWorld::ObjectConstPtr& object)
@@ -685,11 +685,11 @@ void CollisionSpace::attachSphere(
 {
     object_attached_ = true;
     attached_object_frame_ = link;
-    model_.getFrameInfo(
-            attached_object_frame_,
-            group_name_,
-            attached_object_chain_num_,
-            attached_object_segment_num_);
+//    model_.getFrameInfo(
+//            attached_object_frame_,
+//            group_name_,
+//            attached_object_chain_num_,
+//            attached_object_segment_num_);
 
     object_spheres_.resize(1);
     object_spheres_[0].name = name;
@@ -712,7 +712,7 @@ void CollisionSpace::attachCylinder(
 {
     object_attached_ = true;
     attached_object_frame_ = link;
-    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
+//    model_.getFrameInfo(attached_object_frame_, group_name_, attached_object_chain_num_, attached_object_segment_num_);
 
     // compute end points of cylinder
     KDL::Frame center;
@@ -754,16 +754,16 @@ void CollisionSpace::attachCube(
     object_attached_ = true;
     std::vector<std::vector<double>> spheres;
     attached_object_frame_ = link;
-    if (!model_.getFrameInfo(
-            attached_object_frame_,
-            group_name_,
-            attached_object_chain_num_,
-            attached_object_segment_num_))
-    {
-        ROS_ERROR("Could not find frame info for attached object frame %s in group name %s", attached_object_frame_.c_str(), group_name_.c_str());
-        object_attached_ = false;
-        return;
-    }
+//    if (!model_.getFrameInfo(
+//            attached_object_frame_,
+//            group_name_,
+//            attached_object_chain_num_,
+//            attached_object_segment_num_))
+//    {
+//        ROS_ERROR("Could not find frame info for attached object frame %s in group name %s", attached_object_frame_.c_str(), group_name_.c_str());
+//        object_attached_ = false;
+//        return;
+//    }
 
     sbpl::SphereEncloser::encloseBox(
             x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
@@ -799,11 +799,11 @@ void CollisionSpace::attachMesh(
     object_attached_ = true;
     std::vector<std::vector<double>> spheres;
     attached_object_frame_ = link;
-    model_.getFrameInfo(
-            attached_object_frame_,
-            group_name_,
-            attached_object_chain_num_,
-            attached_object_segment_num_);
+//    model_.getFrameInfo(
+//            attached_object_frame_,
+//            group_name_,
+//            attached_object_chain_num_,
+//            attached_object_segment_num_);
 
     sbpl::SphereEncloser::encloseMesh(
             vertices, triangles, object_enclosing_sphere_radius_, spheres);
@@ -839,10 +839,10 @@ bool CollisionSpace::getAttachedObject(
     }
 
     // compute foward kinematics
-    if (!model_.computeDefaultGroupFK(angles, frames_)) {
-        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-        return false;
-    }
+//    if (!model_.computeDefaultGroupFK(angles, frames_)) {
+//        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
+//        return false;
+//    }
 
     xyz.resize(object_spheres_.size(), std::vector<double>(4, 0));
     for (size_t i = 0; i < object_spheres_.size(); ++i) {
@@ -868,7 +868,7 @@ void CollisionSpace::setJointPosition(
     const std::string& name,
     double position)
 {
-    model_.setJointPosition(name, position);
+//    model_.setJointPosition(name, position);
 }
 
 void CollisionSpace::setWorldToModelTransform(
@@ -876,7 +876,7 @@ void CollisionSpace::setWorldToModelTransform(
 {
     KDL::Frame f;
     tf::transformEigenToKDL(transform, f);
-    model_.setWorldToModelTransform(f);
+//    model_.setWorldToModelTransform(f);
 }
 
 bool CollisionSpace::interpolatePath(
@@ -898,10 +898,10 @@ bool CollisionSpace::getClearance(
     double sum = 0, dist = 100;
     min_dist = 100;
 
-    if (!model_.computeDefaultGroupFK(angles, frames_)) {
-        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-        return false;
-    }
+//    if (!model_.computeDefaultGroupFK(angles, frames_)) {
+//        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
+//        return false;
+//    }
 
     if (num_spheres > int(spheres_.size())) {
         num_spheres = spheres_.size();
@@ -969,7 +969,7 @@ bool CollisionSpace::setPlanningScene(
     }
 
     for (size_t i = 0; i < joint_state.name.size(); ++i) {
-        model_.setJointPosition(joint_state.name[i], joint_state.position[i]);
+//        model_.setJointPosition(joint_state.name[i], joint_state.position[i]);
     }
 
     // TODO: get the transform from the the reference frame to the robot model
@@ -982,22 +982,22 @@ bool CollisionSpace::setPlanningScene(
     for (const moveit_msgs::AttachedCollisionObject& attached_collision_object :
          scene.robot_state.attached_collision_objects)
     {
-        if (!model_.doesLinkExist(attached_collision_object.link_name, group_name_)) {
-            ROS_WARN("[cspace] This attached object is not intended for the planning joints of the robot.");
-        }
-        else if (attached_collision_object.object.operation == moveit_msgs::CollisionObject::ADD) {
-            // add object
-            ROS_DEBUG("[cspace] Received a message to ADD an object (%s) with %zd shapes.", attached_collision_object.object.id.c_str(), attached_collision_object.object.primitives.size());
-            attachObject(attached_collision_object);
-        }
-        else if (attached_collision_object.object.operation == moveit_msgs::CollisionObject::REMOVE) {
-            // remove object
-            ROS_DEBUG("[cspace] Removing object (%s) from gripper.", attached_collision_object.object.id.c_str());
-            removeAttachedObject();
-        }
-        else {
-            ROS_WARN("Received a collision object with an unknown operation");
-        }
+//        if (!model_.doesLinkExist(attached_collision_object.link_name, group_name_)) {
+//            ROS_WARN("[cspace] This attached object is not intended for the planning joints of the robot.");
+//        }
+//        else if (attached_collision_object.object.operation == moveit_msgs::CollisionObject::ADD) {
+//            // add object
+//            ROS_DEBUG("[cspace] Received a message to ADD an object (%s) with %zd shapes.", attached_collision_object.object.id.c_str(), attached_collision_object.object.primitives.size());
+//            attachObject(attached_collision_object);
+//        }
+//        else if (attached_collision_object.object.operation == moveit_msgs::CollisionObject::REMOVE) {
+//            // remove object
+//            ROS_DEBUG("[cspace] Removing object (%s) from gripper.", attached_collision_object.object.id.c_str());
+//            removeAttachedObject();
+//        }
+//        else {
+//            ROS_WARN("Received a collision object with an unknown operation");
+//        }
     }
 
     //////////////////////
@@ -1197,37 +1197,37 @@ CollisionSpace::getMeshModelVisualization(
     const std::vector<double> &angles)
 {
     visualization_msgs::MarkerArray ma;
-    geometry_msgs::Pose fpose;
-    geometry_msgs::PoseStamped lpose, mpose;
-    std::string robot_description, mesh_resource;
-    Group* g = model_.getGroup(group_name);
-
-    ros::NodeHandle nh;
-    if (!nh.getParam("robot_description", robot_description)) {
-        ROS_ERROR("Failed to get robot_description from param server.");
-        return ma;
-    }
-
-    // compute foward kinematics
-    if (!model_.computeGroupFK(angles, g, frames_)) {
-        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
-        return ma;
-    }
-
-    // get link mesh_resources
-    for (size_t i = 0; i < g->links_.size(); ++i) {
-        if (!leatherman::getLinkMesh(robot_description, g->links_[i].root_name_, false, mesh_resource, lpose)) {
-            ROS_ERROR("Failed to get mesh for '%s'.", g->links_[i].root_name_.c_str());
-            continue;
-        }
-
-        ROS_INFO("Got the mesh! (%s)", mesh_resource.c_str());
-        // TODO: Has to be a spheres group
-        leatherman::msgFromPose(frames_[g->links_[i].spheres_[0].kdl_chain][g->links_[i].spheres_[0].kdl_segment], fpose);
-        leatherman::multiply(fpose, lpose.pose, mpose.pose);
-        mpose.header.frame_id = "base_link"; //getReferenceFrame();
-        ma.markers.push_back(viz::getMeshMarker(mpose, mesh_resource, 180, "robot_model", i));
-    }
+//    geometry_msgs::Pose fpose;
+//    geometry_msgs::PoseStamped lpose, mpose;
+//    std::string robot_description, mesh_resource;
+//    Group* g = model_.getGroup(group_name);
+//
+//    ros::NodeHandle nh;
+//    if (!nh.getParam("robot_description", robot_description)) {
+//        ROS_ERROR("Failed to get robot_description from param server.");
+//        return ma;
+//    }
+//
+//    // compute foward kinematics
+//    if (!model_.computeGroupFK(angles, g, frames_)) {
+//        ROS_ERROR("[cspace] Failed to compute foward kinematics.");
+//        return ma;
+//    }
+//
+//    // get link mesh_resources
+//    for (size_t i = 0; i < g->links_.size(); ++i) {
+//        if (!leatherman::getLinkMesh(robot_description, g->links_[i].root_name_, false, mesh_resource, lpose)) {
+//            ROS_ERROR("Failed to get mesh for '%s'.", g->links_[i].root_name_.c_str());
+//            continue;
+//        }
+//
+//        ROS_INFO("Got the mesh! (%s)", mesh_resource.c_str());
+//        // TODO: Has to be a spheres group
+//        leatherman::msgFromPose(frames_[g->links_[i].spheres_[0].kdl_chain][g->links_[i].spheres_[0].kdl_segment], fpose);
+//        leatherman::multiply(fpose, lpose.pose, mpose.pose);
+//        mpose.header.frame_id = "base_link"; //getReferenceFrame();
+//        ma.markers.push_back(viz::getMeshMarker(mpose, mesh_resource, 180, "robot_model", i));
+//    }
     return ma;
 }
 

@@ -55,6 +55,7 @@
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/collision_world.h>
 #include <sbpl_collision_checking/sbpl_collision_model.h>
+#include <sbpl_collision_checking/group.h>
 
 namespace sbpl {
 namespace collision {
@@ -235,7 +236,7 @@ private:
     // Collision Robot Variables //
     ///////////////////////////////
 
-    SBPLCollisionModel model_;
+    RobotCollisionModel model_;
     std::string group_name_;
     double padding_;
     double object_enclosing_sphere_radius_;

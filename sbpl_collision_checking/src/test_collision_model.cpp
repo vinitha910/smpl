@@ -33,8 +33,7 @@
 #include <ros/ros.h>
 
 // project includes
-#include <sbpl_collision_checking/collision_model_config.h>
-//#include "collision_model_impl.h"
+#include <sbpl_collision_checking/sbpl_collision_model.h>
 
 int main(int argc, char **argv)
 {
@@ -72,6 +71,21 @@ int main(int argc, char **argv)
 
     ROS_INFO("Allowed Collision Matrix:");
     config.acm.print(std::cout);
+
+    std::string robot_description_param;
+    if (!nh.searchParam("robot_description", robot_description_param)) {
+        ROS_ERROR("Failed to find param 'robot_description' on the param server");
+        return 1;
+    }
+
+    std::string robot_description;
+    nh.getParam(robot_description_param, robot_description);
+
+    sbpl::collision::RobotCollisionModel model;
+    if (!model.init(robot_description, config)) {
+        ROS_ERROR("Failed to initialize Robot Collision Model");
+        return 1;
+    }
 
     return 0;
 }

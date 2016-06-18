@@ -388,48 +388,56 @@ const Eigen::Affine3d& CollisionModelImpl::linkTransform(
     return m_link_transforms[lidx];
 }
 
+inline
 const Eigen::Affine3d& CollisionModelImpl::linkTransform(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_transforms, lidx);
     return m_link_transforms[lidx];
 }
 
+inline
 bool CollisionModelImpl::linkTransformDirty(const std::string& link_name) const
 {
     const int lidx = linkIndex(link_name);
     return m_dirty_link_transforms[lidx];
 }
 
+inline
 bool CollisionModelImpl::linkTransformDirty(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_dirty_link_transforms, lidx);
     return m_dirty_link_transforms[lidx];
 }
 
+inline
 bool CollisionModelImpl::updateLinkTransform(const std::string& link_name)
 {
     const int lidx = linkIndex(link_name);
     return updateLinkTransform(lidx);
 }
 
+inline
 const CollisionVoxelsState& CollisionModelImpl::voxelsState(int vsidx) const
 {
     ASSERT_VECTOR_RANGE(m_voxels_states, vsidx);
     return m_voxels_states[vsidx];
 }
 
+inline
 bool CollisionModelImpl::voxelsStateDirty(int vsidx) const
 {
     ASSERT_VECTOR_RANGE(m_dirty_voxels_states, vsidx);
     return m_dirty_voxels_states[vsidx];
 }
 
+inline
 const CollisionSphereState& CollisionModelImpl::sphereState(int ssidx) const
 {
     ASSERT_VECTOR_RANGE(m_sphere_states, ssidx);
     return m_sphere_states[ssidx];
 }
 
+inline
 bool CollisionModelImpl::sphereStateDirty(int ssidx) const
 {
     ASSERT_VECTOR_RANGE(m_dirty_sphere_states, ssidx);

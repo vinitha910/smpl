@@ -30,104 +30,242 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_SBPLCollisionModel_h
-#define sbpl_collision_SBPLCollisionModel_h
+#ifndef sbpl_collision_robot_collision_model_h
+#define sbpl_collision_robot_collision_model_h
 
 // standard includes
-#include <iostream>
-#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 // system includes
-#include <boost/shared_ptr.hpp>
-#include <moveit_msgs/RobotState.h>
-#include <ros/ros.h>
-#include <sensor_msgs/MultiDOFJointState.h>
-#include <urdf/model.h>
+#include <Eigen/Dense>
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
-#include <sbpl_collision_checking/group.h>
 
 namespace sbpl {
 namespace collision {
 
+typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
+typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
+
+/// \brief Collision Sphere Model Specification
+struct CollisionSphereModel
+{
+    std::string name;
+    Eigen::Vector3d center; ///< offset from link center
+    double radius;
+    int priority;
+};
+
+/// \brief Collision Spheres Model Specification
+struct CollisionSpheresModel
+{
+    std::vector<const CollisionSphereModel*> spheres;
+};
+
+/// \brief Collision Voxels Model Specification
+struct CollisionVoxelsModel
+{
+    int link_index;
+};
+
+/// \brief Sphere Collision State Specification
+struct CollisionSphereState
+{
+    Eigen::Vector3d pos;
+};
+
+struct CollisionSpheresState
+{
+    std::vector<CollisionSphereState*> states;
+};
+
+/// \brief Voxel Collision State Specification
+struct CollisionVoxelsState
+{
+    std::vector<Eigen::Vector3d> voxels; // in the model frame
+};
+
+/// \brief Collision Group Model Specification
+struct CollisionGroupModel
+{
+    std::string name;
+    std::vector<int> link_indices;
+};
+
+/// \brief Collision Group State
+struct CollisionGroupState
+{
+    std::vector<int> sphere_indices; ///< sphere states inside the group
+    std::vector<int> voxels_indices; ///< voxels states outside the group
+};
+
 class CollisionModelImpl;
 
 /// \brief Represents the collision model of the robot used for planning.
-class SBPLCollisionModel
+class RobotCollisionModel
 {
 public:
 
-    SBPLCollisionModel();
-    ~SBPLCollisionModel();
-
-    /// \name Initialization
-    ///@{
+    RobotCollisionModel();
+    ~RobotCollisionModel();
 
     bool init(
         const std::string& urdf_string,
         const CollisionModelConfig& config);
 
-    bool setDefaultGroup(const std::string& group_name);
+    /// \name Robot Model - General Information
+    ///@{
+    auto   name() const -> const std::string&;
+    auto   modelFrame() const -> const std::string&;
+    ///@}
 
-    void setOrderOfJointPositions(
-        const std::vector<std::string>& joint_names,
-        const std::string& group_name);
+    /// \name Robot Model - Joint Information
+    ///@{
+    size_t jointCount() const;
+    auto   jointNames() const -> const std::vector<std::string>&;
+
+    bool   hasJoint(const std::string& joint_name) const;
+    int    jointIndex(const std::string& joint_name) const;
+    auto   jointName(int jidx) const -> const std::string&;
+
+    bool   jointIsContinuous(const std::string& joint_name) const;
+    bool   jointHasPositionBounds(const std::string& joint_name) const;
+    double jointMaxPosition(const std::string& joint_name) const;
+    double jointMinPosition(const std::string& joint_name) const;
+
+    bool   jointIsContinuous(int jidx) const;
+    bool   jointHasPositionBounds(int jidx) const;
+    double jointMinPosition(int jidx) const;
+    double jointMaxPosition(int jidx) const;
+    ///@}
+
+    /// \name Robot Model - Link Information
+    ///@{
+    size_t linkCount() const;
+    auto   linkNames() const -> const std::vector<std::string>&;
+
+    bool  hasLink(const std::string& link_name) const;
+    int   linkIndex(const std::string& link_name) const;
+    auto  linkName(int lidx) const -> const std::string&;
+    ///@}
+
+    /// \name Collision Model - Collision Spheres Information
+    ///@{
+
+    /// \brief Return the number of sphere collision models
+    size_t sphereModelCount() const;
+
+    /// \brief Return the sphere collision model for a given sphere collision
+    ///        state
+    auto   sphereModel(int smidx) const -> const CollisionSphereModel&;
 
     ///@}
 
-    std::string getReferenceFrame(const std::string& group_name) const;
+    /// \name Collision Model - Collision Spheres Model Information
+    ///@{
+    bool hasSpheresModel(const std::string& link_name) const;
+    bool hasSpheresModel(int lidx) const;
+    ///@}
 
-    void getGroupNames(std::vector<std::string>& names) const;
+    /// \name Collision Model - Collision Voxels Model Information
+    ///@{
 
-    bool getJointLimits(
-        const std::string& group_name,
-        const std::string& joint_name,
-        double& min_limit,
-        double& max_limit,
-        bool& continuous) const;
+    bool hasVoxelsModel(const std::string& link_name) const;
+    bool hasVoxelsModel(int lidx) const;
 
-    bool getFrameInfo(
-        const std::string& name,
-        const std::string& group_name,
-        int& chain,
-        int& segment) const;
+    /// \brief Return the number of voxel model collision states
+    size_t voxelsModelCount() const;
 
-    bool doesLinkExist(const std::string& name, const std::string& group_name) const;
+    /// \brief Return the voxel collision model for a given voxel collision state
+    auto   voxelsModel(int vmidx) const -> const CollisionVoxelsModel&;
 
-    const std::vector<const Sphere*>& getDefaultGroupSpheres() const;
+    ///@}
 
-    /// \name Modify State of Collision Robot
-    /// @{
+    /// \name Collision Model - Group Information
+    ///@{
 
-    void setWorldToModelTransform(const KDL::Frame& f);
+    /// \brief Return the number of collision groups
+    size_t groupCount() const;
 
-    void setJointPosition(const std::string& name, double position);
+    /// \brief Return the collision groups
+    auto   groups() const -> const std::vector<CollisionGroupModel>&;
 
-    Group* getGroup(const std::string& name);
+    /// \brief Return whether a collision group exists within the model
+    bool   hasGroup(const std::string& group_name) const;
 
-    void getVoxelGroups(std::vector<Group*>& vg);
+    /// \brief Return the index for a collision group
+    int    groupIndex(const std::string& group_name) const;
 
-    bool computeDefaultGroupFK(
-        const std::vector<double>& angles,
-        std::vector<std::vector<KDL::Frame>>& frames);
+    /// \brief Return the name of a collision group from its index
+    auto   groupName(int gidx) const -> const std::string&;
 
-    bool computeGroupFK(
-        const std::vector<double>& angles,
-        Group* group,
-        std::vector<std::vector<KDL::Frame>>& frames);
+    /// \brief Return the indices of the links belonging to a group
+    auto   groupLinkIndices(const std::string& group_name) const ->
+            const std::vector<int>&;
+    auto   groupLinkIndices(int gidx) const ->
+            const std::vector<int>&;
 
-    /// @}
+    /// \brief Return the indices of the collision sphere states belonging to
+    ///        this group
+    auto   groupSphereStateIndices(const std::string& group_name) const ->
+            const std::vector<int>&;
+    auto   groupSphereStateIndices(int gidx) const ->
+            const std::vector<int>&;
 
-    void printGroups() const;
+    /// \brief Return the indices of the collision voxels states NOT belonging
+    ///        to this group.
+    auto  groupOutsideVoxelsStateIndices(const std::string& group_name) const ->
+            const std::vector<int>&;
+    auto   groupOutsideVoxelsStateIndices(int gidx) const ->
+            const std::vector<int>&;
 
-    void printDebugInfo(const std::string& group_name) const;
+    ///@}
+
+    /// \name RobotState
+    ///@{
+    auto   worldToModelTransform() const -> const Eigen::Affine3d&;
+    bool   setWorldToModelTransform(const Eigen::Affine3d& transform);
+
+    auto   jointPositions() const -> const std::vector<double>&;
+    auto   linkTransforms() const -> const Affine3dVector&;
+
+    double jointPosition(const std::string& joint_name) const;
+    double jointPosition(int jidx) const;
+
+    bool   setJointPosition(const std::string& name, double position);
+    bool   setJointPosition(int jidx, double position);
+
+    auto   linkTransform(const std::string& link_name) const ->
+            const Eigen::Affine3d&;
+    auto   linkTransform(int lidx) const -> const Eigen::Affine3d&;
+
+    bool   linkTransformDirty(const std::string& link_name) const;
+    bool   linkTransformDirty(int lidx) const;
+
+    bool   updateLinkTransforms();
+    bool   updateLinkTransform(int lidx);
+    bool   updateLinkTransform(const std::string& link_name);
+    ///@}
+
+    /// \name CollisionState
+    ///@{
+    auto voxelsState(int vsidx) const -> const CollisionVoxelsState&;
+    bool voxelsStateDirty(int vsidx) const;
+    bool updateVoxelsStates();
+    bool updateVoxelsState(int vsidx);
+
+    auto sphereState(int ssidx) const -> const CollisionSphereState&;
+    bool sphereStateDirty(int ssidx) const;
+    bool updateSpherePositions();
+    bool updateSpherePosition(int ssidx);
+    ///@}
 
 private:
 
-    std::unique_ptr<CollisionModelImpl> impl_;
+    std::unique_ptr<CollisionModelImpl> m_impl;
 };
 
 } // namespace collision

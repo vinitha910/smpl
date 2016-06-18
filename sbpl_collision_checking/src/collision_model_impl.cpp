@@ -45,10 +45,10 @@ CollisionModelImpl::CollisionModelImpl() :
     m_name(),
     m_model_frame(),
     m_joint_names(),
-    m_joint_max_positions(),
-    m_joint_min_positions(),
-    m_joint_has_position_bounds(),
     m_joint_continuous(),
+    m_joint_has_position_bounds(),
+    m_joint_min_positions(),
+    m_joint_max_positions(),
     m_link_names(),
     m_joint_name_to_index(),
     m_link_name_to_index(),
@@ -154,8 +154,10 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     auto root_link = m_urdf->getRoot();
     m_model_frame = root_link->name;
 
-    // breadth-first traversal of all links in the robot
+    // TODO: depth-first or post-traversal reordering to keep dependent
+    // joints/links next to one another
 
+    // breadth-first traversal of all links in the robot
     std::queue<boost::shared_ptr<const urdf::Link>> links;
     links.push(root_link);
     while (!links.empty()) {
@@ -167,17 +169,64 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
 
         // for each joint
         for (const auto& joint : link->child_joints) {
+            switch (joint->type) {
+            case urdf::Joint::REVOLUTE:
+            {
+
+            }   break;
+            case urdf::Joint::CONTINUOUS:
+            {
+
+            }   break;
+            case urdf::Joint::PRISMATIC:
+            {
+
+            }   break;
+            case urdf::Joint::FLOATING:
+            {
+
+            }   break;
+            case urdf::Joint::PLANAR:
+            {
+
+            }   break;
+            case urdf::Joint::FIXED:
+            {
+
+            }   break;
+            default:
+            {
+
+            }   break;
+            }
+
             if (joint->type != urdf::Joint::REVOLUTE &&
                 joint->type != urdf::Joint::PRISMATIC &&
-                joint->type != urdf::Joint::PRISMATIC)
+                joint->type != urdf::Joint::CONTINUOUS)
             {
                 ROS_ERROR("Collision Model currently only supports single-dof joint types");
                 return false;
             }
 
             const std::string& joint_name = joint->name;
+            double min_position_limit = std::numeric_limits<double>::lowest();
+            double max_position_limit = std::numeric_limits<double>::max();
+            bool has_position_limit = false;
+            bool continuous = (joint->type == urdf::Joint::CONTINUOUS);
+
+            auto limits = joint->limits;
+            if (limits) {
+                has_position_limit = true;
+                min_position_limit = limits->lower;
+                max_position_limit = limits->upper;
+            }
+
             m_joint_names.push_back(joint_name);
-            m_joint_name_to_index[m_joint_names.back()] = m_joint_names.size() - 1;
+            m_joint_continuous.push_back(continuous);
+            m_joint_has_position_bounds.push_back(has_position_limit);
+            m_joint_min_positions.push_back(min_position_limit);
+            m_joint_max_positions.push_back(max_position_limit);
+            m_joint_name_to_index[joint_name] = m_joint_names.size() - 1;
         }
 
         // add all child links
@@ -187,7 +236,6 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     }
 
     ROS_DEBUG("Robot Model Frame: %s", m_model_frame.c_str());
-    m_joint_positions.push_back(0.0);
 
     return true;
 }

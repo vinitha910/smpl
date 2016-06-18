@@ -37,123 +37,343 @@
 namespace sbpl {
 namespace collision {
 
-SBPLCollisionModel::SBPLCollisionModel() :
-    impl_(new CollisionModelImpl)
+RobotCollisionModel::RobotCollisionModel() :
+    m_impl(new CollisionModelImpl)
 {
 }
 
-SBPLCollisionModel::~SBPLCollisionModel()
+RobotCollisionModel::~RobotCollisionModel()
 {
 }
 
-bool SBPLCollisionModel::init(
+bool RobotCollisionModel::init(
     const std::string& urdf_string,
     const CollisionModelConfig& config)
 {
-    return impl_->init(urdf_string, config);
+    return m_impl->init(urdf_string, config);
 }
 
-void SBPLCollisionModel::getGroupNames(std::vector<std::string> &names) const
+const std::string& RobotCollisionModel::name() const
 {
-    return impl_->getGroupNames(names);
+    return m_impl->name();
 }
 
-bool SBPLCollisionModel::setDefaultGroup(const std::string &group_name)
+const std::string& RobotCollisionModel::modelFrame() const
 {
-    return impl_->setDefaultGroup(group_name);
+    return m_impl->modelFrame();
 }
 
-void SBPLCollisionModel::printGroups() const
+size_t RobotCollisionModel::jointCount() const
 {
-    return impl_->printGroups();
+    return m_impl->jointCount();
 }
 
-bool SBPLCollisionModel::getFrameInfo(
-    const std::string &name,
-    const std::string &group_name,
-    int &chain,
-    int &segment) const
+const std::vector<std::string>& RobotCollisionModel::jointNames() const
 {
-    return impl_->getFrameInfo(name, group_name, chain, segment);
+    return m_impl->jointNames();
 }
 
-bool SBPLCollisionModel::computeDefaultGroupFK(
-    const std::vector<double> &angles,
-    std::vector<std::vector<KDL::Frame>> &frames)
+bool RobotCollisionModel::hasJoint(const std::string& joint_name) const
 {
-    return impl_->computeDefaultGroupFK(angles, frames);
+    return m_impl->hasJoint(joint_name);
 }
 
-bool SBPLCollisionModel::computeGroupFK(
-    const std::vector<double> &angles,
-    Group *group,
-    std::vector<std::vector<KDL::Frame>> &frames)
+int RobotCollisionModel::jointIndex(const std::string& joint_name) const
 {
-    return impl_->computeGroupFK(angles, group, frames);
+    return m_impl->jointIndex(joint_name);
 }
 
-void SBPLCollisionModel::setOrderOfJointPositions(
-    const std::vector<std::string> &joint_names,
-    const std::string &group_name)
+const std::string& RobotCollisionModel::jointName(int jidx) const
 {
-    return impl_->setOrderOfJointPositions(joint_names, group_name);
+    return m_impl->jointName(jidx);
 }
 
-void SBPLCollisionModel::setJointPosition(
-    const std::string &name,
-    double position)
+bool RobotCollisionModel::jointIsContinuous(
+    const std::string& joint_name) const
 {
-    return impl_->setJointPosition(name, position);
+    return m_impl->jointIsContinuous(joint_name);
 }
 
-void SBPLCollisionModel::printDebugInfo(const std::string &group_name) const
+bool RobotCollisionModel::jointHasPositionBounds(
+    const std::string& joint_name) const
 {
-    return impl_->printDebugInfo(group_name);
+    return m_impl->jointHasPositionBounds(joint_name);
 }
 
-const std::vector<const Sphere*>&
-SBPLCollisionModel::getDefaultGroupSpheres() const
+double RobotCollisionModel::jointMaxPosition(
+    const std::string& joint_name) const
 {
-    return impl_->getDefaultGroupSpheres();
+    return m_impl->jointMaxPosition(joint_name);
 }
 
-bool SBPLCollisionModel::getJointLimits(
-    const std::string &group_name,
-    const std::string &joint_name,
-    double &min_limit,
-    double &max_limit,
-    bool &continuous) const
+double RobotCollisionModel::jointMinPosition(
+    const std::string& joint_name) const
 {
-    return impl_->getJointLimits(
-            group_name, joint_name, min_limit, max_limit, continuous);
+    return m_impl->jointMinPosition(joint_name);
 }
 
-std::string SBPLCollisionModel::getReferenceFrame(
-    const std::string &group_name) const
+bool RobotCollisionModel::jointIsContinuous(int jidx) const
 {
-    return impl_->getReferenceFrame(group_name);
+    return m_impl->jointIsContinuous(jidx);
 }
 
-Group *SBPLCollisionModel::getGroup(const std::string &name)
+bool RobotCollisionModel::jointHasPositionBounds(int jidx) const
 {
-    return impl_->getGroup(name);
+    return m_impl->jointHasPositionBounds(jidx);
 }
 
-void SBPLCollisionModel::getVoxelGroups(std::vector<Group*>& vg)
+double RobotCollisionModel::jointMinPosition(int jidx) const
 {
-    return impl_->getVoxelGroups(vg);
+    return m_impl->jointMinPosition(jidx);
 }
 
-bool SBPLCollisionModel::doesLinkExist(
-    const std::string& name,
+double RobotCollisionModel::jointMaxPosition(int jidx) const
+{
+    return m_impl->jointMaxPosition(jidx);
+}
+
+size_t RobotCollisionModel::linkCount() const
+{
+    return m_impl->linkCount();
+}
+
+const std::vector<std::string>& RobotCollisionModel::linkNames() const
+{
+    return m_impl->linkNames();
+}
+
+bool RobotCollisionModel::hasLink(const std::string& link_name) const
+{
+    return m_impl->hasLink(link_name);
+}
+
+int RobotCollisionModel::linkIndex(const std::string& link_name) const
+{
+    return m_impl->linkIndex(link_name);
+}
+
+const std::string& RobotCollisionModel::linkName(int lidx) const
+{
+    return m_impl->linkName(lidx);
+}
+
+size_t RobotCollisionModel::sphereModelCount() const
+{
+    return m_impl->sphereModelCount();
+}
+
+const CollisionSphereModel& RobotCollisionModel::sphereModel(int smidx) const
+{
+    return m_impl->sphereModel(smidx);
+}
+
+bool RobotCollisionModel::hasSpheresModel(const std::string& link_name) const
+{
+    return m_impl->hasSpheresModel(link_name);
+}
+
+bool RobotCollisionModel::hasSpheresModel(int lidx) const
+{
+    return m_impl->hasSpheresModel(lidx);
+}
+
+bool RobotCollisionModel::hasVoxelsModel(const std::string& link_name) const
+{
+    return m_impl->hasVoxelsModel(link_name);
+}
+
+bool RobotCollisionModel::hasVoxelsModel(int lidx) const
+{
+    return m_impl->hasVoxelsModel(lidx);
+}
+
+size_t RobotCollisionModel::voxelsModelCount() const
+{
+    return m_impl->voxelsModelCount();
+}
+
+const CollisionVoxelsModel& RobotCollisionModel::voxelsModel(int vmidx) const
+{
+    return m_impl->voxelsModel(vmidx);
+}
+
+size_t RobotCollisionModel::groupCount() const
+{
+    return m_impl->groupCount();
+}
+
+const std::vector<CollisionGroupModel>& RobotCollisionModel::groups() const
+{
+    return m_impl->groups();
+}
+
+bool RobotCollisionModel::hasGroup(const std::string& group_name) const
+{
+    return m_impl->hasGroup(group_name);
+}
+
+int RobotCollisionModel::groupIndex(const std::string& group_name) const
+{
+    return m_impl->groupIndex(group_name);
+}
+
+const std::string& RobotCollisionModel::groupName(int gidx) const
+{
+    return m_impl->groupName(gidx);
+}
+
+const std::vector<int>& RobotCollisionModel::groupLinkIndices(
     const std::string& group_name) const
 {
-    return impl_->doesLinkExist(name, group_name);
+    return m_impl->groupLinkIndices(group_name);
 }
 
-void SBPLCollisionModel::setWorldToModelTransform(const KDL::Frame& f)
+const std::vector<int>& RobotCollisionModel::groupLinkIndices(int gidx) const
 {
-    impl_->setWorldToModelTransform(f);
+    return m_impl->groupLinkIndices(gidx);
+}
+
+const std::vector<int>& RobotCollisionModel::groupSphereStateIndices(
+    const std::string& group_name) const
+{
+    return m_impl->groupSphereStateIndices(group_name);
+}
+
+const std::vector<int>& RobotCollisionModel::groupSphereStateIndices(
+    int gidx) const
+{
+    return m_impl->groupSphereStateIndices(gidx);
+}
+
+const std::vector<int>& RobotCollisionModel::groupOutsideVoxelsStateIndices(
+    const std::string& group_name) const
+{
+    return m_impl->groupOutsideVoxelsStateIndices(group_name);
+}
+
+const std::vector<int>& RobotCollisionModel::groupOutsideVoxelsStateIndices(
+    int gidx) const
+{
+    return m_impl->groupOutsideVoxelsStateIndices(gidx);
+}
+
+const Eigen::Affine3d& RobotCollisionModel::worldToModelTransform() const
+{
+    return m_impl->worldToModelTransform();
+}
+
+bool RobotCollisionModel::setWorldToModelTransform(
+    const Eigen::Affine3d& transform)
+{
+    return m_impl->setWorldToModelTransform(transform);
+}
+
+const std::vector<double>& RobotCollisionModel::jointPositions() const
+{
+    return m_impl->jointPositions();
+}
+
+const Affine3dVector& RobotCollisionModel::linkTransforms() const
+{
+    return m_impl->linkTransforms();
+}
+
+double RobotCollisionModel::jointPosition(const std::string& joint_name) const
+{
+    return m_impl->jointPosition(joint_name);
+}
+
+double RobotCollisionModel::jointPosition(int jidx) const
+{
+    return m_impl->jointPosition(jidx);
+}
+
+bool RobotCollisionModel::setJointPosition(
+    const std::string& name,
+    double position)
+{
+    return m_impl->setJointPosition(name, position);
+}
+
+bool RobotCollisionModel::setJointPosition(int jidx, double position)
+{
+    return m_impl->setJointPosition(jidx, position);
+}
+
+const Eigen::Affine3d& RobotCollisionModel::linkTransform(
+    const std::string& link_name) const
+{
+    return m_impl->linkTransform(link_name);
+}
+
+const Eigen::Affine3d& RobotCollisionModel::linkTransform(int lidx) const
+{
+    return m_impl->linkTransform(lidx);
+}
+
+bool RobotCollisionModel::linkTransformDirty(const std::string& link_name) const
+{
+    return m_impl->linkTransformDirty(link_name);
+}
+
+bool RobotCollisionModel::linkTransformDirty(int lidx) const
+{
+    return m_impl->linkTransformDirty(lidx);
+}
+
+bool RobotCollisionModel::updateLinkTransforms()
+{
+    return m_impl->updateLinkTransforms();
+}
+
+bool RobotCollisionModel::updateLinkTransform(int lidx)
+{
+    return m_impl->updateLinkTransform(lidx);
+}
+
+bool RobotCollisionModel::updateLinkTransform(const std::string& link_name)
+{
+    return m_impl->updateLinkTransform(link_name);
+}
+
+const CollisionVoxelsState& RobotCollisionModel::voxelsState(int vsidx) const
+{
+    return m_impl->voxelsState(vsidx);
+}
+
+bool RobotCollisionModel::voxelsStateDirty(int vsidx) const
+{
+    return m_impl->voxelsStateDirty(vsidx);
+}
+
+bool RobotCollisionModel::updateVoxelsStates()
+{
+    return m_impl->updateVoxelsStates();
+}
+
+bool RobotCollisionModel::updateVoxelsState(int vsidx)
+{
+    return m_impl->updateVoxelsState(vsidx);
+}
+
+const CollisionSphereState& RobotCollisionModel::sphereState(int ssidx) const
+{
+    return m_impl->sphereState(ssidx);
+}
+
+bool RobotCollisionModel::sphereStateDirty(int ssidx) const
+{
+    return m_impl->sphereStateDirty(ssidx);
+}
+
+bool RobotCollisionModel::updateSpherePositions()
+{
+    return m_impl->updateSpherePositions();
+}
+
+bool RobotCollisionModel::updateSpherePosition(int ssidx)
+{
+    return m_impl->updateSpherePosition(ssidx);
 }
 
 } // namespace collision

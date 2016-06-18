@@ -88,6 +88,7 @@ add_executable(
     test_collision_model
     src/collision_model_impl.cpp
     src/collision_model_config.cpp
+    src/sbpl_collision_model.cpp
     src/test_collision_model.cpp)
 target_link_libraries(test_collision_model ${catkin_LIBRARIES})
 
