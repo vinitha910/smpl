@@ -62,6 +62,7 @@ struct CollisionSphereModel
 /// \brief Collision Spheres Model Specification
 struct CollisionSpheresModel
 {
+    int link_index;
     std::vector<const CollisionSphereModel*> spheres;
 };
 
@@ -124,22 +125,22 @@ public:
 
     /// \name Robot Model - Joint Information
     ///@{
-    size_t jointCount() const;
-    auto   jointNames() const -> const std::vector<std::string>&;
+    size_t jointVarCount() const;
+    auto   jointVarNames() const -> const std::vector<std::string>&;
 
-    bool   hasJoint(const std::string& joint_name) const;
-    int    jointIndex(const std::string& joint_name) const;
-    auto   jointName(int jidx) const -> const std::string&;
+    bool   hasJointVar(const std::string& joint_name) const;
+    int    jointVarIndex(const std::string& joint_name) const;
+    auto   jointVarName(int jidx) const -> const std::string&;
 
-    bool   jointIsContinuous(const std::string& joint_name) const;
-    bool   jointHasPositionBounds(const std::string& joint_name) const;
-    double jointMaxPosition(const std::string& joint_name) const;
-    double jointMinPosition(const std::string& joint_name) const;
+    bool   jointVarIsContinuous(const std::string& joint_name) const;
+    bool   jointVarHasPositionBounds(const std::string& joint_name) const;
+    double jointVarMaxPosition(const std::string& joint_name) const;
+    double jointVarMinPosition(const std::string& joint_name) const;
 
-    bool   jointIsContinuous(int jidx) const;
-    bool   jointHasPositionBounds(int jidx) const;
-    double jointMinPosition(int jidx) const;
-    double jointMaxPosition(int jidx) const;
+    bool   jointVarIsContinuous(int jidx) const;
+    bool   jointVarHasPositionBounds(int jidx) const;
+    double jointVarMinPosition(int jidx) const;
+    double jointVarMaxPosition(int jidx) const;
     ///@}
 
     /// \name Robot Model - Link Information

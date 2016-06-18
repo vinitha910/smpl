@@ -78,95 +78,97 @@ const std::string& CollisionModelImpl::modelFrame() const
 }
 
 inline
-size_t CollisionModelImpl::jointCount() const
+size_t CollisionModelImpl::jointVarCount() const
 {
-    return m_joint_names.size();
+    return m_jvar_names.size();
 }
 
 inline
-const std::vector<std::string>& CollisionModelImpl::jointNames() const
+const std::vector<std::string>& CollisionModelImpl::jointVarNames() const
 {
-    return m_joint_names;
+    return m_jvar_names;
 }
 
 inline
-bool CollisionModelImpl::hasJoint(const std::string& joint_name) const
+bool CollisionModelImpl::hasJointVar(const std::string& joint_name) const
 {
-    return m_joint_name_to_index.find(joint_name) !=
-            m_joint_name_to_index.end();
+    return m_jvar_name_to_index.find(joint_name) != m_jvar_name_to_index.end();
 }
 
 inline
-int CollisionModelImpl::jointIndex(const std::string& joint_name) const
+int CollisionModelImpl::jointVarIndex(const std::string& joint_name) const
 {
-    auto it = m_joint_name_to_index.find(joint_name);
-    ASSERT_RANGE(it != m_joint_name_to_index.end());
-    assert(it->second >= 0 && it->second < m_joint_names.size());
+    auto it = m_jvar_name_to_index.find(joint_name);
+    ASSERT_RANGE(it != m_jvar_name_to_index.end());
+    assert(it->second >= 0 && it->second < m_jvar_names.size());
     return it->second;
 }
 
 inline
-const std::string& CollisionModelImpl::jointName(int jidx) const
+const std::string& CollisionModelImpl::jointVarName(int jidx) const
 {
-    ASSERT_VECTOR_RANGE(m_joint_names, jidx);
-    return m_joint_names[jidx];
+    ASSERT_VECTOR_RANGE(m_jvar_names, jidx);
+    return m_jvar_names[jidx];
 }
 
 inline
-bool CollisionModelImpl::jointIsContinuous(const std::string& joint_name) const
-{
-    const int jidx = jointIndex(joint_name);
-    return m_joint_continuous[jidx];
-}
-
-inline
-bool CollisionModelImpl::jointHasPositionBounds(
+bool CollisionModelImpl::jointVarIsContinuous(
     const std::string& joint_name) const
 {
-    const int jidx = jointIndex(joint_name);
-    return m_joint_has_position_bounds[jidx];
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_continuous[jidx];
 }
 
 inline
-double CollisionModelImpl::jointMaxPosition(const std::string& joint_name) const
+bool CollisionModelImpl::jointVarHasPositionBounds(
+    const std::string& joint_name) const
 {
-    const int jidx = jointIndex(joint_name);
-    return m_joint_max_positions[jidx];
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_has_position_bounds[jidx];
 }
 
 inline
-double CollisionModelImpl::jointMinPosition(const std::string& joint_name) const
+double CollisionModelImpl::jointVarMaxPosition(
+    const std::string& joint_name) const
 {
-    const int jidx = jointIndex(joint_name);
-    return m_joint_min_positions[jidx];
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_max_positions[jidx];
 }
 
 inline
-bool CollisionModelImpl::jointIsContinuous(int jidx) const
+double CollisionModelImpl::jointVarMinPosition(
+    const std::string& joint_name) const
 {
-    ASSERT_VECTOR_RANGE(m_joint_continuous, jidx);
-    return m_joint_continuous[jidx];
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_min_positions[jidx];
 }
 
 inline
-bool CollisionModelImpl::jointHasPositionBounds(int jidx) const
+bool CollisionModelImpl::jointVarIsContinuous(int jidx) const
 {
-    ASSERT_VECTOR_RANGE(m_joint_has_position_bounds, jidx);
-    return m_joint_has_position_bounds[jidx];
+    ASSERT_VECTOR_RANGE(m_jvar_continuous, jidx);
+    return m_jvar_continuous[jidx];
 }
 
 inline
-double CollisionModelImpl::jointMinPosition(int jidx) const
+bool CollisionModelImpl::jointVarHasPositionBounds(int jidx) const
 {
-    ASSERT_VECTOR_RANGE(m_joint_min_positions, jidx);
-    return m_joint_min_positions[jidx];
+    ASSERT_VECTOR_RANGE(m_jvar_has_position_bounds, jidx);
+    return m_jvar_has_position_bounds[jidx];
 }
 
 inline
-double CollisionModelImpl::jointMaxPosition(int jidx) const
+double CollisionModelImpl::jointVarMinPosition(int jidx) const
 {
-    ASSERT_VECTOR_RANGE(m_joint_max_positions, jidx);
-    return m_joint_max_positions[jidx];
+    ASSERT_VECTOR_RANGE(m_jvar_min_positions, jidx);
+    return m_jvar_min_positions[jidx];
+}
+
+inline
+double CollisionModelImpl::jointVarMaxPosition(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_jvar_max_positions, jidx);
+    return m_jvar_max_positions[jidx];
 }
 
 inline
@@ -348,7 +350,7 @@ const Eigen::Affine3d& CollisionModelImpl::worldToModelTransform() const
 inline
 const std::vector<double>& CollisionModelImpl::jointPositions() const
 {
-    return m_joint_positions;
+    return m_jvar_positions;
 }
 
 inline
@@ -360,15 +362,15 @@ const Affine3dVector& CollisionModelImpl::linkTransforms() const
 inline
 double CollisionModelImpl::jointPosition(const std::string& joint_name) const
 {
-    const int jidx = jointIndex(joint_name);
-    return m_joint_positions[jidx];
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_positions[jidx];
 }
 
 inline
 double CollisionModelImpl::jointPosition(int jidx) const
 {
-    ASSERT_VECTOR_RANGE(m_joint_positions, jidx);
-    return m_joint_positions[jidx];
+    ASSERT_VECTOR_RANGE(m_jvar_positions, jidx);
+    return m_jvar_positions[jidx];
 }
 
 inline
@@ -376,7 +378,7 @@ bool CollisionModelImpl::setJointPosition(
     const std::string& joint_name,
     double position)
 {
-    const int jidx = jointIndex(joint_name);
+    const int jidx = jointVarIndex(joint_name);
     return setJointPosition(jidx, position);
 }
 

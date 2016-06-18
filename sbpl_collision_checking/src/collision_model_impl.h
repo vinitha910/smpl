@@ -43,6 +43,7 @@
 
 // system includes
 #include <Eigen/Dense>
+#include <angles/angles.h>
 #include <urdf/model.h>
 
 // project includes
@@ -60,6 +61,11 @@ template <
     class Allocator = std::allocator<std::pair<const Key, T>>>
 using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
+typedef Eigen::Affine3d (*JointTransformFunction)(
+    const Eigen::Affine3d& origin,
+    const Eigen::Vector3d& axis,
+    double* jvals);
+
 class CollisionModelImpl
 {
 public:
@@ -74,19 +80,19 @@ public:
     auto   name() const -> const std::string&;
     auto   modelFrame() const -> const std::string&;
 
-    size_t jointCount() const;
-    auto   jointNames() const -> const std::vector<std::string>&;
-    bool   hasJoint(const std::string& joint_name) const;
-    int    jointIndex(const std::string& joint_name) const;
-    auto   jointName(int jidx) const -> const std::string&;
-    bool   jointIsContinuous(const std::string& joint_name) const;
-    bool   jointHasPositionBounds(const std::string& joint_name) const;
-    double jointMaxPosition(const std::string& joint_name) const;
-    double jointMinPosition(const std::string& joint_name) const;
-    bool   jointIsContinuous(int jidx) const;
-    bool   jointHasPositionBounds(int jidx) const;
-    double jointMinPosition(int jidx) const;
-    double jointMaxPosition(int jidx) const;
+    size_t jointVarCount() const;
+    auto   jointVarNames() const -> const std::vector<std::string>&;
+    bool   hasJointVar(const std::string& joint_name) const;
+    int    jointVarIndex(const std::string& joint_name) const;
+    auto   jointVarName(int jidx) const -> const std::string&;
+    bool   jointVarIsContinuous(const std::string& joint_name) const;
+    bool   jointVarHasPositionBounds(const std::string& joint_name) const;
+    double jointVarMaxPosition(const std::string& joint_name) const;
+    double jointVarMinPosition(const std::string& joint_name) const;
+    bool   jointVarIsContinuous(int jidx) const;
+    bool   jointVarHasPositionBounds(int jidx) const;
+    double jointVarMinPosition(int jidx) const;
+    double jointVarMaxPosition(int jidx) const;
 
     size_t linkCount() const;
     auto   linkNames() const -> const std::vector<std::string>&;
@@ -159,17 +165,33 @@ private:
 
     /// \name Robot Model
     ///@{
-    boost::shared_ptr<urdf::Model>  m_urdf;
-    std::string                     m_name;
-    std::string                     m_model_frame;
-    std::vector<std::string>        m_joint_names;
-    std::vector<bool>               m_joint_continuous;
-    std::vector<bool>               m_joint_has_position_bounds;
-    std::vector<double>             m_joint_min_positions;
-    std::vector<double>             m_joint_max_positions;
-    std::vector<std::string>        m_link_names;
-    hash_map<std::string, int>      m_joint_name_to_index;
-    hash_map<std::string, int>      m_link_name_to_index;
+    boost::shared_ptr<urdf::Model>          m_urdf;
+    std::string                             m_name;
+    std::string                             m_model_frame;
+    std::vector<std::string>                m_jvar_names;
+    std::vector<bool>                       m_jvar_continuous;
+    std::vector<bool>                       m_jvar_has_position_bounds;
+    std::vector<double>                     m_jvar_min_positions;
+    std::vector<double>                     m_jvar_max_positions;
+    hash_map<std::string, int>              m_jvar_name_to_index;
+
+    std::vector<double*>                    m_joint_var_offset;
+    Affine3dVector                          m_joint_origins;
+    std::vector<Eigen::Vector3d>            m_joint_axes;
+    std::vector<JointTransformFunction>     m_joint_transforms;
+
+    std::vector<std::string>                m_link_names;
+    hash_map<std::string, int>              m_link_name_to_index;
+    ///@}
+
+    /// \name Robot State
+    ///@{
+    Eigen::Affine3d                 m_T_world_model;
+
+    std::vector<double>             m_jvar_positions;          // per joint
+
+    std::vector<bool>               m_dirty_link_transforms;    // per link
+    Affine3dVector                  m_link_transforms;          // per link
     ///@}
 
     /// \name Collision Model
@@ -183,16 +205,6 @@ private:
 
     std::vector<CollisionSpheresModel*> m_link_spheres_models;  // per link
     std::vector<CollisionVoxelsModel*>  m_link_voxels_models;   // per link
-    ///@}
-
-    /// \name Robot State
-    ///@{
-    Eigen::Affine3d                 m_T_world_model;
-
-    std::vector<double>             m_joint_positions;          // per joint
-
-    std::vector<bool>               m_dirty_link_transforms;    // per link
-    Affine3dVector                  m_link_transforms;          // per link
     ///@}
 
     /// \name Collision State
@@ -223,6 +235,8 @@ private:
         const std::string& link_name) const;
 
     void clear();
+
+    Eigen::Affine3d poseUrdfToEigen(const urdf::Pose& p) const;
 };
 
 // TODO:

@@ -63,73 +63,73 @@ const std::string& RobotCollisionModel::modelFrame() const
     return m_impl->modelFrame();
 }
 
-size_t RobotCollisionModel::jointCount() const
+size_t RobotCollisionModel::jointVarCount() const
 {
-    return m_impl->jointCount();
+    return m_impl->jointVarCount();
 }
 
-const std::vector<std::string>& RobotCollisionModel::jointNames() const
+const std::vector<std::string>& RobotCollisionModel::jointVarNames() const
 {
-    return m_impl->jointNames();
+    return m_impl->jointVarNames();
 }
 
-bool RobotCollisionModel::hasJoint(const std::string& joint_name) const
+bool RobotCollisionModel::hasJointVar(const std::string& joint_name) const
 {
-    return m_impl->hasJoint(joint_name);
+    return m_impl->hasJointVar(joint_name);
 }
 
-int RobotCollisionModel::jointIndex(const std::string& joint_name) const
+int RobotCollisionModel::jointVarIndex(const std::string& joint_name) const
 {
-    return m_impl->jointIndex(joint_name);
+    return m_impl->jointVarIndex(joint_name);
 }
 
-const std::string& RobotCollisionModel::jointName(int jidx) const
+const std::string& RobotCollisionModel::jointVarName(int jidx) const
 {
-    return m_impl->jointName(jidx);
+    return m_impl->jointVarName(jidx);
 }
 
-bool RobotCollisionModel::jointIsContinuous(
+bool RobotCollisionModel::jointVarIsContinuous(
     const std::string& joint_name) const
 {
-    return m_impl->jointIsContinuous(joint_name);
+    return m_impl->jointVarIsContinuous(joint_name);
 }
 
-bool RobotCollisionModel::jointHasPositionBounds(
+bool RobotCollisionModel::jointVarHasPositionBounds(
     const std::string& joint_name) const
 {
-    return m_impl->jointHasPositionBounds(joint_name);
+    return m_impl->jointVarHasPositionBounds(joint_name);
 }
 
-double RobotCollisionModel::jointMaxPosition(
+double RobotCollisionModel::jointVarMaxPosition(
     const std::string& joint_name) const
 {
-    return m_impl->jointMaxPosition(joint_name);
+    return m_impl->jointVarMaxPosition(joint_name);
 }
 
-double RobotCollisionModel::jointMinPosition(
+double RobotCollisionModel::jointVarMinPosition(
     const std::string& joint_name) const
 {
-    return m_impl->jointMinPosition(joint_name);
+    return m_impl->jointVarMinPosition(joint_name);
 }
 
-bool RobotCollisionModel::jointIsContinuous(int jidx) const
+bool RobotCollisionModel::jointVarIsContinuous(int jidx) const
 {
-    return m_impl->jointIsContinuous(jidx);
+    return m_impl->jointVarIsContinuous(jidx);
 }
 
-bool RobotCollisionModel::jointHasPositionBounds(int jidx) const
+bool RobotCollisionModel::jointVarHasPositionBounds(int jidx) const
 {
-    return m_impl->jointHasPositionBounds(jidx);
+    return m_impl->jointVarHasPositionBounds(jidx);
 }
 
-double RobotCollisionModel::jointMinPosition(int jidx) const
+double RobotCollisionModel::jointVarMinPosition(int jidx) const
 {
-    return m_impl->jointMinPosition(jidx);
+    return m_impl->jointVarMinPosition(jidx);
 }
 
-double RobotCollisionModel::jointMaxPosition(int jidx) const
+double RobotCollisionModel::jointVarMaxPosition(int jidx) const
 {
-    return m_impl->jointMaxPosition(jidx);
+    return m_impl->jointVarMaxPosition(jidx);
 }
 
 size_t RobotCollisionModel::linkCount() const
