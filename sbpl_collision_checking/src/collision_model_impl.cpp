@@ -522,7 +522,7 @@ bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
     }
 
     // initialize link voxels models
-    m_link_voxels_models.assign(m_link_names.resize(), nullptr);
+    m_link_voxels_models.assign(m_link_names.size(), nullptr);
     for (const CollisionVoxelsModel& voxels_model : m_voxels_models) {
         m_link_voxels_models[voxels_model.link_index] = &voxels_model;
     }

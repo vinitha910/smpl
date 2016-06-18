@@ -203,8 +203,8 @@ private:
     std::vector<CollisionGroupModel>    m_group_models;
     hash_map<std::string, int>          m_group_name_to_index;
 
-    std::vector<CollisionSpheresModel*> m_link_spheres_models;  // per link
-    std::vector<CollisionVoxelsModel*>  m_link_voxels_models;   // per link
+    std::vector<const CollisionSpheresModel*> m_link_spheres_models;  // per link
+    std::vector<const CollisionVoxelsModel*>  m_link_voxels_models;   // per link
     ///@}
 
     /// \name Collision State
