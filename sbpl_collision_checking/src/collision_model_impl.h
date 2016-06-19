@@ -216,7 +216,7 @@ private:
     std::vector<CollisionSphereState>       m_sphere_states;
 
     std::vector<CollisionVoxelsState*>      m_link_voxels_states;    // per link
-    std::vector<CollisionSphereState*>      m_link_sphere_states;   // per link
+    std::vector<CollisionSphereState*>      m_link_sphere_states;    // per link
 
     std::vector<CollisionGroupState>        m_group_states;
     ///@}
@@ -237,6 +237,21 @@ private:
     void clear();
 
     Eigen::Affine3d poseUrdfToEigen(const urdf::Pose& p) const;
+
+    bool voxelizeLink(
+        const std::string& link_name,
+        CollisionVoxelsModel& model) const;
+
+    bool voxelizeCollisionElement(
+        const urdf::Collision& collision,
+        double res,
+        std::vector<Eigen::Vector3d>& voxels) const;
+
+    bool voxelizeGeometry(
+        const urdf::Geometry& geom,
+        const Eigen::Affine3d& pose,
+        double res,
+        std::vector<Eigen::Vector3d>& voxels) const;
 };
 
 // TODO:

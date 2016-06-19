@@ -40,6 +40,7 @@
 
 // system includes
 #include <Eigen/Dense>
+#include <Eigen/StdVector>
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
@@ -70,6 +71,8 @@ struct CollisionSpheresModel
 struct CollisionVoxelsModel
 {
     int link_index;
+    double voxel_res;
+    std::vector<Eigen::Vector3d> voxels; // in the link frame
 };
 
 /// \brief Sphere Collision State Specification

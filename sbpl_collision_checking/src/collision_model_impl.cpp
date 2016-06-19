@@ -35,7 +35,10 @@
 #include <queue>
 
 // system includes
+#include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
+#include <leatherman/utils.h>
+#include <sbpl_geometry_utils/Voxelizer.h>
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
@@ -444,9 +447,9 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
 bool CollisionModelImpl::initRobotState()
 {
     m_T_world_model = Eigen::Affine3d::Identity();
-    m_jvar_positions.resize(m_jvar_names.size(), 0.0);
-    m_dirty_link_transforms.resize(m_link_names.size(), true);
-    m_link_transforms.resize(m_link_names.size(), Eigen::Affine3d::Identity());
+    m_jvar_positions.assign(m_jvar_names.size(), 0.0);
+    m_dirty_link_transforms.assign(m_link_names.size(), true);
+    m_link_transforms.assign(m_link_names.size(), Eigen::Affine3d::Identity());
     return true;
 }
 
@@ -494,9 +497,14 @@ bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
     // initialize voxels models
     m_voxels_models.resize(config.voxel_models.size());
     for (size_t i = 0; i < m_voxels_models.size(); ++i) {
-        CollisionVoxelsModel& voxel_model = m_voxels_models[i];
+        CollisionVoxelsModel& voxels_model = m_voxels_models[i];
         const std::string& link_name = config.voxel_models[i].link_name;
-        voxel_model.link_index = linkIndex(link_name);
+        voxels_model.link_index = linkIndex(link_name);
+        const double LINK_VOXEL_RESOLUTION = 0.01;
+        voxels_model.voxel_res = LINK_VOXEL_RESOLUTION;
+        if (!voxelizeLink(link_name, voxels_model)) {
+            ROS_ERROR("Failed to voxelize link '%s'", link_name.c_str());
+        }
     }
 
     // initialize groups
@@ -532,6 +540,40 @@ bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
 
 bool CollisionModelImpl::initCollisionState()
 {
+    m_dirty_voxels_states.assign(m_voxels_models.size(), true);
+    m_voxels_states.assign(m_voxels_models.size(), CollisionVoxelsState());
+
+    // duplicate voxels from voxels model
+    for (size_t i = 0; i < m_voxels_models.size(); ++i) {
+        const CollisionVoxelsModel& voxels_model = m_voxels_models[i];
+        CollisionVoxelsState& voxels_state = m_voxels_states[i];
+        voxels_state.voxels = voxels_model.voxels;
+    }
+
+    // create a sphere state for each unique sphere
+    for (CollisionSpheresModel* spheres_model : m_link_spheres_models) {
+        if (!spheres_model) {
+            continue;
+        }
+
+        for (auto sphere_model : spheres_model->spheres)
+        {
+            m_sphere_states.push_back(CollisionSphereState());
+        }
+    }
+
+    m_dirty_sphere_states.assign(m_sphere_states.size(), true);
+
+    // initialize link voxels states
+    m_link_voxels_states.assign(m_link_models.size(), nullptr);
+    for (int i = 0; i < m_voxels_states.size(); ++i) {
+        const CollisionVoxelsModel& voxels_model = m_voxels_models[i];
+        CollisionVoxelsState* voxels_state = &m_voxels_states[i];
+        m_link_voxels_states[voxels_model.link_index] = voxels_state;
+    }
+
+    // initialize link spheres states
+
     return true;
 }
 
@@ -594,6 +636,133 @@ Eigen::Affine3d CollisionModelImpl::poseUrdfToEigen(const urdf::Pose& p) const
     return Eigen::Translation3d(p.position.x, p.position.y, p.position.y) *
             Eigen::Quaterniond(
                     p.rotation.w, p.rotation.x, p.rotation.y, p.rotation.z);
+}
+
+bool CollisionModelImpl::voxelizeLink(
+    const std::string& link_name,
+    CollisionVoxelsModel& model) const
+{
+    auto link = m_urdf->getLink(link_name);
+
+    if (!link) {
+        ROS_ERROR("Failed to find link '%s' in the URDF", link_name.c_str());
+        return false;
+    }
+
+    if (!link->collision && link->collision_array.empty()) {
+        ROS_ERROR("Failed to find collision elements of link '%s'", link->name.c_str());
+        return false;
+    }
+
+    if (link->collision) {
+        if (!voxelizeCollisionElement(
+            *link->collision, model.voxel_res, model.voxels))
+        {
+            ROS_ERROR("Failed to voxelize collision element for link '%s'", link_name.c_str());
+            return false;
+        }
+    }
+    else if (!link->collision_array.empty()) {
+        for (auto collision : link->collision_array) {
+            if (!voxelizeCollisionElement(
+                    *collision, model.voxel_res, model.voxels))
+            {
+                ROS_ERROR("Failed to voxelize collision element for link '%s'", link_name.c_str());
+                return false;
+            }
+        }
+    }
+    else {
+        ROS_ERROR("Hmm");
+        return false;
+    }
+
+    if (model.voxels.empty()) {
+        ROS_WARN("Voxelizing collision elements for link '%s' produced 0 voxels", link_name.c_str());
+    }
+
+    return true;
+}
+
+bool CollisionModelImpl::voxelizeCollisionElement(
+    const urdf::Collision& collision,
+    double res,
+    std::vector<Eigen::Vector3d>& voxels) const
+{
+    auto geom = collision.geometry;
+
+    if (!geom) {
+        ROS_ERROR("Failed to find geometry for collision element");
+        return false;
+    }
+
+    Eigen::Affine3d pose;
+
+    geometry_msgs::Pose p;
+    p.position.x = collision.origin.position.x;
+    p.position.y = collision.origin.position.y;
+    p.position.z = collision.origin.position.z;
+    collision.origin.rotation.getQuaternion(
+            p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+    tf::poseMsgToEigen(p, pose);
+
+    return voxelizeGeometry(*geom, pose, res, voxels);
+}
+
+bool CollisionModelImpl::voxelizeGeometry(
+    const urdf::Geometry& geom,
+    const Eigen::Affine3d& pose,
+    double res,
+    std::vector<Eigen::Vector3d>& voxels) const
+{
+    if (geom.type == urdf::Geometry::MESH) {
+        geometry_msgs::Vector3 scale;
+        scale.x = 1.0f; scale.y = 1.0f; scale.z = 1.0f;
+        std::vector<geometry_msgs::Point> mesh_vertices;
+        std::vector<int> triangles;
+        urdf::Mesh* mesh = (urdf::Mesh*)&geom;
+        if (!leatherman::getMeshComponentsFromResource(
+                mesh->filename, scale, triangles, mesh_vertices))
+        {
+            ROS_ERROR("Failed to get mesh from file. (%s)", mesh->filename.c_str());
+            return false;
+        }
+
+        ROS_DEBUG("mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), mesh_vertices.size());
+
+        std::vector<Eigen::Vector3d> vertices(mesh_vertices.size());
+        for (size_t vidx = 0; vidx < mesh_vertices.size(); ++vidx) {
+            const geometry_msgs::Point& vertex = mesh_vertices[vidx];
+            vertices[vidx] = Eigen::Vector3d(vertex.x, vertex.y, vertex.z);
+        }
+
+        sbpl::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
+        ROS_DEBUG(" -> voxels: %zu", voxels.size());
+    }
+    else if (geom.type == urdf::Geometry::BOX) {
+        urdf::Box* box = (urdf::Box*)&geom;
+        ROS_DEBUG("box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
+        sbpl::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, voxels, false);
+        ROS_DEBUG(" -> voxels: %zu", voxels.size());
+    }
+    else if (geom.type == urdf::Geometry::CYLINDER) {
+        urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
+        ROS_DEBUG("cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
+        sbpl::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, voxels, false);
+        ROS_DEBUG(" -> voxels: %zu", voxels.size());
+    }
+    else if (geom.type == urdf::Geometry::SPHERE) {
+        urdf::Sphere* sph = (urdf::Sphere*)&geom;
+        ROS_DEBUG("sphere: { radius: %0.3f }", sph->radius);
+        sbpl::VoxelizeSphere(sph->radius, pose, res, voxels, false);
+        ROS_DEBUG(" -> voxels: %zu", voxels.size());
+    }
+    else {
+        ROS_ERROR("Unrecognized geometry type for voxelization");
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace collision
