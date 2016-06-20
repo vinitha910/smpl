@@ -32,6 +32,7 @@
 #include "collision_model_impl.h"
 
 // standard includes
+#include <assert.h>
 #include <queue>
 
 // system includes
@@ -130,13 +131,13 @@ CollisionModelImpl::CollisionModelImpl() :
     m_group_name_to_index(),
     m_link_spheres_models(),
     m_link_voxels_models(),
-    m_dirty_voxels_states(),
-    m_voxels_states(),
     m_dirty_sphere_states(),
     m_sphere_states(),
+    m_dirty_voxels_states(),
+    m_voxels_states(),
+    m_group_states(),
     m_link_voxels_states(),
-    m_link_sphere_states(),
-    m_group_states()
+    m_link_spheres_states()
 {
 }
 
@@ -450,6 +451,11 @@ bool CollisionModelImpl::initRobotState()
     m_jvar_positions.assign(m_jvar_names.size(), 0.0);
     m_dirty_link_transforms.assign(m_link_names.size(), true);
     m_link_transforms.assign(m_link_names.size(), Eigen::Affine3d::Identity());
+
+    ROS_INFO("Robot State:");
+    ROS_INFO("  %zu Joint Positions", m_jvar_positions.size());
+    ROS_INFO("  %zu Dirty Link Transforms", m_dirty_link_transforms.size());
+    ROS_INFO("  %zu Link Transforms", m_link_transforms.size());
     return true;
 }
 
@@ -535,37 +541,78 @@ bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
         m_link_voxels_models[voxels_model.link_index] = &voxels_model;
     }
 
+    assert(checkCollisionModelReferences());
+
+    ROS_INFO("Collision Model:");
+    ROS_INFO("  Sphere Models: [%p, %p]", m_sphere_models.data(), m_sphere_models.data() + m_sphere_models.size());
+    for (const auto& sphere_model : m_sphere_models) {
+        ROS_INFO("    name: %s, center: (%0.3f, %0.3f, %0.3f), radius: %0.3f, priority: %d", sphere_model.name.c_str(), sphere_model.center.x(), sphere_model.center.y(), sphere_model.center.z(), sphere_model.radius, sphere_model.priority);
+    }
+    ROS_INFO("  Spheres Models: [%p, %p]", m_spheres_models.data(), m_spheres_models.data() + m_spheres_models.size());
+    for (const auto& spheres_model : m_spheres_models) {
+        ROS_INFO("    link_index: %d, spheres: %s", spheres_model.link_index, to_string(spheres_model.spheres).c_str());
+    }
+    ROS_INFO("  Voxels Models: [%p, %p]", m_voxels_models.data(), m_voxels_models.data() + m_voxels_models.size());
+    for (const auto& voxels_model : m_voxels_models) {
+        ROS_INFO("    link_index: %d, voxel_res: %0.3f, voxel count: %zu", voxels_model.link_index, voxels_model.voxel_res, voxels_model.voxels.size());
+    }
+    ROS_INFO("  Group Models:");
+    for (const auto& group_model : m_group_models) {
+        ROS_INFO("    name: %s, link_indices: %s", group_model.name.c_str(), to_string(group_model.link_indices).c_str());
+    }
+
     return true;
 }
 
 bool CollisionModelImpl::initCollisionState()
 {
-    m_dirty_voxels_states.assign(m_voxels_models.size(), true);
-    m_voxels_states.assign(m_voxels_models.size(), CollisionVoxelsState());
+    // preallocate the spheres states array so that we can use valid pointers
+    // as references
 
-    // duplicate voxels from voxels model
-    for (size_t i = 0; i < m_voxels_models.size(); ++i) {
-        const CollisionVoxelsModel& voxels_model = m_voxels_models[i];
-        CollisionVoxelsState& voxels_state = m_voxels_states[i];
-        voxels_state.voxels = voxels_model.voxels;
+    int unique_sphere_count = 0;
+    for (const auto& spheres_model : m_spheres_models) {
+        for (auto sphere_model : spheres_model.spheres) {
+            ++unique_sphere_count;
+        }
     }
 
-    // create a sphere state for each unique sphere
-    for (CollisionSpheresModel* spheres_model : m_link_spheres_models) {
-        if (!spheres_model) {
-            continue;
-        }
+    m_sphere_states.assign(unique_sphere_count, CollisionSphereState());
 
-        for (auto sphere_model : spheres_model->spheres)
-        {
-            m_sphere_states.push_back(CollisionSphereState());
+    // initialize sphere and spheres states
+    int sphere_state_idx = 0;
+    m_spheres_states.assign(m_spheres_models.size(), CollisionSpheresState());
+    for (size_t i = 0; i < m_spheres_models.size(); ++i) {
+        const CollisionSpheresModel& spheres_model = m_spheres_models[i];
+              CollisionSpheresState& spheres_state = m_spheres_states[i];
+        spheres_state.model = &spheres_model;
+
+        // initialize sphere and map sphere state -> spheres state and spheres
+        // state -> sphere states
+        for (const CollisionSphereModel* sphere_model : spheres_model.spheres) {
+            m_sphere_states[sphere_state_idx].model = sphere_model;
+            m_sphere_states[sphere_state_idx].parent_state = &spheres_state;
+            spheres_state.spheres.push_back(&m_sphere_states[sphere_state_idx]);
+            ++sphere_state_idx;
         }
     }
 
     m_dirty_sphere_states.assign(m_sphere_states.size(), true);
 
+    // initialize voxels states
+
+    m_dirty_voxels_states.assign(m_voxels_models.size(), true);
+    m_voxels_states.assign(m_voxels_models.size(), CollisionVoxelsState());
+
+    for (size_t i = 0; i < m_voxels_models.size(); ++i) {
+        const CollisionVoxelsModel& voxels_model = m_voxels_models[i];
+              CollisionVoxelsState& voxels_state = m_voxels_states[i];
+        // duplicate voxels from voxels model
+        voxels_state.model = &voxels_model;
+        voxels_state.voxels = voxels_model.voxels;
+    }
+
     // initialize link voxels states
-    m_link_voxels_states.assign(m_link_models.size(), nullptr);
+    m_link_voxels_states.assign(m_link_names.size(), nullptr);
     for (int i = 0; i < m_voxels_states.size(); ++i) {
         const CollisionVoxelsModel& voxels_model = m_voxels_models[i];
         CollisionVoxelsState* voxels_state = &m_voxels_states[i];
@@ -573,6 +620,187 @@ bool CollisionModelImpl::initCollisionState()
     }
 
     // initialize link spheres states
+    m_link_spheres_states.assign(m_link_names.size(), nullptr);
+    for (int i = 0; i < m_spheres_states.size(); ++i) {
+        const CollisionSpheresModel& spheres_model = m_spheres_models[i];
+        CollisionSpheresState* spheres_state = &m_spheres_states[i];
+        m_link_spheres_states[spheres_model.link_index] = spheres_state;
+    }
+
+    // initialize group states
+
+    m_group_states.assign(m_group_models.size(), CollisionGroupState());
+
+    for (size_t i = 0; i < m_group_models.size(); ++i) {
+        const CollisionGroupModel& group_model = m_group_models[i];
+              CollisionGroupState& group_state = m_group_states[i];
+        group_state.model = &group_model;
+
+        // gather the indices of all sphere states that belong to this group
+        for (int lidx : group_model.link_indices) {
+            CollisionSpheresState* spheres_state = m_link_spheres_states[lidx];
+            if (spheres_state) {
+                for (CollisionSphereState* sphere_state : spheres_state->spheres) {
+                    int ssidx = std::distance(m_sphere_states.data(), sphere_state);
+                    group_state.sphere_indices.push_back(ssidx);
+                }
+            }
+        }
+
+        // gather the indices of all voxels states that do NOT belong to this group
+        for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {
+            if (std::find(
+                    group_model.link_indices.begin(),
+                    group_model.link_indices.end(),
+                    (int)lidx) ==
+                group_model.link_indices.end())
+            {
+                CollisionVoxelsState* voxels_state = m_link_voxels_states[lidx];
+                if (voxels_state) {
+                    int vsidx = std::distance(m_voxels_states.data(), voxels_state);
+                    group_state.voxels_indices.push_back(vsidx);
+                }
+            }
+        }
+    }
+
+    assert(checkCollisionStateReferences());
+
+    ROS_INFO("Collision State:");
+    ROS_INFO("  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
+    ROS_INFO("  Sphere States: [%p, %p]", m_sphere_states.data(), m_sphere_states.data() + m_sphere_states.size());
+    for (const auto& sphere_state : m_sphere_states) {
+        ROS_INFO("    model: %p, parent_state: %p, pos: (%0.3f, %0.3f, %0.3f)", sphere_state.model, sphere_state.parent_state, sphere_state.pos.x(), sphere_state.pos.y(), sphere_state.pos.z());
+    }
+    ROS_INFO("  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
+    for (const auto& spheres_state : m_spheres_states) {
+        ROS_INFO("    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
+    }
+    ROS_INFO("  Dirty Voxels States: %zu", m_dirty_voxels_states.size());
+    ROS_INFO("  Voxels States: [%p, %p]", m_voxels_states.data(), m_voxels_states.data() + m_voxels_states.size());
+    for (const auto& voxels_state : m_voxels_states) {
+        ROS_INFO("    model: %p, voxels: %zu", voxels_state.model, voxels_state.voxels.size());
+    }
+    ROS_INFO("  Group States: [%p, %p]", m_group_states.data(), m_group_states.data() + m_group_states.size());
+    for (const auto& group_state : m_group_states) {
+        ROS_INFO("    model: %p, sphere_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.sphere_indices).c_str(), to_string(group_state.voxels_indices).c_str());
+    }
+
+    return true;
+}
+
+bool CollisionModelImpl::checkCollisionModelReferences() const
+{
+    for (const auto& spheres_model : m_spheres_models) {
+        if (spheres_model.link_index < 0 ||
+            spheres_model.link_index >= m_link_names.size())
+        {
+            return false;
+        }
+
+        for (auto sphere : spheres_model.spheres) {
+            if (!(sphere >= m_sphere_models.data() &&
+                    sphere < m_sphere_models.data() + m_sphere_models.size()))
+            {
+                return false;
+            }
+        }
+    }
+
+    for (const auto& voxels_model : m_voxels_models) {
+        if (voxels_model.link_index < 0 ||
+            voxels_model.link_index >= m_link_names.size())
+        {
+            return false;
+        }
+    }
+
+    for (const auto& group_model : m_group_models) {
+        for (int lidx : group_model.link_indices) {
+            if (lidx < 0 || lidx >= m_link_names.size()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool CollisionModelImpl::checkCollisionStateReferences() const
+{
+    // c++14 would make me happier here...wtb generic lambdas :(
+    auto within = [](const void* ptr, const void* start, const void* end) {
+        return ptr >= start && ptr < end;
+    };
+
+    for (const auto& sphere_state : m_sphere_states) {
+        if (!within(
+                sphere_state.model,
+                m_sphere_models.data(),
+                m_sphere_models.data() + m_sphere_models.size()))
+        {
+            return false;
+        }
+
+        if (!within(sphere_state.parent_state,
+                m_spheres_states.data(),
+                m_spheres_states.data() + m_spheres_states.size()))
+        {
+            return false;
+        }
+    }
+
+    for (const auto& spheres_state : m_spheres_states) {
+        if (!within(
+                spheres_state.model,
+                m_spheres_models.data(),
+                m_spheres_models.data() + m_spheres_models.size()))
+        {
+            return false;
+        }
+    }
+
+    for (const auto& voxels_state : m_voxels_states) {
+        if (!within(
+                voxels_state.model,
+                m_voxels_models.data(),
+                m_voxels_models.data() + m_voxels_models.size()))
+        {
+            return false;
+        }
+    }
+
+    for (const auto& group_state : m_group_states) {
+        if (!within(
+                group_state.model,
+                m_group_models.data(),
+                m_group_models.data() + m_group_models.size()))
+        {
+            return false;
+        }
+
+        if (std::any_of(
+                group_state.sphere_indices.begin(),
+                group_state.sphere_indices.end(),
+                [&](int ssidx)
+                {
+                    return ssidx < 0 || ssidx >= m_sphere_states.size();
+                }))
+        {
+            return false;
+        }
+
+        if (std::any_of(
+                group_state.voxels_indices.begin(),
+                group_state.voxels_indices.end(),
+                [&](int vsidx)
+                {
+                    return vsidx < 0 || vsidx >= m_voxels_states.size();
+                }))
+        {
+            return false;
+        }
+    }
 
     return true;
 }

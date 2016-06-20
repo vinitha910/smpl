@@ -51,6 +51,9 @@ namespace collision {
 typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
 typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
 
+/// \ingroup Collision Model
+///@{
+
 /// \brief Collision Sphere Model Specification
 struct CollisionSphereModel
 {
@@ -75,23 +78,6 @@ struct CollisionVoxelsModel
     std::vector<Eigen::Vector3d> voxels; // in the link frame
 };
 
-/// \brief Sphere Collision State Specification
-struct CollisionSphereState
-{
-    Eigen::Vector3d pos;
-};
-
-struct CollisionSpheresState
-{
-    std::vector<CollisionSphereState*> states;
-};
-
-/// \brief Voxel Collision State Specification
-struct CollisionVoxelsState
-{
-    std::vector<Eigen::Vector3d> voxels; // in the model frame
-};
-
 /// \brief Collision Group Model Specification
 struct CollisionGroupModel
 {
@@ -99,12 +85,43 @@ struct CollisionGroupModel
     std::vector<int> link_indices;
 };
 
+/// @}
+
+/// \ingroup Collision State
+///@{
+
+struct CollisionSpheresState;
+
+/// \brief Sphere Collision State Specification
+struct CollisionSphereState
+{
+    const CollisionSphereModel* model;
+    const CollisionSpheresState* parent_state;
+    Eigen::Vector3d pos;
+};
+
+struct CollisionSpheresState
+{
+    const CollisionSpheresModel* model;
+    std::vector<CollisionSphereState*> spheres;
+};
+
+/// \brief Voxel Collision State Specification
+struct CollisionVoxelsState
+{
+    const CollisionVoxelsModel* model;
+    std::vector<Eigen::Vector3d> voxels; // in the model frame
+};
+
 /// \brief Collision Group State
 struct CollisionGroupState
 {
+    const CollisionGroupModel* model;
     std::vector<int> sphere_indices; ///< sphere states inside the group
     std::vector<int> voxels_indices; ///< voxels states outside the group
 };
+
+///@}
 
 class CollisionModelImpl;
 

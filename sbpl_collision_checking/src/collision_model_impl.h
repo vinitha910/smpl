@@ -196,35 +196,58 @@ private:
 
     /// \name Collision Model
     ///@{
-    std::vector<CollisionSphereModel>   m_sphere_models;    ///< may be shared between multiple spheres collision models
+
+    // one entry per element specific through config that may be shared between
+    // multiple collision sphere states
+    std::vector<CollisionSphereModel>   m_sphere_models;
+
+    // one entry for each link that has a spheres model
     std::vector<CollisionSpheresModel>  m_spheres_models;
+
+    // one entry for each link that has a voxels model
     std::vector<CollisionVoxelsModel>   m_voxels_models;
 
+    // one entry for each group specified through config
     std::vector<CollisionGroupModel>    m_group_models;
     hash_map<std::string, int>          m_group_name_to_index;
 
-    std::vector<const CollisionSpheresModel*> m_link_spheres_models;  // per link
-    std::vector<const CollisionVoxelsModel*>  m_link_voxels_models;   // per link
+    // per-link references to corresponding spheres and voxels models
+    std::vector<const CollisionSpheresModel*> m_link_spheres_models;
+    std::vector<const CollisionVoxelsModel*>  m_link_voxels_models;
+
     ///@}
 
     /// \name Collision State
     ///@{
-    std::vector<bool>                       m_dirty_voxels_states;
-    std::vector<CollisionVoxelsState>       m_voxels_states;
 
+    // one entry for each unique sphere, i.e. for each sphere model referenced
+    // for each spheres model
     std::vector<bool>                       m_dirty_sphere_states;
     std::vector<CollisionSphereState>       m_sphere_states;
 
-    std::vector<CollisionVoxelsState*>      m_link_voxels_states;    // per link
-    std::vector<CollisionSphereState*>      m_link_sphere_states;    // per link
+    // one entry for each spheres model
+    std::vector<CollisionSpheresState>      m_spheres_states;
 
+    // one entry for each voxels model
+    std::vector<bool>                       m_dirty_voxels_states;
+    std::vector<CollisionVoxelsState>       m_voxels_states;
+
+    // one entry for each corresponding group model
     std::vector<CollisionGroupState>        m_group_states;
+
+    // per-link references to corresponding spheres and voxels states
+    std::vector<CollisionVoxelsState*>      m_link_voxels_states;
+    std::vector<CollisionSpheresState*>     m_link_spheres_states;
+
     ///@}
 
     bool initRobotModel(const std::string& urdf_string);
     bool initRobotState();
     bool initCollisionModel(const CollisionModelConfig& config);
     bool initCollisionState();
+
+    bool checkCollisionModelReferences() const;
+    bool checkCollisionStateReferences() const;
 
     bool isDescendantOf(
         const std::string& link_a_name,
