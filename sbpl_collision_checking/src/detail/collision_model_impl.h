@@ -344,7 +344,7 @@ const std::vector<int>& CollisionModelImpl::groupOutsideVoxelsStateIndices(
 inline
 const Eigen::Affine3d& CollisionModelImpl::worldToModelTransform() const
 {
-    return m_T_world_model;
+    return m_joint_origins[0];
 }
 
 inline

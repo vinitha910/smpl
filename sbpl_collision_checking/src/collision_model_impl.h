@@ -179,15 +179,17 @@ private:
     Affine3dVector                          m_joint_origins;
     std::vector<Eigen::Vector3d>            m_joint_axes;
     std::vector<JointTransformFunction>     m_joint_transforms;
+    std::vector<int>                        m_joint_parent_links;
+    std::vector<int>                        m_joint_child_links;
 
     std::vector<std::string>                m_link_names;
+    std::vector<int>                        m_link_parent_joints;
+    std::vector<std::vector<int>>           m_link_children_joints;
     hash_map<std::string, int>              m_link_name_to_index;
     ///@}
 
     /// \name Robot State
     ///@{
-    Eigen::Affine3d                 m_T_world_model;
-
     std::vector<double>             m_jvar_positions;          // per joint
 
     std::vector<bool>               m_dirty_link_transforms;    // per link

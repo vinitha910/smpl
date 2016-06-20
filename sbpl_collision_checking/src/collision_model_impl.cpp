@@ -120,7 +120,6 @@ CollisionModelImpl::CollisionModelImpl() :
     m_joint_transforms(),
     m_link_names(),
     m_link_name_to_index(),
-    m_T_world_model(),
     m_jvar_positions(),
     m_dirty_link_transforms(),
     m_link_transforms(),
@@ -158,8 +157,11 @@ bool CollisionModelImpl::init(
 bool CollisionModelImpl::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
-    // TODO: implement: dirty the transforms of all affected links, sphere models,
-    // and voxels models
+    // TODO: equality check?
+    m_joint_origins[0] = transform;
+    std::fill(m_dirty_link_transforms.begin(), m_dirty_link_transforms.end(), true);
+    std::fill(m_dirty_voxels_states.begin(), m_dirty_voxels_states.end(), true);
+    std::fill(m_dirty_sphere_states.begin(), m_dirty_sphere_states.end(), true);
     return false;
 }
 
@@ -167,46 +169,148 @@ bool CollisionModelImpl::setJointPosition(int jidx, double position)
 {
     ASSERT_VECTOR_RANGE(m_jvar_positions, jidx);
 
-    // TODO: implement: set the joint position and dirty the transforms of all
-    // affected links, sphere models, and voxels models
+    if (m_jvar_positions[jidx] != position) {
+        m_jvar_positions[jidx] = position;
 
-    return false;
+        // TODO: cache affected link transforms in a per-joint array?
+
+        std::queue<int> q;
+        q.push(m_joint_child_links[jidx]);
+        while (!q.empty()) {
+            int lidx = q.front();
+            q.pop();
+
+            // dirty the transform of the affected link
+            m_dirty_link_transforms[lidx] = true;
+
+            // dirty the voxels states of any attached voxels model
+            if (m_link_voxels_states[lidx]) {
+                int dvsidx = std::distance(m_voxels_states.data(), m_link_voxels_states[lidx]);
+                m_dirty_voxels_states[dvsidx] = true;
+            }
+
+            // dirty the sphere states of any attached sphere models
+            if (m_link_spheres_states[lidx]) {
+                for (CollisionSphereState* sphere_state :
+                    m_link_spheres_states[lidx]->spheres)
+                {
+                    int dssidx = std::distance(m_sphere_states.data(), sphere_state);
+                    m_dirty_sphere_states[dssidx] = true;;
+                }
+            }
+
+            // add child links to the queue
+            for (int cjidx : m_link_children_joints[lidx]) {
+                q.push(m_joint_child_links[cjidx]);
+            }
+        }
+
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 bool CollisionModelImpl::updateLinkTransforms()
 {
-    // TODO: implement
-    return false;
+    bool updated = false;
+    for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {
+        updated |= updateLinkTransform(lidx);
+    }
+    return updated;
 }
 
 bool CollisionModelImpl::updateLinkTransform(int lidx)
 {
-    // TODO: implement
-    return false;
+    ASSERT_VECTOR_RANGE(m_dirty_link_transforms, lidx);
+    if (!m_dirty_link_transforms[lidx]) {
+        return false;
+    }
+
+    int pjidx = m_link_parent_joints[lidx];
+    int plidx = m_joint_parent_links[pjidx];
+
+    if (plidx > 0) {
+        // recursively update the kinematic tree
+        // TODO: optimize out recursion
+        updateLinkTransform(plidx);
+    }
+
+    const Eigen::Affine3d& T_model_parent_link = (plidx >= 0) ?
+            (m_link_transforms[plidx]) : (Eigen::Affine3d::Identity());
+
+    const Eigen::Affine3d& T_parent_link_child =
+            m_joint_transforms[pjidx](
+                    m_joint_origins[pjidx],
+                    m_joint_axes[pjidx],
+                    m_joint_var_offset[pjidx]);
+
+    m_link_transforms[lidx] = T_model_parent_link * T_parent_link_child;
+    m_dirty_link_transforms[lidx] = false;
+    return true;
 }
 
 bool CollisionModelImpl::updateVoxelsStates()
 {
-    // TODO: implement
-    return false;
+    bool updated = false;
+    for (size_t vsidx = 0; vsidx < m_voxels_states.size(); ++vsidx) {
+        updated |= updateVoxelsState(vsidx);
+    }
+    return updated;
 }
 
 bool CollisionModelImpl::updateVoxelsState(int vsidx)
 {
-    // TODO: implement
-    return false;
+    ASSERT_VECTOR_RANGE(m_dirty_voxels_states, vsidx);
+
+    if (!m_dirty_voxels_states[vsidx]) {
+        return false;
+    }
+
+    CollisionVoxelsState& state = m_voxels_states[vsidx];
+
+    const int lidx = state.model->link_index;
+    updateLinkTransform(lidx);
+
+    const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
+
+    // transform voxels into the model frame
+    std::vector<Eigen::Vector3d> new_voxels;
+    new_voxels.resize(state.model->voxels.size());
+    for (size_t i = 0; i < state.model->voxels.size(); ++i) {
+        new_voxels[i] = T_model_link * state.model->voxels[i];
+    }
+
+    state.voxels = std::move(new_voxels);
+    return true;
 }
 
 bool CollisionModelImpl::updateSpherePositions()
 {
-    // TODO: implement
-    return false;
+    bool updated = false;
+    for (size_t ssidx = 0; ssidx < m_sphere_states.size(); ++ssidx) {
+        updated |= updateSpherePosition(ssidx);
+    }
+    return updated;
 }
 
 bool CollisionModelImpl::updateSpherePosition(int sidx)
 {
-    // TODO: implement
-    return false;
+    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, sidx);
+
+    if (!m_dirty_sphere_states[sidx]) {
+        return false;
+    }
+
+    int lidx = m_sphere_states[sidx].parent_state->model->link_index;
+    updateLinkTransform(lidx);
+
+    const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
+    m_sphere_states[sidx].pos = T_model_link * m_sphere_states[sidx].model->center;
+
+    m_dirty_sphere_states[sidx] = false;
+    return true;
 }
 
 bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
@@ -225,19 +329,40 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     // TODO: depth-first or post-traversal reordering to keep dependent
     // joints/links next to one another
 
+    m_joint_transforms.push_back(ComputeFixedJointTransform);
+    m_joint_origins.push_back(Eigen::Affine3d::Identity());
+    m_joint_axes.push_back(Eigen::Vector3d::Zero());
+    m_joint_parent_links.push_back(-1);
+
     // breadth-first traversal of all links in the robot
-    std::queue<boost::shared_ptr<const urdf::Link>> links;
-    links.push(root_link);
+    typedef std::pair<boost::shared_ptr<const urdf::Link>, int>
+    link_parent_joint_idx_pair;
+
+    std::queue<link_parent_joint_idx_pair> links;
+    links.push(std::make_pair(root_link, 0));
+
+    std::vector<std::string> joint_names;
     while (!links.empty()) {
-        boost::shared_ptr<const urdf::Link> link = links.front();
+        boost::shared_ptr<const urdf::Link> link;
+        int parent_joint_idx;
+        std::tie(link, parent_joint_idx) = links.front();
+
         links.pop();
 
         m_link_names.push_back(link->name);
-        m_link_name_to_index[m_link_names.back()] = m_link_names.size() - 1;
+        m_link_parent_joints.push_back(parent_joint_idx);
+
+        const size_t lidx = m_link_names.size() - 1;
+        m_link_name_to_index[m_link_names.back()] = lidx;
+
+        m_link_children_joints.push_back(std::vector<int>());
 
         // for each joint
         for (const auto& joint : link->child_joints) {
             const std::string& joint_name = joint->name;
+
+            joint_names.push_back(joint_name);
+
             auto limits = joint->limits;
 
             double min_position_limit = std::numeric_limits<double>::lowest();
@@ -257,13 +382,12 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
             switch (joint->type) {
             case urdf::Joint::FIXED:
             {
-                m_jvar_names.push_back(joint_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(std::numeric_limits<double>::quiet_NaN());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::quiet_NaN());
-
-                m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
+//                m_jvar_names.push_back(joint_name);
+//                m_jvar_continuous.push_back(false);
+//                m_jvar_has_position_bounds.push_back(false);
+//                m_jvar_min_positions.push_back(std::numeric_limits<double>::quiet_NaN());
+//                m_jvar_max_positions.push_back(std::numeric_limits<double>::quiet_NaN());
+//                m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputeFixedJointTransform);
             }   break;
@@ -394,16 +518,30 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
             }   break;
             }
 
+            m_link_children_joints[lidx].push_back(m_joint_origins.size());
+
             m_joint_origins.push_back(poseUrdfToEigen(origin));
             m_joint_axes.push_back(Eigen::Vector3d(axis.x, axis.y, axis.z));
-        }
 
-        // add all child links
-        for (const auto& child_link : link->child_links) {
-            links.push(child_link);
+            m_joint_parent_links.push_back(lidx);
+
+            // NOTE: can't push child link indices here since we don't yet know
+            // what those indices will be, at least not without some effort
+
+            // push the child link onto the queue
+            auto child_link = m_urdf->getLink(joint->child_link_name);
+            links.push(std::make_pair(child_link, m_joint_axes.size() - 1));
         }
     }
 
+    // map joint -> child link
+    m_joint_child_links.resize(m_joint_transforms.size());
+    for (size_t lidx = 0; lidx < m_link_parent_joints.size(); ++lidx) {
+        int pjidx = m_link_parent_joints[lidx];
+        m_joint_child_links[pjidx] = lidx;
+    }
+
+    // initialize joint variable offsets
     m_joint_var_offset.resize(m_joint_transforms.size());
     double* d = m_jvar_positions.data();
     for (size_t i = 0; i < m_joint_transforms.size(); ++i) {
@@ -439,15 +577,21 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     ROS_INFO("  Joint Variable Min Positions: %s", to_string(m_jvar_min_positions).c_str());
     ROS_INFO("  Joint Variable Max Positions: %s", to_string(m_jvar_max_positions).c_str());
     ROS_INFO("  Joint Variable Offsets: %s", to_string(m_joint_var_offset).c_str());
-    ROS_INFO("  Joint Vairable Transform Functions: %s", to_string(m_joint_transforms).c_str());
+    ROS_INFO("  Joint Transform Functions: %s", to_string(m_joint_transforms).c_str());
+    ROS_INFO("  Joint Parent Links: %s", to_string(m_joint_parent_links).c_str());
+    ROS_INFO("  Joint Child Links: %s", to_string(m_joint_child_links).c_str());
     ROS_INFO("  Link Names: %s", to_string(m_link_names).c_str());
+    ROS_INFO("  Link Parent Joints: %s", to_string(m_link_parent_joints).c_str());
+    ROS_INFO("  Link Child Joints: %s", to_string(m_link_children_joints).c_str());
 
     return true;
 }
 
 bool CollisionModelImpl::initRobotState()
 {
-    m_T_world_model = Eigen::Affine3d::Identity();
+    assert(!m_joint_origins.empty());
+    m_joint_origins[0] = Eigen::Affine3d::Identity();
+
     m_jvar_positions.assign(m_jvar_names.size(), 0.0);
     m_dirty_link_transforms.assign(m_link_names.size(), true);
     m_link_transforms.assign(m_link_names.size(), Eigen::Affine3d::Identity());
