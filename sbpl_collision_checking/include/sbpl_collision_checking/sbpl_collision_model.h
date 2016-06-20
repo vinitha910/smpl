@@ -266,7 +266,14 @@ public:
     bool   linkTransformDirty(const std::string& link_name) const;
     bool   linkTransformDirty(int lidx) const;
 
+    /// \brief Update the transforms of all links in the kinematic tree
+    /// \return Whether the transform required updating; all link transforms
+    ///         will be up to date in all cases afterwards
     bool   updateLinkTransforms();
+
+    /// \brief Update the transform of a link in the kinematic  tree
+    /// \return Whether the transform required updating; the link transform will
+    ///         be up to date in all cases afterwards
     bool   updateLinkTransform(int lidx);
     bool   updateLinkTransform(const std::string& link_name);
     ///@}
