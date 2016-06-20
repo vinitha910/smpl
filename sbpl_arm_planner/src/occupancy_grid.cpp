@@ -369,6 +369,7 @@ void OccupancyGrid::updatePointsInField(
     const std::vector<Eigen::Vector3d>& old_points,
     const std::vector<Eigen::Vector3d>& new_points)
 {
+    // TODO: ref counting
     grid_->updatePointsInField(toAlignedVector(old_points), toAlignedVector(new_points));
 }
 

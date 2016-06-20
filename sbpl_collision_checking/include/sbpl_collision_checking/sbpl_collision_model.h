@@ -180,6 +180,10 @@ public:
     /// \brief Return the number of sphere collision models
     size_t sphereModelCount() const;
 
+    /// TODO: this should probably operate over the domain of unique collision
+    ///       sphere states but underneath it looks like it just grabs one of
+    ///       the collision sphere models
+
     /// \brief Return the sphere collision model for a given sphere collision
     ///        state
     auto   sphereModel(int smidx) const -> const CollisionSphereModel&;

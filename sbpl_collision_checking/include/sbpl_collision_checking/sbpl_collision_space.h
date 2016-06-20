@@ -111,10 +111,10 @@ public:
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
     const std::string& getReferenceFrame() const {
-        return grid_->getReferenceFrame();
+        return m_grid->getReferenceFrame();
     }
 
-    const std::string& getGroupName() const { return group_name_; }
+    const std::string& getGroupName() const { return m_group_name; }
 
     /// \name Collision Robot Model
     ///@{
@@ -144,8 +144,6 @@ public:
 
     void setAllowedCollisionMatrix(
         const collision_detection::AllowedCollisionMatrix& acm);
-
-    bool updateVoxelGroups();
 
     ///@}
 
@@ -214,9 +212,6 @@ public:
     /// \return The visualization
     visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
-    visualization_msgs::MarkerArray getCollisionModelVisualization(
-        const std::vector<double>& angles);
-
     visualization_msgs::MarkerArray getMeshModelVisualization(
         const std::string& group_name,
         const std::vector<double>& angles);
@@ -230,20 +225,31 @@ private:
     ///////////////////////////////
 
     CollisionWorld m_world;
-    OccupancyGrid* grid_;
+    OccupancyGrid* m_grid;
 
     ///////////////////////////////
     // Collision Robot Variables //
     ///////////////////////////////
 
-    RobotCollisionModel model_;
-    std::string group_name_;
-    double padding_;
+    RobotCollisionModel m_model;
+
+    std::vector<int> m_planning_joint_to_collision_model_indices;
+
+    // collision group information
+    std::string m_group_name;
+    int m_group_index;
+    std::vector<int> m_sphere_indices;
+    std::vector<int> m_voxels_indices;
+
+    double m_padding;
     double object_enclosing_sphere_radius_;
-    std::vector<double> inc_;
-    std::vector<double> min_limits_;
-    std::vector<double> max_limits_;
-    std::vector<bool> continuous_;
+
+    // information related to the planning joint group
+    std::vector<double> m_increments;
+    std::vector<double> m_min_limits;
+    std::vector<double> m_max_limits;
+    std::vector<bool> m_continuous;
+
     std::vector<const Sphere*> spheres_; // temp
     std::vector<std::vector<KDL::Frame>> frames_; // temp
 
@@ -261,7 +267,7 @@ private:
     std::vector<Sphere> object_spheres_;
 
     // cached between collision check and visualization
-    std::vector<Sphere> collision_spheres_;
+    std::vector<Sphere> m_collision_spheres;
 
     ////////////////////
     // Initialization //
@@ -278,8 +284,6 @@ private:
         const CollisionModelConfig& config,
         const std::string& sphere,
         std::string& link_name) const;
-    bool updateVoxelGroup(Group* g);
-    bool updateVoxelGroup(const std::string& name);
 
     //////////////////////
     // Attached Objects //
@@ -316,6 +320,13 @@ private:
     // Collision Checking //
     ////////////////////////
 
+    // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
+    // check as fast as possible, with all shortcutting policies enabled; a
+    // second for returning the nearest distance (or highest penetration
+    // distance), a third for returning a minimal but complete representation of
+    // the collision details (contact points, offending spheres, etc), and a
+    // fourth for visualizations
+
     bool checkCollision(
         const std::vector<double>& angles,
         bool verbose,
@@ -329,6 +340,8 @@ private:
         int& path_length,
         int& num_checks,
         double& dist);
+
+    bool checkAttachedObjectCollision();
 
     bool isValidCell(int x, int y, int z, int radius) const;
 
