@@ -446,6 +446,15 @@ bool CollisionModelImpl::sphereStateDirty(int ssidx) const
     return m_dirty_sphere_states[ssidx];
 }
 
+inline
+visualization_msgs::MarkerArray CollisionModelImpl::getVisualization(
+    const std::string& group_name) const
+{
+    auto it = m_group_name_to_index.find(group_name);
+    ASSERT_RANGE(it != m_group_name_to_index.end());
+    return getVisualization(it->second);
+}
+
 } // namespace collision
 } // namespace sbpl
 

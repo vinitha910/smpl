@@ -376,5 +376,24 @@ bool RobotCollisionModel::updateSpherePosition(int ssidx)
     return m_impl->updateSpherePosition(ssidx);
 }
 
+visualization_msgs::MarkerArray
+RobotCollisionModel::getVisualization() const
+{
+    return m_impl->getVisualization();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getVisualization(const std::string& group_name) const
+{
+    return m_impl->getVisualization(group_name);
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getVisualization(int gidx) const
+{
+    return m_impl->getVisualization(gidx);
+}
+
+
 } // namespace collision
 } // namespace sbpl

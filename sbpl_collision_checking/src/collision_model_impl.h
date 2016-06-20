@@ -161,6 +161,11 @@ public:
     bool updateSpherePositions();
     bool updateSpherePosition(int ssidx);
 
+    auto getVisualization() const -> visualization_msgs::MarkerArray;
+    auto getVisualization(const std::string& group_name) const ->
+        visualization_msgs::MarkerArray;
+    auto getVisualization(int gidx) const -> visualization_msgs::MarkerArray;
+
 private:
 
     /// \name Robot Model

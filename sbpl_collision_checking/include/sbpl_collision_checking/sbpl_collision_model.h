@@ -41,6 +41,7 @@
 // system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <visualization_msgs/MarkerArray.h>
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
@@ -290,6 +291,10 @@ public:
     bool updateSpherePositions();
     bool updateSpherePosition(int ssidx);
     ///@}
+
+    visualization_msgs::MarkerArray getVisualization() const;
+    visualization_msgs::MarkerArray getVisualization(const std::string& group_name) const;
+    visualization_msgs::MarkerArray getVisualization(int gidx) const;
 
 private:
 

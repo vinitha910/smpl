@@ -39,6 +39,8 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
+#include <leatherman/viz.h>
+#include <ros/console.h>
 #include <sbpl_geometry_utils/Voxelizer.h>
 
 // project includes
@@ -46,6 +48,16 @@
 
 namespace sbpl {
 namespace collision {
+
+std::string AffineToString(const Eigen::Affine3d& t)
+{
+    const Eigen::Vector3d pos(t.translation());
+    const Eigen::Quaterniond rot(t.rotation());
+    const int ENOUGH = 1024;
+    char buff[ENOUGH] = { 0 };
+    snprintf(buff, ENOUGH, "{ pos = (%0.3f, %0.3f, %0.3f), rot = (%0.3f, %0.3f, %0.3f, %0.3f) }", pos.x(), pos.y(), pos.z(), rot.w(), rot.x(), rot.y(), rot.z());
+    return std::string(buff);
+}
 
 Eigen::Affine3d ComputeRevoluteJointTransform(
     const Eigen::Affine3d& origin,
@@ -170,6 +182,8 @@ bool CollisionModelImpl::setJointPosition(int jidx, double position)
     ASSERT_VECTOR_RANGE(m_jvar_positions, jidx);
 
     if (m_jvar_positions[jidx] != position) {
+        ROS_DEBUG("Setting joint position of joint %d to %0.3f", jidx, position);
+
         m_jvar_positions[jidx] = position;
 
         // TODO: cache affected link transforms in a per-joint array?
@@ -179,6 +193,8 @@ bool CollisionModelImpl::setJointPosition(int jidx, double position)
         while (!q.empty()) {
             int lidx = q.front();
             q.pop();
+
+            ROS_DEBUG("Dirtying transform to link '%s'", m_link_names[lidx].c_str());
 
             // dirty the transform of the affected link
             m_dirty_link_transforms[lidx] = true;
@@ -195,7 +211,7 @@ bool CollisionModelImpl::setJointPosition(int jidx, double position)
                     m_link_spheres_states[lidx]->spheres)
                 {
                     int dssidx = std::distance(m_sphere_states.data(), sphere_state);
-                    m_dirty_sphere_states[dssidx] = true;;
+                    m_dirty_sphere_states[dssidx] = true;
                 }
             }
 
@@ -214,6 +230,7 @@ bool CollisionModelImpl::setJointPosition(int jidx, double position)
 
 bool CollisionModelImpl::updateLinkTransforms()
 {
+    ROS_DEBUG("Updating all link transforms");
     bool updated = false;
     for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {
         updated |= updateLinkTransform(lidx);
@@ -231,28 +248,34 @@ bool CollisionModelImpl::updateLinkTransform(int lidx)
     int pjidx = m_link_parent_joints[lidx];
     int plidx = m_joint_parent_links[pjidx];
 
-    if (plidx > 0) {
+    ROS_DEBUG("Updating transform for link '%s'. parent joint = %d, parent link = %d", m_link_names[lidx].c_str(), pjidx, plidx);
+
+    if (plidx >= 0) {
         // recursively update the kinematic tree
         // TODO: optimize out recursion
         updateLinkTransform(plidx);
     }
 
-    const Eigen::Affine3d& T_model_parent_link = (plidx >= 0) ?
+    const Eigen::Affine3d& T_model_parent = (plidx >= 0) ?
             (m_link_transforms[plidx]) : (Eigen::Affine3d::Identity());
 
-    const Eigen::Affine3d& T_parent_link_child =
+    const Eigen::Affine3d& T_parent_link =
             m_joint_transforms[pjidx](
                     m_joint_origins[pjidx],
                     m_joint_axes[pjidx],
                     m_joint_var_offset[pjidx]);
 
-    m_link_transforms[lidx] = T_model_parent_link * T_parent_link_child;
+    m_link_transforms[lidx] = T_model_parent * T_parent_link;
+
+    ROS_DEBUG(" -> %s", AffineToString(m_link_transforms[lidx]).c_str());
+
     m_dirty_link_transforms[lidx] = false;
     return true;
 }
 
 bool CollisionModelImpl::updateVoxelsStates()
 {
+    ROS_DEBUG("Updating all voxels states");
     bool updated = false;
     for (size_t vsidx = 0; vsidx < m_voxels_states.size(); ++vsidx) {
         updated |= updateVoxelsState(vsidx);
@@ -283,11 +306,14 @@ bool CollisionModelImpl::updateVoxelsState(int vsidx)
     }
 
     state.voxels = std::move(new_voxels);
+
+    m_dirty_voxels_states[vsidx] = false;
     return true;
 }
 
 bool CollisionModelImpl::updateSpherePositions()
 {
+    ROS_DEBUG("Updating all sphere positions");
     bool updated = false;
     for (size_t ssidx = 0; ssidx < m_sphere_states.size(); ++ssidx) {
         updated |= updateSpherePosition(ssidx);
@@ -306,11 +332,46 @@ bool CollisionModelImpl::updateSpherePosition(int sidx)
     int lidx = m_sphere_states[sidx].parent_state->model->link_index;
     updateLinkTransform(lidx);
 
+    ROS_DEBUG("Updating position of sphere '%s'", m_sphere_states[sidx].model->name.c_str());
     const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
     m_sphere_states[sidx].pos = T_model_link * m_sphere_states[sidx].model->center;
 
     m_dirty_sphere_states[sidx] = false;
     return true;
+}
+
+visualization_msgs::MarkerArray
+CollisionModelImpl::getVisualization() const
+{
+    visualization_msgs::MarkerArray ma;
+    return ma;
+}
+
+visualization_msgs::MarkerArray
+CollisionModelImpl::getVisualization(int gidx) const
+{
+    ASSERT_VECTOR_RANGE(m_group_states, gidx);
+    const CollisionGroupState& group_state = m_group_states[gidx];
+
+    std::vector<std::vector<double>> spheres;
+    std::vector<double> rad;
+    spheres.reserve(group_state.sphere_indices.size());
+    rad.reserve(group_state.sphere_indices.size());
+
+    for (int ssidx : group_state.sphere_indices) {
+        const CollisionSphereState& sphere_state = m_sphere_states[ssidx];
+        std::vector<double> sphere(4, 0.0);
+        sphere[0] = sphere_state.pos.x();
+        sphere[1] = sphere_state.pos.y();
+        sphere[2] = sphere_state.pos.z();
+        sphere[3] = sphere_state.model->radius;
+        spheres.push_back(std::move(sphere));
+        rad.push_back(sphere_state.model->radius);
+    }
+
+    const int hue = 90;
+    return viz::getSpheresMarkerArray(
+            spheres, rad, hue, "", "collision_model", 0);
 }
 
 bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
@@ -542,6 +603,10 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     }
 
     // initialize joint variable offsets
+    // NOTE: need to initialize this before initRobotState to set up these
+    // references
+    m_jvar_positions.assign(m_jvar_names.size(), 0.0);
+
     m_joint_var_offset.resize(m_joint_transforms.size());
     double* d = m_jvar_positions.data();
     for (size_t i = 0; i < m_joint_transforms.size(); ++i) {
@@ -568,6 +633,13 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
         }
     }
 
+    ROS_INFO("ComputeFixedJointTransform: %p", ComputeFixedJointTransform);
+    ROS_INFO("ComputeRevoluteJointTransform: %p", ComputeRevoluteJointTransform);
+    ROS_INFO("ComputeContinuousJointTransform: %p", ComputeContinuousJointTransform);
+    ROS_INFO("ComputePrismaticJointTransform: %p", ComputePrismaticJointTransform);
+    ROS_INFO("ComputePlanarJointTransform: %p", ComputePlanarJointTransform);
+    ROS_INFO("ComputeFloatingJointTransform: %p", ComputeFloatingJointTransform);
+
     ROS_INFO("Robot Model:");
     ROS_INFO("  Name: %s", m_name.c_str());
     ROS_INFO("  Model Frame: %s", m_model_frame.c_str());
@@ -577,7 +649,14 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
     ROS_INFO("  Joint Variable Min Positions: %s", to_string(m_jvar_min_positions).c_str());
     ROS_INFO("  Joint Variable Max Positions: %s", to_string(m_jvar_max_positions).c_str());
     ROS_INFO("  Joint Variable Offsets: %s", to_string(m_joint_var_offset).c_str());
-    ROS_INFO("  Joint Transform Functions: %s", to_string(m_joint_transforms).c_str());
+    ROS_INFO("  Joint Transform Functions:");
+    for (auto p : m_joint_transforms) {
+        ROS_INFO("    %p", p);
+    }
+    ROS_INFO("  Joint Origins:");
+    for (const auto& o : m_joint_origins) {
+        ROS_INFO("    %s", AffineToString(o).c_str());
+    }
     ROS_INFO("  Joint Parent Links: %s", to_string(m_joint_parent_links).c_str());
     ROS_INFO("  Joint Child Links: %s", to_string(m_joint_child_links).c_str());
     ROS_INFO("  Link Names: %s", to_string(m_link_names).c_str());
@@ -592,7 +671,7 @@ bool CollisionModelImpl::initRobotState()
     assert(!m_joint_origins.empty());
     m_joint_origins[0] = Eigen::Affine3d::Identity();
 
-    m_jvar_positions.assign(m_jvar_names.size(), 0.0);
+//    m_jvar_positions.assign(m_jvar_names.size(), 0.0);
     m_dirty_link_transforms.assign(m_link_names.size(), true);
     m_link_transforms.assign(m_link_names.size(), Eigen::Affine3d::Identity());
 
@@ -1005,7 +1084,7 @@ void CollisionModelImpl::clear()
 
 Eigen::Affine3d CollisionModelImpl::poseUrdfToEigen(const urdf::Pose& p) const
 {
-    return Eigen::Translation3d(p.position.x, p.position.y, p.position.y) *
+    return Eigen::Translation3d(p.position.x, p.position.y, p.position.z) *
             Eigen::Quaterniond(
                     p.rotation.w, p.rotation.x, p.rotation.y, p.rotation.z);
 }

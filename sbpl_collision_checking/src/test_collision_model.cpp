@@ -41,6 +41,9 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
 
+    ros::Publisher vis_pub = nh.advertise<visualization_msgs::MarkerArray>(
+            "visualization_markers", 100);
+
     sbpl::collision::CollisionModelConfig config;
     if (!sbpl::collision::CollisionModelConfig::Load(ph, config)) {
         ROS_ERROR("Failed to load Collision Model Config");
@@ -86,6 +89,33 @@ int main(int argc, char **argv)
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
     }
+
+    ros::Duration(1.0).sleep(); // let ros and the publisher set up
+
+    for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
+        model.setJointPosition(jidx, 0.0);
+    }
+
+    model.updateSpherePositions();
+    auto ma = model.getVisualization("manipulator");
+    for (auto& marker : ma.markers) {
+        marker.header.frame_id = "world";
+    }
+
+    vis_pub.publish(ma);
+    ros::spinOnce();
+    ros::Duration(1.0).sleep(); // let the publisher do its job
+
+    model.setJointPosition(0, 0.8);
+    model.updateSpherePositions();
+    ma = model.getVisualization("manipulator");
+    for (auto& marker : ma.markers) {
+        marker.header.frame_id = "world";
+    }
+
+    vis_pub.publish(ma);
+    ros::spinOnce();
+    ros::Duration(1.0).sleep(); // let the publisher do its job
 
     return 0;
 }
