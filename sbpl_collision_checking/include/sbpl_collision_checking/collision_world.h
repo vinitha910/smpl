@@ -65,12 +65,14 @@ public:
 
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
-    bool removeObject(const std::string& object_name);
     bool moveShapes(const ObjectConstPtr& object);
     bool insertShapes(const ObjectConstPtr& object);
     bool removeShapes(const ObjectConstPtr& object);
 
     bool processCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool insertOctomap(const octomap_msgs::OctomapWithPose& octomap);
+
+    bool removeObject(const std::string& object_name);
 
     /// \brief Reset the underlying occupancy grid.
     ///
@@ -150,6 +152,9 @@ private:
     ObjectConstPtr convertCollisionObjectToObject(
         const moveit_msgs::CollisionObject& object) const;
 
+    ObjectConstPtr convertOctomapToObject(
+        const octomap_msgs::OctomapWithPose& octomap) const;
+
     // return whether or not to accept an incoming collision object
     bool checkCollisionObjectAdd(
         const moveit_msgs::CollisionObject& object) const;
@@ -159,6 +164,8 @@ private:
         const moveit_msgs::CollisionObject& object) const;
     bool checkCollisionObjectMove(
         const moveit_msgs::CollisionObject& object) const;
+
+    bool checkInsertOctomap(const octomap_msgs::OctomapWithPose& octomap) const;
 
     bool addCollisionObject(const moveit_msgs::CollisionObject& object);
     bool removeCollisionObject(const moveit_msgs::CollisionObject& object);

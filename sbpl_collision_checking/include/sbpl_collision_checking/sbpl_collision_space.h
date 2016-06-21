@@ -41,7 +41,6 @@
 #include <Eigen/Dense>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
-#include <kdl/kdl.hpp>
 #include <moveit/collision_detection/collision_matrix.h>
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
@@ -71,29 +70,6 @@ public:
     CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
 
-    /// \name manip::CollisionChecker API Requirements
-    ///@{
-
-    bool isStateValid(
-        const std::vector<double>& angles,
-        bool verbose,
-        bool visualize,
-        double &dist);
-
-    bool isStateToStateValid(
-        const std::vector<double>& angles0,
-        const std::vector<double>& angles1,
-        int& path_length,
-        int& num_checks,
-        double& dist);
-
-    bool interpolatePath(
-        const std::vector<double>& start,
-        const std::vector<double>& end,
-        std::vector<std::vector<double>>& path);
-
-    ///@}
-
     /// \brief Initialize the collision space
     /// \param urdf_string string description of the robot in URDF format
     /// \param group_name The collision group for which collision detection is
@@ -110,29 +86,28 @@ public:
 
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
-    const std::string& getReferenceFrame() const {
-        return m_grid->getReferenceFrame();
-    }
+    /// \brief Return the reference frame of the occupancy grid
+    const std::string& getReferenceFrame() const;
 
-    const std::string& getGroupName() const { return m_group_name; }
+    /// \brief Return the group being collision checked
+    const std::string& getGroupName() const;
 
-    /// \name Collision Robot Model
+    /// \name Robot Collision Model
     ///@{
     ///@}
 
-    /// \name Collision Robot State
+    /// \name Robot Collision State
     ///@{
 
-    /// \brief Set the padding applied to the collision group model
+    /// \brief Set the padding applied to the collision model
     void setPadding(double padding);
 
-    void setJointPosition(const std::string& name, double position);
+    /// \brief Set a joint variable in the robot state
+    /// \return true if the joint variable exists; false otherwise
+    bool setJointPosition(const std::string& name, double position);
 
+    /// \brief Set the reference to robot model frame transform
     void setWorldToModelTransform(const Eigen::Affine3d& transform);
-
-    bool getCollisionSpheres(
-        const std::vector<double>& angles,
-        std::vector<std::vector<double>>& spheres);
 
     ///@}
 
@@ -147,23 +122,18 @@ public:
 
     ///@}
 
-    /// \name Generic Objects
+    /// \name World
     ///@{
-
-    bool insertObject(const CollisionWorld::ObjectConstPtr& object);
-    bool removeObject(const CollisionWorld::ObjectConstPtr& object);
-    bool removeObject(const std::string& object_name);
-    bool moveShapes(const CollisionWorld::ObjectConstPtr& object);
-    bool insertShapes(const CollisionWorld::ObjectConstPtr& object);
-    bool removeShapes(const CollisionWorld::ObjectConstPtr& object);
-
-    /// @}
-
-    /// \name Collision Objects
-    ///@{
+    bool insertObject(const ObjectConstPtr& object);
+    bool removeObject(const ObjectConstPtr& object);
+    bool moveShapes(const ObjectConstPtr& object);
+    bool insertShapes(const ObjectConstPtr& object);
+    bool removeShapes(const ObjectConstPtr& object);
 
     bool processCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool processOctomapMsg(const octomap_msgs::OctomapWithPose& octomap);
 
+    bool removeObject(const std::string& object_name);
     ///@}
 
     /// \name Attached Objects
@@ -218,56 +188,62 @@ public:
 
     ///@}
 
+    /// \name Reimplemented Public Function
+    ///@{
+    bool isStateValid(
+        const std::vector<double>& angles,
+        bool verbose,
+        bool visualize,
+        double &dist);
+
+    bool isStateToStateValid(
+        const std::vector<double>& angles0,
+        const std::vector<double>& angles1,
+        int& path_length,
+        int& num_checks,
+        double& dist);
+
+    bool interpolatePath(
+        const std::vector<double>& start,
+        const std::vector<double>& end,
+        std::vector<std::vector<double>>& path);
+    ///@}
+
 private:
 
-    ///////////////////////////////
-    // Collision World Variables //
-    ///////////////////////////////
-
-    CollisionWorld m_world;
     OccupancyGrid* m_grid;
-
-    ///////////////////////////////
-    // Collision Robot Variables //
-    ///////////////////////////////
-
+    CollisionWorld m_world;
     RobotCollisionModel m_model;
 
-    std::vector<int> m_planning_joint_to_collision_model_indices;
-
-    // collision group information
-    std::string m_group_name;
-    int m_group_index;
-    std::vector<int> m_sphere_indices;
-    std::vector<int> m_voxels_indices;
-
-    double m_padding;
-    double object_enclosing_sphere_radius_;
-
-    // information related to the planning joint group
-    std::vector<double> m_increments;
-    std::vector<double> m_min_limits;
-    std::vector<double> m_max_limits;
-    std::vector<bool> m_continuous;
-
-    std::vector<const Sphere*> spheres_; // temp
-    std::vector<std::vector<KDL::Frame>> frames_; // temp
-
-    collision_detection::AllowedCollisionMatrix m_acm;
-
-    ////////////////////////////////
-    // Attached Objects Varibles //
-    ////////////////////////////////
-
+    // TODO: attached object variables that could probably be moved into the
+    // robot collision model
     bool object_attached_;
     int attached_object_frame_num_;
     int attached_object_segment_num_;
     int attached_object_chain_num_;
     std::string attached_object_frame_;
     std::vector<Sphere> object_spheres_;
+    double object_enclosing_sphere_radius_;
 
-    // cached between collision check and visualization
-    std::vector<Sphere> m_collision_spheres;
+    // Collision Group
+    std::string m_group_name;
+    int m_group_index;
+    std::vector<int> m_sphere_indices;
+    std::vector<int> m_voxels_indices;
+
+    // Planning Joint Information
+    std::vector<int> m_planning_joint_to_collision_model_indices;
+    std::vector<double> m_increments;
+    std::vector<double> m_min_limits;
+    std::vector<double> m_max_limits;
+    std::vector<bool> m_continuous;
+
+    // Collision Checking Policies
+    collision_detection::AllowedCollisionMatrix m_acm;
+    double m_padding;
+
+    // Visualization
+    std::vector<Sphere> m_collision_spheres; // cached between check and vis
 
     ////////////////////
     // Initialization //
@@ -278,6 +254,8 @@ private:
     ////////////////////
     // Self Collision //
     ////////////////////
+
+    void updateVoxelsStates();
 
     void initAllowedCollisionMatrix(const CollisionModelConfig& config);
     bool findAttachedLink(
@@ -327,6 +305,7 @@ private:
     // the collision details (contact points, offending spheres, etc), and a
     // fourth for visualizations
 
+    /// \brief Return true if the current state is valid
     bool checkCollision(
         const std::vector<double>& angles,
         bool verbose,
@@ -341,9 +320,9 @@ private:
         int& num_checks,
         double& dist);
 
+    bool checkRobotCollision(bool verbose, bool visualize, double& dist);
+    bool checkSelfCollision(bool verbose, bool visualize, double& dist);
     bool checkAttachedObjectCollision();
-
-    bool isValidCell(int x, int y, int z, int radius) const;
 
     double isValidLineSegment(
         const std::vector<int> a,
@@ -356,6 +335,18 @@ private:
         double& avg_dist,
         double& min_dist);
 };
+
+inline
+const std::string& CollisionSpace::getReferenceFrame() const
+{
+    return m_grid->getReferenceFrame();
+}
+
+inline
+const std::string& CollisionSpace::getGroupName() const
+{
+    return m_group_name;
+}
 
 } // namespace collision
 } // namespace sbpl

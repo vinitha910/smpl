@@ -157,6 +157,22 @@ bool CollisionWorld::processCollisionObject(
     }
 }
 
+bool CollisionWorld::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
+{
+    if (!checkInsertOctomap(octomap)) {
+        ROS_ERROR("Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
+        return false;
+    }
+
+    ObjectConstPtr op = convertOctomapToObject(octomap);
+    if (!op) {
+        ROS_ERROR("Failed to convert octomap message to collision object");
+        return false;
+    }
+
+    return insertObject(op);
+}
+
 void CollisionWorld::reset()
 {
     m_grid->reset();
@@ -532,6 +548,29 @@ CollisionWorld::ObjectConstPtr CollisionWorld::convertCollisionObjectToObject(
     return ObjectConstPtr(o);
 }
 
+CollisionWorld::ObjectConstPtr CollisionWorld::convertOctomapToObject(
+    const octomap_msgs::OctomapWithPose& octomap) const
+{
+    ObjectPtr o = boost::make_shared<Object>(octomap.octomap.id);
+
+    // convert binary octomap message to octree
+    boost::shared_ptr<const octomap::OcTree> ot(
+            octomap_msgs::binaryMsgToMap(octomap.octomap));
+
+    // wrap with a shape
+    shapes::OcTree* octree_shape = new shapes::OcTree(ot);
+    shapes::ShapeConstPtr sp(octree_shape);
+
+    Eigen::Affine3d transform;
+    tf::poseMsgToEigen(octomap.pose, transform);
+
+    // construct the object
+    o->shapes_.push_back(sp);
+    o->shape_poses_.push_back(transform);
+
+    return ObjectConstPtr(o);
+}
+
 bool CollisionWorld::checkCollisionObjectAdd(
     const moveit_msgs::CollisionObject& object) const
 {
@@ -615,6 +654,27 @@ bool CollisionWorld::checkCollisionObjectMove(
     const moveit_msgs::CollisionObject& object) const
 {
     return m_object_map.find(object.id) != m_object_map.end();
+}
+
+bool CollisionWorld::checkInsertOctomap(
+    const octomap_msgs::OctomapWithPose& octomap) const
+{
+    if (haveObject(octomap.octomap.id)) {
+        ROS_ERROR("Already have collision object '%s'", octomap.octomap.id.c_str());
+        return false;
+    }
+
+    if (octomap.header.frame_id != m_grid->getReferenceFrame()) {
+        ROS_ERROR("Octomap must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
+        return false;
+    }
+
+    if (!octomap.octomap.binary) {
+        ROS_ERROR("Octomap must be a binary octomap");
+        return false;
+    }
+
+    return true;
 }
 
 bool CollisionWorld::addCollisionObject(const moveit_msgs::CollisionObject& object)
