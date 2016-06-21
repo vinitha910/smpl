@@ -70,14 +70,14 @@ public:
     CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
 
-    /// \brief Initialize the collision space
+    /// \brief Initialize the Collision Space
     /// \param urdf_string string description of the robot in URDF format
-    /// \param group_name The collision group for which collision detection is
-    ///         performed
-    /// \param config Configuration of the collision model
-    /// \param planning_joints The list of joint names being planned for. Just
-    ///         set this to the list of parent joints of links in the collision
-    ///         group and you will be happy.
+    /// \param group_name collision group for which collision detection is
+    ///        performed
+    /// \param config collision model configuration
+    /// \param planning_joints The set of joint variable names being planned for
+    ///        in the order they will appear in calls to isStateValid and
+    ///        friends
     bool init(
         const std::string& urdf_string,
         const std::string& group_name,
