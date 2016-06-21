@@ -35,6 +35,7 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
 #include <leatherman/utils.h>
+#include <octomap_msgs/conversions.h>
 #include <sbpl_geometry_utils/Voxelizer.h>
 
 namespace sbpl {
@@ -551,7 +552,7 @@ CollisionWorld::ObjectConstPtr CollisionWorld::convertCollisionObjectToObject(
 CollisionWorld::ObjectConstPtr CollisionWorld::convertOctomapToObject(
     const octomap_msgs::OctomapWithPose& octomap) const
 {
-    ObjectPtr o = boost::make_shared<Object>(octomap.octomap.id);
+    ObjectPtr o(new Object(octomap.octomap.id));
 
     // convert binary octomap message to octree
     boost::shared_ptr<const octomap::OcTree> ot(
@@ -562,7 +563,7 @@ CollisionWorld::ObjectConstPtr CollisionWorld::convertOctomapToObject(
     shapes::ShapeConstPtr sp(octree_shape);
 
     Eigen::Affine3d transform;
-    tf::poseMsgToEigen(octomap.pose, transform);
+    tf::poseMsgToEigen(octomap.origin, transform);
 
     // construct the object
     o->shapes_.push_back(sp);

@@ -54,7 +54,7 @@
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/collision_world.h>
 #include <sbpl_collision_checking/sbpl_collision_model.h>
-#include <sbpl_collision_checking/group.h>
+#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {

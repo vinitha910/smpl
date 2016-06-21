@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015, Benjamin Cohen, Andrew Dornbush
+// Copyright (c) 2016, Benjamin Cohen
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,31 +27,10 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-/// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_Group_h
-#define sbpl_collision_Group_h
-
-// standard includes
-#include <algorithm>
-#include <string>
-#include <vector>
-
 // system includes
-#include <boost/algorithm/string.hpp>
-#include <boost/shared_ptr.hpp>
-#include <kdl/chain.hpp>
-#include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/frames.hpp>
-#include <kdl_parser/kdl_parser.hpp>
-#include <leatherman/print.h>
-#include <leatherman/utils.h>
-#include <ros/ros.h>
-#include <urdf/model.h>
-
-// project includes
-#include <sbpl_collision_checking/collision_model_config.h>
+#include <Eigen/Dense>
 
 namespace sbpl {
 namespace collision {
@@ -64,5 +43,3 @@ struct Sphere
 
 } // namespace collision
 } // namespace sbpl
-
-#endif

@@ -145,7 +145,7 @@ bool CollisionSpace::init(
     }
 
     if (!m_model.hasGroup(group_name)) {
-        ROS_ERROR("Group '%s' was not found in the Robot Collision Model");
+        ROS_ERROR("Group '%s' was not found in the Robot Collision Model", group_name.c_str());
         return false;
     }
 
@@ -219,13 +219,13 @@ void CollisionSpace::updateVoxelsStates()
     std::vector<Eigen::Vector3d> voxel_insertions;
     for (int vsidx : m_voxels_indices) {
         if (m_model.voxelsStateDirty(vsidx)) {
-            CollisionVoxelsState& voxels_state = m_model.voxelsState(vsidx);
+            const CollisionVoxelsState& voxels_state = m_model.voxelsState(vsidx);
 
             // copy over voxels to be removed before updating
             voxel_removals.insert(
                     voxel_removals.end(),
                     voxels_state.voxels.begin(),
-                    voxels_state.voxels.end())
+                    voxels_state.voxels.end());
 
             m_model.updateVoxelsState(vsidx);
 
@@ -233,7 +233,7 @@ void CollisionSpace::updateVoxelsStates()
             voxel_insertions.insert(
                     voxel_insertions.end(),
                     voxels_state.voxels.begin(),
-                    voxels_state.voxels.end())
+                    voxels_state.voxels.end());
 
             ROS_DEBUG("Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", voxel_removals.size());
         }
@@ -251,8 +251,8 @@ void CollisionSpace::updateVoxelsStates()
 void CollisionSpace::initAllowedCollisionMatrix(
     const CollisionModelConfig& config)
 {
-    for (size_t i = 0; i < config.collision_spheres.size(); ++i) {
-        const std::string& sphere1 = config.collision_spheres[i].name;
+    for (size_t i = 0; i < config.spheres.size(); ++i) {
+        const std::string& sphere1 = config.spheres[i].name;
         std::string link1;
         if (!findAttachedLink(config, sphere1, link1)) {
             continue;
@@ -263,8 +263,8 @@ void CollisionSpace::initAllowedCollisionMatrix(
             m_acm.setEntry(sphere1, false);
         }
 
-        for (size_t j = i + 1; j < config.collision_spheres.size(); ++j) {
-            const std::string& sphere2 = config.collision_spheres[j].name;
+        for (size_t j = i + 1; j < config.spheres.size(); ++j) {
+            const std::string& sphere2 = config.spheres[j].name;
             std::string link2;
             if (!findAttachedLink(config, sphere2, link2)) {
                 continue;
@@ -327,16 +327,15 @@ bool CollisionSpace::findAttachedLink(
     const std::string& sphere,
     std::string& link_name) const
 {
-    for (const auto& group : config.collision_groups) {
-        for (const auto& collision_link : group.collision_links) {
-            auto it = std::find(
-                    collision_link.spheres.begin(),
-                    collision_link.spheres.end(),
-                    sphere);
-            if (it != collision_link.spheres.end()) {
-                link_name = collision_link.name;
-                return true;
-            }
+    for (const auto& spheres_model : config.spheres_models) {
+        if (std::find(
+                spheres_model.spheres.begin(),
+                spheres_model.spheres.end(),
+                sphere) !=
+            spheres_model.spheres.end())
+        {
+            link_name = spheres_model.link_name;
+            return true;
         }
     }
 
@@ -439,7 +438,7 @@ bool CollisionSpace::checkRobotCollision(
         }
 
         // check for collision with world
-        double obs_dist = m_grid->getDistance(x, y, z);
+        double obs_dist = m_grid->getDistance(gx, gy, gz);
         const double effective_radius =
                 m_model.sphereModel(ssidx).radius +
                 0.5 * m_grid->getResolution() +
@@ -454,7 +453,7 @@ bool CollisionSpace::checkRobotCollision(
                 in_collision = true;
                 Sphere s;
                 s.center = ss.pos;
-                s.radius = m_model.sphereModel(ssidx);
+                s.radius = m_model.sphereModel(ssidx).radius;
                 m_collision_spheres.push_back(s);
             }
             else {
@@ -479,25 +478,28 @@ bool CollisionSpace::checkSelfCollision(
     bool self_collision = false;
     // check self collisions
     for (size_t sidx1 = 0; sidx1 < m_sphere_indices.size(); ++sidx1) {
-        const CollisionSphereState& ss1 = m_model.sphereState(ssidx1);
+        const CollisionSphereState& ss1 = m_model.sphereState(sidx1);
+        const CollisionSphereModel& smodel1 = m_model.sphereModel(sidx1);
+
         for (size_t sidx2 = 0; sidx2 < m_sphere_indices.size(); ++sidx2) {
-            const CollisionSphereState& ss2 = m_model.sphereState(ssidx2);
+            const CollisionSphereState& ss2 = m_model.sphereState(sidx2);
+            const CollisionSphereModel& smodel2 = m_model.sphereModel(sidx2);
 
             Eigen::Vector3d dx = ss2.pos - ss1.pos;
-            const double radius_combined = sphere1->radius + sphere2->radius;
-            if (dx.lengthSquared() < radius_combined * radius_combined) {
+            const double radius_combined = smodel1.radius + smodel2.radius;
+            if (dx.squaredNorm() < radius_combined * radius_combined) {
                 collision_detection::AllowedCollision::Type type;
-                if (!m_acm.getEntry(sphere1->name, sphere2->name, type)) {
+                if (!m_acm.getEntry(smodel1.name, smodel2.name, type)) {
                     ROS_ERROR("An allowed collisions entry wasn't found for a collision sphere");
                 }
                 if (type == collision_detection::AllowedCollision::NEVER) {
                     if (visualize) {
                         self_collision = true;
                         Sphere s1, s2;
-                        s1.pos = ss1.pos;
-                        s1.radius = m_model.sphereModel(sidx1);
-                        s2.pos = ss2.pos;
-                        s2.radius = m_model.sphereModel(sidx2);
+                        s1.center = ss1.pos;
+                        s1.radius = smodel1.radius;
+                        s2.center = ss2.pos;
+                        s2.radius = smodel2.radius;
                         m_collision_spheres.push_back(s1);
                         m_collision_spheres.push_back(s2);
                     }
@@ -968,8 +970,8 @@ bool CollisionSpace::setPlanningScene(
     }
 
     const sensor_msgs::MultiDOFJointState& multi_dof_joint_state =
-            robot.multi_dof_joint_state;
-    for (size_t i = 0; i < multi_dof_joint_state.name.size(); ++i) {
+            robot_state.multi_dof_joint_state;
+    for (size_t i = 0; i < multi_dof_joint_state.joint_names.size(); ++i) {
         // TODO: handle multi-dof joint state
     }
 

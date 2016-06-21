@@ -18,6 +18,7 @@ find_package(catkin
         message_filters
         moveit_core
         moveit_msgs
+        octomap_msgs
         pr2_controllers_msgs
         roscpp
         sbpl_arm_planner
@@ -30,6 +31,7 @@ find_package(catkin
 
 find_package(Eigen REQUIRED)
 find_package(orocos_kdl REQUIRED)
+find_package(octomap REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS
@@ -45,6 +47,7 @@ catkin_package(
         message_filters
         moveit_core
         moveit_msgs
+        octomap_msgs
         pr2_controllers_msgs
         roscpp
         sbpl_arm_planner
@@ -57,44 +60,44 @@ catkin_package(
     DEPENDS
         Boost
         Eigen
+        OCTOMAP
         orocos_kdl)
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${Eigen_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
+include_directories(${OCTOMAP_INCLUDE_DIRS})
 include_directories(${orocos_kdl_INCLUDE_DIRS})
 include_directories(include)
 
-#add_library(
-#    sbpl_collision_checking
-#    src/group.cpp
-#    src/sbpl_collision_model.cpp
-#    src/collision_model_impl.cpp
-#    src/collision_model_config.cpp
-#    src/collision_world.cpp
-#    src/sbpl_collision_space.cpp)
-#target_link_libraries(
-#    sbpl_collision_checking
-#    ${catkin_LIBRARIES}
-#    ${orocos_kdl_LIBRARIES})
-#set_target_properties(
-#    sbpl_collision_checking
-#    PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
-
-#add_executable(test_space src/test_collision_space.cpp)
-#target_link_libraries(test_space ${catkin_LIBRARIES} sbpl_collision_checking)
-
-add_executable(
-    test_collision_model
+add_library(
+    sbpl_collision_checking
+    src/sbpl_collision_model.cpp
     src/collision_model_impl.cpp
     src/collision_model_config.cpp
-    src/sbpl_collision_model.cpp
-    src/test_collision_model.cpp)
-target_link_libraries(test_collision_model ${catkin_LIBRARIES})
+    src/collision_world.cpp
+    src/sbpl_collision_space.cpp)
+target_link_libraries(
+    sbpl_collision_checking
+    ${catkin_LIBRARIES}
+    ${orocos_kdl_LIBRARIES})
 
-#install(
-#    TARGETS sbpl_collision_checking test_space
-#    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+add_executable(test_space src/test_collision_space.cpp)
+target_link_libraries(
+    test_space
+    ${OCTOMAP_LIBRARIES}
+    ${catkin_LIBRARIES}
+    ${orocos_kdl_LIBRARIES}
+    sbpl_collision_checking)
 
+add_executable(test_collision_model src/test_collision_model.cpp)
+target_link_libraries(
+    test_collision_model
+    ${catkin_LIBRARIES}
+    sbpl_collision_checking)
+
+install(
+    TARGETS sbpl_collision_checking test_space test_collision_model
+    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
