@@ -31,7 +31,7 @@
 /// \author Andrew Dornbush
 
 // project includes
-#include <sbpl_collision_checking/sbpl_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_model.h>
 #include "collision_model_impl.h"
 
 namespace sbpl {

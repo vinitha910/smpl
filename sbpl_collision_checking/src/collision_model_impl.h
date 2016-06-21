@@ -48,7 +48,7 @@
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
-#include <sbpl_collision_checking/sbpl_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_model.h>
 
 namespace sbpl {
 namespace collision {

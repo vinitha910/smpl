@@ -33,7 +33,7 @@
 #include <ros/ros.h>
 
 // project includes
-#include <sbpl_collision_checking/sbpl_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_model.h>
 
 int main(int argc, char **argv)
 {

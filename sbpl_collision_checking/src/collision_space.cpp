@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_collision_checking/sbpl_collision_space.h>
+#include <sbpl_collision_checking/collision_space.h>
 
 // standard includes
 #include <assert.h>
@@ -615,12 +615,12 @@ void CollisionSpace::setAllowedCollisionMatrix(
     m_acm = acm;
 }
 
-bool CollisionSpace::insertObject(const CollisionWorld::ObjectConstPtr& object)
+bool CollisionSpace::insertObject(const ObjectConstPtr& object)
 {
     return m_world.insertObject(object);
 }
 
-bool CollisionSpace::removeObject(const CollisionWorld::ObjectConstPtr& object)
+bool CollisionSpace::removeObject(const ObjectConstPtr& object)
 {
     return m_world.removeObject(object);
 }
@@ -630,17 +630,17 @@ bool CollisionSpace::removeObject(const std::string& object_name)
     return m_world.removeObject(object_name);
 }
 
-bool CollisionSpace::moveShapes(const CollisionWorld::ObjectConstPtr& object)
+bool CollisionSpace::moveShapes(const ObjectConstPtr& object)
 {
     return m_world.moveShapes(object);
 }
 
-bool CollisionSpace::insertShapes(const CollisionWorld::ObjectConstPtr& object)
+bool CollisionSpace::insertShapes(const ObjectConstPtr& object)
 {
     return m_world.insertShapes(object);
 }
 
-bool CollisionSpace::removeShapes(const CollisionWorld::ObjectConstPtr& object)
+bool CollisionSpace::removeShapes(const ObjectConstPtr& object)
 {
     return m_world.removeShapes(object);
 }

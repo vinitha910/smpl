@@ -29,8 +29,12 @@
 
 /// \author Andrew Dornbush
 
+#ifndef sbpl_collision_types_h
+#define sbpl_collision_types_h
+
 // system includes
 #include <Eigen/Dense>
+#include <moveit/collision_detection/world.h>
 
 namespace sbpl {
 namespace collision {
@@ -41,5 +45,11 @@ struct Sphere
     double          radius;
 };
 
+typedef collision_detection::World::Object Object;
+typedef collision_detection::World::ObjectPtr ObjectPtr;
+typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
+
 } // namespace collision
 } // namespace sbpl
+
+#endif

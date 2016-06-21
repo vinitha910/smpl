@@ -52,8 +52,8 @@
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
-#include <sbpl_collision_checking/collision_world.h>
-#include <sbpl_collision_checking/sbpl_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/world_collision_model.h>
 #include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
@@ -62,10 +62,6 @@ namespace collision {
 class CollisionSpace : public manip::CollisionChecker
 {
 public:
-
-    typedef CollisionWorld::Object Object;
-    typedef CollisionWorld::ObjectPtr ObjectPtr;
-    typedef CollisionWorld::ObjectConstPtr ObjectConstPtr;
 
     CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
@@ -212,7 +208,7 @@ public:
 private:
 
     OccupancyGrid* m_grid;
-    CollisionWorld m_world;
+    WorldCollisionModel m_world;
     RobotCollisionModel m_model;
 
     // TODO: attached object variables that could probably be moved into the

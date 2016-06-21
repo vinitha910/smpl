@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_collision_world_h
-#define sbpl_collision_collision_world_h
+#ifndef sbpl_collision_world_collision_model_h
+#define sbpl_collision_world_collision_model_h
 
 // standard includes
 #include <map>
@@ -47,6 +47,8 @@
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <sbpl_collision_checking/types.h>
+
 namespace sbpl {
 namespace collision {
 
@@ -54,15 +56,11 @@ namespace collision {
 std::vector<int> ConvertToVertexIndices(
     const std::vector<shape_msgs::MeshTriangle>& triangles);
 
-class CollisionWorld
+class WorldCollisionModel
 {
 public:
 
-    typedef collision_detection::World::Object Object;
-    typedef collision_detection::World::ObjectPtr ObjectPtr;
-    typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
-
-    CollisionWorld(OccupancyGrid* grid);
+    WorldCollisionModel(OccupancyGrid* grid);
 
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
@@ -77,7 +75,7 @@ public:
 
     /// \brief Reset the underlying occupancy grid.
     ///
-    /// Resets the CollisionWorld by clearing the underlying occupancy grid and
+    /// Resets the WorldCollisionModel by clearing the underlying occupancy grid and
     /// revoxelizing all of the managed objects.
     void reset();
 

@@ -35,7 +35,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <sbpl_collision_checking/sbpl_collision_space.h>
+#include <sbpl_collision_checking/collision_space.h>
 
 int main(int argc, char **argv)
 {
