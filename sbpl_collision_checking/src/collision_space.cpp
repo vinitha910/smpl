@@ -158,9 +158,11 @@ bool CollisionSpace::init(
     std::sort(m_sphere_indices.begin(), m_sphere_indices.end(),
             [&](int ssidx1, int ssidx2)
             {
-                const auto& sph1 = m_model.sphereModel(ssidx1);
-                const auto& sph2 = m_model.sphereModel(ssidx2);
-                return sph1.priority < sph2.priority;
+                const CollisionSphereModel* sph1 =
+                        m_model.sphereState(ssidx1).model;
+                const CollisionSphereModel* sph2 =
+                        m_model.sphereState(ssidx2).model;
+                return sph1->priority < sph2->priority;
             });
 
     m_voxels_indices = m_model.groupOutsideVoxelsStateIndices(m_group_index);
@@ -432,7 +434,7 @@ bool CollisionSpace::checkRobotCollision(
         // check bounds
         if (!m_grid->isInBounds(gx, gy, gz)) {
             if (verbose) {
-                ROS_INFO("Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereModel(ssidx).name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
+                ROS_INFO("Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
             }
             return false;
         }
@@ -440,20 +442,20 @@ bool CollisionSpace::checkRobotCollision(
         // check for collision with world
         double obs_dist = m_grid->getDistance(gx, gy, gz);
         const double effective_radius =
-                m_model.sphereModel(ssidx).radius +
+                m_model.sphereState(ssidx).model->radius +
                 0.5 * m_grid->getResolution() +
                 m_padding;
 
         if (obs_dist <= effective_radius) {
             if (verbose) {
-                ROS_INFO("    *collision* idx: %d, name: %s, x: %d, y: %d, z: %d, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereModel(ssidx).name.c_str(), gx, gy, gz, m_model.sphereModel(ssidx).radius, obs_dist);
+                ROS_INFO("    *collision* idx: %d, name: %s, x: %d, y: %d, z: %d, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), gx, gy, gz, m_model.sphereState(ssidx).model->radius, obs_dist);
             }
 
             if (visualize) {
                 in_collision = true;
                 Sphere s;
                 s.center = ss.pos;
-                s.radius = m_model.sphereModel(ssidx).radius;
+                s.radius = m_model.sphereState(ssidx).model->radius;
                 m_collision_spheres.push_back(s);
             }
             else {
@@ -479,11 +481,11 @@ bool CollisionSpace::checkSelfCollision(
     // check self collisions
     for (size_t sidx1 = 0; sidx1 < m_sphere_indices.size(); ++sidx1) {
         const CollisionSphereState& ss1 = m_model.sphereState(sidx1);
-        const CollisionSphereModel& smodel1 = m_model.sphereModel(sidx1);
+        const CollisionSphereModel& smodel1 = *ss1.model;
 
         for (size_t sidx2 = 0; sidx2 < m_sphere_indices.size(); ++sidx2) {
             const CollisionSphereState& ss2 = m_model.sphereState(sidx2);
-            const CollisionSphereModel& smodel2 = m_model.sphereModel(sidx2);
+            const CollisionSphereModel& smodel2 = *ss2.model;
 
             Eigen::Vector3d dx = ss2.pos - ss1.pos;
             const double radius_combined = smodel1.radius + smodel2.radius;
