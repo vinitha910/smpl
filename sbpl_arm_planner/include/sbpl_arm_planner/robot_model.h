@@ -34,11 +34,9 @@
 #define sbpl_manip_robot_model_h
 
 // standard includes
+#include <ostream>
 #include <string>
 #include <vector>
-
-// system includes
-#include <angles/angles.h>
 
 namespace sbpl {
 namespace manip {
@@ -48,7 +46,8 @@ namespace ik_option {
 enum IkOption
 {
     UNRESTRICTED = 0,
-    RESTRICT_XYZ_JOINTS = 1
+    RESTRICT_XYZ = 1,
+    RESTRICT_RPY = 2
 };
 
 std::ostream& operator<<(std::ostream& o, IkOption option);

@@ -376,13 +376,17 @@ bool ActionSet::getAction(
                 parent,
                 env_->getGoal(),
                 goal_dist,
-                ik_option::RESTRICT_XYZ_JOINTS,
+                ik_option::RESTRICT_XYZ,
                 actions);
     }
     case MotionPrimitive::SNAP_TO_XYZ:
     {
-        // TODO: implement?
-        return false;
+        return computeIkAction(
+                parent,
+                env_->getGoal(),
+                goal_dist,
+                ik_option::RESTRICT_RPY,
+                actions);
     }
     case MotionPrimitive::SNAP_TO_XYZ_RPY:
     {

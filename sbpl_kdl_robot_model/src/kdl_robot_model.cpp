@@ -349,7 +349,7 @@ bool KDLRobotModel::computeIK(
     std::vector<double>& solution,
     ik_option::IkOption option)
 {
-    if (option == ik_option::RESTRICT_XYZ_JOINTS) {
+    if (option == ik_option::RESTRICT_XYZ) {
         return false;
     }
 
@@ -362,7 +362,7 @@ bool KDLRobotModel::computeIK(
     std::vector< std::vector<double>>& solutions,
     ik_option::IkOption option)
 {
-    if (option == ik_option::RESTRICT_XYZ_JOINTS) {
+    if (option == ik_option::RESTRICT_XYZ) {
         return false;
     }
     std::vector<double> solution;

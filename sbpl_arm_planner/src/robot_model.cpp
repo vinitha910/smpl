@@ -46,7 +46,7 @@ std::ostream& operator<<(std::ostream& o, IkOption option)
     case UNRESTRICTED:
         o << "UNRESTRICTED";
         return o;
-    case RESTRICT_XYZ_JOINTS:
+    case RESTRICT_XYZ:
         o << "RESTRICTED_XYZ_JOINTS";
         return o;
     }

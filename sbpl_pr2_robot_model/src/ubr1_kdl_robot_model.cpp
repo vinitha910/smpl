@@ -101,7 +101,7 @@ bool UBR1KDLRobotModel::computeIK(
     solution.resize(start.size());
 
     // choose solver
-    if (option == ik_option::RESTRICT_XYZ_JOINTS) {
+    if (option == ik_option::RESTRICT_XYZ) {
         std::vector<double> rpy(3, 0.0);
         std::vector<double> fpose(6, 0.0);
         std::vector<double> epose(6, 0.0);

@@ -197,19 +197,19 @@ public:
         const std::vector<double>& angles,
         bool verbose,
         bool visualize,
-        double &dist);
+        double &dist) override;
 
     bool isStateToStateValid(
         const std::vector<double>& angles0,
         const std::vector<double>& angles1,
         int& path_length,
         int& num_checks,
-        double& dist);
+        double& dist) override;
 
     bool interpolatePath(
         const std::vector<double>& start,
         const std::vector<double>& end,
-        std::vector<std::vector<double>>& path);
+        std::vector<std::vector<double>>& path) override;
     ///@}
 
 private:
