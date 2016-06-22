@@ -93,7 +93,7 @@ bool CollisionSpace::setPlanningJoints(
     const std::vector<std::string>& joint_names)
 {
     for (const std::string& joint_name : joint_names) {
-        if (m_model.hasJointVar(joint_name)) {
+        if (!m_model.hasJointVar(joint_name)) {
             ROS_ERROR("Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
             return false;
         }
@@ -124,14 +124,14 @@ bool CollisionSpace::setPlanningJoints(
 }
 
 bool CollisionSpace::init(
-    const std::string& urdf_string,
+    const urdf::ModelInterface& urdf,
     const std::string& group_name,
     const CollisionModelConfig& config,
     const std::vector<std::string>& planning_joints)
 {
     ROS_DEBUG("Initializing collision space for group '%s'", group_name.c_str());
 
-    if (!m_model.init(urdf_string, config)) {
+    if (!m_model.init(urdf, config)) {
         ROS_ERROR("Failed to initialize the Robot Collision Model");
         return false;
     }
@@ -170,46 +170,19 @@ bool CollisionSpace::init(
     return true;
 }
 
-bool CollisionSpace::checkCollision(
-    const std::vector<double>& angles,
-    bool verbose,
-    bool visualize,
-    double& dist)
+bool CollisionSpace::init(
+    const std::string& urdf_string,
+    const std::string& group_name,
+    const CollisionModelConfig& config,
+    const std::vector<std::string>& planning_joints)
 {
-    // allow subroutines to update minimum distance
-    dist = std::numeric_limits<double>::max();
-
-    if (visualize) {
-        // allow subroutines to gather collision spheres for visualization
-        m_collision_spheres.clear();
-    }
-
-    // update the robot state
-    for (size_t i = 0; i < angles.size(); ++i) {
-        int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_model.setJointPosition(jidx, angles[i]);
-    }
-
-    updateVoxelsStates();
-
-    bool attached_object_world_valid = checkAttachedObjectCollision();
-    if (!visualize && !attached_object_world_valid) {
+    auto urdf = boost::make_shared<urdf::Model>();
+    if (!urdf->initString(urdf_string)) {
+        ROS_ERROR("Failed to parse URDF");
         return false;
     }
 
-    bool robot_world_valid = checkRobotCollision(verbose, visualize, dist);
-    if (!visualize && !robot_world_valid) {
-        return false;
-    }
-
-    bool robot_robot_valid = checkSelfCollision(verbose, visualize, dist);
-    if (!visualize && !robot_robot_valid) {
-        return false;
-    }
-
-    return attached_object_world_valid &&
-            robot_world_valid &&
-            robot_robot_valid;
+    return init(*urdf, group_name, config, planning_joints);
 }
 
 void CollisionSpace::updateVoxelsStates()
@@ -390,7 +363,7 @@ bool CollisionSpace::checkPathForCollision(
         for (int i = 0; i < inc_cc; i++) {
             for (size_t j = i; j < path.size(); j = j + inc_cc) {
                 num_checks++;
-                if (!checkCollision(path[j], verbose, false, dist_temp)) {
+                if (!isStateValid(path[j], verbose, false, dist_temp)) {
                     dist = dist_temp;
                     return false;
                 }
@@ -404,7 +377,7 @@ bool CollisionSpace::checkPathForCollision(
     else {
         for (size_t i = 0; i < path.size(); i++) {
             num_checks++;
-            if (!checkCollision(path[i], verbose, false, dist_temp)) {
+            if (!isStateValid(path[i], verbose, false, dist_temp)) {
                 dist = dist_temp;
                 return false;
             }
@@ -425,7 +398,7 @@ bool CollisionSpace::checkRobotCollision(
 {
     bool in_collision = false;
     for (int ssidx : m_sphere_indices) {
-        m_model.updateSpherePosition(ssidx);
+        m_model.updateSphereState(ssidx);
         const CollisionSphereState& ss = m_model.sphereState(ssidx);
 
         int gx, gy, gz;
@@ -916,7 +889,40 @@ bool CollisionSpace::isStateValid(
     bool visualize,
     double& dist)
 {
-    return checkCollision(angles, verbose, visualize, dist);
+    // allow subroutines to update minimum distance
+    dist = std::numeric_limits<double>::max();
+
+    if (visualize) {
+        // allow subroutines to gather collision spheres for visualization
+        m_collision_spheres.clear();
+    }
+
+    // update the robot state
+    for (size_t i = 0; i < angles.size(); ++i) {
+        int jidx = m_planning_joint_to_collision_model_indices[i];
+        m_model.setJointPosition(jidx, angles[i]);
+    }
+
+    updateVoxelsStates();
+
+    bool attached_object_world_valid = checkAttachedObjectCollision();
+    if (!visualize && !attached_object_world_valid) {
+        return false;
+    }
+
+    bool robot_world_valid = checkRobotCollision(verbose, visualize, dist);
+    if (!visualize && !robot_world_valid) {
+        return false;
+    }
+
+    bool robot_robot_valid = checkSelfCollision(verbose, visualize, dist);
+    if (!visualize && !robot_robot_valid) {
+        return false;
+    }
+
+    return attached_object_world_valid &&
+            robot_world_valid &&
+            robot_robot_valid;
 }
 
 bool CollisionSpace::isStateToStateValid(
@@ -1125,7 +1131,11 @@ CollisionSpace::getVisualization(
         return getCollisionObjectVoxelsVisualization();
     }
     else if (type == "collision_model") {
-        return m_model.getVisualization();
+        auto markers = m_model.getVisualization();
+        for (auto& m : markers.markers) {
+            m.header.frame_id = getReferenceFrame();
+        }
+        return markers;
     }
     else if (type == "attached_object") {
 //        std::vector<double> angles, rad;

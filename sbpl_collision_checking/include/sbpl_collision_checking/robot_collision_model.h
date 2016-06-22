@@ -41,6 +41,7 @@
 // system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <urdf_model/model.h>
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
@@ -135,7 +136,7 @@ public:
     ~RobotCollisionModel();
 
     bool init(
-        const std::string& urdf_string,
+        const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
     /// \name Robot Model - General Information
@@ -292,8 +293,8 @@ public:
 
     auto sphereState(int ssidx) const -> const CollisionSphereState&;
     bool sphereStateDirty(int ssidx) const;
-    bool updateSpherePositions();
-    bool updateSpherePosition(int ssidx);
+    bool updateSphereStates();
+    bool updateSphereState(int ssidx);
     ///@}
 
     visualization_msgs::MarkerArray getVisualization() const;

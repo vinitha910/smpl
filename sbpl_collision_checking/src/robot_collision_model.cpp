@@ -47,10 +47,10 @@ RobotCollisionModel::~RobotCollisionModel()
 }
 
 bool RobotCollisionModel::init(
-    const std::string& urdf_string,
+    const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
 {
-    return m_impl->init(urdf_string, config);
+    return m_impl->init(urdf, config);
 }
 
 const std::string& RobotCollisionModel::name() const
@@ -366,14 +366,14 @@ bool RobotCollisionModel::sphereStateDirty(int ssidx) const
     return m_impl->sphereStateDirty(ssidx);
 }
 
-bool RobotCollisionModel::updateSpherePositions()
+bool RobotCollisionModel::updateSphereStates()
 {
-    return m_impl->updateSpherePositions();
+    return m_impl->updateSphereStates();
 }
 
-bool RobotCollisionModel::updateSpherePosition(int ssidx)
+bool RobotCollisionModel::updateSphereState(int ssidx)
 {
-    return m_impl->updateSpherePosition(ssidx);
+    return m_impl->updateSphereState(ssidx);
 }
 
 visualization_msgs::MarkerArray

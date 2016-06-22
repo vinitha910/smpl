@@ -35,6 +35,7 @@
 
 // standard includes
 #include <string>
+#include <memory>
 #include <vector>
 
 // system includes
@@ -65,6 +66,12 @@ public:
 
     CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
+
+    bool init(
+        const urdf::ModelInterface& urdf,
+        const std::string& group_name,
+        const CollisionModelConfig& config,
+        const std::vector<std::string>& planning_joints);
 
     /// \brief Initialize the Collision Space
     /// \param urdf_string string description of the robot in URDF format
@@ -301,13 +308,6 @@ private:
     // the collision details (contact points, offending spheres, etc), and a
     // fourth for visualizations
 
-    /// \brief Return true if the current state is valid
-    bool checkCollision(
-        const std::vector<double>& angles,
-        bool verbose,
-        bool visualize,
-        double& dist);
-
     bool checkPathForCollision(
         const std::vector<double>& start,
         const std::vector<double>& end,
@@ -343,6 +343,9 @@ const std::string& CollisionSpace::getGroupName() const
 {
     return m_group_name;
 }
+
+typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;
+typedef std::shared_ptr<const CollisionSpace> CollisionSpaceConstPtr;
 
 } // namespace collision
 } // namespace sbpl

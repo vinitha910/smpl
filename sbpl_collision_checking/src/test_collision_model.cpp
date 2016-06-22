@@ -31,6 +31,7 @@
 
 // system includes
 #include <ros/ros.h>
+#include <urdf/model.h>
 
 // project includes
 #include <sbpl_collision_checking/robot_collision_model.h>
@@ -85,7 +86,13 @@ int main(int argc, char **argv)
     nh.getParam(robot_description_param, robot_description);
 
     sbpl::collision::RobotCollisionModel model;
-    if (!model.init(robot_description, config)) {
+    auto urdf = boost::make_shared<urdf::Model>();
+    if (!urdf->initString(robot_description)) {
+        ROS_ERROR("Failed to parse URDF");
+        return 1;
+    }
+
+    if (!model.init(*urdf, config)) {
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
     }
@@ -96,7 +103,7 @@ int main(int argc, char **argv)
         model.setJointPosition(jidx, 0.0);
     }
 
-    model.updateSpherePositions();
+    model.updateSphereStates();
     auto ma = model.getVisualization("manipulator");
     for (auto& marker : ma.markers) {
         marker.header.frame_id = "world";
@@ -107,7 +114,7 @@ int main(int argc, char **argv)
     ros::Duration(1.0).sleep(); // let the publisher do its job
 
     model.setJointPosition(0, 0.8);
-    model.updateSpherePositions();
+    model.updateSphereStates();
     ma = model.getVisualization("manipulator");
     for (auto& marker : ma.markers) {
         marker.header.frame_id = "world";

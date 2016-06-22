@@ -118,7 +118,6 @@ Eigen::Affine3d ComputeFixedJointTransform(
 }
 
 CollisionModelImpl::CollisionModelImpl() :
-    m_urdf(),
     m_name(),
     m_model_frame(),
     m_jvar_names(),
@@ -157,12 +156,12 @@ CollisionModelImpl::~CollisionModelImpl()
 }
 
 bool CollisionModelImpl::init(
-    const std::string& urdf_string,
+    const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
 {
-    return initRobotModel(urdf_string) &&
+    return initRobotModel(urdf) &&
             initRobotState() &&
-            initCollisionModel(config) &&
+            initCollisionModel(urdf, config) &&
             initCollisionState();
 }
 
@@ -311,17 +310,17 @@ bool CollisionModelImpl::updateVoxelsState(int vsidx)
     return true;
 }
 
-bool CollisionModelImpl::updateSpherePositions()
+bool CollisionModelImpl::updateSphereStates()
 {
     ROS_DEBUG("Updating all sphere positions");
     bool updated = false;
     for (size_t ssidx = 0; ssidx < m_sphere_states.size(); ++ssidx) {
-        updated |= updateSpherePosition(ssidx);
+        updated |= updateSphereState(ssidx);
     }
     return updated;
 }
 
-bool CollisionModelImpl::updateSpherePosition(int sidx)
+bool CollisionModelImpl::updateSphereState(int sidx)
 {
     ASSERT_VECTOR_RANGE(m_dirty_sphere_states, sidx);
 
@@ -344,6 +343,10 @@ visualization_msgs::MarkerArray
 CollisionModelImpl::getVisualization() const
 {
     visualization_msgs::MarkerArray ma;
+    for (int i = 0; i < groupCount(); ++i) {
+        auto marr = getVisualization(i);
+        ma.markers.insert(ma.markers.end(), marr.markers.begin(), marr.markers.end());
+    }
     return ma;
 }
 
@@ -374,17 +377,11 @@ CollisionModelImpl::getVisualization(int gidx) const
             spheres, rad, hue, "", "collision_model", 0);
 }
 
-bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
+bool CollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
 {
-    m_urdf = boost::make_shared<urdf::Model>();
-    if (!m_urdf->initString(urdf_string)) {
-        ROS_WARN("Failed to parse the URDF");
-        return false;
-    }
+    m_name = urdf.getName();
 
-    m_name = m_urdf->getName();
-
-    auto root_link = m_urdf->getRoot();
+    auto root_link = urdf.getRoot();
     m_model_frame = root_link->name;
 
     // TODO: depth-first or post-traversal reordering to keep dependent
@@ -590,7 +587,7 @@ bool CollisionModelImpl::initRobotModel(const std::string& urdf_string)
             // what those indices will be, at least not without some effort
 
             // push the child link onto the queue
-            auto child_link = m_urdf->getLink(joint->child_link_name);
+            auto child_link = urdf.getLink(joint->child_link_name);
             links.push(std::make_pair(child_link, m_joint_axes.size() - 1));
         }
     }
@@ -682,7 +679,9 @@ bool CollisionModelImpl::initRobotState()
     return true;
 }
 
-bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
+bool CollisionModelImpl::initCollisionModel(
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config)
 {
     // initialize sphere models
     m_sphere_models.resize(config.spheres.size());
@@ -731,7 +730,7 @@ bool CollisionModelImpl::initCollisionModel(const CollisionModelConfig& config)
         voxels_model.link_index = linkIndex(link_name);
         const double LINK_VOXEL_RESOLUTION = 0.01;
         voxels_model.voxel_res = LINK_VOXEL_RESOLUTION;
-        if (!voxelizeLink(link_name, voxels_model)) {
+        if (!voxelizeLink(urdf, link_name, voxels_model)) {
             ROS_ERROR("Failed to voxelize link '%s'", link_name.c_str());
         }
     }
@@ -1028,53 +1027,8 @@ bool CollisionModelImpl::checkCollisionStateReferences() const
     return true;
 }
 
-bool CollisionModelImpl::isDescendantOf(
-    const std::string& link_a_name,
-    const std::string& link_b_name) const
-{
-    auto link = m_urdf->getLink(link_a_name);
-    if (!link) {
-        ROS_ERROR("Failed to find link '%s'", link_a_name.c_str());
-        return false;
-    }
-
-    std::queue<boost::shared_ptr<const urdf::Link>> links;
-    links.push(link);
-
-    while (!links.empty()) {
-        boost::shared_ptr<const urdf::Link> l = links.front();
-        links.pop();
-
-        if (l->name == link_b_name) {
-            return true;
-        }
-        else {
-            for (const auto& child : l->child_links) {
-                links.push(child);
-            }
-        }
-    }
-
-    return false;
-}
-
-bool CollisionModelImpl::jointInfluencesLink(
-    const std::string& joint_name,
-    const std::string& link_name) const
-{
-    auto joint = m_urdf->getJoint(joint_name);
-    if (!joint) {
-        ROS_ERROR("Failed to find joint '%s'", joint_name.c_str());
-        return false;
-    }
-
-    const std::string& parent_link_name = joint->parent_link_name;
-    return isDescendantOf(parent_link_name, link_name);
-}
-
 void CollisionModelImpl::clear()
 {
-    m_urdf.reset();
     m_model_frame = "";
     m_jvar_names.clear();
     m_link_names.clear();
@@ -1090,10 +1044,11 @@ Eigen::Affine3d CollisionModelImpl::poseUrdfToEigen(const urdf::Pose& p) const
 }
 
 bool CollisionModelImpl::voxelizeLink(
+    const urdf::ModelInterface& urdf,
     const std::string& link_name,
     CollisionVoxelsModel& model) const
 {
-    auto link = m_urdf->getLink(link_name);
+    auto link = urdf.getLink(link_name);
 
     if (!link) {
         ROS_ERROR("Failed to find link '%s' in the URDF", link_name.c_str());

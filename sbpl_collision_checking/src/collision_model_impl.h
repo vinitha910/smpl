@@ -74,7 +74,7 @@ public:
     ~CollisionModelImpl();
 
     bool init(
-        const std::string& urdf_string,
+        const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
     auto   name() const -> const std::string&;
@@ -158,8 +158,8 @@ public:
 
     auto sphereState(int ssidx) const -> const CollisionSphereState&;
     bool sphereStateDirty(int ssidx) const;
-    bool updateSpherePositions();
-    bool updateSpherePosition(int ssidx);
+    bool updateSphereStates();
+    bool updateSphereState(int ssidx);
 
     auto getVisualization() const -> visualization_msgs::MarkerArray;
     auto getVisualization(const std::string& group_name) const ->
@@ -170,7 +170,6 @@ private:
 
     /// \name Robot Model
     ///@{
-    boost::shared_ptr<urdf::Model>          m_urdf;
     std::string                             m_name;
     std::string                             m_model_frame;
     std::vector<std::string>                m_jvar_names;
@@ -248,27 +247,22 @@ private:
 
     ///@}
 
-    bool initRobotModel(const std::string& urdf_string);
+    bool initRobotModel(const urdf::ModelInterface& urdf);
     bool initRobotState();
-    bool initCollisionModel(const CollisionModelConfig& config);
+    bool initCollisionModel(
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config);
     bool initCollisionState();
 
     bool checkCollisionModelReferences() const;
     bool checkCollisionStateReferences() const;
-
-    bool isDescendantOf(
-        const std::string& link_a_name,
-        const std::string& link_b_name) const;
-
-    bool jointInfluencesLink(
-        const std::string& joint_name,
-        const std::string& link_name) const;
 
     void clear();
 
     Eigen::Affine3d poseUrdfToEigen(const urdf::Pose& p) const;
 
     bool voxelizeLink(
+        const urdf::ModelInterface& urdf,
         const std::string& link_name,
         CollisionVoxelsModel& model) const;
 

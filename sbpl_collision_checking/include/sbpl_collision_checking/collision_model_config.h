@@ -95,7 +95,10 @@ struct CollisionModelConfig
     std::vector<CollisionGroupConfig>           groups;
     collision_detection::AllowedCollisionMatrix acm;
 
+    // TODO: change this to search for params under "robot_collision_model"
+    // and provide another Load function operating directly on the XmlRpc
     static bool Load(const ros::NodeHandle& nh, CollisionModelConfig& cfg);
+    static bool Load(XmlRpc::XmlRpcValue& config, CollisionModelConfig& cfg);
 };
 
 } // namespace collision
