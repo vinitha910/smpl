@@ -1200,6 +1200,22 @@ void ArmPlannerInterface::profilePath(
 
         curr_point.time_from_start = prev_point.time_from_start + ros::Duration(max_time);
     }
+
+    // filter out any duplicate points
+    // TODO: find out where these are happening
+    trajectory_msgs::JointTrajectory itraj = traj;
+    traj.points.clear();
+    const trajectory_msgs::JointTrajectoryPoint* prev_point = &itraj.points.front();
+    if (!itraj.points.empty()) {
+        traj.points.push_back(*prev_point);
+    }
+    for (size_t i = 1; i < itraj.points.size(); ++i) {
+        const trajectory_msgs::JointTrajectoryPoint& curr_point = itraj.points[i];
+        if (curr_point.time_from_start != prev_point->time_from_start) {
+            traj.points.push_back(curr_point);
+            prev_point = &curr_point;
+        }
+    }
 }
 
 bool ArmPlannerInterface::isPathValid(
