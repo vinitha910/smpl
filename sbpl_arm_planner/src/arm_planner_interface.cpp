@@ -119,7 +119,6 @@ bool ArmPlannerInterface::init(const PlanningParams& params)
 {
     ROS_INFO("Initializing SBPL Arm Planner Interface");
     ROS_INFO("  Planning Frame: %s", params.planning_frame_.c_str());
-    ROS_INFO("  Group Name: %s", params.group_name_.c_str());
     ROS_INFO("  Num Joints: %d", params.num_joints_);
     ROS_INFO("  Planning Joints: %s", to_string(params.planning_joints_).c_str());
     ROS_INFO("  Coord Values: %s", to_string(params.coord_vals_).c_str());
@@ -223,7 +222,7 @@ bool ArmPlannerInterface::solve(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
 {
-    clearMotionPlanResponse(res);
+    clearMotionPlanResponse(req, res);
 
     if (!m_initialized) {
         res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
@@ -306,11 +305,6 @@ bool ArmPlannerInterface::checkParams(
 
     // TODO: check for frame in robot model?
     if (params.planning_frame_.empty()) {
-        return false;
-    }
-
-    // TODO: check for group in robot model/collision checker
-    if (params.group_name_.empty()) {
         return false;
     }
 
@@ -1046,13 +1040,14 @@ bool ArmPlannerInterface::extractGoalToleranceFromGoalConstraints(
 }
 
 void ArmPlannerInterface::clearMotionPlanResponse(
+    const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res) const
 {
     res.trajectory_start.joint_state;
     res.trajectory_start.multi_dof_joint_state;
     res.trajectory_start.attached_collision_objects;
     res.trajectory_start.is_diff = false;
-    res.group_name = "";
+    res.group_name = req.group_name;
     res.trajectory.joint_trajectory.header.seq = 0;
     res.trajectory.joint_trajectory.header.stamp = ros::Time(0);
     res.trajectory.joint_trajectory.header.frame_id = "";

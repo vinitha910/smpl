@@ -60,7 +60,6 @@ std::string to_string(ShortcutType type)
 
 PlanningParams::PlanningParams() :
     planning_frame_(),
-    group_name_(),
     num_joints_(0),
     planning_joints_(),
     coord_vals_(),
@@ -118,7 +117,6 @@ bool PlanningParams::init(const std::string& ns)
     nh.param("planning/use_multiple_ik_solutions", use_multiple_ik_solutions_, false);
     nh.param("planning/seconds_per_waypoint", waypoint_time_, 0.35);
     nh.param<std::string>("planning/planning_frame", planning_frame_, "");
-    nh.param<std::string>("planning/group_name", group_name_, "");
 
     /* logging */
     nh.param ("debug/print_out_path", print_path_, true);
@@ -172,7 +170,6 @@ void PlanningParams::printParams(const std::string& stream) const
     ROS_INFO_NAMED(stream, "%40s: %0.3fsec", "time_per_waypoint", waypoint_time_);
     ROS_INFO_NAMED(stream, "%40s: %d", "cost per cell", cost_per_cell_);
     ROS_INFO_NAMED(stream, "%40s: %s", "reference frame", planning_frame_.c_str());
-    ROS_INFO_NAMED(stream, "%40s: %s", "group name", group_name_.c_str());
     ROS_INFO_NAMED(stream, "planning joints: ");
     for (size_t i = 0; i < planning_joints_.size(); ++i) {
         ROS_INFO_NAMED(stream, "   [%d] %30s", int(i), planning_joints_[i].c_str());

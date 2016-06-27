@@ -216,7 +216,9 @@ protected:
         const moveit_msgs::Constraints& goal_constraints,
         double* tolerance_out);
 
-    void clearMotionPlanResponse(moveit_msgs::MotionPlanResponse& res) const;
+    void clearMotionPlanResponse(
+        const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MotionPlanResponse& res) const;
 
     void clearGraphStateToPlannerStateMap();
     bool reinitPlanner(const std::string& planner_id);

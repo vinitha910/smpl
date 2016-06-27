@@ -106,7 +106,6 @@ public:
     /// \name Environment
     ///@{
     std::string planning_frame_;
-    std::string group_name_;
     int num_joints_;
     std::vector<std::string> planning_joints_;
     std::vector<int> coord_vals_;
