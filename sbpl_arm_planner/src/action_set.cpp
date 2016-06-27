@@ -46,6 +46,16 @@
 namespace sbpl {
 namespace manip {
 
+// Action Set File Format
+
+// Motion_Primitives(degrees): <i actions> <j planning joint variables> <k short distance motion primitives>
+// dv11         dv12        ... dv1m
+// ...
+// dv(i-k)1     dv(i-k)2    ... dv(i-k)m
+// dv(i-k+1)1   dv(i-k+1)2  ... dv(i-k+1)m
+// ...
+// dvi1         dvi2        ... dvim
+
 bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
 {
     ActionSet as;
