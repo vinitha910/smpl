@@ -767,11 +767,11 @@ void CollisionSpace::setWorldToModelTransform(
 
 bool CollisionSpace::interpolatePath(
     const std::vector<double>& start,
-    const std::vector<double>& end,
+    const std::vector<double>& finish,
     std::vector<std::vector<double>>& path)
 {
     return sbpl::interp::InterpolatePath(
-            start, end, m_min_limits, m_max_limits, m_increments, path);
+            start, finish, m_min_limits, m_max_limits, m_increments, path);
 }
 
 bool CollisionSpace::getClearance(
@@ -853,7 +853,7 @@ bool CollisionSpace::isStateValid(
 
 bool CollisionSpace::isStateToStateValid(
     const std::vector<double>& start,
-    const std::vector<double>& end,
+    const std::vector<double>& finish,
     int& path_length,
     int& num_checks,
     double &dist)
@@ -863,24 +863,18 @@ bool CollisionSpace::isStateToStateValid(
     int inc_cc = 5;
     double dist_temp = 0;
     std::vector<double> start_norm(start);
-    std::vector<double> end_norm(end);
+    std::vector<double> end_norm(finish);
     std::vector<std::vector<double>> path;
     dist = 100;
     num_checks = 0;
 
-    for (size_t i = 0; i < start.size(); ++i) {
-        // TODO: normalizing joints that don't need normalized makes me sad
-        start_norm[i] = angles::normalize_angle(start[i]);
-        end_norm[i] = angles::normalize_angle(end[i]);
-    }
-
     if (!interpolatePath(start_norm, end_norm, path)) {
         path_length = 0;
         ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
-        ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
-        ROS_ERROR("[interpolate]    end: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", end_norm[0], end_norm[1], end_norm[2], end_norm[3], end_norm[4], end_norm[5], end_norm[6]);
-        ROS_ERROR("[interpolate]    min: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", m_min_limits[0], m_min_limits[1], m_min_limits[2], m_min_limits[3], m_min_limits[4], m_min_limits[5], m_min_limits[6]);
-        ROS_ERROR("[interpolate]    max: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", m_max_limits[0], m_max_limits[1], m_max_limits[2], m_max_limits[3], m_max_limits[4], m_max_limits[5], m_max_limits[6]);
+        ROS_ERROR("[interpolate]  start: %s", to_string(start_norm).c_str());
+        ROS_ERROR("[interpolate]    finish: %s", to_string(end_norm).c_str());
+        ROS_ERROR("[interpolate]    min: %s", to_string(m_min_limits).c_str());
+        ROS_ERROR("[interpolate]    max: %s", to_string(m_max_limits).c_str());
         return false;
     }
 

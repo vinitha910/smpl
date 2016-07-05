@@ -51,7 +51,7 @@ public:
     virtual ~CollisionChecker();
 
     /// \brief Return whether a state is valid.
-    /// \param[in] angles The joint angles of the default joint group
+    /// \param[in] angles The joint angles of the joint group
     /// \param[in] verbose Whether to produce verbose output
     /// \param[in] visualize Whether to store collision details for the next
     ///     call to getVisualization
@@ -67,16 +67,16 @@ public:
     ///
     /// Need not include the endpoints.
     ///
-    /// \param[in] angles0 The start configuration of the default joint group
-    /// \param[in] angles1 The start configuration of the default joint group
+    /// \param[in] first The starting configuration of the joint group
+    /// \param[in] last The ending configuration of the joint group
     /// \param[out] path_length The number of waypoints in the path between
     ///     angles0 and angles1
     /// \param[out] num_checks The number of collision checks to perform
     /// \param[out] dist The distance to the nearest obstacle
-    /// \return Whether the interpolated path is valid
+    /// \return true if the interpolated path is valid; false otherwise
     virtual bool isStateToStateValid(
-        const std::vector<double>& angles0,
-        const std::vector<double>& angles1,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
         int& path_length,
         int& num_checks,
         double& dist) = 0;
@@ -92,7 +92,7 @@ public:
     /// \return Whether a valid linearly interpolated path could be constructed
     virtual bool interpolatePath(
         const std::vector<double>& start,
-        const std::vector<double>& end,
+        const std::vector<double>& finish,
         std::vector<std::vector<double>>& path) = 0;
 
     /* Visualizations */

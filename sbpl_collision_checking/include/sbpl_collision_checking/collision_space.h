@@ -200,15 +200,15 @@ public:
         double &dist) override;
 
     bool isStateToStateValid(
-        const std::vector<double>& angles0,
-        const std::vector<double>& angles1,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
         int& path_length,
         int& num_checks,
         double& dist) override;
 
     bool interpolatePath(
         const std::vector<double>& start,
-        const std::vector<double>& end,
+        const std::vector<double>& finish,
         std::vector<std::vector<double>>& path) override;
     ///@}
 
