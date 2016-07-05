@@ -308,14 +308,6 @@ private:
     // the collision details (contact points, offending spheres, etc), and a
     // fourth for visualizations
 
-    bool checkPathForCollision(
-        const std::vector<double>& start,
-        const std::vector<double>& end,
-        bool verbose,
-        int& path_length,
-        int& num_checks,
-        double& dist);
-
     bool checkRobotCollision(bool verbose, bool visualize, double& dist);
     bool checkSelfCollision(bool verbose, bool visualize, double& dist);
     bool checkAttachedObjectCollision();
