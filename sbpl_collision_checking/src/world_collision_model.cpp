@@ -32,6 +32,7 @@
 #include <sbpl_collision_checking/world_collision_model.h>
 
 // system includes
+#include <boost/make_shared.hpp>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
 #include <leatherman/utils.h>
@@ -552,24 +553,34 @@ ObjectConstPtr WorldCollisionModel::convertCollisionObjectToObject(
 ObjectConstPtr WorldCollisionModel::convertOctomapToObject(
     const octomap_msgs::OctomapWithPose& octomap) const
 {
-    ObjectPtr o(new Object(octomap.octomap.id));
-
     // convert binary octomap message to octree
-    boost::shared_ptr<const octomap::OcTree> ot(
-            octomap_msgs::binaryMsgToMap(octomap.octomap));
+    octomap::AbstractOcTree* abstract_tree =
+            octomap_msgs::binaryMsgToMap(octomap.octomap);
+    if (!abstract_tree) {
+        ROS_ERROR("Failed to convert binary msg data to octomap");
+        return ObjectConstPtr();
+    }
+
+    octomap::OcTree* tree = dynamic_cast<octomap::OcTree*>(abstract_tree);
+    if (!tree) {
+        ROS_ERROR("Abstract Octree from binary msg data must be a concrete OcTree");
+        return ObjectConstPtr();
+    }
+
+    boost::shared_ptr<const octomap::OcTree> ot(tree);
 
     // wrap with a shape
-    shapes::OcTree* octree_shape = new shapes::OcTree(ot);
-    shapes::ShapeConstPtr sp(octree_shape);
+    shapes::ShapeConstPtr sp = boost::make_shared<shapes::OcTree>(ot);
 
     Eigen::Affine3d transform;
     tf::poseMsgToEigen(octomap.origin, transform);
 
     // construct the object
+    auto o = boost::make_shared<Object>(octomap.octomap.id);
     o->shapes_.push_back(sp);
     o->shape_poses_.push_back(transform);
 
-    return ObjectConstPtr(o);
+    return o;
 }
 
 bool WorldCollisionModel::checkCollisionObjectAdd(

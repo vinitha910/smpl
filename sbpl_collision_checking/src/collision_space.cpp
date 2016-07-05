@@ -317,80 +317,6 @@ bool CollisionSpace::findAttachedLink(
     return false;
 }
 
-bool CollisionSpace::checkPathForCollision(
-    const std::vector<double>& start,
-    const std::vector<double>& end,
-    bool verbose,
-    int& path_length,
-    int& num_checks,
-    double& dist)
-{
-    int inc_cc = 5;
-    double dist_temp = 0;
-    std::vector<double> start_norm(start);
-    std::vector<double> end_norm(end);
-    std::vector<std::vector<double>> path;
-    dist = 100;
-    num_checks = 0;
-
-    for (size_t i = 0; i < start.size(); ++i) {
-        // TODO: normalizing joints that don't need normalized makes me sad
-        start_norm[i] = angles::normalize_angle(start[i]);
-        end_norm[i] = angles::normalize_angle(end[i]);
-    }
-
-    if (!interpolatePath(start_norm, end_norm, path)) {
-        path_length = 0;
-        ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
-        ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
-        ROS_ERROR("[interpolate]    end: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", end_norm[0], end_norm[1], end_norm[2], end_norm[3], end_norm[4], end_norm[5], end_norm[6]);
-        ROS_ERROR("[interpolate]    min: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", m_min_limits[0], m_min_limits[1], m_min_limits[2], m_min_limits[3], m_min_limits[4], m_min_limits[5], m_min_limits[6]);
-        ROS_ERROR("[interpolate]    max: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", m_max_limits[0], m_max_limits[1], m_max_limits[2], m_max_limits[3], m_max_limits[4], m_max_limits[5], m_max_limits[6]);
-        return false;
-    }
-
-    // for debugging & statistical purposes
-    path_length = path.size();
-
-    // TODO: Looks like the idea here is to collision check the path starting at
-    // the most coarse resolution (just the endpoints) and increasing the
-    // granularity until all points are checked. This could probably be made
-    // irrespective of the number of waypoints by bisecting the path and
-    // checking the endpoints recursively.
-
-    // try to find collisions that might come later in the path earlier
-    if (int(path.size()) > inc_cc) {
-        for (int i = 0; i < inc_cc; i++) {
-            for (size_t j = i; j < path.size(); j = j + inc_cc) {
-                num_checks++;
-                if (!isStateValid(path[j], verbose, false, dist_temp)) {
-                    dist = dist_temp;
-                    return false;
-                }
-
-                if (dist_temp < dist) {
-                    dist = dist_temp;
-                }
-            }
-        }
-    }
-    else {
-        for (size_t i = 0; i < path.size(); i++) {
-            num_checks++;
-            if (!isStateValid(path[i], verbose, false, dist_temp)) {
-                dist = dist_temp;
-                return false;
-            }
-
-            if (dist_temp < dist) {
-                dist = dist_temp;
-            }
-        }
-    }
-
-    return true;
-}
-
 bool CollisionSpace::checkRobotCollision(
     bool verbose,
     bool visualize,
@@ -926,14 +852,78 @@ bool CollisionSpace::isStateValid(
 }
 
 bool CollisionSpace::isStateToStateValid(
-    const std::vector<double>& angles0,
-    const std::vector<double>& angles1,
+    const std::vector<double>& start,
+    const std::vector<double>& end,
     int& path_length,
     int& num_checks,
     double &dist)
 {
-    return checkPathForCollision(
-            angles0, angles1, false, path_length, num_checks, dist);
+    const bool verbose = false;
+
+    int inc_cc = 5;
+    double dist_temp = 0;
+    std::vector<double> start_norm(start);
+    std::vector<double> end_norm(end);
+    std::vector<std::vector<double>> path;
+    dist = 100;
+    num_checks = 0;
+
+    for (size_t i = 0; i < start.size(); ++i) {
+        // TODO: normalizing joints that don't need normalized makes me sad
+        start_norm[i] = angles::normalize_angle(start[i]);
+        end_norm[i] = angles::normalize_angle(end[i]);
+    }
+
+    if (!interpolatePath(start_norm, end_norm, path)) {
+        path_length = 0;
+        ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
+        ROS_ERROR("[interpolate]  start: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", start_norm[0], start_norm[1], start_norm[2], start_norm[3], start_norm[4], start_norm[5], start_norm[6]);
+        ROS_ERROR("[interpolate]    end: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", end_norm[0], end_norm[1], end_norm[2], end_norm[3], end_norm[4], end_norm[5], end_norm[6]);
+        ROS_ERROR("[interpolate]    min: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", m_min_limits[0], m_min_limits[1], m_min_limits[2], m_min_limits[3], m_min_limits[4], m_min_limits[5], m_min_limits[6]);
+        ROS_ERROR("[interpolate]    max: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f", m_max_limits[0], m_max_limits[1], m_max_limits[2], m_max_limits[3], m_max_limits[4], m_max_limits[5], m_max_limits[6]);
+        return false;
+    }
+
+    // for debugging & statistical purposes
+    path_length = path.size();
+
+    // TODO: Looks like the idea here is to collision check the path starting at
+    // the most coarse resolution (just the endpoints) and increasing the
+    // granularity until all points are checked. This could probably be made
+    // irrespective of the number of waypoints by bisecting the path and
+    // checking the endpoints recursively.
+
+    // try to find collisions that might come later in the path earlier
+    if (int(path.size()) > inc_cc) {
+        for (int i = 0; i < inc_cc; i++) {
+            for (size_t j = i; j < path.size(); j = j + inc_cc) {
+                num_checks++;
+                if (!isStateValid(path[j], verbose, false, dist_temp)) {
+                    dist = dist_temp;
+                    return false;
+                }
+
+                if (dist_temp < dist) {
+                    dist = dist_temp;
+                }
+            }
+        }
+    }
+    else {
+        for (size_t i = 0; i < path.size(); i++) {
+            num_checks++;
+            if (!isStateValid(path[i], verbose, false, dist_temp)) {
+                dist = dist_temp;
+                return false;
+            }
+
+            if (dist_temp < dist) {
+                dist = dist_temp;
+            }
+        }
+    }
+
+    return true;
 }
 
 bool CollisionSpace::setPlanningScene(
