@@ -73,7 +73,6 @@ include_directories(include)
 add_library(
     sbpl_collision_checking
     src/robot_collision_model.cpp
-    src/collision_model_impl.cpp
     src/collision_model_config.cpp
     src/world_collision_model.cpp
     src/collision_space.cpp)
