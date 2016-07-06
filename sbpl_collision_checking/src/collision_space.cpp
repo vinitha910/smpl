@@ -71,9 +71,6 @@ CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_voxels_indices(),
     m_planning_joint_to_collision_model_indices(),
     m_increments(),
-    m_min_limits(),
-    m_max_limits(),
-    m_continuous(),
     m_acm(),
     m_padding(0.0),
     m_collision_spheres()
@@ -102,23 +99,13 @@ bool CollisionSpace::setPlanningJoints(
     // map planning joint indices to collision model indices
     m_planning_joint_to_collision_model_indices.resize(joint_names.size(), -1);
 
-    m_increments.resize(joint_names.size(), sbpl::utils::ToRadians(2.0));
-    m_min_limits.resize(joint_names.size(), 0.0);
-    m_max_limits.resize(joint_names.size(), 0.0);
-    m_continuous.resize(joint_names.size(), false);
+    m_increments.resize(joint_names.size(), utils::ToRadians(2.0));
     for (size_t i = 0; i < joint_names.size(); ++i) {
         const std::string& joint_name = joint_names[i];;
         int jidx = m_model.jointVarIndex(joint_name);
 
         m_planning_joint_to_collision_model_indices[i] = jidx;
-        m_continuous[i] = m_model.jointVarIsContinuous(jidx);
-        m_min_limits[i] = m_model.jointVarMinPosition(jidx);
-        m_max_limits[i] = m_model.jointVarMaxPosition(jidx);
     }
-
-    ROS_DEBUG("min limits: %s", to_string(m_min_limits).c_str());
-    ROS_DEBUG("max limits: %s", to_string(m_max_limits).c_str());
-    ROS_DEBUG("continuous: %s", to_string(m_continuous).c_str());
 
     return true;
 }
@@ -315,6 +302,24 @@ bool CollisionSpace::findAttachedLink(
     }
 
     return false;
+}
+
+bool CollisionSpace::withinJointPositionLimits(
+    const std::vector<double>& positions) const
+{
+    assert(positions.size() == planningVariableCount());
+    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
+        const double pos = positions[vidx];
+        if (isContinuous(vidx)) {
+            return true;
+        }
+        else if (!hasLimit(vidx)) {
+            return true;
+        }
+        else {
+            return pos >= minLimit(vidx) && pos <= maxLimit(vidx);
+        }
+    }
 }
 
 bool CollisionSpace::checkRobotCollision(
@@ -768,10 +773,61 @@ void CollisionSpace::setWorldToModelTransform(
 bool CollisionSpace::interpolatePath(
     const std::vector<double>& start,
     const std::vector<double>& finish,
-    std::vector<std::vector<double>>& path)
+    std::vector<std::vector<double>>& opath)
 {
-    return sbpl::interp::InterpolatePath(
-            start, finish, m_min_limits, m_max_limits, m_increments, path);
+    assert(start.size() == m_planning_joint_to_collision_model_indices.size() &&
+            finish.size() == m_planning_joint_to_collision_model_indices.size());
+
+    // check joint limits on the start and finish points
+    if (!(withinJointPositionLimits(start) &&
+            withinJointPositionLimits(finish)))
+    {
+        ROS_ERROR("Joint limits violated");
+        return false;
+    }
+
+    // compute distance traveled by each joint
+    std::vector<double> diffs(planningVariableCount(), 0.0);
+    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
+        if (isContinuous(vidx)) {
+            diffs[vidx] = angles::ShortestAngleDiff(finish[vidx], start[vidx]);
+        }
+        else {
+            diffs[vidx] = finish[vidx] - start[vidx];
+        }
+    }
+
+    // compute the number of intermediate waypoints including start and end
+    int waypoint_count = 0;
+    for (size_t vidx = 0; vidx < planningVariableCount(); vidx++) {
+        int angle_waypoints = (int)(std::fabs(diffs[vidx]) / m_increments[vidx]) + 1;
+        waypoint_count = std::max(waypoint_count, angle_waypoints);
+    }
+    waypoint_count = std::max(waypoint_count, 2);
+
+    // fill intermediate waypoints
+    std::vector<std::vector<double>> path(
+            waypoint_count,
+            std::vector<double>(planningVariableCount(), 0.0));
+    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
+        for (size_t widx = 0; widx < waypoint_count; ++widx) {
+            double alpha = (double)widx / (double)(waypoint_count - 1);
+            double pos = start[vidx] + alpha * diffs[vidx];
+            path[widx][vidx] = pos;
+        }
+    }
+
+    // normalize output angles
+    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
+        if (isContinuous(vidx)) {
+            for (size_t widx = 0; widx < waypoint_count; ++widx) {
+                path[widx][vidx] = angles::NormalizeAngle(path[widx][vidx]);
+            }
+        }
+    }
+
+    opath = std::move(path);
+    return true;
 }
 
 bool CollisionSpace::getClearance(
@@ -873,8 +929,6 @@ bool CollisionSpace::isStateToStateValid(
         ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
         ROS_ERROR("[interpolate]  start: %s", to_string(start_norm).c_str());
         ROS_ERROR("[interpolate]    finish: %s", to_string(end_norm).c_str());
-        ROS_ERROR("[interpolate]    min: %s", to_string(m_min_limits).c_str());
-        ROS_ERROR("[interpolate]    max: %s", to_string(m_max_limits).c_str());
         return false;
     }
 

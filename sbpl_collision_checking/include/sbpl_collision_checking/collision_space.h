@@ -237,9 +237,6 @@ private:
     // Planning Joint Information
     std::vector<int> m_planning_joint_to_collision_model_indices;
     std::vector<double> m_increments;
-    std::vector<double> m_min_limits;
-    std::vector<double> m_max_limits;
-    std::vector<bool> m_continuous;
 
     // Collision Checking Policies
     collision_detection::AllowedCollisionMatrix m_acm;
@@ -253,6 +250,16 @@ private:
     ////////////////////
 
     bool setPlanningJoints(const std::vector<std::string>& joint_names);
+    size_t planningVariableCount() const;
+
+    ///////////////////////////////////
+    // Planning Variable Information //
+    ///////////////////////////////////
+
+    bool isContinuous(int vidx) const;
+    bool hasLimit(int vidx) const;
+    double minLimit(int vidx) const;
+    double maxLimit(int vidx) const;
 
     ////////////////////
     // Self Collision //
@@ -308,6 +315,8 @@ private:
     // the collision details (contact points, offending spheres, etc), and a
     // fourth for visualizations
 
+    bool withinJointPositionLimits(const std::vector<double>& positions) const;
+
     bool checkRobotCollision(bool verbose, bool visualize, double& dist);
     bool checkSelfCollision(bool verbose, bool visualize, double& dist);
     bool checkAttachedObjectCollision();
@@ -334,6 +343,40 @@ inline
 const std::string& CollisionSpace::getGroupName() const
 {
     return m_group_name;
+}
+
+inline
+size_t CollisionSpace::planningVariableCount() const
+{
+    return m_planning_joint_to_collision_model_indices.size();
+}
+
+inline
+bool CollisionSpace::isContinuous(int vidx) const
+{
+    const int jidx = m_planning_joint_to_collision_model_indices[vidx];
+    return m_model.jointVarIsContinuous(jidx);
+}
+
+inline
+bool CollisionSpace::hasLimit(int vidx) const
+{
+    const int jidx = m_planning_joint_to_collision_model_indices[vidx];
+    return m_model.jointVarHasPositionBounds(jidx);
+}
+
+inline
+double CollisionSpace::minLimit(int vidx) const
+{
+    const int jidx = m_planning_joint_to_collision_model_indices[vidx];
+    return m_model.jointVarMaxPosition(jidx);
+}
+
+inline
+double CollisionSpace::maxLimit(int vidx) const
+{
+    const int jidx = m_planning_joint_to_collision_model_indices[vidx];
+    return m_model.jointVarMinPosition(jidx);
 }
 
 typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;

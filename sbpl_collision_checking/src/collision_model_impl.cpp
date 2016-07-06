@@ -72,7 +72,7 @@ Eigen::Affine3d ComputeContinuousJointTransform(
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return origin * Eigen::AngleAxisd(angles::normalize_angle(jvals[0]), axis);
+    return origin * Eigen::AngleAxisd(jvals[0], axis);
 }
 
 Eigen::Affine3d ComputePrismaticJointTransform(
@@ -104,9 +104,7 @@ Eigen::Affine3d ComputePlanarJointTransform(
 {
     return origin *
             Eigen::Translation3d(Eigen::Vector3d(jvals[0], jvals[1], 0.0)) *
-            Eigen::AngleAxisd(
-                    angles::normalize_angle(jvals[2]),
-                    Eigen::Vector3d::UnitZ());
+            Eigen::AngleAxisd(jvals[2], Eigen::Vector3d::UnitZ());
 }
 
 Eigen::Affine3d ComputeFixedJointTransform(
