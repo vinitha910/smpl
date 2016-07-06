@@ -37,14 +37,12 @@
 
 // system includes
 #include <Eigen/Dense>
-#include <angles/angles.h>
 #include <leatherman/viz.h>
 #include <leatherman/print.h>
+#include <sbpl_geometry_utils/utils.h>
 
 #include <sbpl_arm_planner/manip_heuristic.h>
-
-#define DEG2RAD(d) ((d) * (M_PI / 180.0))
-#define RAD2DEG(r) ((r) * (180.0 / M_PI))
+#include "profiling.h"
 
 namespace sbpl {
 namespace manip {
@@ -88,7 +86,7 @@ ManipLattice::ManipLattice(
     for (int jidx = 0; jidx < prm_->num_joints_; ++jidx) {
         m_min_limits[jidx] = rmodel->minPosLimit(jidx);
         m_max_limits[jidx] = rmodel->maxPosLimit(jidx);
-        m_continuous[jidx] = rmodel->hasPosLimit(jidx);
+        m_continuous[jidx] = !rmodel->hasPosLimit(jidx);
     }
 }
 
@@ -281,12 +279,17 @@ void ManipLattice::GetSuccs(
     m_expanded_states.push_back(SourceStateID);
 }
 
+Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
+
 void ManipLattice::GetLazySuccs(
     int SourceStateID,
     std::vector<int>* SuccIDV,
     std::vector<int>* CostV,
     std::vector<bool>* isTrueCost)
 {
+    GetLazySuccsStopwatch.start();
+    PROFAUTOSTOP(GetLazySuccsStopwatch);
+
     assert(SourceStateID >= 0 && SourceStateID < m_states.size());
 
     SuccIDV->clear();
@@ -385,8 +388,13 @@ void ManipLattice::GetLazySuccs(
     m_expanded_states.push_back(SourceStateID);
 }
 
+Stopwatch GetTrueCostStopwatch("GetTrueCost", 10);
+
 int ManipLattice::GetTrueCost(int parentID, int childID)
 {
+    GetTrueCostStopwatch.start();
+    PROFAUTOSTOP(GetTrueCostStopwatch);
+
     ROS_DEBUG_NAMED(prm_->expands_log_, "evaluating cost of transition %d -> %d", parentID, childID);
 
     assert(parentID >= 0 && parentID < (int)m_states.size());
@@ -712,9 +720,9 @@ bool ManipLattice::isGoal(
                 ROS_INFO_NAMED(prm_->expands_log_, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
                         pose[0], pose[1], pose[2], m_goal.xyz_tolerance[0], m_goal.tgt_off_pose[0], m_goal.tgt_off_pose[1], m_goal.tgt_off_pose[2], m_time_to_goal_region, m_expanded_states.size());
             }
-            const double droll = fabs(angles::shortest_angular_distance(pose[3], m_goal.tgt_off_pose[3]));
-            const double dpitch = fabs(angles::shortest_angular_distance(pose[4], m_goal.tgt_off_pose[4]));
-            const double dyaw = fabs(angles::shortest_angular_distance(pose[5], m_goal.tgt_off_pose[5]));
+            const double droll = angles::ShortestAngleDist(pose[3], m_goal.tgt_off_pose[3]);
+            const double dpitch = angles::ShortestAngleDist(pose[4], m_goal.tgt_off_pose[4]);
+            const double dyaw = angles::ShortestAngleDist(pose[5], m_goal.tgt_off_pose[5]);
             ROS_DEBUG_NAMED(prm_->expands_log_, "Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
             if (droll < m_goal.rpy_tolerance[0] &&
                 dpitch < m_goal.rpy_tolerance[1] &&
@@ -761,7 +769,7 @@ int ManipLattice::getActionCost(
             continue;
         }
 
-        diff = fabs(angles::shortest_angular_distance(from_config[i], to_config[i]));
+        diff = angles::ShortestAngleDist(from_config[i], to_config[i]);
         if (max_diff < diff) {
             max_diff = diff;
         }
@@ -772,7 +780,7 @@ int ManipLattice::getActionCost(
 
     std::vector<double> from_config_norm(from_config.size());
     for (size_t i = 0; i < from_config.size(); ++i) {
-        from_config_norm[i] = angles::normalize_angle(from_config[i]);
+        from_config_norm[i] = angles::NormalizeAngle(from_config[i]);
     }
 
     return cost;
@@ -1238,13 +1246,6 @@ bool ManipLattice::extractPath(
         }
     }
 
-//        // TODO: at some point in this planner's life, the distinction needs to
-//        // be made between what variables are actually angles, but we'll keep
-//        // this for now
-//        for (int p = 0; p < prm_->num_joints_; ++p) {
-//            angles[p] = angles::normalize_angle(angles[p]);
-//        }
-
     // we made it!
     path = std::move(opath);
     return true;
@@ -1408,14 +1409,15 @@ unsigned int ManipLattice::getHashBin(
     return intHash(val) & (m_HashTableSize - 1);
 }
 
-//angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin 0, ...
+// angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
+// 0, ...
 inline
 void ManipLattice::coordToAngles(
     const std::vector<int>& coord,
     std::vector<double>& angles) const
 {
     angles.resize(coord.size());
-    for (size_t i = 0; i < coord.size(); i++) {
+    for (size_t i = 0; i < coord.size(); ++i) {
         if (m_continuous[i]) {
             angles[i] = coord[i] * prm_->coord_delta_[i];
         }
@@ -1433,14 +1435,9 @@ void ManipLattice::anglesToCoord(
     assert((int)angle.size() == prm_->num_joints_ &&
             (int)coord.size() == prm_->num_joints_);
 
-    double pos_angle;
-
-    for (size_t i = 0; i < angle.size(); i++) {
+    for (size_t i = 0; i < angle.size(); ++i) {
         if (m_continuous[i]) {
-            pos_angle = angle[i];
-            if (pos_angle < 0.0) {
-                pos_angle += 2 * M_PI;
-            }
+            double pos_angle = angles::NormalizeAnglePositive(angle[i]);
 
             coord[i] = (int)((pos_angle + prm_->coord_delta_[i] * 0.5) / prm_->coord_delta_[i]);
 

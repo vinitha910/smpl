@@ -177,6 +177,9 @@ protected:
     std::map<std::string, int> joint_map_;
     std::map<std::string, int> link_map_;
 
+    void normalizeAngles(KDL::JntArray& angles) const;
+    void normalizeAngles(std::vector<double>& angles) const;
+
     bool getJointLimits(
         std::vector<std::string>& joint_names,
         std::vector<double>& min_limits,

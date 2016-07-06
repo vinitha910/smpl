@@ -436,7 +436,7 @@ bool ActionSet::applyMotionPrimitive(
         }
 
         for (size_t j = 0; j < action[i].size(); ++j) {
-            action[i][j] = angles::normalize_angle(action[i][j] + state[j]);
+            action[i][j] = action[i][j] + state[j];
         }
     }
     return true;

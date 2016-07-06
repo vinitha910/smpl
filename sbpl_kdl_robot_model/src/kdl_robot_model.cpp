@@ -177,6 +177,25 @@ void KDLRobotModel::setKinematicsToPlanningTransform(
     planning_frame_ = name;
 }
 
+void KDLRobotModel::normalizeAngles(KDL::JntArray& angles) const
+{
+    for (size_t i = 0; i < continuous_.size(); ++i) {
+        if (continuous_[i]) {
+            angles(i) = angles::NormalizeAngle(angles(i));
+        }
+    }
+}
+
+void KDLRobotModel::normalizeAngles(std::vector<double>& angles) const
+{
+    assert(continuous_.size() == angles.size());
+    for (size_t i = 0; i < continuous_.size(); ++i) {
+        if (continuous_[i]) {
+            angles[i] = angles::NormalizeAngle(angles[i]);
+        }
+    }
+}
+
 bool KDLRobotModel::getJointLimits(
     std::vector<std::string>& joint_names,
     std::vector<double>& min_limits,
@@ -276,8 +295,10 @@ bool KDLRobotModel::computeFK(
     KDL::Frame& f)
 {
     for (size_t i = 0; i < angles.size(); ++i) {
-        jnt_pos_in_(i) = angles::normalize_angle(angles[i]);
+        jnt_pos_in_(i) = angles[i];
     }
+
+    normalizeAngles(jnt_pos_in_);
 
     KDL::Frame f1;
     if (fk_solver_->JntToCart(jnt_pos_in_, f1, link_map_[name]) < 0) {
@@ -326,8 +347,9 @@ bool KDLRobotModel::computePlanningLinkFK(
     KDL::Frame f, f1;
     pose.resize(6, 0);
     for (size_t i = 0; i < angles.size(); ++i) {
-        jnt_pos_in_(i) = angles::normalize_angle(angles[i]);
+        jnt_pos_in_(i) = angles[i];
     }
+    normalizeAngles(jnt_pos_in_);
 
     if (fk_solver_->JntToCart(jnt_pos_in_, f1, link_map_[planning_link_]) < 0) {
         ROS_ERROR("JntToCart returned < 0.");
@@ -398,9 +420,11 @@ bool KDLRobotModel::computeFastIK(
 
     // seed configuration
     for (size_t i = 0; i < start.size(); i++) {
-        // must be normalized for CartToJntSearch
-        jnt_pos_in_(i) = angles::normalize_angle(start[i]);
+        jnt_pos_in_(i) = start[i];
     }
+
+    // must be normalized for CartToJntSearch
+    normalizeAngles(jnt_pos_in_);
 
     if (ik_solver_->CartToJnt(jnt_pos_in_, frame_des, jnt_pos_out_) < 0) {
         return false;
@@ -408,8 +432,9 @@ bool KDLRobotModel::computeFastIK(
 
     solution.resize(start.size());
     for (size_t i = 0; i < solution.size(); ++i) {
-        solution[i] = angles::normalize_angle(jnt_pos_out_(i));
+        solution[i] = jnt_pos_out_(i);
     }
+    normalizeAngles(solution);
 
     return true;
 }
@@ -441,8 +466,9 @@ bool KDLRobotModel::computeIKSearch(
     // seed configuration
     for (size_t i = 0; i < start.size(); i++) {
         // must be normalized for CartToJntSearch
-        jnt_pos_in_(i) = angles::normalize_angle(start[i]);
+        jnt_pos_in_(i) = start[i];
     }
+    normalizeAngles(jnt_pos_in_);
 
     double initial_guess = jnt_pos_in_(free_angle_);
     double search_discretization_angle = 0.02;
@@ -457,8 +483,9 @@ bool KDLRobotModel::computeIKSearch(
         if (ik_solver_->CartToJnt(jnt_pos_in_, frame_des, jnt_pos_out_) >= 0) {
             solution.resize(start.size());
             for (size_t i = 0; i < solution.size(); ++i) {
-                solution[i] = angles::normalize_angle(jnt_pos_out_(i));
+                solution[i] = jnt_pos_out_(i);
             }
+            normalizeAngles(solution);
             return true;
         }
         if (!getCount(count,num_positive_increments,-num_negative_increments)) {
