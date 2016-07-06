@@ -97,6 +97,7 @@ public:
 
     /// \name Robot Collision Model
     ///@{
+    const RobotCollisionModel& robotCollisionModel() const;
     ///@}
 
     /// \name Robot Collision State
@@ -127,6 +128,8 @@ public:
 
     /// \name World
     ///@{
+    const WorldCollisionModel& worldCollisionModel() const;
+
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
     bool moveShapes(const ObjectConstPtr& object);
@@ -343,6 +346,18 @@ inline
 const std::string& CollisionSpace::getGroupName() const
 {
     return m_group_name;
+}
+
+inline
+const RobotCollisionModel& CollisionSpace::robotCollisionModel() const
+{
+    return m_model;
+}
+
+inline
+const WorldCollisionModel& CollisionSpace::worldCollisionModel() const
+{
+    return m_world;
 }
 
 inline

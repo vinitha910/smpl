@@ -33,20 +33,18 @@
 #define sbpl_collision_world_collision_model_h
 
 // standard includes
-#include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
-#include <geometric_shapes/shapes.h>
-#include <moveit/collision_detection/world.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <octomap_msgs/OctomapWithPose.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 
+// project includes
 #include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
@@ -56,11 +54,14 @@ namespace collision {
 std::vector<int> ConvertToVertexIndices(
     const std::vector<shape_msgs::MeshTriangle>& triangles);
 
+class WorldCollisionModelImpl;
+
 class WorldCollisionModel
 {
 public:
 
     WorldCollisionModel(OccupancyGrid* grid);
+    ~WorldCollisionModel();
 
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
@@ -84,141 +85,7 @@ public:
 
 private:
 
-    OccupancyGrid* m_grid;
-
-    // set of collision objects
-    std::map<std::string, ObjectConstPtr> m_object_map;
-
-    // voxelization of objects in the grid reference frame
-    typedef std::vector<Eigen::Vector3d> VoxelList;
-    std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
-
-    ////////////////////
-    // Generic Shapes //
-    ////////////////////
-
-    bool haveObject(const std::string& name) const;
-
-    bool checkObjectInsert(const Object& object) const;
-    bool checkObjectRemove(const Object& object) const;
-    bool checkObjectRemove(const std::string& object_name) const;
-    bool checkObjectMoveShape(const Object& object) const;
-    bool checkObjectInsertShape(const Object& object) const;
-    bool checkObjectRemoveShape(const Object& object) const;
-
-    bool voxelizeObject(
-        const Object& object,
-        std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
-    bool voxelizeShape(
-        const shapes::Shape& shape,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-
-    // voxelize primitive shapes; functions may overwrite the output voxels
-    bool voxelizeSphere(
-        const shapes::Sphere& sphere,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeCylinder(
-        const shapes::Cylinder& cylinder,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeCone(
-        const shapes::Cone& cone,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeBox(
-        const shapes::Box& box,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizePlane(
-        const shapes::Plane& plane,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeMesh(
-        const shapes::Mesh& mesh,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeOcTree(
-        const shapes::OcTree& octree,
-        const Eigen::Affine3d& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-
-    ///////////////////////
-    // Collision Objects //
-    ///////////////////////
-
-    ObjectConstPtr convertCollisionObjectToObject(
-        const moveit_msgs::CollisionObject& object) const;
-
-    ObjectConstPtr convertOctomapToObject(
-        const octomap_msgs::OctomapWithPose& octomap) const;
-
-    // return whether or not to accept an incoming collision object
-    bool checkCollisionObjectAdd(
-        const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectRemove(
-        const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectAppend(
-        const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectMove(
-        const moveit_msgs::CollisionObject& object) const;
-
-    bool checkInsertOctomap(const octomap_msgs::OctomapWithPose& octomap) const;
-
-    bool addCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool removeCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool appendCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool moveCollisionObject(const moveit_msgs::CollisionObject& object);
-
-    void removeAllCollisionObjects();
-
-    bool voxelizeCollisionObject(
-        const moveit_msgs::CollisionObject& object,
-        std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
-
-    // voxelize primitive shapes; functions must append to the output voxels
-    bool voxelizeSolidPrimitive(
-        const shape_msgs::SolidPrimitive& prim,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeBox(
-        const shape_msgs::SolidPrimitive& box,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeSphere(
-        const shape_msgs::SolidPrimitive& sphere,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeCylinder(
-        const shape_msgs::SolidPrimitive& cylinder,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeCone(
-        const shape_msgs::SolidPrimitive& cone,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizeMesh(
-        const shape_msgs::Mesh& mesh,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-    bool voxelizePlane(
-        const shape_msgs::Plane& plane,
-        const geometry_msgs::Pose& pose,
-        std::vector<Eigen::Vector3d>& voxels);
-
-    ///////////////////
-    // Visualization //
-    ///////////////////
-
-    void getAllCollisionObjectVoxels(
-        std::vector<geometry_msgs::Point>& points) const;
-
-    visualization_msgs::MarkerArray getWorldObjectMarkerArray(
-        const Object& object,
-        std::vector<double>& hue,
-        const std::string& ns,
-        int id) const;
+    std::unique_ptr<WorldCollisionModelImpl> m_impl;
 };
 
 } // namespace collision

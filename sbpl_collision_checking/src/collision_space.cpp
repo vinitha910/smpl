@@ -39,7 +39,6 @@
 
 // system includes
 #include <angles/angles.h>
-#include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
 #include <leatherman/bresenham.h>
@@ -49,7 +48,6 @@
 #include <sbpl_geometry_utils/SphereEncloser.h>
 #include <sbpl_geometry_utils/interpolation.h>
 #include <sbpl_geometry_utils/utils.h>
-#include <tf_conversions/tf_kdl.h>
 
 namespace sbpl {
 namespace collision {

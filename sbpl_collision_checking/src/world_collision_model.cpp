@@ -31,11 +31,17 @@
 
 #include <sbpl_collision_checking/world_collision_model.h>
 
+// standard includes
+#include <map>
+
 // system includes
+#include <Eigen/Dense>
 #include <boost/make_shared.hpp>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
+#include <geometric_shapes/shapes.h>
 #include <leatherman/utils.h>
+#include <moveit/collision_detection/world.h>
 #include <octomap_msgs/conversions.h>
 #include <sbpl_geometry_utils/Voxelizer.h>
 
@@ -54,14 +60,183 @@ std::vector<int> ConvertToVertexIndices(
     return triangle_indices;
 }
 
-WorldCollisionModel::WorldCollisionModel(OccupancyGrid* grid) :
+/////////////////////////////////////////
+// WorldCollisionModelImpl Declaration //
+/////////////////////////////////////////
+
+class WorldCollisionModelImpl
+{
+public:
+
+    WorldCollisionModelImpl(OccupancyGrid* grid);
+
+    bool insertObject(const ObjectConstPtr& object);
+    bool removeObject(const ObjectConstPtr& object);
+    bool moveShapes(const ObjectConstPtr& object);
+    bool insertShapes(const ObjectConstPtr& object);
+    bool removeShapes(const ObjectConstPtr& object);
+
+    bool processCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool insertOctomap(const octomap_msgs::OctomapWithPose& octomap);
+
+    bool removeObject(const std::string& object_name);
+
+    void reset();
+
+    visualization_msgs::MarkerArray getCollisionObjectsVisualization() const;
+    visualization_msgs::MarkerArray getCollisionObjectVoxelsVisualization() const;
+
+private:
+
+    OccupancyGrid* m_grid;
+
+    // set of collision objects
+    std::map<std::string, ObjectConstPtr> m_object_map;
+
+    // voxelization of objects in the grid reference frame
+    typedef std::vector<Eigen::Vector3d> VoxelList;
+    std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
+
+    ////////////////////
+    // Generic Shapes //
+    ////////////////////
+
+    bool haveObject(const std::string& name) const;
+
+    bool checkObjectInsert(const Object& object) const;
+    bool checkObjectRemove(const Object& object) const;
+    bool checkObjectRemove(const std::string& object_name) const;
+    bool checkObjectMoveShape(const Object& object) const;
+    bool checkObjectInsertShape(const Object& object) const;
+    bool checkObjectRemoveShape(const Object& object) const;
+
+    bool voxelizeObject(
+        const Object& object,
+        std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
+    bool voxelizeShape(
+        const shapes::Shape& shape,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+
+    // voxelize primitive shapes; functions may overwrite the output voxels
+    bool voxelizeSphere(
+        const shapes::Sphere& sphere,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCylinder(
+        const shapes::Cylinder& cylinder,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCone(
+        const shapes::Cone& cone,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeBox(
+        const shapes::Box& box,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizePlane(
+        const shapes::Plane& plane,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeMesh(
+        const shapes::Mesh& mesh,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeOcTree(
+        const shapes::OcTree& octree,
+        const Eigen::Affine3d& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+
+    ///////////////////////
+    // Collision Objects //
+    ///////////////////////
+
+    ObjectConstPtr convertCollisionObjectToObject(
+        const moveit_msgs::CollisionObject& object) const;
+
+    ObjectConstPtr convertOctomapToObject(
+        const octomap_msgs::OctomapWithPose& octomap) const;
+
+    // return whether or not to accept an incoming collision object
+    bool checkCollisionObjectAdd(
+        const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectRemove(
+        const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectAppend(
+        const moveit_msgs::CollisionObject& object) const;
+    bool checkCollisionObjectMove(
+        const moveit_msgs::CollisionObject& object) const;
+
+    bool checkInsertOctomap(const octomap_msgs::OctomapWithPose& octomap) const;
+
+    bool addCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool removeCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool appendCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool moveCollisionObject(const moveit_msgs::CollisionObject& object);
+
+    void removeAllCollisionObjects();
+
+    bool voxelizeCollisionObject(
+        const moveit_msgs::CollisionObject& object,
+        std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
+
+    // voxelize primitive shapes; functions must append to the output voxels
+    bool voxelizeSolidPrimitive(
+        const shape_msgs::SolidPrimitive& prim,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeBox(
+        const shape_msgs::SolidPrimitive& box,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeSphere(
+        const shape_msgs::SolidPrimitive& sphere,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCylinder(
+        const shape_msgs::SolidPrimitive& cylinder,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeCone(
+        const shape_msgs::SolidPrimitive& cone,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizeMesh(
+        const shape_msgs::Mesh& mesh,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+    bool voxelizePlane(
+        const shape_msgs::Plane& plane,
+        const geometry_msgs::Pose& pose,
+        std::vector<Eigen::Vector3d>& voxels);
+
+    ///////////////////
+    // Visualization //
+    ///////////////////
+
+    void getAllCollisionObjectVoxels(
+        std::vector<geometry_msgs::Point>& points) const;
+
+    visualization_msgs::MarkerArray getWorldObjectMarkerArray(
+        const Object& object,
+        std::vector<double>& hue,
+        const std::string& ns,
+        int id) const;
+};
+
+////////////////////////////////////////
+// WorldCollisionModelImpl Definition //
+////////////////////////////////////////
+
+WorldCollisionModelImpl::WorldCollisionModelImpl(OccupancyGrid* grid) :
     m_grid(grid),
     m_object_map(),
     m_object_voxel_map()
 {
 }
 
-bool WorldCollisionModel::insertObject(const ObjectConstPtr& object)
+bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
 {
     if (!checkObjectInsert(*object)) {
         ROS_ERROR("Rejecting addition of collision object '%s'", object->id_.c_str());
@@ -92,12 +267,12 @@ bool WorldCollisionModel::insertObject(const ObjectConstPtr& object)
     return true;
 }
 
-bool WorldCollisionModel::removeObject(const ObjectConstPtr& object)
+bool WorldCollisionModelImpl::removeObject(const ObjectConstPtr& object)
 {
     return removeObject(object->id_);
 }
 
-bool WorldCollisionModel::removeObject(const std::string& object_name)
+bool WorldCollisionModelImpl::removeObject(const std::string& object_name)
 {
     if (!checkObjectRemove(object_name)) {
         ROS_ERROR("Rejecting removal of collision object '%s'", object_name.c_str());
@@ -120,25 +295,25 @@ bool WorldCollisionModel::removeObject(const std::string& object_name)
     return true;
 }
 
-bool WorldCollisionModel::moveShapes(const ObjectConstPtr& object)
+bool WorldCollisionModelImpl::moveShapes(const ObjectConstPtr& object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
-bool WorldCollisionModel::insertShapes(const ObjectConstPtr& object)
+bool WorldCollisionModelImpl::insertShapes(const ObjectConstPtr& object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
-bool WorldCollisionModel::removeShapes(const ObjectConstPtr& object)
+bool WorldCollisionModelImpl::removeShapes(const ObjectConstPtr& object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
-bool WorldCollisionModel::processCollisionObject(
+bool WorldCollisionModelImpl::processCollisionObject(
     const moveit_msgs::CollisionObject& object)
 {
     if (object.operation == moveit_msgs::CollisionObject::ADD) {
@@ -159,7 +334,7 @@ bool WorldCollisionModel::processCollisionObject(
     }
 }
 
-bool WorldCollisionModel::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
+bool WorldCollisionModelImpl::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
 {
     if (!checkInsertOctomap(octomap)) {
         ROS_ERROR("Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
@@ -175,7 +350,7 @@ bool WorldCollisionModel::insertOctomap(const octomap_msgs::OctomapWithPose& oct
     return insertObject(op);
 }
 
-void WorldCollisionModel::reset()
+void WorldCollisionModelImpl::reset()
 {
     m_grid->reset();
     for (const auto& entry : m_object_voxel_map) {
@@ -186,7 +361,7 @@ void WorldCollisionModel::reset()
 }
 
 visualization_msgs::MarkerArray
-WorldCollisionModel::getCollisionObjectsVisualization() const
+WorldCollisionModelImpl::getCollisionObjectsVisualization() const
 {
     visualization_msgs::MarkerArray ma;
     for (const auto& ent : m_object_map) {
@@ -200,7 +375,7 @@ WorldCollisionModel::getCollisionObjectsVisualization() const
 }
 
 visualization_msgs::MarkerArray
-WorldCollisionModel::getCollisionObjectVoxelsVisualization() const
+WorldCollisionModelImpl::getCollisionObjectVoxelsVisualization() const
 {
     visualization_msgs::MarkerArray ma;
 
@@ -234,12 +409,12 @@ WorldCollisionModel::getCollisionObjectVoxelsVisualization() const
     return ma;
 }
 
-bool WorldCollisionModel::haveObject(const std::string& name) const
+bool WorldCollisionModelImpl::haveObject(const std::string& name) const
 {
     return m_object_map.find(name) != m_object_map.end();
 }
 
-bool WorldCollisionModel::checkObjectInsert(const Object& object) const
+bool WorldCollisionModelImpl::checkObjectInsert(const Object& object) const
 {
     if (haveObject(object.id_)) {
         ROS_ERROR("Already have collision object '%s'", object.id_.c_str());
@@ -254,32 +429,32 @@ bool WorldCollisionModel::checkObjectInsert(const Object& object) const
     return true;
 }
 
-bool WorldCollisionModel::checkObjectRemove(const Object& object) const
+bool WorldCollisionModelImpl::checkObjectRemove(const Object& object) const
 {
     return checkObjectRemove(object.id_);
 }
 
-bool WorldCollisionModel::checkObjectRemove(const std::string& name) const
+bool WorldCollisionModelImpl::checkObjectRemove(const std::string& name) const
 {
     return haveObject(name);
 }
 
-bool WorldCollisionModel::checkObjectMoveShape(const Object& object) const
+bool WorldCollisionModelImpl::checkObjectMoveShape(const Object& object) const
 {
     return haveObject(object.id_);
 }
 
-bool WorldCollisionModel::checkObjectInsertShape(const Object& object) const
+bool WorldCollisionModelImpl::checkObjectInsertShape(const Object& object) const
 {
     return haveObject(object.id_);
 }
 
-bool WorldCollisionModel::checkObjectRemoveShape(const Object& object) const
+bool WorldCollisionModelImpl::checkObjectRemoveShape(const Object& object) const
 {
     return haveObject(object.id_);
 }
 
-bool WorldCollisionModel::voxelizeObject(
+bool WorldCollisionModelImpl::voxelizeObject(
     const Object& object,
     std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
 {
@@ -297,7 +472,7 @@ bool WorldCollisionModel::voxelizeObject(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeShape(
+bool WorldCollisionModelImpl::voxelizeShape(
     const shapes::Shape& shape,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -360,7 +535,7 @@ bool WorldCollisionModel::voxelizeShape(
     return false;
 }
 
-bool WorldCollisionModel::voxelizeSphere(
+bool WorldCollisionModelImpl::voxelizeSphere(
     const shapes::Sphere& sphere,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -376,7 +551,7 @@ bool WorldCollisionModel::voxelizeSphere(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeCylinder(
+bool WorldCollisionModelImpl::voxelizeCylinder(
     const shapes::Cylinder& cylinder,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -393,7 +568,7 @@ bool WorldCollisionModel::voxelizeCylinder(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeCone(
+bool WorldCollisionModelImpl::voxelizeCone(
     const shapes::Cone& cone,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -410,7 +585,7 @@ bool WorldCollisionModel::voxelizeCone(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeBox(
+bool WorldCollisionModelImpl::voxelizeBox(
     const shapes::Box& box,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -428,7 +603,7 @@ bool WorldCollisionModel::voxelizeBox(
     return true;
 }
 
-bool WorldCollisionModel::voxelizePlane(
+bool WorldCollisionModelImpl::voxelizePlane(
     const shapes::Plane& plane,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -437,7 +612,7 @@ bool WorldCollisionModel::voxelizePlane(
     return false;
 }
 
-bool WorldCollisionModel::voxelizeMesh(
+bool WorldCollisionModelImpl::voxelizeMesh(
     const shapes::Mesh& mesh,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -460,7 +635,7 @@ bool WorldCollisionModel::voxelizeMesh(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeOcTree(
+bool WorldCollisionModelImpl::voxelizeOcTree(
     const shapes::OcTree& octree,
     const Eigen::Affine3d& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -491,7 +666,7 @@ bool WorldCollisionModel::voxelizeOcTree(
     return true;
 }
 
-ObjectConstPtr WorldCollisionModel::convertCollisionObjectToObject(
+ObjectConstPtr WorldCollisionModelImpl::convertCollisionObjectToObject(
     const moveit_msgs::CollisionObject& object) const
 {
     ObjectPtr o(new Object(object.id));
@@ -550,7 +725,7 @@ ObjectConstPtr WorldCollisionModel::convertCollisionObjectToObject(
     return ObjectConstPtr(o);
 }
 
-ObjectConstPtr WorldCollisionModel::convertOctomapToObject(
+ObjectConstPtr WorldCollisionModelImpl::convertOctomapToObject(
     const octomap_msgs::OctomapWithPose& octomap) const
 {
     // convert binary octomap message to octree
@@ -583,7 +758,7 @@ ObjectConstPtr WorldCollisionModel::convertOctomapToObject(
     return o;
 }
 
-bool WorldCollisionModel::checkCollisionObjectAdd(
+bool WorldCollisionModelImpl::checkCollisionObjectAdd(
     const moveit_msgs::CollisionObject& object) const
 {
     if (haveObject(object.id)) {
@@ -650,25 +825,25 @@ bool WorldCollisionModel::checkCollisionObjectAdd(
     return true;
 }
 
-bool WorldCollisionModel::checkCollisionObjectRemove(
+bool WorldCollisionModelImpl::checkCollisionObjectRemove(
     const moveit_msgs::CollisionObject& object) const
 {
     return haveObject(object.id);
 }
 
-bool WorldCollisionModel::checkCollisionObjectAppend(
+bool WorldCollisionModelImpl::checkCollisionObjectAppend(
     const moveit_msgs::CollisionObject& object) const
 {
     return m_object_map.find(object.id) != m_object_map.end();
 }
 
-bool WorldCollisionModel::checkCollisionObjectMove(
+bool WorldCollisionModelImpl::checkCollisionObjectMove(
     const moveit_msgs::CollisionObject& object) const
 {
     return m_object_map.find(object.id) != m_object_map.end();
 }
 
-bool WorldCollisionModel::checkInsertOctomap(
+bool WorldCollisionModelImpl::checkInsertOctomap(
     const octomap_msgs::OctomapWithPose& octomap) const
 {
     if (haveObject(octomap.octomap.id)) {
@@ -689,7 +864,7 @@ bool WorldCollisionModel::checkInsertOctomap(
     return true;
 }
 
-bool WorldCollisionModel::addCollisionObject(const moveit_msgs::CollisionObject& object)
+bool WorldCollisionModelImpl::addCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     if (!checkCollisionObjectAdd(object)) {
         ROS_ERROR("Rejecting addition of collision object '%s'", object.id.c_str());
@@ -705,12 +880,12 @@ bool WorldCollisionModel::addCollisionObject(const moveit_msgs::CollisionObject&
     return insertObject(op);
 }
 
-bool WorldCollisionModel::removeCollisionObject(const moveit_msgs::CollisionObject& object)
+bool WorldCollisionModelImpl::removeCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     return removeObject(object.id);
 }
 
-bool WorldCollisionModel::appendCollisionObject(const moveit_msgs::CollisionObject& object)
+bool WorldCollisionModelImpl::appendCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     if (!checkCollisionObjectAppend(object)) {
         ROS_ERROR("Rejecting append to collision object '%s'", object.id.c_str());
@@ -722,7 +897,7 @@ bool WorldCollisionModel::appendCollisionObject(const moveit_msgs::CollisionObje
     return false;
 }
 
-bool WorldCollisionModel::moveCollisionObject(const moveit_msgs::CollisionObject& object)
+bool WorldCollisionModelImpl::moveCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     if (!checkCollisionObjectMove(object)) {
         ROS_ERROR("Rejecting move of collision object '%s'", object.id.c_str());
@@ -734,14 +909,14 @@ bool WorldCollisionModel::moveCollisionObject(const moveit_msgs::CollisionObject
     return false;
 }
 
-void WorldCollisionModel::removeAllCollisionObjects()
+void WorldCollisionModelImpl::removeAllCollisionObjects()
 {
     for (const auto& entry : m_object_map) {
         removeObject(entry.first);
     }
 }
 
-bool WorldCollisionModel::voxelizeCollisionObject(
+bool WorldCollisionModelImpl::voxelizeCollisionObject(
     const moveit_msgs::CollisionObject& object,
     std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
 {
@@ -787,7 +962,7 @@ bool WorldCollisionModel::voxelizeCollisionObject(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeSolidPrimitive(
+bool WorldCollisionModelImpl::voxelizeSolidPrimitive(
     const shape_msgs::SolidPrimitive& prim,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -822,7 +997,7 @@ bool WorldCollisionModel::voxelizeSolidPrimitive(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeBox(
+bool WorldCollisionModelImpl::voxelizeBox(
     const shape_msgs::SolidPrimitive& box,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -847,7 +1022,7 @@ bool WorldCollisionModel::voxelizeBox(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeSphere(
+bool WorldCollisionModelImpl::voxelizeSphere(
     const shape_msgs::SolidPrimitive& sphere,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -871,7 +1046,7 @@ bool WorldCollisionModel::voxelizeSphere(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeCylinder(
+bool WorldCollisionModelImpl::voxelizeCylinder(
     const shape_msgs::SolidPrimitive& cylinder,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -895,7 +1070,7 @@ bool WorldCollisionModel::voxelizeCylinder(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeCone(
+bool WorldCollisionModelImpl::voxelizeCone(
     const shape_msgs::SolidPrimitive& cone,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -919,7 +1094,7 @@ bool WorldCollisionModel::voxelizeCone(
     return true;
 }
 
-bool WorldCollisionModel::voxelizeMesh(
+bool WorldCollisionModelImpl::voxelizeMesh(
     const shape_msgs::Mesh& mesh,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -950,7 +1125,7 @@ bool WorldCollisionModel::voxelizeMesh(
     return true;
 }
 
-bool WorldCollisionModel::voxelizePlane(
+bool WorldCollisionModelImpl::voxelizePlane(
     const shape_msgs::Plane& plane,
     const geometry_msgs::Pose& pose,
     std::vector<Eigen::Vector3d>& voxels)
@@ -958,7 +1133,7 @@ bool WorldCollisionModel::voxelizePlane(
     return false;
 }
 
-void WorldCollisionModel::getAllCollisionObjectVoxels(
+void WorldCollisionModelImpl::getAllCollisionObjectVoxels(
     std::vector<geometry_msgs::Point>& points) const
 {
     for (const auto& entry : m_object_map) {
@@ -984,7 +1159,7 @@ void WorldCollisionModel::getAllCollisionObjectVoxels(
     }
 }
 
-visualization_msgs::MarkerArray WorldCollisionModel::getWorldObjectMarkerArray(
+visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArray(
     const Object& object,
     std::vector<double>& hue,
     const std::string& ns,
@@ -1033,6 +1208,75 @@ visualization_msgs::MarkerArray WorldCollisionModel::getWorldObjectMarkerArray(
     }
 
     return ma;
+}
+
+////////////////////////////////////
+// WorldCollisionModel Definition //
+////////////////////////////////////
+
+WorldCollisionModel::WorldCollisionModel(OccupancyGrid* grid) :
+    m_impl(new WorldCollisionModelImpl(grid))
+{
+}
+
+WorldCollisionModel::~WorldCollisionModel()
+{
+
+}
+
+bool WorldCollisionModel::insertObject(const ObjectConstPtr& object)
+{
+    return m_impl->insertObject(object);
+}
+
+bool WorldCollisionModel::removeObject(const ObjectConstPtr& object)
+{
+    return m_impl->removeObject(object);
+}
+
+bool WorldCollisionModel::moveShapes(const ObjectConstPtr& object)
+{
+    return m_impl->moveShapes(object);
+}
+
+bool WorldCollisionModel::insertShapes(const ObjectConstPtr& object)
+{
+    return m_impl->insertShapes(object);
+}
+
+bool WorldCollisionModel::removeShapes(const ObjectConstPtr& object)
+{
+    return m_impl->removeShapes(object);
+}
+
+bool WorldCollisionModel::processCollisionObject(const moveit_msgs::CollisionObject& object)
+{
+    return m_impl->processCollisionObject(object);
+}
+
+bool WorldCollisionModel::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
+{
+    return m_impl->insertOctomap(octomap);
+}
+
+bool WorldCollisionModel::removeObject(const std::string& object_name)
+{
+    return m_impl->removeObject(object_name);
+}
+
+void WorldCollisionModel::reset()
+{
+    return m_impl->reset();
+}
+
+visualization_msgs::MarkerArray WorldCollisionModel::getCollisionObjectsVisualization() const
+{
+    return m_impl->getCollisionObjectsVisualization();
+}
+
+visualization_msgs::MarkerArray WorldCollisionModel::getCollisionObjectVoxelsVisualization() const
+{
+    return m_impl->getCollisionObjectVoxelsVisualization();
 }
 
 } // namespace collision

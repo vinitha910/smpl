@@ -125,7 +125,7 @@ struct CollisionGroupState
 
 ///@}
 
-class CollisionModelImpl;
+class RobotCollisionModelImpl;
 
 /// \brief Represents the collision model of the robot used for planning.
 class RobotCollisionModel
@@ -303,7 +303,7 @@ public:
 
 private:
 
-    std::unique_ptr<CollisionModelImpl> m_impl;
+    std::unique_ptr<RobotCollisionModelImpl> m_impl;
 };
 
 } // namespace collision

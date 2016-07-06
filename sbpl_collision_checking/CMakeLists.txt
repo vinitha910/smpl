@@ -76,10 +76,7 @@ add_library(
     src/collision_model_config.cpp
     src/world_collision_model.cpp
     src/collision_space.cpp)
-target_link_libraries(
-    sbpl_collision_checking
-    ${catkin_LIBRARIES}
-    ${orocos_kdl_LIBRARIES})
+target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES})
 
 add_executable(test_space src/test_collision_space.cpp)
 target_link_libraries(
