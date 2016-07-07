@@ -1,44 +1,49 @@
-sbpl_manipulation
-=================
+# sbpl_manipulation
 
-This repository contains a set of motion planners for robotic arms that use the SBPL planning library.
+## Overview
 
-1) Get the code:
+A set of packages implementing sbpl algorithms for generic robotic motion planning. Includes the following packages:
 
-	git clone https://github.com/bcohen/sbpl_manipulation
+* sbpl_arm_planner - Provides a library of discrete graph representations of robot configuration spaces, heuristics defined over those representations, and an interface to cleanly integrate them into the sbpl planning framework. Also provides library interfaces to extend the framework to use arbitrary robot representations and collision checking.
+* sbpl_arm_planner_test - Provides self-contained examples to illustrate usage of the interfaces provided in the sbpl_arm_planner package.
+* sbpl_collision_checking - Provides a library for collision checking of robot states against themselves and the environment using an approximate model implemented as a hierarchy of bounding spheres. Implements the collision checking interface defined in the sbpl_arm_planner package.
+* sbpl_kdl_robot_model - Provides a library for integration of robot models, specified via URDF, with kinematics implemented using the KDL library.
+* sbpl_pr2_robot_model - Provides a library for integration of the PR2 and UBR1 robot models, specified via URDF, with kinematics implemented using custom analytical IK solvers.
 
-	git clone -b groovy https://github.com/bcohen/leatherman
+## Before you begin
 
-	git clone https://github.com/sbpl/sbpl_geometry_utils
+Install ROS Indigo by following the instructions at www.ros.org and follow the
+tutorials to create a catkin workspace to build sbpl_manipulation within.
+
+## Installation
+
+### Install SBPL from Source
+
+sbpl_manipulation requires the latest sbpl to be installed. Because of catkin's preference for packages in your current catkin workspace or parent catkin workspaces, you may need to remove any binary packages that provide sbpl, such as ros-_distro_-sbpl, to avoid catkin attempting to build against it.
 
 	git clone https://github.com/sbpl/sbpl
+	cd sbpl && mkdir build && cd build && cmake .. && make && sudo make install
 
-2) Build everything:
+### Clone sbpl_manipulation and its source dependencies
 
-	rosmake sbpl_arm_planner_test
+	git clone https://github.com/aurone/sbpl_manipulation
+	git clone https://github.com/aurone/leatherman
+	git clone https://github.com/sbpl/sbpl_geometry_utils
 
-3) Bring up a roscore & rviz (I do it seperatly, you don't have to)
+### Install additional dependencies via rosdep
 
-	Terminal 1: roscore
-	Terminal 2: rosrun rviz rviz
+	rosdep install -i -y sbpl_arm_planner
+	rosdep install -i -y sbpl_arm_planner_test
+	rosdep install -i -y sbpl_collision_checking
+	rosdep install -i -y sbpl_collision_checking_test
+	rosdep install -i -y sbpl_kdl_robot_model
+	rosdep install -i -y sbpl_pr2_robot_model
 
-	In rviz:
-		a) Set Fixed Frame: base_footprint
-		b) Add display for visualization_markers
+### (Re)build your catkin workspace
 
-3a) This is a temporary hack required to deal with a temporarily hardcoded path:
+	cd _catkin_ws_
+	catkin_make [-j#]
 
-	roscd sbpl_arm_planner
-	cp config/pr2.mprim /tmp
+## Running
 
-4) Plan for the PR2:
-
-	roslaunch sbpl_arm_planner_test goal_pr2.launch
-
-	If the plan was successful, you should see:
-
-		1) Collision model of the robot
-		2) Trajectory of the arm
-		3) Tabletop (arm is moving around)
-		4) Bounds of the environment
-
+Coming soon
