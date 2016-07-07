@@ -9,6 +9,7 @@ find_package(catkin
     COMPONENTS
         geometric_shapes
         geometry_msgs
+        leatherman
         moveit_msgs
         roscpp
         sbpl_arm_planner

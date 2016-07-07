@@ -35,6 +35,7 @@
 
 // system includes
 #include <geometric_shapes/shapes.h>
+#include <leatherman/print.h>
 #include <ros/ros.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
 #include <urdf/model.h>
@@ -114,6 +115,19 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    auto publish_model_viz = [&]()
+    {
+        auto ma = model.getVisualization("manipulator");
+        for (auto& marker : ma.markers) {
+            marker.header.frame_id = "world";
+        }
+
+        vis_pub.publish(ma);
+        // let the publisher do its job
+        ros::spinOnce();
+        ros::Duration(1.0).sleep();
+    };
+
     ROS_WARN("Publishing Zero State Visualization");
 
     /////////////////////////////////////////////
@@ -128,31 +142,15 @@ int main(int argc, char* argv[])
     }
 
     model.updateSphereStates();
-    auto ma = model.getVisualization("manipulator");
-    for (auto& marker : ma.markers) {
-        marker.header.frame_id = "world";
-    }
-
-    vis_pub.publish(ma);
-    // let the publisher do its job
-    ros::spinOnce();
-    ros::Duration(1.0).sleep();
+    publish_model_viz();
 
     ROS_WARN("Publishing Modified State Visualization");
 
     model.setJointPosition(0, 0.8);
     model.updateSphereStates();
-    ma = model.getVisualization("manipulator");
-    for (auto& marker : ma.markers) {
-        marker.header.frame_id = "world";
-    }
+    publish_model_viz();
 
-    vis_pub.publish(ma);
-    ros::spinOnce();
-    // let the publisher do its job
-    ros::Duration(1.0).sleep();
-
-    ROS_WARN("Publishing Attached Object Visualization");
+    ROS_WARN("Attaching Cylinder and Publishing Visualization");
 
     std::vector<shapes::ShapeConstPtr> shapes;
     sbpl::collision::Affine3dVector transforms;
@@ -162,11 +160,30 @@ int main(int argc, char* argv[])
     shapes.push_back(ao_shape);
     transforms.push_back(Eigen::Affine3d::Identity());
 
-    std::string attach_link = "ee_link";
-    if (!model.attachBody("ao1", shapes, transforms, attach_link)) {
+    const std::string attach_link = "ee_link";
+    const std::string attached_body_id = "ao1";
+    if (!model.attachBody(attached_body_id, shapes, transforms, attach_link)) {
         ROS_ERROR("Failed to attach body to '%s'", attach_link.c_str());
         return 1;
     }
+
+    ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
+    ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
+    const int abidx = model.attachedBodyIndex(attached_body_id.c_str());
+    ROS_INFO("Attached Body Index: %d", abidx);
+    ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
+    ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
+
+    publish_model_viz();
+
+    ROS_WARN("Detaching Cylinder and Publishing Visualization");
+
+    if (!model.detachBody(attached_body_id)) {
+        ROS_ERROR("Failed to detach body '%s'", attached_body_id.c_str());
+        return 1;
+    }
+
+    publish_model_viz();
 
     return 0;
 }

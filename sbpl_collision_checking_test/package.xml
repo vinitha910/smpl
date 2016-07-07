@@ -10,6 +10,7 @@
 
     <depend>geometric_shapes</depend>
     <depend>geometry_msgs</depend>
+    <depend>leatherman</depend>
     <depend>moveit_msgs</depend>
     <depend>roscpp</depend>
     <depend>sbpl_collision_checking</depend>
