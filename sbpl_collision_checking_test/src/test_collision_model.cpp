@@ -115,14 +115,23 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    visualization_msgs::MarkerArray prev_ma;
     auto publish_model_viz = [&]()
     {
+        // delete previously published markers
+        for (auto& marker : prev_ma.markers) {
+            marker.action = visualization_msgs::Marker::DELETE;
+        }
+        vis_pub.publish(prev_ma);
+
         auto ma = model.getVisualization("manipulator");
         for (auto& marker : ma.markers) {
             marker.header.frame_id = "world";
         }
 
         vis_pub.publish(ma);
+        prev_ma = std::move(ma); // record these for deletion later
+
         // let the publisher do its job
         ros::spinOnce();
         ros::Duration(1.0).sleep();
@@ -169,7 +178,7 @@ int main(int argc, char* argv[])
 
     ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
     ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
-    const int abidx = model.attachedBodyIndex(attached_body_id.c_str());
+    const int abidx = model.attachedBodyIndex(attached_body_id);
     ROS_INFO("Attached Body Index: %d", abidx);
     ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
     ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
@@ -184,6 +193,13 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    {
+        ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
+        ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
+        ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
+    }
+
+    model.updateSphereStates();
     publish_model_viz();
 
     return 0;
