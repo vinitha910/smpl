@@ -51,6 +51,8 @@
 namespace sbpl {
 namespace collision {
 
+static const char* WCM_LOGGER = "world";
+
 /////////////////////////////////////////
 // WorldCollisionModelImpl Declaration //
 /////////////////////////////////////////
@@ -158,7 +160,7 @@ WorldCollisionModelImpl::WorldCollisionModelImpl(OccupancyGrid* grid) :
 bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
 {
     if (!checkObjectInsert(*object)) {
-        ROS_ERROR("Rejecting addition of collision object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of collision object '%s'", object->id_.c_str());
         return false;
     }
 
@@ -171,7 +173,7 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
 
     std::vector<std::vector<Eigen::Vector3d>> all_voxels;
     if (!VoxelizeObject(*object, res, origin, all_voxels)) {
-        ROS_ERROR("Failed to voxelize object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to voxelize object '%s'", object->id_.c_str());
         return false;
     }
 
@@ -183,7 +185,7 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
     m_object_map.insert(std::make_pair(object->id_, object));
 
     for (const auto& voxel_list : vit.first->second) {
-        ROS_DEBUG("Adding %zu voxels from collision object '%s' to the distance transform",
+        ROS_DEBUG_NAMED(WCM_LOGGER, "Adding %zu voxels from collision object '%s' to the distance transform",
                 voxel_list.size(), object->id_.c_str());
         m_grid->addPointsToField(voxel_list);
     }
@@ -199,7 +201,7 @@ bool WorldCollisionModelImpl::removeObject(const ObjectConstPtr& object)
 bool WorldCollisionModelImpl::removeObject(const std::string& object_name)
 {
     if (!checkObjectRemove(object_name)) {
-        ROS_ERROR("Rejecting removal of collision object '%s'", object_name.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting removal of collision object '%s'", object_name.c_str());
         return false;
     }
 
@@ -210,7 +212,7 @@ bool WorldCollisionModelImpl::removeObject(const std::string& object_name)
     assert(vit != m_object_voxel_map.end());
 
     for (const auto& voxel_list : vit->second) {
-        ROS_DEBUG("Removing %zu grid cells from the distance transform", voxel_list.size());
+        ROS_DEBUG_NAMED(WCM_LOGGER, "Removing %zu grid cells from the distance transform", voxel_list.size());
         m_grid->removePointsFromField(voxel_list);
     }
 
@@ -253,7 +255,7 @@ bool WorldCollisionModelImpl::processCollisionObject(
         return moveCollisionObject(object);
     }
     else {
-        ROS_ERROR("Collision object operation '%d' is not supported", object.operation);
+        ROS_ERROR_NAMED(WCM_LOGGER, "Collision object operation '%d' is not supported", object.operation);
         return false;
     }
 }
@@ -261,13 +263,13 @@ bool WorldCollisionModelImpl::processCollisionObject(
 bool WorldCollisionModelImpl::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
 {
     if (!checkInsertOctomap(octomap)) {
-        ROS_ERROR("Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
         return false;
     }
 
     ObjectConstPtr op = convertOctomapToObject(octomap);
     if (!op) {
-        ROS_ERROR("Failed to convert octomap message to collision object");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert octomap message to collision object");
         return false;
     }
 
@@ -341,12 +343,12 @@ bool WorldCollisionModelImpl::haveObject(const std::string& name) const
 bool WorldCollisionModelImpl::checkObjectInsert(const Object& object) const
 {
     if (haveObject(object.id_)) {
-        ROS_ERROR("Already have collision object '%s'", object.id_.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Already have collision object '%s'", object.id_.c_str());
         return false;
     }
 
     if (object.shapes_.size() != object.shape_poses_.size()) {
-        ROS_ERROR("Mismatched sizes of shapes and shape poses");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatched sizes of shapes and shape poses");
         return false;
     }
 
@@ -389,7 +391,7 @@ ObjectConstPtr WorldCollisionModelImpl::convertCollisionObjectToObject(
 
         shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(prim));
         if (!sp) {
-            ROS_ERROR("Failed to construct shape from primitive message");
+            ROS_ERROR_NAMED(WCM_LOGGER, "Failed to construct shape from primitive message");
             return ObjectConstPtr();
         }
 
@@ -406,7 +408,7 @@ ObjectConstPtr WorldCollisionModelImpl::convertCollisionObjectToObject(
 
         shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(mesh));
         if (!sp) {
-            ROS_ERROR("Failed to construct shape from mesh message");
+            ROS_ERROR_NAMED(WCM_LOGGER, "Failed to construct shape from mesh message");
             return ObjectConstPtr();
         }
 
@@ -423,7 +425,7 @@ ObjectConstPtr WorldCollisionModelImpl::convertCollisionObjectToObject(
 
         shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(plane));
         if (!sp) {
-            ROS_ERROR("Failed to construct shape from plane message");
+            ROS_ERROR_NAMED(WCM_LOGGER, "Failed to construct shape from plane message");
             return ObjectConstPtr();
         }
 
@@ -444,13 +446,13 @@ ObjectConstPtr WorldCollisionModelImpl::convertOctomapToObject(
     octomap::AbstractOcTree* abstract_tree =
             octomap_msgs::binaryMsgToMap(octomap.octomap);
     if (!abstract_tree) {
-        ROS_ERROR("Failed to convert binary msg data to octomap");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert binary msg data to octomap");
         return ObjectConstPtr();
     }
 
     octomap::OcTree* tree = dynamic_cast<octomap::OcTree*>(abstract_tree);
     if (!tree) {
-        ROS_ERROR("Abstract Octree from binary msg data must be a concrete OcTree");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Abstract Octree from binary msg data must be a concrete OcTree");
         return ObjectConstPtr();
     }
 
@@ -474,22 +476,22 @@ bool WorldCollisionModelImpl::checkCollisionObjectAdd(
     const moveit_msgs::CollisionObject& object) const
 {
     if (haveObject(object.id)) {
-        ROS_ERROR("Already have collision object '%s'", object.id.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Already have collision object '%s'", object.id.c_str());
         return false;
     }
 
     if (object.header.frame_id != m_grid->getReferenceFrame()) {
-        ROS_ERROR("Collision object must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Collision object must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
         return false;
     }
 
     if (object.primitives.size() != object.primitive_poses.size()) {
-        ROS_ERROR("Mismatched sizes of primitives and primitive poses");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatched sizes of primitives and primitive poses");
         return false;
     }
 
     if (object.meshes.size() != object.mesh_poses.size()) {
-        ROS_ERROR("Mismatches sizes of meshes and mesh poses");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatches sizes of meshes and mesh poses");
         return false;
     }
 
@@ -499,7 +501,7 @@ bool WorldCollisionModelImpl::checkCollisionObjectAdd(
         case shape_msgs::SolidPrimitive::BOX:
         {
             if (prim.dimensions.size() != 3) {
-                ROS_ERROR("Invalid number of dimensions for box of collision object '%s' (Expected: %d, Actual: %zu)",
+                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for box of collision object '%s' (Expected: %d, Actual: %zu)",
                         object.id.c_str(), 3, prim.dimensions.size());
                 return false;
             }
@@ -507,7 +509,7 @@ bool WorldCollisionModelImpl::checkCollisionObjectAdd(
         case shape_msgs::SolidPrimitive::SPHERE:
         {
             if (prim.dimensions.size() != 1) {
-                ROS_ERROR("Invalid number of dimensions for sphere of collision object '%s' (Expected: %d, Actual: %zu)",
+                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for sphere of collision object '%s' (Expected: %d, Actual: %zu)",
                         object.id.c_str(), 1, prim.dimensions.size());
                 return false;
             }
@@ -515,7 +517,7 @@ bool WorldCollisionModelImpl::checkCollisionObjectAdd(
         case shape_msgs::SolidPrimitive::CYLINDER:
         {
             if (prim.dimensions.size() != 2) {
-                ROS_ERROR("Invalid number of dimensions for cylinder of collision object '%s' (Expected: %d, Actual: %zu)",
+                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for cylinder of collision object '%s' (Expected: %d, Actual: %zu)",
                         object.id.c_str(), 2, prim.dimensions.size());
                 return false;
             }
@@ -523,13 +525,13 @@ bool WorldCollisionModelImpl::checkCollisionObjectAdd(
         case shape_msgs::SolidPrimitive::CONE:
         {
             if (prim.dimensions.size() != 2) {
-                ROS_ERROR("Invalid number of dimensions for cone of collision object '%s' (Expected: %d, Actual: %zu)",
+                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for cone of collision object '%s' (Expected: %d, Actual: %zu)",
                         object.id.c_str(), 2, prim.dimensions.size());
                 return false;
             }
         }   break;
         default:
-            ROS_ERROR("Unrecognized SolidPrimitive type");
+            ROS_ERROR_NAMED(WCM_LOGGER, "Unrecognized SolidPrimitive type");
             return false;
         }
     }
@@ -559,17 +561,17 @@ bool WorldCollisionModelImpl::checkInsertOctomap(
     const octomap_msgs::OctomapWithPose& octomap) const
 {
     if (haveObject(octomap.octomap.id)) {
-        ROS_ERROR("Already have collision object '%s'", octomap.octomap.id.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Already have collision object '%s'", octomap.octomap.id.c_str());
         return false;
     }
 
     if (octomap.header.frame_id != m_grid->getReferenceFrame()) {
-        ROS_ERROR("Octomap must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Octomap must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
         return false;
     }
 
     if (!octomap.octomap.binary) {
-        ROS_ERROR("Octomap must be a binary octomap");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Octomap must be a binary octomap");
         return false;
     }
 
@@ -579,13 +581,13 @@ bool WorldCollisionModelImpl::checkInsertOctomap(
 bool WorldCollisionModelImpl::addCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     if (!checkCollisionObjectAdd(object)) {
-        ROS_ERROR("Rejecting addition of collision object '%s'", object.id.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of collision object '%s'", object.id.c_str());
         return false;
     }
 
     ObjectConstPtr op = convertCollisionObjectToObject(object);
     if (!op) {
-        ROS_ERROR("Failed to convert collision object to internal representation");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert collision object to internal representation");
         return false;
     }
 
@@ -600,24 +602,24 @@ bool WorldCollisionModelImpl::removeCollisionObject(const moveit_msgs::Collision
 bool WorldCollisionModelImpl::appendCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     if (!checkCollisionObjectAppend(object)) {
-        ROS_ERROR("Rejecting append to collision object '%s'", object.id.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting append to collision object '%s'", object.id.c_str());
         return false;
     }
 
     // TODO: implement
-    ROS_ERROR("appendCollisionObject unimplemented");
+    ROS_ERROR_NAMED(WCM_LOGGER, "appendCollisionObject unimplemented");
     return false;
 }
 
 bool WorldCollisionModelImpl::moveCollisionObject(const moveit_msgs::CollisionObject& object)
 {
     if (!checkCollisionObjectMove(object)) {
-        ROS_ERROR("Rejecting move of collision object '%s'", object.id.c_str());
+        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting move of collision object '%s'", object.id.c_str());
         return false;
     }
 
     // TODO: implement
-    ROS_ERROR("moveCollisionObject unimplemented");
+    ROS_ERROR_NAMED(WCM_LOGGER, "moveCollisionObject unimplemented");
     return false;
 }
 
@@ -663,7 +665,7 @@ visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArr
     visualization_msgs::MarkerArray ma;
 
     if (object.shapes_.size() != object.shape_poses_.size()) {
-        ROS_ERROR("Mismatched sizes of shapes and shape poses");
+        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatched sizes of shapes and shape poses");
         return ma;
     }
 
@@ -681,7 +683,7 @@ visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArr
         // fill in type and scale
         visualization_msgs::Marker m;
         if (!shapes::constructMarkerFromShape(shape.get(), m)) {
-            ROS_WARN("Failed to construct marker from shape");
+            ROS_WARN_NAMED(WCM_LOGGER, "Failed to construct marker from shape");
         }
 
         m.header.seq = 0;

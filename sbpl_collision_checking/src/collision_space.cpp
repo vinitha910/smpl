@@ -52,6 +52,8 @@
 namespace sbpl {
 namespace collision {
 
+static const char* CC_LOGGER = "cspace";
+
 CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_grid(grid),
     m_world(grid),
@@ -82,7 +84,7 @@ bool CollisionSpace::setPlanningJoints(
 {
     for (const std::string& joint_name : joint_names) {
         if (!m_model.hasJointVar(joint_name)) {
-            ROS_ERROR("Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
+            ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
             return false;
         }
     }
@@ -107,10 +109,10 @@ bool CollisionSpace::init(
     const CollisionModelConfig& config,
     const std::vector<std::string>& planning_joints)
 {
-    ROS_DEBUG("Initializing collision space for group '%s'", group_name.c_str());
+    ROS_DEBUG_NAMED(CC_LOGGER, "Initializing collision space for group '%s'", group_name.c_str());
 
     if (!m_model.init(urdf, config)) {
-        ROS_ERROR("Failed to initialize the Robot Collision Model");
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to initialize the Robot Collision Model");
         return false;
     }
 
@@ -118,12 +120,12 @@ bool CollisionSpace::init(
     m_acm.print(std::cout);
 
     if (!setPlanningJoints(planning_joints)) {
-        ROS_ERROR("Failed to set planning joints");
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to set planning joints");
         return false;
     }
 
     if (!m_model.hasGroup(group_name)) {
-        ROS_ERROR("Group '%s' was not found in the Robot Collision Model", group_name.c_str());
+        ROS_ERROR_NAMED(CC_LOGGER, "Group '%s' was not found in the Robot Collision Model", group_name.c_str());
         return false;
     }
 
@@ -156,7 +158,7 @@ bool CollisionSpace::init(
 {
     auto urdf = boost::make_shared<urdf::Model>();
     if (!urdf->initString(urdf_string)) {
-        ROS_ERROR("Failed to parse URDF");
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to parse URDF");
         return false;
     }
 
@@ -188,7 +190,7 @@ void CollisionSpace::updateVoxelsStates()
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            ROS_DEBUG("Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", voxel_removals.size());
+            ROS_DEBUG_NAMED(CC_LOGGER, "Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", voxel_removals.size());
         }
     }
 
@@ -212,7 +214,7 @@ void CollisionSpace::initAllowedCollisionMatrix(
         }
 
         if (!m_acm.hasEntry(sphere1)) {
-            ROS_INFO("Adding entry '%s' to the ACM", sphere1.c_str());
+            ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", sphere1.c_str());
             m_acm.setEntry(sphere1, false);
         }
 
@@ -224,12 +226,12 @@ void CollisionSpace::initAllowedCollisionMatrix(
             }
 
             if (!m_acm.hasEntry(sphere2)) {
-                ROS_INFO("Adding entry '%s' to the ACM", sphere2.c_str());
+                ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", sphere2.c_str());
                 m_acm.setEntry(sphere2, false);
             }
 
             if (link1 == link2) {
-                ROS_INFO("Spheres '%s' and '%s' attached to the same link...allowing collision", sphere1.c_str(), sphere2.c_str());
+                ROS_INFO_NAMED(CC_LOGGER, "Spheres '%s' and '%s' attached to the same link...allowing collision", sphere1.c_str(), sphere2.c_str());
                 m_acm.setEntry(sphere1, sphere2, true);
                 assert(m_acm.hasEntry(sphere1, sphere2));
             }
@@ -242,13 +244,13 @@ void CollisionSpace::initAllowedCollisionMatrix(
     for (size_t i = 0; i < config_entries.size(); ++i) {
         const std::string& entry1 = config_entries[i];
         if (!m_acm.hasEntry(entry1)) {
-            ROS_WARN("Configured allowed collision entry '%s' was not found in the collision model", entry1.c_str());
+            ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry1.c_str());
             continue;
         }
         for (size_t j = i; j < config_entries.size(); ++j) {
             const std::string& entry2 = config_entries[j];
             if (!m_acm.hasEntry(entry2)) {
-                ROS_WARN("Configured allowed collision entry '%s' was not found in the collision model", entry2.c_str());
+                ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry2.c_str());
                 continue;
             }
 
@@ -264,11 +266,11 @@ void CollisionSpace::initAllowedCollisionMatrix(
                 // collisions
                 break;
             case collision_detection::AllowedCollision::ALWAYS:
-                ROS_INFO("Configuration allows spheres '%s' and '%s' to be in collision", entry1.c_str(), entry2.c_str());
+                ROS_INFO_NAMED(CC_LOGGER, "Configuration allows spheres '%s' and '%s' to be in collision", entry1.c_str(), entry2.c_str());
                 m_acm.setEntry(entry1, entry2, true);
                 break;
             case collision_detection::AllowedCollision::CONDITIONAL:
-                ROS_WARN("Conditional collisions not supported in SBPL Collision Detection");
+                ROS_WARN_NAMED(CC_LOGGER, "Conditional collisions not supported in SBPL Collision Detection");
                 break;
             }
         }
@@ -329,7 +331,7 @@ bool CollisionSpace::checkRobotCollision(
         // check bounds
         if (!m_grid->isInBounds(gx, gy, gz)) {
             if (verbose) {
-                ROS_INFO("Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
+                ROS_INFO_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
             }
             return false;
         }
@@ -343,7 +345,7 @@ bool CollisionSpace::checkRobotCollision(
 
         if (obs_dist <= effective_radius) {
             if (verbose) {
-                ROS_INFO("    *collision* idx: %d, name: %s, x: %d, y: %d, z: %d, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), gx, gy, gz, m_model.sphereState(ssidx).model->radius, obs_dist);
+                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, x: %d, y: %d, z: %d, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), gx, gy, gz, m_model.sphereState(ssidx).model->radius, obs_dist);
             }
 
             if (visualize) {
@@ -387,7 +389,7 @@ bool CollisionSpace::checkSelfCollision(
             if (dx.squaredNorm() < radius_combined * radius_combined) {
                 collision_detection::AllowedCollision::Type type;
                 if (!m_acm.getEntry(smodel1.name, smodel2.name, type)) {
-                    ROS_ERROR("An allowed collisions entry wasn't found for a collision sphere");
+                    ROS_ERROR_NAMED(CC_LOGGER, "An allowed collisions entry wasn't found for a collision sphere");
                 }
                 if (type == collision_detection::AllowedCollision::NEVER) {
                     if (visualize) {
@@ -424,7 +426,7 @@ bool CollisionSpace::checkAttachedObjectCollision()
 //            // check bounds
 //            if (!m_grid->isInBounds(x, y, z)) {
 //                if (verbose) {
-//                    ROS_INFO("Sphere %d %d %d is out of bounds.", x, y, z);
+//                    ROS_INFO_NAMED(CC_LOGGER, "Sphere %d %d %d is out of bounds.", x, y, z);
 //                }
 //                return false;
 //            }
@@ -600,7 +602,7 @@ bool CollisionSpace::getAttachedObject(
 //
 //    // compute foward kinematics
 //    if (!m_model.computeDefaultGroupFK(angles, frames_)) {
-//        ROS_ERROR("Failed to compute foward kinematics.");
+//        ROS_ERROR_NAMED(CC_LOGGER, "Failed to compute foward kinematics.");
 //        return false;
 //    }
 //
@@ -661,7 +663,7 @@ bool CollisionSpace::interpolatePath(
     if (!(withinJointPositionLimits(start) &&
             withinJointPositionLimits(finish)))
     {
-        ROS_ERROR("Joint limits violated");
+        ROS_ERROR_NAMED(CC_LOGGER, "Joint limits violated");
         return false;
     }
 
@@ -721,7 +723,7 @@ bool CollisionSpace::getClearance(
 //    min_dist = 100;
 //
 //    if (!m_model.computeDefaultGroupFK(angles, frames_)) {
-//        ROS_ERROR("Failed to compute foward kinematics.");
+//        ROS_ERROR_NAMED(CC_LOGGER, "Failed to compute foward kinematics.");
 //        return false;
 //    }
 //
@@ -740,7 +742,7 @@ bool CollisionSpace::getClearance(
 //    }
 //
 //    avg_dist = sum / num_spheres;
-//    ROS_DEBUG(" num_spheres: %d  avg_dist: %2.2f   min_dist: %2.2f", num_spheres, avg_dist, min_dist);
+//    ROS_DEBUG_NAMED(CC_LOGGER, " num_spheres: %d  avg_dist: %2.2f   min_dist: %2.2f", num_spheres, avg_dist, min_dist);
     return true;
 }
 
@@ -806,8 +808,8 @@ bool CollisionSpace::isStateToStateValid(
     if (!interpolatePath(start_norm, end_norm, path)) {
         path_length = 0;
         ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
-        ROS_ERROR("[interpolate]  start: %s", to_string(start_norm).c_str());
-        ROS_ERROR("[interpolate]    finish: %s", to_string(end_norm).c_str());
+        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  start: %s", to_string(start_norm).c_str());
+        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]    finish: %s", to_string(end_norm).c_str());
         return false;
     }
 
@@ -856,7 +858,7 @@ bool CollisionSpace::isStateToStateValid(
 bool CollisionSpace::setPlanningScene(
     const moveit_msgs::PlanningScene& scene)
 {
-    ROS_INFO("Setting the Planning Scene");
+    ROS_INFO_NAMED(CC_LOGGER, "Setting the Planning Scene");
 
     // TODO: currently ignored fields from moveit_msgs::PlanningScene
     // * name
@@ -871,7 +873,7 @@ bool CollisionSpace::setPlanningScene(
     // * --is_diff--
 
     if (scene.is_diff) {
-        ROS_ERROR("Collision space does not support differential planning scene updates");
+        ROS_ERROR_NAMED(CC_LOGGER, "Collision space does not support differential planning scene updates");
         return false;
     }
 
@@ -883,7 +885,7 @@ bool CollisionSpace::setPlanningScene(
 
     const sensor_msgs::JointState& joint_state = robot_state.joint_state;
     if (joint_state.name.size() != joint_state.position.size()) {
-        ROS_ERROR("Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
+        ROS_ERROR_NAMED(CC_LOGGER, "Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
         return false;
     }
 
@@ -915,16 +917,16 @@ bool CollisionSpace::setPlanningScene(
     const auto& planning_scene_world = scene.world;
 
     const auto& collision_objects = planning_scene_world.collision_objects;
-    ROS_INFO("Processing %zd collision objects", scene.world.collision_objects.size());
+    ROS_INFO_NAMED(CC_LOGGER, "Processing %zd collision objects", scene.world.collision_objects.size());
     for (const moveit_msgs::CollisionObject& collision_object : scene.world.collision_objects) {
         if (!processCollisionObject(collision_object)) {
-            ROS_ERROR("Failed to process collision object '%s'", collision_object.id.c_str());
+            ROS_ERROR_NAMED(CC_LOGGER, "Failed to process collision object '%s'", collision_object.id.c_str());
         }
     }
 
     const auto& octomap = planning_scene_world.octomap;
     if (!processOctomapMsg(octomap)) {
-        ROS_ERROR("Failed to process octomap '%s'", octomap.octomap.id.c_str());
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to process octomap '%s'", octomap.octomap.id.c_str());
     }
 
     // self collision
@@ -944,28 +946,28 @@ void CollisionSpace::attachObject(
     geometry_msgs::PoseStamped pose_in;
     std::string link_name = obj.link_name;
     moveit_msgs::CollisionObject object(obj.object);
-    ROS_INFO("Received a collision object message with %zd shape primitives and %zd meshes attached to %s.", object.primitives.size(), object.meshes.size(), link_name.c_str());
+    ROS_INFO_NAMED(CC_LOGGER, "Received a collision object message with %zd shape primitives and %zd meshes attached to %s.", object.primitives.size(), object.meshes.size(), link_name.c_str());
 
     for (size_t i = 0; i < object.primitives.size(); i++) {
         pose_in.header = object.header;
         pose_in.header.stamp = ros::Time();
         pose_in.pose = object.primitive_poses[i];
-        ROS_WARN("[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
+        ROS_WARN_NAMED(CC_LOGGER, "[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
 
         if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
-            ROS_INFO("Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
+            ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
             attachSphere(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0]);
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::CYLINDER) {
-            ROS_INFO("Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
+            ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
             attachCylinder(link_name, object.primitive_poses[i], object.primitives[i].dimensions[1], object.primitives[i].dimensions[0]);
         }
         else if (object.primitives[i].type == shape_msgs::SolidPrimitive::BOX) {
-            ROS_INFO("Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
+            ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
             attachCube(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
         }
         else {
-            ROS_WARN("Currently attaching objects of type '%d' aren't supported.", object.primitives[i].type);
+            ROS_WARN_NAMED(CC_LOGGER, "Currently attaching objects of type '%d' aren't supported.", object.primitives[i].type);
         }
     }
 
@@ -974,14 +976,14 @@ void CollisionSpace::attachObject(
         pose_in.header.stamp = ros::Time();
         pose_in.pose = object.mesh_poses[i];
 
-        ROS_WARN("[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
+        ROS_WARN_NAMED(CC_LOGGER, "[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
 
-        ROS_INFO("Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size() / 3), int(object.meshes[i].vertices.size()));
+        ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size() / 3), int(object.meshes[i].vertices.size()));
 //        attachMesh(object.id, link_name, object.mesh_poses[i], object.meshes[i].vertices, ConvertToVertexIndices(object.meshes[i].triangles));
     }
 
     if (!object.planes.empty()) {
-        ROS_WARN("Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
+        ROS_WARN_NAMED(CC_LOGGER, "Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
     }
 }
 
