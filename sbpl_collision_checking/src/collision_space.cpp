@@ -62,6 +62,8 @@ CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_group_index(-1),
     m_sphere_indices(),
     m_voxels_indices(),
+    m_ao_sphere_indices(),
+    m_ao_voxels_indices(),
     m_planning_joint_to_collision_model_indices(),
     m_increments(),
     m_acm(),
@@ -194,6 +196,8 @@ void CollisionSpace::updateVoxelsStates()
         }
     }
 
+    // TODO: check for voxel state updates from attached objects
+
     // update occupancy grid with new voxel data
     if (!voxel_removals.empty()) {
         m_grid->removePointsFromField(voxel_removals);
@@ -297,6 +301,37 @@ bool CollisionSpace::findAttachedLink(
     return false;
 }
 
+void CollisionSpace::updateAttachedBodyIndices()
+{
+    std::vector<int> static_sphere_indices = m_sphere_indices;
+    std::vector<int> static_voxels_indices = m_voxels_indices;
+    std::sort(static_sphere_indices.begin(), static_sphere_indices.end());
+    std::sort(static_voxels_indices.begin(), static_sphere_indices.end());
+
+    std::vector<int> ss_indices =
+            m_model.groupSphereStateIndices(m_group_index);
+    std::vector<int> ovs_indices =
+            m_model.groupOutsideVoxelsStateIndices(m_group_index);
+    std::sort(ss_indices.begin(), ss_indices.end());
+    std::sort(ovs_indices.begin(), ovs_indices.end());
+
+    std::vector<int> dynamic_sphere_indices;
+    std::vector<int> dynamic_voxels_indices;
+
+    std::set_difference(
+            ss_indices.begin(), ss_indices.end(),
+            static_sphere_indices.begin(), static_sphere_indices.end(),
+            std::back_inserter(dynamic_sphere_indices));
+
+    std::set_difference(
+            ovs_indices.begin(), ovs_indices.end(),
+            static_voxels_indices.begin(), static_voxels_indices.end(),
+            std::back_inserter(dynamic_voxels_indices));
+
+    m_ao_sphere_indices = dynamic_sphere_indices;
+    m_ao_voxels_indices = dynamic_voxels_indices;
+}
+
 bool CollisionSpace::withinJointPositionLimits(
     const std::vector<double>& positions) const
 {
@@ -315,6 +350,39 @@ bool CollisionSpace::withinJointPositionLimits(
     }
 }
 
+bool CollisionSpace::checkSphereCollision(int ssidx, bool verbose, double& dist)
+{
+    m_model.updateSphereState(ssidx);
+    const CollisionSphereState& ss = m_model.sphereState(ssidx);
+
+    int gx, gy, gz;
+    m_grid->worldToGrid(ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
+
+    // check bounds
+    if (!m_grid->isInBounds(gx, gy, gz)) {
+        if (verbose) {
+            ROS_INFO_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
+        }
+        dist = 0.0;
+        return false;
+    }
+
+    // check for collision with world
+    double obs_dist = m_grid->getDistance(gx, gy, gz);
+    const double effective_radius =
+            m_model.sphereState(ssidx).model->radius +
+            0.5 * m_grid->getResolution() +
+            m_padding;
+
+    if (obs_dist <= effective_radius) {
+        dist = obs_dist;
+        return false;
+    }
+
+    dist = obs_dist;
+    return true;
+}
+
 bool CollisionSpace::checkRobotCollision(
     bool verbose,
     bool visualize,
@@ -322,36 +390,16 @@ bool CollisionSpace::checkRobotCollision(
 {
     bool in_collision = false;
     for (int ssidx : m_sphere_indices) {
-        m_model.updateSphereState(ssidx);
-        const CollisionSphereState& ss = m_model.sphereState(ssidx);
-
-        int gx, gy, gz;
-        m_grid->worldToGrid(ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
-
-        // check bounds
-        if (!m_grid->isInBounds(gx, gy, gz)) {
+        double obs_dist;
+        if (!checkSphereCollision(ssidx, verbose, obs_dist)) {
             if (verbose) {
-                ROS_INFO_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
-            }
-            return false;
-        }
-
-        // check for collision with world
-        double obs_dist = m_grid->getDistance(gx, gy, gz);
-        const double effective_radius =
-                m_model.sphereState(ssidx).model->radius +
-                0.5 * m_grid->getResolution() +
-                m_padding;
-
-        if (obs_dist <= effective_radius) {
-            if (verbose) {
-                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, x: %d, y: %d, z: %d, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), gx, gy, gz, m_model.sphereState(ssidx).model->radius, obs_dist);
+                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), m_model.sphereState(ssidx).model->radius, obs_dist);
             }
 
             if (visualize) {
                 in_collision = true;
                 Sphere s;
-                s.center = ss.pos;
+                s.center = m_model.sphereState(ssidx).pos;
                 s.radius = m_model.sphereState(ssidx).model->radius;
                 m_collision_spheres.push_back(s);
             }
@@ -413,9 +461,38 @@ bool CollisionSpace::checkSelfCollision(
     return !self_collision;
 }
 
-bool CollisionSpace::checkAttachedObjectCollision()
+bool CollisionSpace::checkAttachedObjectCollision(
+    bool verbose,
+    bool visualize,
+    double& dist)
 {
-    return true;
+    bool in_collision = false;
+    for (int ssidx : m_ao_sphere_indices) {
+        double obs_dist;
+        if (!checkSphereCollision(ssidx, verbose, obs_dist)) {
+            if (verbose) {
+                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, radius: %0.3f, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), m_model.sphereState(ssidx).model->radius, obs_dist);
+            }
+
+            if (visualize) {
+                in_collision = true;
+                Sphere s;
+                s.center = m_model.sphereState(ssidx).pos;
+                s.radius = m_model.sphereState(ssidx).model->radius;
+                m_collision_spheres.push_back(s);
+            }
+            else {
+                dist = obs_dist;
+                return false;
+            }
+        }
+
+        if (obs_dist < dist) {
+            dist = obs_dist;
+        }
+    }
+
+    return !in_collision;
 }
 
 double CollisionSpace::isValidLineSegment(
@@ -656,11 +733,6 @@ bool CollisionSpace::isStateValid(
 
     updateVoxelsStates();
 
-    bool attached_object_world_valid = checkAttachedObjectCollision();
-    if (!visualize && !attached_object_world_valid) {
-        return false;
-    }
-
     bool robot_world_valid = checkRobotCollision(verbose, visualize, dist);
     if (!visualize && !robot_world_valid) {
         return false;
@@ -668,6 +740,12 @@ bool CollisionSpace::isStateValid(
 
     bool robot_robot_valid = checkSelfCollision(verbose, visualize, dist);
     if (!visualize && !robot_robot_valid) {
+        return false;
+    }
+
+    bool attached_object_world_valid = checkAttachedObjectCollision(
+            verbose, visualize, dist);
+    if (!visualize && !attached_object_world_valid) {
         return false;
     }
 
@@ -834,12 +912,20 @@ bool CollisionSpace::attachObject(
     const Affine3dVector& transforms,
     const std::string& link_name)
 {
-    return m_model.attachBody(id, shapes, transforms, link_name);
+    if (!m_model.attachBody(id, shapes, transforms, link_name)) {
+        return false;
+    }
+    updateAttachedBodyIndices();
+    return true;
 }
 
 bool CollisionSpace::removeAttachedObject(const std::string& id)
 {
-    return m_model.detachBody(id);
+    if (!m_model.detachBody(id)) {
+        return false;
+    }
+    updateAttachedBodyIndices();
+    return true;
 }
 
 bool CollisionSpace::processAttachedCollisionObject(
@@ -849,13 +935,25 @@ bool CollisionSpace::processAttachedCollisionObject(
     case moveit_msgs::CollisionObject::ADD:
     {
         ObjectConstPtr o = ConvertCollisionObjectToObject(ao.object);
-        return m_model.attachBody(
-                ao.object.id, o->shapes_, o->shape_poses_, ao.link_name);
+        if (!m_model.attachBody(
+                ao.object.id, o->shapes_, o->shape_poses_, ao.link_name))
+        {
+            return false;
+        }
+
         // TODO: handle touch links
+
+        updateAttachedBodyIndices();
+        return true;
     }   break;
     case moveit_msgs::CollisionObject::REMOVE:
     {
-        return m_model.detachBody(ao.object.id);
+        if (!m_model.detachBody(ao.object.id)) {
+            return false;
+        }
+
+        updateAttachedBodyIndices();
+        return true;
     }   break;
     case moveit_msgs::CollisionObject::APPEND:
     case moveit_msgs::CollisionObject::MOVE:

@@ -234,6 +234,8 @@ private:
     int m_group_index;
     std::vector<int> m_sphere_indices;
     std::vector<int> m_voxels_indices;
+    std::vector<int> m_ao_sphere_indices;
+    std::vector<int> m_ao_voxels_indices;
 
     // Planning Joint Information
     std::vector<int> m_planning_joint_to_collision_model_indices;
@@ -278,6 +280,8 @@ private:
     // Collision Checking //
     ////////////////////////
 
+    void updateAttachedBodyIndices();
+
     // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
     // check as fast as possible, with all shortcutting policies enabled; a
     // second for returning the nearest distance (or highest penetration
@@ -287,9 +291,12 @@ private:
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
 
+    bool checkSphereCollision(int ssidx, bool verbose, double& dist);
+
     bool checkRobotCollision(bool verbose, bool visualize, double& dist);
     bool checkSelfCollision(bool verbose, bool visualize, double& dist);
-    bool checkAttachedObjectCollision();
+    bool checkAttachedObjectCollision(
+        bool verbose, bool visualize, double& dist);
 
     double isValidLineSegment(
         const std::vector<int> a,
