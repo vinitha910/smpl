@@ -15,4 +15,6 @@
     <depend>sbpl_collision_checking</depend>
     <depend>urdf</depend>
     <depend>visualization_msgs</depend>
+
+    <exec_depend>ur_description</exec_depend>
 </package>

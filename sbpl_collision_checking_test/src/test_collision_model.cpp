@@ -49,6 +49,12 @@ int main(int argc, char* argv[])
     ros::Publisher vis_pub = nh.advertise<visualization_msgs::MarkerArray>(
             "visualization_markers", 100);
 
+    ////////////////////////////////////////////
+    // inspect configuration loaded from yaml //
+    ////////////////////////////////////////////
+
+    ROS_WARN("Loading Configuration");
+
     sbpl::collision::CollisionModelConfig config;
     if (!sbpl::collision::CollisionModelConfig::Load(ph, config)) {
         ROS_ERROR("Failed to load Collision Model Config");
@@ -56,10 +62,6 @@ int main(int argc, char* argv[])
     }
 
     ROS_INFO("Successfully loaded Collision Model Config");
-
-    ///////////////////////////////////////////////
-    // inspect configuration as loaded from yaml //
-    ///////////////////////////////////////////////
 
     ROS_INFO("Spheres:");
     for (const auto& sphere : config.spheres) {
@@ -84,9 +86,7 @@ int main(int argc, char* argv[])
     ROS_INFO("Allowed Collision Matrix:");
     config.acm.print(std::cout);
 
-    //////////////////////////////////////////
-    // initialize the Robot Collision Model //
-    //////////////////////////////////////////
+    ROS_WARN("Initialize Robot Model");
 
     std::string robot_description_param;
     if (!nh.searchParam("robot_description", robot_description_param)) {
@@ -104,10 +104,17 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    if (urdf->getName() != "ur5") {
+        ROS_ERROR("This test is intended for the UR5 robot");
+        return 1;
+    }
+
     if (!model.init(*urdf, config)) {
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
     }
+
+    ROS_WARN("Publishing Zero State Visualization");
 
     /////////////////////////////////////////////
     // publish visualization of the zero state //
@@ -131,9 +138,7 @@ int main(int argc, char* argv[])
     ros::spinOnce();
     ros::Duration(1.0).sleep();
 
-    ///////////////////////////////////////////////
-    // publish visualization of a modified state //
-    ///////////////////////////////////////////////
+    ROS_WARN("Publishing Modified State Visualization");
 
     model.setJointPosition(0, 0.8);
     model.updateSphereStates();
@@ -147,9 +152,21 @@ int main(int argc, char* argv[])
     // let the publisher do its job
     ros::Duration(1.0).sleep();
 
-    ////////////////////////////////////////////
-    // visualize an attached collision object //
-    ////////////////////////////////////////////
+    ROS_WARN("Publishing Attached Object Visualization");
+
+    std::vector<shapes::ShapeConstPtr> shapes;
+    sbpl::collision::Affine3dVector transforms;
+
+    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
+
+    shapes.push_back(ao_shape);
+    transforms.push_back(Eigen::Affine3d::Identity());
+
+    std::string attach_link = "ee_link";
+    if (!model.attachBody("ao1", shapes, transforms, attach_link)) {
+        ROS_ERROR("Failed to attach body to '%s'", attach_link.c_str());
+        return 1;
+    }
 
     return 0;
 }
