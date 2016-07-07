@@ -14,14 +14,12 @@
     <depend>eigen_conversions</depend>
     <depend>geometric_shapes</depend>
     <depend>geometry_msgs</depend>
-    <depend>kdl_parser</depend>
     <depend>leatherman</depend>
     <depend>message_filters</depend>
     <depend>moveit_core</depend>
     <depend>moveit_msgs</depend>
     <depend>octomap</depend>
     <depend>octomap_msgs</depend>
-    <depend>orocos_kdl</depend>
     <depend>pr2_controllers_msgs</depend>
     <depend>roscpp</depend>
     <depend>sbpl_arm_planner</depend>

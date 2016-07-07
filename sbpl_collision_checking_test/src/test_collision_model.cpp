@@ -36,11 +36,9 @@
 // system includes
 #include <geometric_shapes/shapes.h>
 #include <ros/ros.h>
+#include <sbpl_collision_checking/robot_collision_model.h>
 #include <urdf/model.h>
 #include <visualization_msgs/MarkerArray.h>
-
-// project includes
-#include <sbpl_collision_checking/robot_collision_model.h>
 
 int main(int argc, char* argv[])
 {

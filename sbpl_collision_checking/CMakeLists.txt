@@ -13,7 +13,6 @@ find_package(catkin
         eigen_conversions
         geometric_shapes
         geometry_msgs
-        kdl_parser
         leatherman
         message_filters
         moveit_core
@@ -30,7 +29,6 @@ find_package(catkin
         visualization_msgs)
 
 find_package(Eigen REQUIRED)
-find_package(orocos_kdl REQUIRED)
 find_package(octomap REQUIRED)
 
 catkin_package(
@@ -42,7 +40,6 @@ catkin_package(
         eigen_conversions
         geometric_shapes
         geometry_msgs
-        kdl_parser
         leatherman
         message_filters
         moveit_core
@@ -60,14 +57,12 @@ catkin_package(
     DEPENDS
         Boost
         Eigen
-        OCTOMAP
-        orocos_kdl)
+        OCTOMAP)
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${Eigen_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
 include_directories(${OCTOMAP_INCLUDE_DIRS})
-include_directories(${orocos_kdl_INCLUDE_DIRS})
 include_directories(include)
 
 add_library(
@@ -78,22 +73,8 @@ add_library(
     src/collision_space.cpp)
 target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES})
 
-add_executable(test_space src/test_collision_space.cpp)
-target_link_libraries(
-    test_space
-    ${OCTOMAP_LIBRARIES}
-    ${catkin_LIBRARIES}
-    ${orocos_kdl_LIBRARIES}
-    sbpl_collision_checking)
-
-add_executable(test_collision_model src/test_collision_model.cpp)
-target_link_libraries(
-    test_collision_model
-    ${catkin_LIBRARIES}
-    sbpl_collision_checking)
-
 install(
-    TARGETS sbpl_collision_checking test_space test_collision_model
+    TARGETS sbpl_collision_checking
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
