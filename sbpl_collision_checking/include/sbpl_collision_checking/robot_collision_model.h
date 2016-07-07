@@ -41,6 +41,7 @@
 // system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <geometric_shapes/shapes.h>
 #include <urdf_model/model.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -175,6 +176,32 @@ public:
     auto  linkName(int lidx) const -> const std::string&;
     ///@}
 
+    /// \name Robot Model - Dynamic Model
+    ///@{
+
+    /// \brief Attach a body to the collision model
+    /// \param shapes The shapes making up the body
+    /// \param transforms The offsets from the attached link for each shape
+    /// \param link_name The link to attach to
+    bool attachBody(
+        const std::string& id,
+        const std::vector<shapes::ShapeConstPtr>& shapes,
+        const Affine3dVector& transforms,
+        const std::string& link_name,
+        bool create_voxels_model = true,
+        bool create_spheres_model = true);
+    bool detachBody(const std::string& id);
+
+    size_t attachedBodyCount() const;
+    bool   hasAttachedBody(const std::string& id) const;
+    int    attachedBodyIndex(const std::string& id) const;
+    auto   attachedBodyName(int abidx) const -> const std::string&;
+
+    auto getAttachedBodyIndices(const std::string& link_name) const ->
+            const std::vector<int>&;
+    auto getAttachedBodyIndices(int lidx) const -> const std::vector<int>&;
+    ///@}
+
     /// \name Collision Model - Collision Spheres Information
     ///@{
 
@@ -251,7 +278,7 @@ public:
 
     ///@}
 
-    /// \name RobotState
+    /// \name Robot State
     ///@{
     auto   worldToModelTransform() const -> const Eigen::Affine3d&;
     bool   setWorldToModelTransform(const Eigen::Affine3d& transform);
@@ -282,6 +309,18 @@ public:
     ///         be up to date in all cases afterwards
     bool   updateLinkTransform(int lidx);
     bool   updateLinkTransform(const std::string& link_name);
+    ///@}
+
+    /// \name Robot State - Dynamic Model
+    ///@{
+    auto attachedBodyTransform(const std::string& id) -> const Eigen::Affine3d&;
+    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
+
+    bool attachedBodyTransformDirty(const std::string& id) const;
+    bool attachedBodyTransformDirty(int abidx) const;
+
+    bool updateAttachedBodyTransform(const std::string& id);
+    bool updateAttachedBodyTransform(int abidx);
     ///@}
 
     /// \name CollisionState

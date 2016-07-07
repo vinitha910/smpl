@@ -35,12 +35,11 @@
 // project includes
 #include <sbpl_collision_checking/test_sbpl_collision_space.h>
 
-using namespace sbpl_arm_planner;
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "benchmark_sbpl_collision_checking");
-    ros::NodeHandle nh_, ph_("~");
+    ros::NodeHandle nh_;
+    ros::NodeHandle ph_("~");
     int num_checks = 100;
     std::string group_name = "right_arm";
 
@@ -49,19 +48,33 @@ int main(int argc, char **argv)
     }
 
     // set up the grid
-    OccupancyGrid* grid_ =
-            new OccupancyGrid(1.7, 1.9, 2.0, 0.01, -0.6, -1.25, -0.05, 0.40);
+    double size_x = 1.7;
+    double size_y = 1.9;
+    double size_z = 2.0;
+    double res = 0.01;
+    double origin_x = -0.6;
+    double origin_y = -1.25;
+    double origin_z = -0.05;
+    double max_dist = 0.40;
+    sbpl::OccupancyGrid grid(
+            size_x, size_y, size_z,
+            res,
+            origin_x, origin_y, origin_z,
+            max_dist);
 
     // create the collision space
-    sbpl::collision::CollisionSpace* cspace_ = new sbpl::collision::CollisionSpace(grid_);
-    //cspace_->setPlanningJoints(prms_.planning_joints_);
-    cspace_->init(group_name);
+    sbpl::collision::CollisionSpace cspace(&grid);
+
+    // cspace->setPlanningJoints(prms_.planning_joints_);
+    if (!cspace.init(group_name)) {
+        return 1;
+    }
 
     // get map
     moveit_msgs::CollisionMapConstPtr map =
             ros::topic::waitForMessage<moveit_msgs::CollisionMap>(
                     "collision_map_occ");
-    grid_->updateFromCollisionMap(*map);
+    grid.updateFromCollisionMap(*map);
 
     std::vector<double> angles(7,0);
     unsigned char dist = 100;
@@ -69,20 +82,18 @@ int main(int argc, char **argv)
     ROS_INFO("Starting %d collision checks.", num_checks);
     clock_t start = clock();
     for (int i = 0; i < num_checks; ++i) {
-        if (!cspace_->checkCollision(angles, false, false, dist)) {
+        if (!cspace.checkCollision(angles, false, false, dist)) {
             ROS_INFO("In Collision");
             break;
         }
     }
-    double total_time = (clock()-start)/double(CLOCKS_PER_SEC);
+    double total_time = (clock() - start) / double(CLOCKS_PER_SEC);
     ROS_INFO("       total time: %0.8fsec", total_time);
     ROS_INFO("   time per check: %0.8fsec", total_time/double(num_checks));
     ROS_INFO("checks per second: %0.8fsec", 1.0 / (total_time/double(num_checks)));
 
-    ROS_INFO("[sanity check] # calls: %d   # calls not in collision: %d", cspace_->num_collision_checks_, cspace_->num_false_collision_checks_);
+    ROS_INFO("[sanity check] # calls: %d   # calls not in collision: %d", cspace.num_collision_checks_, cspace->num_false_collision_checks_);
 
-    delete cspace_;
-    delete grid_;
     return 0;
 }
 

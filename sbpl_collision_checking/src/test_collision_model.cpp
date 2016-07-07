@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015, Benjamin Cohen
+// Copyright (c) 2015, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,16 +27,22 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-/// \author Benjamin Cohen
+/// \author Benjamin Cohen, Andrew Dornbush
+
+// standard includes
+#include <iostream>
+#include <string>
 
 // system includes
+#include <geometric_shapes/shapes.h>
 #include <ros/ros.h>
 #include <urdf/model.h>
+#include <visualization_msgs/MarkerArray.h>
 
 // project includes
 #include <sbpl_collision_checking/robot_collision_model.h>
 
-int main(int argc, char **argv)
+int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "test_collision_model");
     ros::NodeHandle nh;
@@ -52,6 +58,10 @@ int main(int argc, char **argv)
     }
 
     ROS_INFO("Successfully loaded Collision Model Config");
+
+    ///////////////////////////////////////////////
+    // inspect configuration as loaded from yaml //
+    ///////////////////////////////////////////////
 
     ROS_INFO("Spheres:");
     for (const auto& sphere : config.spheres) {
@@ -76,6 +86,10 @@ int main(int argc, char **argv)
     ROS_INFO("Allowed Collision Matrix:");
     config.acm.print(std::cout);
 
+    //////////////////////////////////////////
+    // initialize the Robot Collision Model //
+    //////////////////////////////////////////
+
     std::string robot_description_param;
     if (!nh.searchParam("robot_description", robot_description_param)) {
         ROS_ERROR("Failed to find param 'robot_description' on the param server");
@@ -97,7 +111,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    ros::Duration(1.0).sleep(); // let ros and the publisher set up
+    /////////////////////////////////////////////
+    // publish visualization of the zero state //
+    /////////////////////////////////////////////
+
+    // let ros and the publisher set up
+    ros::Duration(1.0).sleep();
 
     for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
         model.setJointPosition(jidx, 0.0);
@@ -110,8 +129,13 @@ int main(int argc, char **argv)
     }
 
     vis_pub.publish(ma);
+    // let the publisher do its job
     ros::spinOnce();
-    ros::Duration(1.0).sleep(); // let the publisher do its job
+    ros::Duration(1.0).sleep();
+
+    ///////////////////////////////////////////////
+    // publish visualization of a modified state //
+    ///////////////////////////////////////////////
 
     model.setJointPosition(0, 0.8);
     model.updateSphereStates();
@@ -122,7 +146,12 @@ int main(int argc, char **argv)
 
     vis_pub.publish(ma);
     ros::spinOnce();
-    ros::Duration(1.0).sleep(); // let the publisher do its job
+    // let the publisher do its job
+    ros::Duration(1.0).sleep();
+
+    ////////////////////////////////////////////
+    // visualize an attached collision object //
+    ////////////////////////////////////////////
 
     return 0;
 }

@@ -184,6 +184,24 @@ public:
     int    linkIndex(const std::string& link_name) const;
     auto   linkName(int lidx) const -> const std::string&;
 
+    bool attachBody(
+        const std::string& id,
+        const std::vector<shapes::ShapeConstPtr>& shapes,
+        const Affine3dVector& transforms,
+        const std::string& link_name,
+        bool create_voxels_model,
+        bool create_spheres_model);
+    bool detachBody(const std::string& id);
+
+    size_t attachedBodyCount() const;
+    bool   hasAttachedBody(const std::string& id) const;
+    int    attachedBodyIndex(const std::string& id) const;
+    auto   attachedBodyName(int abidx) const -> const std::string&;
+
+    auto getAttachedBodyIndices(const std::string& link_name) const ->
+            const std::vector<int>&;
+    auto getAttachedBodyIndices(int lidx) const -> const std::vector<int>&;
+
     size_t sphereModelCount() const;
     auto   sphereModel(int smidx) const -> const CollisionSphereModel&;
     bool   hasSpheresModel(const std::string& link_name) const;
@@ -252,6 +270,12 @@ public:
 
 private:
 
+    struct AttachedBodyModel
+    {
+        std::string id;
+        int link_index;
+    };
+
     /// \name Robot Model
     ///@{
     std::string                             m_name;
@@ -273,12 +297,17 @@ private:
     std::vector<std::string>                m_link_names;
     std::vector<int>                        m_link_parent_joints;
     std::vector<std::vector<int>>           m_link_children_joints;
+    std::vector<std::vector<int>>           m_link_attached_bodies;
     hash_map<std::string, int>              m_link_name_to_index;
+
+    hash_map<int, AttachedBodyModel>        m_attached_bodies;
+    hash_map<std::string, int>              m_attached_body_name_to_index;
+    int                                     m_attached_bodies_added;
     ///@}
 
     /// \name Robot State
     ///@{
-    std::vector<double>             m_jvar_positions;          // per joint
+    std::vector<double>             m_jvar_positions;           // per joint
 
     std::vector<bool>               m_dirty_link_transforms;    // per link
     Affine3dVector                  m_link_transforms;          // per link
@@ -446,6 +475,9 @@ RobotCollisionModelImpl::RobotCollisionModelImpl() :
     m_joint_transforms(),
     m_link_names(),
     m_link_name_to_index(),
+    m_attached_bodies(),
+    m_attached_body_name_to_index(),
+    m_attached_bodies_added(0),
     m_jvar_positions(),
     m_dirty_link_transforms(),
     m_link_transforms(),
@@ -618,6 +650,116 @@ const std::string& RobotCollisionModelImpl::linkName(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_names, lidx);
     return m_link_names[lidx];
+}
+
+bool RobotCollisionModelImpl::attachBody(
+    const std::string& id,
+    const std::vector<shapes::ShapeConstPtr>& shapes,
+    const Affine3dVector& transforms,
+    const std::string& link_name,
+    bool create_voxels_model,
+    bool create_spheres_model)
+{
+    if (hasAttachedBody(id)) {
+        ROS_WARN("Already have attached body '%s'", id.c_str());
+        return false;
+    }
+
+    if (!hasLink(link_name)) {
+        ROS_WARN("Link '%s' does not exist in the Robot Collision Model", link_name.c_str());
+        return false;
+    }
+
+    AttachedBodyModel ab;
+    ab.id = id;
+    ab.link_index = linkIndex(link_name);
+    m_attached_bodies[m_attached_bodies_added] = ab;
+    m_link_attached_bodies[ab.link_index].push_back(m_attached_bodies_added);
+    m_attached_body_name_to_index[id] = m_attached_bodies_added;
+
+    // TODO: please don't add more than INT_MAX attached bodies over the
+    // lifetime of this object
+    ++m_attached_bodies_added;
+
+    if (create_voxels_model) {
+        // TODO: create voxels model
+    }
+
+    if (create_spheres_model) {
+        // TOOD: create spheres model
+    }
+
+    return true;
+}
+
+bool RobotCollisionModelImpl::detachBody(const std::string& id)
+{
+    if (!hasAttachedBody(id)) {
+        ROS_WARN("No attached body '%s' found in Robot Collision Model", id.c_str());
+        return false;
+    }
+
+    int ret;
+
+    // TODO: remove voxels model
+    // TODO: remove spheres model
+
+    int abidx = attachedBodyIndex(id);
+
+    ret = m_attached_body_name_to_index.erase(id);
+    assert(ret > 0);
+
+    // remove the attached body from its attached link
+    std::vector<int>& attached_bodies =
+            m_link_attached_bodies[m_attached_bodies[abidx].link_index];
+    auto it = std::remove_if(attached_bodies.begin(), attached_bodies.end(),
+            [abidx](int idx) { return idx == abidx; });
+    attached_bodies.erase(it, attached_bodies.end());
+
+    ret = m_attached_bodies.erase(abidx);
+    assert(ret > 0);
+
+    return true;
+}
+
+size_t RobotCollisionModelImpl::attachedBodyCount() const
+{
+    return m_attached_bodies.size();
+}
+
+bool RobotCollisionModelImpl::hasAttachedBody(const std::string& id) const
+{
+    return m_attached_body_name_to_index.find(id) !=
+            m_attached_body_name_to_index.end();
+}
+
+int RobotCollisionModelImpl::attachedBodyIndex(const std::string& id) const
+{
+    auto it = m_attached_body_name_to_index.find(id);
+    ASSERT_RANGE(it != m_attached_body_name_to_index.end());
+    assert(m_attached_bodies.find(it->second) != m_attached_bodies.end());
+    return it->second;
+}
+
+const std::string& RobotCollisionModelImpl::attachedBodyName(int abidx) const
+{
+    auto it = m_attached_bodies.find(abidx);
+    ASSERT_RANGE(it != m_attached_bodies.end());
+    return it->second.id;
+}
+
+const std::vector<int>& RobotCollisionModelImpl::getAttachedBodyIndices(
+    const std::string& link_name) const
+{
+    const int lidx = linkIndex(link_name);
+    return m_link_attached_bodies[lidx];
+}
+
+const std::vector<int>& RobotCollisionModelImpl::getAttachedBodyIndices(
+    int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_attached_bodies, lidx);
+    return m_link_attached_bodies[lidx];
 }
 
 inline
@@ -1998,6 +2140,56 @@ int RobotCollisionModel::linkIndex(const std::string& link_name) const
 const std::string& RobotCollisionModel::linkName(int lidx) const
 {
     return m_impl->linkName(lidx);
+}
+
+bool RobotCollisionModel::attachBody(
+    const std::string& id,
+    const std::vector<shapes::ShapeConstPtr>& shapes,
+    const Affine3dVector& transforms,
+    const std::string& link_name,
+    bool create_voxels_model,
+    bool create_spheres_model)
+{
+    return m_impl->attachBody(
+            id, shapes, transforms,
+            link_name,
+            create_voxels_model, create_spheres_model);
+}
+
+bool RobotCollisionModel::detachBody(const std::string& id)
+{
+    return m_impl->detachBody(id);
+}
+
+size_t RobotCollisionModel::attachedBodyCount() const
+{
+    return m_impl->attachedBodyCount();
+}
+
+bool RobotCollisionModel::hasAttachedBody(const std::string& id) const
+{
+    return m_impl->hasAttachedBody(id);
+}
+
+int RobotCollisionModel::attachedBodyIndex(const std::string& id) const
+{
+    return m_impl->attachedBodyIndex(id);
+}
+
+const std::string& RobotCollisionModel::attachedBodyName(int abidx) const
+{
+    return m_impl->attachedBodyName(abidx);
+}
+
+const std::vector<int>& RobotCollisionModel::getAttachedBodyIndices(
+    const std::string& link_name) const
+{
+    return m_impl->getAttachedBodyIndices(link_name);
+}
+
+const std::vector<int>& RobotCollisionModel::getAttachedBodyIndices(int lidx) const
+{
+    return m_impl->getAttachedBodyIndices(lidx);
 }
 
 size_t RobotCollisionModel::sphereModelCount() const

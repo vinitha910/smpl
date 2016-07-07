@@ -39,7 +39,7 @@
 
 // system includes
 #include <moveit/collision_detection/collision_matrix.h>
-#include <ros/ros.h>
+#include <ros/ros.h> // for NodeHandle and XmlRpcValue
 
 namespace sbpl {
 namespace collision {
