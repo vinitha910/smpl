@@ -198,9 +198,9 @@ public:
     int    attachedBodyIndex(const std::string& id) const;
     auto   attachedBodyName(int abidx) const -> const std::string&;
 
-    auto getAttachedBodyIndices(const std::string& link_name) const ->
+    auto attachedBodyIndices(const std::string& link_name) const ->
             const std::vector<int>&;
-    auto getAttachedBodyIndices(int lidx) const -> const std::vector<int>&;
+    auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
 
     size_t sphereModelCount() const;
     auto   sphereModel(int smidx) const -> const CollisionSphereModel&;
@@ -748,14 +748,14 @@ const std::string& RobotCollisionModelImpl::attachedBodyName(int abidx) const
     return it->second.id;
 }
 
-const std::vector<int>& RobotCollisionModelImpl::getAttachedBodyIndices(
+const std::vector<int>& RobotCollisionModelImpl::attachedBodyIndices(
     const std::string& link_name) const
 {
     const int lidx = linkIndex(link_name);
     return m_link_attached_bodies[lidx];
 }
 
-const std::vector<int>& RobotCollisionModelImpl::getAttachedBodyIndices(
+const std::vector<int>& RobotCollisionModelImpl::attachedBodyIndices(
     int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_attached_bodies, lidx);
@@ -2181,15 +2181,15 @@ const std::string& RobotCollisionModel::attachedBodyName(int abidx) const
     return m_impl->attachedBodyName(abidx);
 }
 
-const std::vector<int>& RobotCollisionModel::getAttachedBodyIndices(
+const std::vector<int>& RobotCollisionModel::attachedBodyIndices(
     const std::string& link_name) const
 {
-    return m_impl->getAttachedBodyIndices(link_name);
+    return m_impl->attachedBodyIndices(link_name);
 }
 
-const std::vector<int>& RobotCollisionModel::getAttachedBodyIndices(int lidx) const
+const std::vector<int>& RobotCollisionModel::attachedBodyIndices(int lidx) const
 {
-    return m_impl->getAttachedBodyIndices(lidx);
+    return m_impl->attachedBodyIndices(lidx);
 }
 
 size_t RobotCollisionModel::sphereModelCount() const

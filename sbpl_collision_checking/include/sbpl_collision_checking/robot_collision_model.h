@@ -197,9 +197,9 @@ public:
     int    attachedBodyIndex(const std::string& id) const;
     auto   attachedBodyName(int abidx) const -> const std::string&;
 
-    auto getAttachedBodyIndices(const std::string& link_name) const ->
+    auto attachedBodyIndices(const std::string& link_name) const ->
             const std::vector<int>&;
-    auto getAttachedBodyIndices(int lidx) const -> const std::vector<int>&;
+    auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
     ///@}
 
     /// \name Collision Model - Collision Spheres Information
