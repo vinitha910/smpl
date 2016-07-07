@@ -348,6 +348,10 @@ private:
     std::vector<const CollisionSpheresModel*> m_link_spheres_models;
     std::vector<const CollisionVoxelsModel*>  m_link_voxels_models;
 
+    // per-attached-body references to corresponding spheres and voxels models
+    std::vector<const CollisionSpheresModel*> m_attached_body_spheres_models;
+    std::vector<const CollisionVoxelsModel*> m_attached_body_voxels_models;
+
     ///@}
 
     /// \name Collision State
@@ -372,6 +376,9 @@ private:
     std::vector<CollisionVoxelsState*>      m_link_voxels_states;
     std::vector<CollisionSpheresState*>     m_link_spheres_states;
 
+    std::vector<CollisionSpheresState*>     m_attached_body_spheres_states;
+    std::vector<CollisionVoxelsState*>      m_attached_body_voxels_states;
+
     ///@}
 
     bool initRobotModel(const urdf::ModelInterface& urdf);
@@ -383,6 +390,14 @@ private:
 
     bool checkCollisionModelReferences() const;
     bool checkCollisionStateReferences() const;
+
+    void generateSpheresModel(
+        const std::string& id,
+        const std::vector<shapes::ShapeConstPtr>& shapes,
+        const Affine3dVector& transforms,
+        const std::string& link_name,
+        std::vector<CollisionSphereConfig>& spheres,
+        std::vector<CollisionSpheresModelConfig>& spheres_model);
 
     void clear();
 
@@ -695,12 +710,56 @@ bool RobotCollisionModelImpl::attachBody(
     // lifetime of this object
     ++m_attached_bodies_added;
 
-    if (create_voxels_model) {
-        // TODO: create voxels model
+    if (create_spheres_model) {
+        // TODO: create spheres model
+        std::vector<CollisionSphereConfig> spheres_config;
+        std::vector<CollisionSpheresConfig> spheres_models_config;
+        generateSpheresModel(
+                id, shapes, transforms,
+                link_name,
+                spheres_config, spheres_model_config);
+
+        // append sphere models
+        size_t prev_sphere_count = m_sphere_models.size();
+        m_sphere_models.resize(prev_sphere_count + spheres_config.size());
+        for (size_t i = 0; i < spheres_config.size(); ++i) {
+            const CollisionSphereConfig& sphere_config = spheres_config[i];
+            CollisionSphereModel& sphere_model = m_sphere_models[prev_sphere_count + i];
+            sphere_model.name = std::move(sphere_config.name); // NOTE: shouldn't require this field after this point
+            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+            sphere_model.radius = sphere_config.radius;
+            sphere_model.priority = sphere_config.priority;
+        }
+
+        // append spheres models
+        size_t prev_spheres_model_count = m_spheres_models.size();
+        m_spheres_models.resize(prev_spheres_model_count + spheres_model_config.size());
+        for (size_t i = 0; i < spheres_model_config.size(); ++i) {
+            const CollisionSpheresModelConfig& spheres_config = spheres_models_config[i];
+            CollisionSpheresModel& spheres_model = m_spheres_models[i];
+
+            // attach to the link
+            spheres_model.link_index = linkIndex(spheres_config.link_name);
+
+            // add references to all spheres
+            for (const std::string& sphere_name : spheres_config.spheres) {
+                // find the sphere model with this name
+                auto sit = std::find_if(m_sphere_models.begin(), m_sphere_models.end(),
+                        [&sphere_name](const CollisionSphereModel& sphere)
+                        {
+                            return sphere.name == sphere_name;
+                        });
+                assert(sit != m_sphere_models.end());
+                const CollisionSphereModel* sphere_model =
+                        m_sphere_models.data() +
+                        std::distance(m_sphere_models.begin(), sit);
+                spheres_model.spheres.push_back(sphere_model);
+            }
+        }
     }
 
-    if (create_spheres_model) {
-        // TOOD: create spheres model
+    if (create_voxels_model) {
+        // TODO: create voxels model
     }
 
     return true;
@@ -1319,6 +1378,7 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
         m_link_name_to_index[m_link_names.back()] = lidx;
 
         m_link_children_joints.push_back(std::vector<int>());
+        m_link_attached_bodies.push_back(std::vector<int>());
 
         // for each joint
         for (const auto& joint : link->child_joints) {
@@ -1930,6 +1990,19 @@ bool RobotCollisionModelImpl::checkCollisionStateReferences() const
     }
 
     return true;
+}
+
+void RobotCollisionModelImpl::generateSpheresModel(
+    const std::string& id,
+    const std::vector<shapes::ShapeConstPtr>& shapes,
+    const Affine3dVector& transforms,
+    const std::string& link_name,
+    std::vector<CollisionSphereConfig>& spheres,
+    std::vector<CollisionSpheresModelConfig>& spheres_model)
+{
+    // TODO: reserve a special character so as to guarantee sphere uniqueness
+    // here and disallow use of the special character on config-generated
+    // spheres
 }
 
 void RobotCollisionModelImpl::clear()
