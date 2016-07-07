@@ -188,13 +188,9 @@ public:
     /// \return The visualization
     visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
-    visualization_msgs::MarkerArray getMeshModelVisualization(
-        const std::string& group_name,
-        const std::vector<double>& angles);
-
     ///@}
 
-    /// \name Reimplemented Public Function
+    /// \name Reimplemented Public Functions
     ///@{
     bool isStateValid(
         const std::vector<double>& angles,
@@ -220,16 +216,6 @@ private:
     OccupancyGrid* m_grid;
     WorldCollisionModel m_world;
     RobotCollisionModel m_model;
-
-    // TODO: attached object variables that could probably be moved into the
-    // robot collision model
-    bool object_attached_;
-    int attached_object_frame_num_;
-    int attached_object_segment_num_;
-    int attached_object_chain_num_;
-    std::string attached_object_frame_;
-    std::vector<Sphere> object_spheres_;
-    double object_enclosing_sphere_radius_;
 
     // Collision Group
     std::string m_group_name;

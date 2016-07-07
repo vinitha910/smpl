@@ -336,9 +336,24 @@ public:
     bool updateSphereState(int ssidx);
     ///@}
 
-    visualization_msgs::MarkerArray getVisualization() const;
-    visualization_msgs::MarkerArray getVisualization(const std::string& group_name) const;
-    visualization_msgs::MarkerArray getVisualization(int gidx) const;
+    auto getVisualization() const ->
+            visualization_msgs::MarkerArray;
+    auto getVisualization(const std::string& group_name) const ->
+            visualization_msgs::MarkerArray;
+    auto getVisualization(int gidx) const ->
+            visualization_msgs::MarkerArray;
+    auto getStaticModelVisualization() const ->
+            visualization_msgs::MarkerArray;
+    auto getStaticModelVisualization(const std::string& group_name) const ->
+            visualization_msgs::MarkerArray;
+    auto getStaticModelVisualization(int gidx) const ->
+            visualization_msgs::MarkerArray;
+    auto getDynamicModelVisualization() const ->
+            visualization_msgs::MarkerArray;
+    auto getDynamicModelVisualization(const std::string& group_name) const ->
+            visualization_msgs::MarkerArray;
+    auto getDynamicModelVisualization(int gidx) const ->
+            visualization_msgs::MarkerArray;
 
 private:
 

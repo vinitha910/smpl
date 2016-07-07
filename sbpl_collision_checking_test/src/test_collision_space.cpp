@@ -145,7 +145,6 @@ int main(int argc, char **argv)
     p.publish(cspace->getVisualization("collision_objects"));
     p.publish(cspace->getVisualization("occupied_voxels"));
     p.publish(cspace->getCollisionModelVisualization(angles));
-    //p.publish(cspace->getMeshModelVisualization("arm", angles));
 
     ros::spinOnce();
     sleep(1);

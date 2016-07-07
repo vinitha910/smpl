@@ -263,10 +263,24 @@ public:
     bool updateSphereStates();
     bool updateSphereState(int ssidx);
 
-    auto getVisualization() const -> visualization_msgs::MarkerArray;
+    auto getVisualization() const ->
+        visualization_msgs::MarkerArray;
     auto getVisualization(const std::string& group_name) const ->
         visualization_msgs::MarkerArray;
-    auto getVisualization(int gidx) const -> visualization_msgs::MarkerArray;
+    auto getVisualization(int gidx) const ->
+        visualization_msgs::MarkerArray;
+    auto getStaticModelVisualization() const ->
+            visualization_msgs::MarkerArray;
+    auto getStaticModelVisualization(const std::string& group_name) const ->
+            visualization_msgs::MarkerArray;
+    auto getStaticModelVisualization(int gidx) const ->
+            visualization_msgs::MarkerArray;
+    auto getDynamicModelVisualization() const ->
+            visualization_msgs::MarkerArray;
+    auto getDynamicModelVisualization(const std::string& group_name) const ->
+            visualization_msgs::MarkerArray;
+    auto getDynamicModelVisualization(int gidx) const ->
+            visualization_msgs::MarkerArray;
 
 private:
 
@@ -1222,6 +1236,50 @@ RobotCollisionModelImpl::getVisualization(int gidx) const
     const int hue = 90;
     return viz::getSpheresMarkerArray(
             spheres, rad, hue, "", "collision_model", 0);
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModelImpl::getStaticModelVisualization() const
+{
+    throw std::runtime_error("unimplemented");
+    return visualization_msgs::MarkerArray();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModelImpl::getStaticModelVisualization(
+    const std::string& group_name) const
+{
+    throw std::runtime_error("unimplemented");
+    return visualization_msgs::MarkerArray();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModelImpl::getStaticModelVisualization(int gidx) const
+{
+    throw std::runtime_error("unimplemented");
+    return visualization_msgs::MarkerArray();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModelImpl::getDynamicModelVisualization() const
+{
+    throw std::runtime_error("unimplemented");
+    return visualization_msgs::MarkerArray();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModelImpl::getDynamicModelVisualization(
+    const std::string& group_name) const
+{
+    throw std::runtime_error("unimplemented");
+    return visualization_msgs::MarkerArray();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModelImpl::getDynamicModelVisualization(int gidx) const
+{
+    throw std::runtime_error("unimplemented");
+    return visualization_msgs::MarkerArray();
 }
 
 bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
@@ -2427,6 +2485,44 @@ visualization_msgs::MarkerArray
 RobotCollisionModel::getVisualization(int gidx) const
 {
     return m_impl->getVisualization(gidx);
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getStaticModelVisualization() const
+{
+    return m_impl->getStaticModelVisualization();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getStaticModelVisualization(
+    const std::string& group_name) const
+{
+    return m_impl->getStaticModelVisualization(group_name);
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getStaticModelVisualization(int gidx) const
+{
+    return m_impl->getStaticModelVisualization(gidx);
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getDynamicModelVisualization() const
+{
+    return m_impl->getDynamicModelVisualization();
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getDynamicModelVisualization(
+    const std::string& group_name) const
+{
+    return m_impl->getDynamicModelVisualization(group_name);
+}
+
+visualization_msgs::MarkerArray
+RobotCollisionModel::getDynamicModelVisualization(int gidx) const
+{
+    return m_impl->getDynamicModelVisualization(gidx);
 }
 
 } // namespace collision

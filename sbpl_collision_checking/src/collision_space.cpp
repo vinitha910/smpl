@@ -56,13 +56,6 @@ CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_grid(grid),
     m_world(grid),
     m_model(),
-    object_attached_(false),
-    attached_object_frame_num_(),
-    attached_object_segment_num_(),
-    attached_object_chain_num_(),
-    attached_object_frame_(),
-    object_spheres_(),
-    object_enclosing_sphere_radius_(0.025), // TODO: ARBITRARY
     m_group_name(),
     m_group_index(-1),
     m_sphere_indices(),
@@ -551,9 +544,7 @@ bool CollisionSpace::removeShapes(const ObjectConstPtr& object)
 
 void CollisionSpace::removeAttachedObject()
 {
-//    object_attached_ = false;
-//    object_spheres_.clear();
-//    ROS_DEBUG("Removed attached object.");
+    throw std::runtime_error("unimplemented");
 }
 
 void CollisionSpace::attachSphere(
@@ -562,25 +553,7 @@ void CollisionSpace::attachSphere(
     const geometry_msgs::Pose& pose,
     double radius)
 {
-//    object_attached_ = true;
-//    attached_object_frame_ = link;
-////    m_model.getFrameInfo(
-////            attached_object_frame_,
-////            m_group_name,
-////            attached_object_chain_num_,
-////            attached_object_segment_num_);
-//
-//    object_spheres_.resize(1);
-//    object_spheres_[0].name = name;
-//    object_spheres_[0].v.x(pose.position.x);
-//    object_spheres_[0].v.y(pose.position.y);
-//    object_spheres_[0].v.z(pose.position.z);
-//    object_spheres_[0].radius = radius;
-//    object_spheres_[0].kdl_chain = attached_object_chain_num_;
-//    object_spheres_[0].kdl_segment = attached_object_segment_num_;
-//
-//    ROS_DEBUG("frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), m_group_name.c_str(), attached_object_chain_num_, attached_object_segment_num_);
-//    ROS_DEBUG("Attached '%s' sphere.  xyz: %0.3f %0.3f %0.3f   radius: %0.3fm", name.c_str(), object_spheres_[0].v.x(), object_spheres_[0].v.y(), object_spheres_[0].v.z(), radius);
+    throw std::runtime_error("unimplemented");
 }
 
 void CollisionSpace::attachCylinder(
@@ -589,37 +562,7 @@ void CollisionSpace::attachCylinder(
     double radius,
     double length)
 {
-//    object_attached_ = true;
-//    attached_object_frame_ = link;
-////    m_model.getFrameInfo(attached_object_frame_, m_group_name, attached_object_chain_num_, attached_object_segment_num_);
-//
-//    // compute end points of cylinder
-//    KDL::Frame center;
-//    tf::PoseMsgToKDL(pose, center);
-//    KDL::Vector top(0.0,0.0,length/2.0);
-//    KDL::Vector bottom(0.0,0.0,-length/2.0);
-//    //KDL::Vector top(center.p), bottom(center.p);
-//    std::vector<KDL::Vector> points;
-//
-//    //top.data[2] += length / 2.0;
-//    //bottom.data[2] -= length / 2.0;
-//
-//    // get spheres
-//    leatherman::getIntermediatePoints(top, bottom, radius, points);
-//    int start = object_spheres_.size();
-//    object_spheres_.resize(object_spheres_.size() + points.size());
-//    for (size_t i = start; i < start + points.size(); ++i) {
-//        object_spheres_[i].name = "attached_" + boost::lexical_cast<std::string>(i);
-//        object_spheres_[i].v = center * points[i - start];
-//        object_spheres_[i].radius = radius;
-//        object_spheres_[i].kdl_chain = attached_object_chain_num_;
-//        object_spheres_[i].kdl_segment = attached_object_segment_num_;
-//    }
-//
-//    ROS_DEBUG("[attached_object] Attaching cylinder. pose: %0.3f %0.3f %0.3f radius: %0.3f length: %0.3f spheres: %d", pose.position.x, pose.position.y, pose.position.z, radius, length, int(object_spheres_.size()));
-//    ROS_DEBUG("[attached_object]  frame: %s  group: %s  chain: %d  segment: %d", attached_object_frame_.c_str(), m_group_name.c_str(), attached_object_chain_num_, attached_object_segment_num_);
-//    ROS_DEBUG("[attached_object]    top: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", top.x(), top.y(), top.z(), radius);
-//    ROS_DEBUG("[attached_object] bottom: xyz: %0.3f %0.3f %0.3f  radius: %0.3fm", bottom.x(), bottom.y(), bottom.z(), radius);
+    throw std::runtime_error("unimplemented");
 }
 
 void CollisionSpace::attachCube(
@@ -630,42 +573,7 @@ void CollisionSpace::attachCube(
     double y_dim,
     double z_dim)
 {
-//    object_attached_ = true;
-//    std::vector<std::vector<double>> spheres;
-//    attached_object_frame_ = link;
-////    if (!m_model.getFrameInfo(
-////            attached_object_frame_,
-////            m_group_name,
-////            attached_object_chain_num_,
-////            attached_object_segment_num_))
-////    {
-////        ROS_ERROR("Could not find frame info for attached object frame %s in group name %s", attached_object_frame_.c_str(), m_group_name.c_str());
-////        object_attached_ = false;
-////        return;
-////    }
-//
-//    sbpl::SphereEncloser::encloseBox(
-//            x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, spheres);
-//
-//    if (spheres.size() <= 3) {
-//        ROS_WARN("Attached cube is represented by %d collision spheres. Consider lowering the radius of the spheres used to populate the attached cube. (radius = %0.3fm)", int(spheres.size()), object_enclosing_sphere_radius_);
-//    }
-//    int start = object_spheres_.size();
-//    object_spheres_.resize(start + spheres.size());
-//    for (size_t i = start; i < start + spheres.size(); ++i) {
-//        object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
-//        tf::Vector3 sph_in_object_local_(spheres[i - start][0], spheres[i - start][1], spheres[i - start][2]);
-//        tf::Transform T_sph_offset;
-//        tf::poseMsgToTF(pose, T_sph_offset);
-//        tf::Vector3 sph_in_link_local_ = T_sph_offset * sph_in_object_local_;
-//        object_spheres_[i].v.x(sph_in_link_local_.getX());
-//        object_spheres_[i].v.y(sph_in_link_local_.getY());
-//        object_spheres_[i].v.z(sph_in_link_local_.getZ());
-//        object_spheres_[i].radius = spheres[i - start][3];
-//        object_spheres_[i].kdl_chain = attached_object_chain_num_;
-//        object_spheres_[i].kdl_segment = attached_object_segment_num_;
-//    }
-//    ROS_DEBUG("Attaching '%s' represented by %d spheres with dimensions: %0.3f %0.3f %0.3f (sphere rad: %.3f) (chain id: %d)(segment id: %d)", name.c_str(), int(spheres.size()), x_dim, y_dim, z_dim, object_enclosing_sphere_radius_, attached_object_chain_num_, attached_object_segment_num_);
+    throw std::runtime_error("unimplemented");
 }
 
 void CollisionSpace::attachMesh(
@@ -675,34 +583,7 @@ void CollisionSpace::attachMesh(
     const std::vector<geometry_msgs::Point>& vertices,
     const std::vector<int>& triangles)
 {
-//    object_attached_ = true;
-//    std::vector<std::vector<double>> spheres;
-//    attached_object_frame_ = link;
-////    m_model.getFrameInfo(
-////            attached_object_frame_,
-////            m_group_name,
-////            attached_object_chain_num_,
-////            attached_object_segment_num_);
-//
-//    sbpl::SphereEncloser::encloseMesh(
-//            vertices, triangles, object_enclosing_sphere_radius_, spheres);
-//
-//    if (spheres.size() <= 3) {
-//        ROS_WARN("Attached mesh is represented by %zu collision spheres. Consider lowering the radius of the spheres used to populate the attached mesh more accuratly. (radius = %0.3fm)", spheres.size(), object_enclosing_sphere_radius_);
-//    }
-//
-//    object_spheres_.resize(spheres.size());
-//    for (size_t i = 0; i < spheres.size(); ++i) {
-//        object_spheres_[i].name = name + "_" + boost::lexical_cast<std::string>(i);
-//        object_spheres_[i].v.x(spheres[i][0]);
-//        object_spheres_[i].v.y(spheres[i][1]);
-//        object_spheres_[i].v.z(spheres[i][2]);
-//        object_spheres_[i].radius = spheres[i][3];
-//        object_spheres_[i].kdl_chain = attached_object_chain_num_;
-//        object_spheres_[i].kdl_segment = attached_object_segment_num_;
-//    }
-//
-//    ROS_DEBUG("Attaching '%s' represented by %d spheres with %d vertices and %d triangles.", name.c_str(), int(spheres.size()), int(vertices.size()), int(triangles.size()));
+    throw std::runtime_error("unimplemented");
 }
 
 bool CollisionSpace::getAttachedObject(
@@ -1069,7 +950,7 @@ void CollisionSpace::attachObject(
         pose_in.header = object.header;
         pose_in.header.stamp = ros::Time();
         pose_in.pose = object.primitive_poses[i];
-        ROS_WARN("[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
+        ROS_WARN("[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
 
         if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
             ROS_INFO("Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
@@ -1093,7 +974,7 @@ void CollisionSpace::attachObject(
         pose_in.header.stamp = ros::Time();
         pose_in.pose = object.mesh_poses[i];
 
-        ROS_WARN("[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f) to %s", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z, attached_object_frame_.c_str());
+        ROS_WARN("[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
 
         ROS_INFO("Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size() / 3), int(object.meshes[i].vertices.size()));
         attachMesh(object.id, link_name, object.mesh_poses[i], object.meshes[i].vertices, ConvertToVertexIndices(object.meshes[i].triangles));
@@ -1102,8 +983,6 @@ void CollisionSpace::attachObject(
     if (!object.planes.empty()) {
         ROS_WARN("Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
     }
-
-    ROS_WARN("Attached object has %zd spheres!", object_spheres_.size());
 }
 
 visualization_msgs::MarkerArray
@@ -1174,68 +1053,11 @@ CollisionSpace::getVisualization(
         return markers;
     }
     else if (type == "attached_object") {
-//        std::vector<double> angles, rad;
-//        std::vector<std::vector<double>> sph;
-//        if (object_attached_) {
-//            getAttachedObject(angles, sph);
-//        }
-//
-//        if (sph.empty() || sph[0].size() < 4) {
-//            return ma;
-//        }
-//
-//        rad.resize(sph.size());
-//        for (size_t i = 0; i < sph.size(); ++i) {
-//            rad[i] = sph[i][3];
-//        }
-//
-//        ma = viz::getSpheresMarkerArray(sph, rad, 200, m_grid->getReferenceFrame(), "attached_object", 0);
-        return visualization_msgs::MarkerArray();
+        return m_model.getDynamicModelVisualization();
     }
     else {
         return m_grid->getVisualization(type);
     }
-}
-
-visualization_msgs::MarkerArray
-CollisionSpace::getMeshModelVisualization(
-    const std::string& group_name,
-    const std::vector<double> &angles)
-{
-//    visualization_msgs::MarkerArray ma;
-//    geometry_msgs::Pose fpose;
-//    geometry_msgs::PoseStamped lpose, mpose;
-//    std::string robot_description, mesh_resource;
-//    Group* g = m_model.getGroup(group_name);
-//
-//    ros::NodeHandle nh;
-//    if (!nh.getParam("robot_description", robot_description)) {
-//        ROS_ERROR("Failed to get robot_description from param server.");
-//        return ma;
-//    }
-//
-//    // compute foward kinematics
-//    if (!m_model.computeGroupFK(angles, g, frames_)) {
-//        ROS_ERROR("Failed to compute foward kinematics.");
-//        return ma;
-//    }
-//
-//    // get link mesh_resources
-//    for (size_t i = 0; i < g->links_.size(); ++i) {
-//        if (!leatherman::getLinkMesh(robot_description, g->links_[i].root_name_, false, mesh_resource, lpose)) {
-//            ROS_ERROR("Failed to get mesh for '%s'.", g->links_[i].root_name_.c_str());
-//            continue;
-//        }
-//
-//        ROS_INFO("Got the mesh! (%s)", mesh_resource.c_str());
-//        // TODO: Has to be a spheres group
-//        leatherman::msgFromPose(frames_[g->links_[i].spheres_[0].kdl_chain][g->links_[i].spheres_[0].kdl_segment], fpose);
-//        leatherman::multiply(fpose, lpose.pose, mpose.pose);
-//        mpose.header.frame_id = "base_link"; //getReferenceFrame();
-//        ma.markers.push_back(viz::getMeshMarker(mpose, mesh_resource, 180, "robot_model", i));
-//    }
-//    return ma;
-    return visualization_msgs::MarkerArray();
 }
 
 } // namespace collision
