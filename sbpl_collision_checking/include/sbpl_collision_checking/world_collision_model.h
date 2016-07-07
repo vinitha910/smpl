@@ -50,10 +50,6 @@
 namespace sbpl {
 namespace collision {
 
-// TODO: find a home for this
-std::vector<int> ConvertToVertexIndices(
-    const std::vector<shape_msgs::MeshTriangle>& triangles);
-
 class WorldCollisionModelImpl;
 
 class WorldCollisionModel

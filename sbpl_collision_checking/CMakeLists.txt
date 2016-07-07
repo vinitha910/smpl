@@ -68,7 +68,8 @@ add_library(
     src/robot_collision_model.cpp
     src/collision_model_config.cpp
     src/world_collision_model.cpp
-    src/collision_space.cpp)
+    src/collision_space.cpp
+    src/voxel_operations.cpp)
 target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES})
 
 install(
