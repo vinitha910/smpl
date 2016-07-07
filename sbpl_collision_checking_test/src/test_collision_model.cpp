@@ -174,6 +174,7 @@ int main(int argc, char* argv[])
     ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
     ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
 
+    model.updateSphereStates();
     publish_model_viz();
 
     ROS_WARN("Detaching Cylinder and Publishing Visualization");

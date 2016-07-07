@@ -68,6 +68,8 @@ bool VoxelizeCollisionObject(
 /// \name geometric_shapes::Shape Voxelization
 ///@{
 
+// These functions must only append voxels to the output vector
+
 bool VoxelizeShape(
     const shapes::Shape& shape,
     const Eigen::Affine3d& pose,

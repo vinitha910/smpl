@@ -69,14 +69,16 @@ struct CollisionSphereModel
 /// \brief Collision Spheres Model Specification
 struct CollisionSpheresModel
 {
-    int link_index;
+    int link_index; // -1 if not attached to a link
+    int body_index; // -1 if not attached to an attached body
     std::vector<const CollisionSphereModel*> spheres;
 };
 
 /// \brief Collision Voxels Model Specification
 struct CollisionVoxelsModel
 {
-    int link_index;
+    int link_index; // -1 if not attached to a link
+    int body_index; // -1 if not attached to an attached body
     double voxel_res;
     std::vector<Eigen::Vector3d> voxels; // in the link frame
 };
@@ -86,6 +88,7 @@ struct CollisionGroupModel
 {
     std::string name;
     std::vector<int> link_indices;
+    std::vector<int> body_indices;
 };
 
 /// @}
@@ -313,7 +316,8 @@ public:
 
     /// \name Robot State - Dynamic Model
     ///@{
-    auto attachedBodyTransform(const std::string& id) -> const Eigen::Affine3d&;
+    auto attachedBodyTransform(const std::string& id) const ->
+            const Eigen::Affine3d&;
     auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
 
     bool attachedBodyTransformDirty(const std::string& id) const;
