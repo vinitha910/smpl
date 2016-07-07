@@ -160,36 +160,18 @@ public:
     /// \name Visualization
     ///@{
 
-    // THE DREAM
-//    visualization_msgs::MarkerArray getWorldVisualization() const; // visualization of the world
-//    visualization_msgs::MarkerArray getRobotVisualization() const; // visualization of the robot
-//    visualization_msgs::MarkerArray getCollisionWorldVisualization() const; // visualization of the collision world
-//    visualization_msgs::MarkerArray getCollisionRobotVisualization() const; // visualization of the collision robot
-//    visualization_msgs::MarkerArray getCollisionDetailsVisualization() const; // visualization of collisions between world and robot
+    visualization_msgs::MarkerArray getWorldVisualization() const;
+    visualization_msgs::MarkerArray getRobotVisualization() const;
 
-    visualization_msgs::MarkerArray getCollisionObjectsVisualization() const;
-    visualization_msgs::MarkerArray getCollisionsVisualization() const;
-    visualization_msgs::MarkerArray getCollisionObjectVoxelsVisualization() const;
+    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
+    visualization_msgs::MarkerArray getCollisionRobotVisualization() const;
+
+    visualization_msgs::MarkerArray getCollisionDetailsVisualization(
+        const std::vector<double>& vals) const;
+
     visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
     visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
-
-    /// \brief Retrive visualization of the collision space
-    ///
-    /// The visualization_msgs::MarkerArray's contents vary depending on the
-    /// argument:
-    ///
-    ///     "collision_objects": markers representing all collision objects
-    ///     "collisions": spheres representing the collisions during the last
-    ///         call to isStateValid
-    ///     "collision_object_voxels": points representing all voxels occupied
-    ///         by collision objects
-    ///     <any argument excepted by OccupancyGrid::getVisualization>:
-    ///         <the corresponding visualization provided by OccupancyGrid>
-    ///
-    /// \param type The type of visualization to get
-    /// \return The visualization
-    visualization_msgs::MarkerArray getVisualization(const std::string& type);
 
     ///@}
 
@@ -212,6 +194,33 @@ public:
         const std::vector<double>& start,
         const std::vector<double>& finish,
         std::vector<std::vector<double>>& path) override;
+
+    visualization_msgs::MarkerArray getCollisionModelVisualization(
+        const std::vector<double>& vals) override;
+
+    /// \brief Retrieve visualization of the collision space
+    ///
+    /// The visualization_msgs::MarkerArray's contents vary depending on the
+    /// argument:
+    ///
+    ///     "world": markers representing all objects managed by the world
+    ///     "collision_world": cube list representing all occupied cells checked
+    ///             against the configured group
+    ///     "robot": visualization of the robot model at its current state
+    ///     "collision_robot": visualization of the robot collision model at its
+    ///             current state
+    ///     "collision_details": spheres representing the location of the most
+    ///             recent collision check
+    ///     "attached_object": spheres representing the bounding volumes of all
+    ///             attached objects
+    ///     <any argument excepted by OccupancyGrid::getVisualization>:
+    ///         <the corresponding visualization provided by OccupancyGrid>
+    ///
+    /// \param type The type of visualization to get
+    /// \return The visualization
+    visualization_msgs::MarkerArray getVisualization(
+        const std::string& type) override;
+
     ///@}
 
 private:

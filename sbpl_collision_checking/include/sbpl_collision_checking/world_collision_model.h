@@ -76,8 +76,8 @@ public:
     /// revoxelizing all of the managed objects.
     void reset();
 
-    visualization_msgs::MarkerArray getCollisionObjectsVisualization() const;
-    visualization_msgs::MarkerArray getCollisionObjectVoxelsVisualization() const;
+    visualization_msgs::MarkerArray getWorldVisualization() const;
+    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
 
 private:
 

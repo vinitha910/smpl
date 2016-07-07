@@ -76,8 +76,8 @@ public:
 
     void reset();
 
-    visualization_msgs::MarkerArray getCollisionObjectsVisualization() const;
-    visualization_msgs::MarkerArray getCollisionObjectVoxelsVisualization() const;
+    visualization_msgs::MarkerArray getWorldVisualization() const;
+    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
 
 private:
 
@@ -284,7 +284,7 @@ void WorldCollisionModelImpl::reset()
 }
 
 visualization_msgs::MarkerArray
-WorldCollisionModelImpl::getCollisionObjectsVisualization() const
+WorldCollisionModelImpl::getWorldVisualization() const
 {
     visualization_msgs::MarkerArray ma;
     for (const auto& ent : m_object_map) {
@@ -298,7 +298,7 @@ WorldCollisionModelImpl::getCollisionObjectsVisualization() const
 }
 
 visualization_msgs::MarkerArray
-WorldCollisionModelImpl::getCollisionObjectVoxelsVisualization() const
+WorldCollisionModelImpl::getCollisionWorldVisualization() const
 {
     visualization_msgs::MarkerArray ma;
 
@@ -704,14 +704,14 @@ void WorldCollisionModel::reset()
     return m_impl->reset();
 }
 
-visualization_msgs::MarkerArray WorldCollisionModel::getCollisionObjectsVisualization() const
+visualization_msgs::MarkerArray WorldCollisionModel::getWorldVisualization() const
 {
-    return m_impl->getCollisionObjectsVisualization();
+    return m_impl->getWorldVisualization();
 }
 
-visualization_msgs::MarkerArray WorldCollisionModel::getCollisionObjectVoxelsVisualization() const
+visualization_msgs::MarkerArray WorldCollisionModel::getCollisionWorldVisualization() const
 {
-    return m_impl->getCollisionObjectVoxelsVisualization();
+    return m_impl->getCollisionWorldVisualization();
 }
 
 } // namespace collision

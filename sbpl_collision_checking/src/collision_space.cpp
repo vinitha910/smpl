@@ -415,42 +415,6 @@ bool CollisionSpace::checkSelfCollision(
 
 bool CollisionSpace::checkAttachedObjectCollision()
 {
-//    if (object_attached_) {
-//        for (size_t i = 0; i < object_spheres_.size(); ++i) {
-//            const Sphere& sphere = object_spheres_[i];
-//            KDL::Vector v = frames_[sphere.kdl_chain][sphere.kdl_segment] * sphere.v;
-//
-//            int x, y, z;
-//            m_grid->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
-//
-//            // check bounds
-//            if (!m_grid->isInBounds(x, y, z)) {
-//                if (verbose) {
-//                    ROS_INFO_NAMED(CC_LOGGER, "Sphere %d %d %d is out of bounds.", x, y, z);
-//                }
-//                return false;
-//            }
-//
-//            // check for collision with world
-//            if ((dist_temp = m_grid->getDistance(x, y, z)) <= sphere.radius) {
-//                dist = dist_temp;
-//
-//                if (visualize) {
-//                    in_collision = true;
-//                    Sphere s = *(spheres_[i]);
-//                    s.v = v;
-//                    m_collision_spheres.push_back(s);
-//                }
-//                else {
-//                    return false;
-//                }
-//            }
-//            if (dist_temp < dist) {
-//                dist = dist_temp;
-//            }
-//        }
-//    }
-
     return true;
 }
 
@@ -903,32 +867,40 @@ bool CollisionSpace::processAttachedCollisionObject(
 }
 
 visualization_msgs::MarkerArray
-CollisionSpace::getCollisionObjectsVisualization() const
+CollisionSpace::getWorldVisualization() const
 {
-    return m_world.getCollisionObjectsVisualization();
+    return m_world.getWorldVisualization();
 }
 
 visualization_msgs::MarkerArray
-CollisionSpace::getCollisionsVisualization() const
+CollisionSpace::getRobotVisualization() const
 {
-//    std::vector<double> rad(m_collision_spheres.size());
-//    std::vector<std::vector<double>> sph(
-//            m_collision_spheres.size(), std::vector<double>(3, 0));
-//    for (size_t i = 0; i < m_collision_spheres.size(); ++i) {
-//        sph[i][0] = m_collision_spheres[i].v.x();
-//        sph[i][1] = m_collision_spheres[i].v.y();
-//        sph[i][2] = m_collision_spheres[i].v.z();
-//        rad[i] = spheres_[i]->radius;
-//    }
-//    return viz::getSpheresMarkerArray(
-//            sph, rad, 10, m_grid->getReferenceFrame(), "collision_spheres", 0);
+    // TODO: implement me
     return visualization_msgs::MarkerArray();
 }
 
 visualization_msgs::MarkerArray
-CollisionSpace::getCollisionObjectVoxelsVisualization() const
+CollisionSpace::getCollisionWorldVisualization() const
 {
-    return m_world.getCollisionObjectVoxelsVisualization();
+    return m_world.getCollisionWorldVisualization();
+}
+
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionRobotVisualization() const
+{
+    auto markers = m_model.getVisualization();
+    for (auto& m : markers.markers) {
+        m.header.frame_id = getReferenceFrame();
+    }
+    return markers;
+}
+
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionDetailsVisualization(
+    const std::vector<double>& vals) const
+{
+    // TODO: implement me
+    return visualization_msgs::MarkerArray();
 }
 
 visualization_msgs::MarkerArray
@@ -950,24 +922,31 @@ CollisionSpace::getOccupiedVoxelsVisualization() const
 }
 
 visualization_msgs::MarkerArray
+CollisionSpace::getCollisionModelVisualization(const std::vector<double>& vals)
+{
+    // TODO: fill in input values
+    return getCollisionRobotVisualization();
+}
+
+visualization_msgs::MarkerArray
 CollisionSpace::getVisualization(
     const std::string& type)
 {
-    if (type == "collision_objects") {
-        return getCollisionObjectsVisualization();
+    if (type == "world") {
+        return getWorldVisualization();
     }
-    else if (type == "collisions") {
-        return getCollisionsVisualization();
+    else if (type == "collision_world") {
+        return getCollisionWorldVisualization();
     }
-    else if (type == "collision_object_voxels") {
-        return getCollisionObjectVoxelsVisualization();
+    else if (type == "robot") {
+        return getRobotVisualization();
     }
-    else if (type == "collision_model") {
-        auto markers = m_model.getVisualization();
-        for (auto& m : markers.markers) {
-            m.header.frame_id = getReferenceFrame();
-        }
-        return markers;
+    else if (type == "collision_robot") {
+        return getCollisionRobotVisualization();
+    }
+    else if (type == "collision_details") {
+        // TODO: save the last state checked for collision?
+        return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0));
     }
     else if (type == "attached_object") {
         return m_model.getDynamicModelVisualization();

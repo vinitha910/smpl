@@ -95,12 +95,14 @@ public:
         const std::vector<double>& finish,
         std::vector<std::vector<double>>& path) = 0;
 
-    /* Visualizations */
+    /// \name Visualization
+    ///@{
     virtual visualization_msgs::MarkerArray getCollisionModelVisualization(
         const std::vector<double>& angles);
 
     virtual visualization_msgs::MarkerArray getVisualization(
         const std::string& type);
+    ///@}
 };
 
 } // namespace manip
