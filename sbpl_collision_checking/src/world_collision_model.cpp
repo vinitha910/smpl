@@ -107,9 +107,6 @@ private:
     // Collision Objects //
     ///////////////////////
 
-    ObjectConstPtr convertCollisionObjectToObject(
-        const moveit_msgs::CollisionObject& object) const;
-
     ObjectConstPtr convertOctomapToObject(
         const octomap_msgs::OctomapWithPose& octomap) const;
 
@@ -380,65 +377,6 @@ bool WorldCollisionModelImpl::checkObjectRemoveShape(const Object& object) const
     return haveObject(object.id_);
 }
 
-ObjectConstPtr WorldCollisionModelImpl::convertCollisionObjectToObject(
-    const moveit_msgs::CollisionObject& object) const
-{
-    ObjectPtr o(new Object(object.id));
-
-    for (size_t pidx = 0; pidx < object.primitives.size(); ++pidx) {
-        const shape_msgs::SolidPrimitive& prim = object.primitives[pidx];
-        const geometry_msgs::Pose& pose = object.primitive_poses[pidx];
-
-        shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(prim));
-        if (!sp) {
-            ROS_ERROR_NAMED(WCM_LOGGER, "Failed to construct shape from primitive message");
-            return ObjectConstPtr();
-        }
-
-        Eigen::Affine3d transform;
-        tf::poseMsgToEigen(pose, transform);
-
-        o->shapes_.push_back(sp);
-        o->shape_poses_.push_back(transform);
-    }
-
-    for (size_t midx = 0; midx < object.meshes.size(); ++midx) {
-        const shape_msgs::Mesh& mesh = object.meshes[midx];
-        const geometry_msgs::Pose& pose = object.mesh_poses[midx];
-
-        shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(mesh));
-        if (!sp) {
-            ROS_ERROR_NAMED(WCM_LOGGER, "Failed to construct shape from mesh message");
-            return ObjectConstPtr();
-        }
-
-        Eigen::Affine3d transform;
-        tf::poseMsgToEigen(pose, transform);
-
-        o->shapes_.push_back(sp);
-        o->shape_poses_.push_back(transform);
-    }
-
-    for (size_t pidx = 0; pidx < object.planes.size(); ++pidx) {
-        const shape_msgs::Plane& plane = object.planes[pidx];
-        const geometry_msgs::Pose& pose = object.plane_poses[pidx];
-
-        shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(plane));
-        if (!sp) {
-            ROS_ERROR_NAMED(WCM_LOGGER, "Failed to construct shape from plane message");
-            return ObjectConstPtr();
-        }
-
-        Eigen::Affine3d transform;
-        tf::poseMsgToEigen(pose, transform);
-
-        o->shapes_.push_back(sp);
-        o->shape_poses_.push_back(transform);
-    }
-
-    return ObjectConstPtr(o);
-}
-
 ObjectConstPtr WorldCollisionModelImpl::convertOctomapToObject(
     const octomap_msgs::OctomapWithPose& octomap) const
 {
@@ -585,7 +523,7 @@ bool WorldCollisionModelImpl::addCollisionObject(const moveit_msgs::CollisionObj
         return false;
     }
 
-    ObjectConstPtr op = convertCollisionObjectToObject(object);
+    ObjectConstPtr op = ConvertCollisionObjectToObject(object);
     if (!op) {
         ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert collision object to internal representation");
         return false;

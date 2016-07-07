@@ -544,82 +544,6 @@ bool CollisionSpace::removeShapes(const ObjectConstPtr& object)
     return m_world.removeShapes(object);
 }
 
-void CollisionSpace::removeAttachedObject()
-{
-    throw std::runtime_error("unimplemented");
-}
-
-void CollisionSpace::attachSphere(
-    const std::string& name,
-    const std::string& link,
-    const geometry_msgs::Pose& pose,
-    double radius)
-{
-    throw std::runtime_error("unimplemented");
-}
-
-void CollisionSpace::attachCylinder(
-    const std::string& link,
-    const geometry_msgs::Pose& pose,
-    double radius,
-    double length)
-{
-    throw std::runtime_error("unimplemented");
-}
-
-void CollisionSpace::attachCube(
-    const std::string& name,
-    const std::string& link,
-    const geometry_msgs::Pose& pose,
-    double x_dim,
-    double y_dim,
-    double z_dim)
-{
-    throw std::runtime_error("unimplemented");
-}
-
-void CollisionSpace::attachMesh(
-    const std::string& name,
-    const std::string& link,
-    const geometry_msgs::Pose& pose,
-    const std::vector<geometry_msgs::Point>& vertices,
-    const std::vector<int>& triangles)
-{
-    throw std::runtime_error("unimplemented");
-}
-
-bool CollisionSpace::getAttachedObject(
-    const std::vector<double>& angles,
-    std::vector<std::vector<double>>& xyz)
-{
-//    KDL::Vector v;
-//    int x, y, z;
-//    xyz.clear();
-//
-//    if (!object_attached_) {
-//        return false;
-//    }
-//
-//    // compute foward kinematics
-//    if (!m_model.computeDefaultGroupFK(angles, frames_)) {
-//        ROS_ERROR_NAMED(CC_LOGGER, "Failed to compute foward kinematics.");
-//        return false;
-//    }
-//
-//    xyz.resize(object_spheres_.size(), std::vector<double>(4, 0));
-//    for (size_t i = 0; i < object_spheres_.size(); ++i) {
-//        v = frames_[object_spheres_[i].kdl_chain][object_spheres_[i].kdl_segment] * object_spheres_[i].v;
-//
-//        // snap to grid
-//        m_grid->worldToGrid(v.x(), v.y(), v.z(), x, y, z);
-//        m_grid->gridToWorld(x, y, z, xyz[i][0], xyz[i][1], xyz[i][2]);
-//
-//        xyz[i][3] = object_spheres_[i].radius;
-//    }
-//
-    return true;
-}
-
 bool CollisionSpace::processCollisionObject(
     const moveit_msgs::CollisionObject& object)
 {
@@ -940,51 +864,42 @@ bool CollisionSpace::setPlanningScene(
     return true;
 }
 
-void CollisionSpace::attachObject(
-    const moveit_msgs::AttachedCollisionObject &obj)
+bool CollisionSpace::attachObject(
+    const std::string& id,
+    const std::vector<shapes::ShapeConstPtr>& shapes,
+    const Affine3dVector& transforms,
+    const std::string& link_name)
 {
-    geometry_msgs::PoseStamped pose_in;
-    std::string link_name = obj.link_name;
-    moveit_msgs::CollisionObject object(obj.object);
-    ROS_INFO_NAMED(CC_LOGGER, "Received a collision object message with %zd shape primitives and %zd meshes attached to %s.", object.primitives.size(), object.meshes.size(), link_name.c_str());
+    return m_model.attachBody(id, shapes, transforms, link_name);
+}
 
-    for (size_t i = 0; i < object.primitives.size(); i++) {
-        pose_in.header = object.header;
-        pose_in.header.stamp = ros::Time();
-        pose_in.pose = object.primitive_poses[i];
-        ROS_WARN_NAMED(CC_LOGGER, "[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
+bool CollisionSpace::removeAttachedObject(const std::string& id)
+{
+    return m_model.detachBody(id);
+}
 
-        if (object.primitives[i].type == shape_msgs::SolidPrimitive::SPHERE) {
-            ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' sphere with radius: %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0]);
-            attachSphere(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0]);
-        }
-        else if (object.primitives[i].type == shape_msgs::SolidPrimitive::CYLINDER) {
-            ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' cylinder with radius: %0.3fm & length %0.3fm", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1]);
-            attachCylinder(link_name, object.primitive_poses[i], object.primitives[i].dimensions[1], object.primitives[i].dimensions[0]);
-        }
-        else if (object.primitives[i].type == shape_msgs::SolidPrimitive::BOX) {
-            ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' cube with dimensions {%0.3fm x %0.3fm x %0.3fm}.", object.id.c_str(), object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
-            attachCube(object.id, link_name, object.primitive_poses[i], object.primitives[i].dimensions[0], object.primitives[i].dimensions[1], object.primitives[i].dimensions[2]);
-        }
-        else {
-            ROS_WARN_NAMED(CC_LOGGER, "Currently attaching objects of type '%d' aren't supported.", object.primitives[i].type);
-        }
+bool CollisionSpace::processAttachedCollisionObject(
+    const moveit_msgs::AttachedCollisionObject& ao)
+{
+    switch (ao.object.operation) {
+    case moveit_msgs::CollisionObject::ADD:
+    {
+        ObjectConstPtr o = ConvertCollisionObjectToObject(ao.object);
+        return m_model.attachBody(
+                ao.object.id, o->shapes_, o->shape_poses_, ao.link_name);
+        // TODO: handle touch links
+    }   break;
+    case moveit_msgs::CollisionObject::REMOVE:
+    {
+        return m_model.detachBody(ao.object.id);
+    }   break;
+    case moveit_msgs::CollisionObject::APPEND:
+    case moveit_msgs::CollisionObject::MOVE:
+    default:
+        throw std::runtime_error("unimplemented");
     }
 
-    for (size_t i = 0; i < object.meshes.size(); i++) {
-        pose_in.header = object.header;
-        pose_in.header.stamp = ros::Time();
-        pose_in.pose = object.mesh_poses[i];
-
-        ROS_WARN_NAMED(CC_LOGGER, "[attach_object] Converted shape from %s (%0.2f %0.2f %0.2f)", pose_in.header.frame_id.c_str(), pose_in.pose.position.x, pose_in.pose.position.y, pose_in.pose.position.z);
-
-        ROS_INFO_NAMED(CC_LOGGER, "Attaching a '%s' mesh with %d triangles & %d vertices is NOT supported right now...", object.id.c_str(), int(object.meshes[i].triangles.size() / 3), int(object.meshes[i].vertices.size()));
-//        attachMesh(object.id, link_name, object.mesh_poses[i], object.meshes[i].vertices, ConvertToVertexIndices(object.meshes[i].triangles));
-    }
-
-    if (!object.planes.empty()) {
-        ROS_WARN_NAMED(CC_LOGGER, "Attempted to attach object with %zd planes. Ignoring plane components...", object.planes.size());
-    }
+    return false;
 }
 
 visualization_msgs::MarkerArray

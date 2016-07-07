@@ -97,11 +97,8 @@ public:
 
     /// \name Robot Collision Model
     ///@{
-    const RobotCollisionModel& robotCollisionModel() const;
-    ///@}
 
-    /// \name Robot Collision State
-    ///@{
+    const RobotCollisionModel& robotCollisionModel() const;
 
     /// \brief Set the padding applied to the collision model
     void setPadding(double padding);
@@ -126,8 +123,9 @@ public:
 
     ///@}
 
-    /// \name World
+    /// \name World Collision Model
     ///@{
+
     const WorldCollisionModel& worldCollisionModel() const;
 
     bool insertObject(const ObjectConstPtr& object);
@@ -140,17 +138,22 @@ public:
     bool processOctomapMsg(const octomap_msgs::OctomapWithPose& octomap);
 
     bool removeObject(const std::string& object_name);
+
     ///@}
 
     /// \name Attached Objects
     ///@{
 
-    void attachObject(const moveit_msgs::AttachedCollisionObject& obj);
-    void removeAttachedObject();
+    bool attachObject(
+        const std::string& id,
+        const std::vector<shapes::ShapeConstPtr>& shapes,
+        const Affine3dVector& transforms,
+        const std::string& link_namme);
 
-    bool getAttachedObject(
-        const std::vector<double>& angles,
-        std::vector<std::vector<double>>& xyz);
+    bool removeAttachedObject(const std::string& id);
+
+    bool processAttachedCollisionObject(
+        const moveit_msgs::AttachedCollisionObject& obj);
 
     ///@}
 
@@ -261,37 +264,6 @@ private:
         const CollisionModelConfig& config,
         const std::string& sphere,
         std::string& link_name) const;
-
-    //////////////////////
-    // Attached Objects //
-    //////////////////////
-
-    void attachSphere(
-        const std::string& name,
-        const std::string& link,
-        const geometry_msgs::Pose& pose,
-        double radius);
-
-    void attachCylinder(
-        const std::string& link,
-        const geometry_msgs::Pose& pose,
-        double radius,
-        double length);
-
-    void attachCube(
-        const std::string& name,
-        const std::string& link,
-        const geometry_msgs::Pose& pose,
-        double x_dim,
-        double y_dim,
-        double z_dim);
-
-    void attachMesh(
-        const std::string& name,
-        const std::string& link,
-        const geometry_msgs::Pose& pose,
-        const std::vector<geometry_msgs::Point>& vertices,
-        const std::vector<int>& triangles);
 
     ////////////////////////
     // Collision Checking //

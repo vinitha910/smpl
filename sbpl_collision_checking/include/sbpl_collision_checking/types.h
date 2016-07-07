@@ -35,6 +35,7 @@
 // system includes
 #include <Eigen/Dense>
 #include <moveit/collision_detection/world.h>
+#include <moveit_msgs/CollisionObject.h>
 
 namespace sbpl {
 namespace collision {
@@ -48,6 +49,9 @@ struct Sphere
 typedef collision_detection::World::Object Object;
 typedef collision_detection::World::ObjectPtr ObjectPtr;
 typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
+
+ObjectConstPtr ConvertCollisionObjectToObject(
+    const moveit_msgs::CollisionObject& co);
 
 } // namespace collision
 } // namespace sbpl
