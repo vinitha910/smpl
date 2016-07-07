@@ -758,14 +758,14 @@ bool RobotCollisionModelImpl::attachBody(
         return false;
     }
 
-    ROS_INFO_NAMED(RCM_LOGGER, "Attaching body '%s'", id.c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Attaching body '%s'", id.c_str());
 
     AttachedBodyModel ab;
     ab.id = id;
     ab.link_index = linkIndex(link_name);
-    ROS_INFO_NAMED(RCM_LOGGER, "  Link Index: %d", ab.link_index);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Index: %d", ab.link_index);
     const int abidx = generateAttachedBodyIndex();
-    ROS_INFO_NAMED(RCM_LOGGER, "  Body Index: %d", abidx);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Body Index: %d", abidx);
     m_attached_bodies[abidx] = ab;
 
     // map the id to the generated index
@@ -777,7 +777,7 @@ bool RobotCollisionModelImpl::attachBody(
     // generate spheres model
     CollisionSpheresModel* spheres_model = nullptr;
     if (create_spheres_model) {
-        ROS_INFO_NAMED(RCM_LOGGER, "  Generating spheres model");
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating spheres model");
         // create configuration spheres and a spheres model for this body
         std::vector<CollisionSphereConfig> sphere_configs;
         CollisionSpheresModelConfig spheres_model_config;
@@ -793,7 +793,7 @@ bool RobotCollisionModelImpl::attachBody(
         size_t prev_sphere_count = m_sphere_models.size();
         size_t prev_sphere_capacity = m_sphere_models.capacity();
         m_sphere_models.resize(prev_sphere_count + sphere_configs.size());
-        ROS_INFO_NAMED(RCM_LOGGER, "  Sphere Count %zu -> %zu", prev_sphere_count, m_sphere_models.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere Count %zu -> %zu", prev_sphere_count, m_sphere_models.size());
         for (size_t i = 0; i < sphere_configs.size(); ++i) {
             const CollisionSphereConfig& sphere_config = sphere_configs[i];
             CollisionSphereModel& sphere_model = m_sphere_models[prev_sphere_count + i];
@@ -805,9 +805,9 @@ bool RobotCollisionModelImpl::attachBody(
 
         // append spheres models
         m_spheres_models.resize(m_spheres_models.size() + 1);
-        ROS_INFO_NAMED(RCM_LOGGER, "  Spheres Model Count %zu -> %zu", m_spheres_models.size() - 1, m_spheres_models.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Model Count %zu -> %zu", m_spheres_models.size() - 1, m_spheres_models.size());
         spheres_model = &m_spheres_models.back();
-        ROS_INFO_NAMED(RCM_LOGGER, "  Spheres Model: %p", spheres_model);
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Model: %p", spheres_model);
 
         // attach to the link
         spheres_model->link_index = -1;
@@ -819,8 +819,6 @@ bool RobotCollisionModelImpl::attachBody(
         }
 
         updateSpheresModelToSphereModelsReferences();
-        ROS_INFO_NAMED(RCM_LOGGER, " Regenerated sphere references");
-
         updateLinkBodyToSpheresModelReferences();
     }
     m_attached_body_spheres_models[abidx] = spheres_model;
@@ -828,7 +826,7 @@ bool RobotCollisionModelImpl::attachBody(
     // generate voxels model
     CollisionVoxelsModel* voxels_model = nullptr;
     if (create_voxels_model) {
-        ROS_INFO_NAMED(RCM_LOGGER, "  Generating voxels model");
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating voxels model");
         // create configuration voxels model for this body
         CollisionVoxelModelConfig voxels_model_config;
         generateVoxelsModel(
@@ -841,7 +839,7 @@ bool RobotCollisionModelImpl::attachBody(
 
         size_t prev_voxels_model_count = m_voxels_models.size();
         m_voxels_models.resize(prev_voxels_model_count + 1);
-        ROS_INFO_NAMED(RCM_LOGGER, "  Voxels Model Count %zu -> %zu", prev_voxels_model_count, m_voxels_models.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels Model Count %zu -> %zu", prev_voxels_model_count, m_voxels_models.size());
         voxels_model = &m_voxels_models.back();
 
         voxels_model->link_index = -1;
@@ -858,7 +856,7 @@ bool RobotCollisionModelImpl::attachBody(
     }
     m_attached_body_voxels_models[abidx] = voxels_model;
 
-    ROS_INFO_NAMED(RCM_LOGGER, "Updating group model");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating group model");
 
     // add attached body to all groups containing its parent link
     for (CollisionGroupModel& group_model : m_group_models) {
@@ -872,29 +870,27 @@ bool RobotCollisionModelImpl::attachBody(
     // initialize sphere(s) states and update all references between sphere(s)
     // states and sphere(s) models
     if (spheres_model) {
-        ROS_INFO_NAMED(RCM_LOGGER, "Adding sphere(s) states and updating references");
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Adding sphere(s) states and updating references");
         // append new sphere states
         int unique_sphere_count = spheres_model->spheres.size();
         m_sphere_states.resize(m_sphere_states.size() + unique_sphere_count);
-        ROS_INFO_NAMED(RCM_LOGGER, "  Sphere State Count %zu -> %zu", m_sphere_states.size() - unique_sphere_count, m_sphere_states.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere State Count %zu -> %zu", m_sphere_states.size() - unique_sphere_count, m_sphere_states.size());
 
         // dirty new sphere states
-        ROS_INFO_NAMED(RCM_LOGGER, "Dirtying new sphere states");
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Dirtying new sphere states");
         m_dirty_sphere_states.resize(m_sphere_states.size(), true);
 
         // append a new spheres state
         m_spheres_states.resize(m_spheres_states.size() + 1);
-        ROS_INFO_NAMED(RCM_LOGGER, "  Spheres State Count %zu -> %zu", m_spheres_states.size() - 1, m_spheres_states.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres State Count %zu -> %zu", m_spheres_states.size() - 1, m_spheres_states.size());
 
         updateSpheresStateToSphereStatesReferences();
-
         updateLinkBodyToSpheresStateReferences();
-        ROS_INFO_NAMED(RCM_LOGGER, "Updating per-link and per-body spheres state references");
     }
 
     // initialize voxels state and update references to voxels models
     if (voxels_model) {
-        ROS_INFO_NAMED(RCM_LOGGER, "Adding voxels state and updating references");
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Adding voxels state and updating references");
         m_voxels_states.resize(m_voxels_states.size() + 1);
         CollisionVoxelsState& voxels_state = m_voxels_states.back();
         voxels_state.voxels = voxels_model->voxels;
@@ -2431,6 +2427,7 @@ bool RobotCollisionModelImpl::updateSpheresModelToSphereModelsReferences()
         }
     }
 
+    ROS_DEBUG_NAMED(RCM_LOGGER, " Regenerated sphere references");
     return true;
 }
 
@@ -2506,6 +2503,8 @@ bool RobotCollisionModelImpl::updateLinkBodyToSpheresStateReferences()
             m_attached_body_spheres_states[spheres_model.body_index] = spheres_state;
         }
     }
+
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Updated per-link and per-body spheres state references");
     return true;
 }
 
