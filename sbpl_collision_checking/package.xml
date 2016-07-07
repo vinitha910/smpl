@@ -20,7 +20,6 @@
     <depend>moveit_msgs</depend>
     <depend>octomap</depend>
     <depend>octomap_msgs</depend>
-    <depend>pr2_controllers_msgs</depend>
     <depend>roscpp</depend>
     <depend>sbpl_arm_planner</depend>
     <depend>sbpl_geometry_utils</depend>

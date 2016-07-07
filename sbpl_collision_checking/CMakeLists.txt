@@ -18,7 +18,6 @@ find_package(catkin
         moveit_core
         moveit_msgs
         octomap_msgs
-        pr2_controllers_msgs
         roscpp
         sbpl_arm_planner
         sbpl_geometry_utils
@@ -45,7 +44,6 @@ catkin_package(
         moveit_core
         moveit_msgs
         octomap_msgs
-        pr2_controllers_msgs
         roscpp
         sbpl_arm_planner
         sbpl_geometry_utils
