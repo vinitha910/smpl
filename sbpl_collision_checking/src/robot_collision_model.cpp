@@ -2641,8 +2641,8 @@ bool RobotCollisionModelImpl::voxelizeLink(
     }
 
     if (!link->collision && link->collision_array.empty()) {
-        ROS_ERROR_NAMED(RCM_LOGGER, "Failed to find collision elements of link '%s'", link->name.c_str());
-        return false;
+        ROS_WARN_NAMED(RCM_LOGGER, "Failed to find collision elements of link '%s'", link->name.c_str());
+        return true;
     }
 
     if (link->collision) {
