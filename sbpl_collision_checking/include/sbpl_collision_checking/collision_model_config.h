@@ -61,7 +61,9 @@ std::ostream& operator<<(std::ostream&, const CollisionSphereConfig&);
 struct CollisionSpheresModelConfig
 {
     std::string link_name;
-    std::vector<std::string> spheres;
+    bool autogenerate;
+    double radius; // relevant if autogenerate = true
+    std::vector<std::string> spheres; // relevant if autogenerate = false
 
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionSpheresModelConfig& cfg);
 };

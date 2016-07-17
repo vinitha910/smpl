@@ -42,6 +42,32 @@
 namespace sbpl {
 namespace collision {
 
+static const char* XmlRpcValueTypeToString(const XmlRpc::XmlRpcValue::Type type)
+{
+    switch (type) {
+    case XmlRpc::XmlRpcValue::Type::TypeInvalid:
+        return "Invalid";
+    case XmlRpc::XmlRpcValue::Type::TypeBoolean:
+        return "Boolean";
+    case XmlRpc::XmlRpcValue::Type::TypeInt:
+        return "Int";
+    case XmlRpc::XmlRpcValue::Type::TypeDouble:
+        return "TypeDouble";
+    case XmlRpc::XmlRpcValue::Type::TypeString:
+        return "String";
+    case XmlRpc::XmlRpcValue::Type::TypeDateTime:
+        return "DateTime";
+    case XmlRpc::XmlRpcValue::Type::TypeBase64:
+        return "Base64";
+    case XmlRpc::XmlRpcValue::Type::TypeArray:
+        return "Array";
+    case XmlRpc::XmlRpcValue::Type::TypeStruct:
+        return "Struct";
+    default:
+        return "Unrecognized";
+    }
+}
+
 bool IsNumeric(const XmlRpc::XmlRpcValue& value)
 {
     return value.getType() == XmlRpc::XmlRpcValue::TypeInt ||
@@ -135,35 +161,89 @@ bool CollisionSpheresModelConfig::Load(
     XmlRpc::XmlRpcValue& config,
     CollisionSpheresModelConfig& cfg)
 {
-    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        !config.hasMember("link_name") ||
-        !config.hasMember("spheres"))
-    {
+    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
         ROS_ERROR("spheres model config is malformed");
         return false;
     }
 
-    XmlRpc::XmlRpcValue& link_name_value = config["link_name"];
-    XmlRpc::XmlRpcValue& spheres_value = config["spheres"];
+    if (!config.hasMember("link_name")) {
+        ROS_ERROR("spheres model config must have have a 'link_name' element");
+        return false;
+    }
 
+    XmlRpc::XmlRpcValue& link_name_value = config["link_name"];
     if (link_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
         ROS_ERROR("spheres model config 'link_name' element must be a string");
         return false;
     }
 
-    if (spheres_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-        ROS_ERROR("spheres model config 'spheres' element must be an array");
-        return false;
+    bool autogenerate = false;
+    if (config.hasMember("auto")) {
+        XmlRpc::XmlRpcValue& auto_value = config["auto"];
+        if (auto_value.getType() != XmlRpc::XmlRpcValue::TypeBoolean) {
+            ROS_ERROR("spheres model config 'auto' element must be a boolean");
+            return false;
+        }
+
+        autogenerate = (bool)auto_value;
+    }
+
+    double radius = 0.0;
+    std::vector<std::string> spheres;
+
+    if (autogenerate) {
+        // read in radius
+        if (!config.hasMember("radius")) {
+            ROS_ERROR("spheres model config with 'auto' element true must have a 'radius' element");
+            return false;
+        }
+        XmlRpc::XmlRpcValue& radius_value = config["radius"];
+        if (!IsNumeric(radius_value)) {
+            ROS_ERROR("spheres model config 'radius' element must be numeric");
+            return false;
+        }
+        radius = ToDouble(radius_value);
+    }
+    else {
+        // read in spheres
+        if (!config.hasMember("spheres")) {
+            ROS_ERROR("spheres model config with [implicit] 'auto' element false must have a 'spheres' element");
+            return false;
+        }
+        XmlRpc::XmlRpcValue& spheres_value = config["spheres"];
+        if (spheres_value.getType() != XmlRpc::XmlRpcValue::TypeString ||
+            spheres_value.getType() != XmlRpc::XmlRpcValue::TypeArray)
+        {
+            ROS_ERROR("spheres model config 'spheres' element must be an array or a string");
+            return false;
+        }
+
+        if (spheres_value.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+            for (int i = 0; i < spheres_value.size(); ++i) {
+                XmlRpc::XmlRpcValue& sphere_value = spheres_value[i];
+                if (sphere_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+                    ROS_ERROR("sphere config array element must be a string");
+                    return false;
+                }
+            }
+        }
+        else if (spheres_value.getType() == XmlRpc::XmlRpcValue::TypeString) {
+            // string of the form: "sph1 sph2 ... sphn"
+            std::stringstream ss((std::string)spheres_value);
+            std::string sphere_name;
+            while (ss >> sphere_name) {
+                cfg.spheres.push_back(sphere_name);
+            }
+        }
+        else {
+            return false;
+        }
     }
 
     cfg.link_name = (std::string)link_name_value;
-
-    std::stringstream ss((std::string)spheres_value);
-    std::string sphere_name;
-    while (ss >> sphere_name) {
-        cfg.spheres.push_back(sphere_name);
-    }
-
+    cfg.autogenerate = autogenerate;
+    cfg.radius = radius;
+    cfg.spheres = std::move(spheres);
     return true;
 }
 
@@ -226,7 +306,6 @@ bool CollisionGroupConfig::Load(
         ROS_ERROR("group config 'links' element must be an array");
         return false;
     }
-
 
     std::vector<std::string> group_links;
     group_links.reserve(links_value.size());
@@ -352,7 +431,7 @@ bool CollisionModelConfig::Load(
     collision_detection::AllowedCollisionMatrix acm;
 
     if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
-        ROS_ERROR("robot_collision model config is malformed");
+        ROS_ERROR("robot_collision_model config is malformed (Type: %s, Expected: %s)", XmlRpcValueTypeToString(config.getType()), XmlRpcValueTypeToString(XmlRpc::XmlRpcValue::Type::TypeString));
         return false;
     }
 
