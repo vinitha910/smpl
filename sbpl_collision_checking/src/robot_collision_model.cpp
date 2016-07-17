@@ -1235,12 +1235,16 @@ const Eigen::Affine3d& RobotCollisionModelImpl::worldToModelTransform() const
 bool RobotCollisionModelImpl::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
-    // TODO: equality check?
-    m_joint_origins[0] = transform;
-    std::fill(m_dirty_link_transforms.begin(), m_dirty_link_transforms.end(), true);
-    std::fill(m_dirty_voxels_states.begin(), m_dirty_voxels_states.end(), true);
-    std::fill(m_dirty_sphere_states.begin(), m_dirty_sphere_states.end(), true);
-    return false;
+    if (!transform.isApprox(m_joint_origins[0], 0.0)) {
+        m_joint_origins[0] = transform;
+        std::fill(m_dirty_link_transforms.begin(), m_dirty_link_transforms.end(), true);
+        std::fill(m_dirty_voxels_states.begin(), m_dirty_voxels_states.end(), true);
+        std::fill(m_dirty_sphere_states.begin(), m_dirty_sphere_states.end(), true);
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 inline
