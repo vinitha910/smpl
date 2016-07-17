@@ -78,9 +78,10 @@ const std::vector<std::string>& RobotModel::getPlanningJoints() const
     return planning_joints_;
 }
 
-void RobotModel::setPlanningLink(const std::string& name)
+bool RobotModel::setPlanningLink(const std::string& name)
 {
     planning_link_ = name;
+    return true;
 }
 
 const std::string& RobotModel::getPlanningLink() const

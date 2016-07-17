@@ -84,8 +84,7 @@ public:
     /// \brief Return the acceleration limit for a joint with 0 = unlimited
     virtual double accLimit(int jidx) const = 0;
 
-
-    void setPlanningLink(const std::string& name);
+    virtual bool setPlanningLink(const std::string& name);
     const std::string& getPlanningLink() const;
 
     void setPlanningFrame(const std::string& name);
