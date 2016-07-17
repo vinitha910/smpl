@@ -512,6 +512,7 @@ Eigen::Affine3d ComputeFloatingJointTransform(
     const Eigen::Vector3d& axis,
     double* jvals)
 {
+    // TODO: be mindful that quaternion values here may not be normalized
     return origin *
             Eigen::Translation3d(Eigen::Vector3d(jvals[0], jvals[1], jvals[2])) *
             Eigen::Quaterniond(jvals[6], jvals[3], jvals[4], jvals[5]);
@@ -1946,35 +1947,35 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
         }
     }
 
-    ROS_INFO_NAMED(RCM_LOGGER, "ComputeFixedJointTransform: %p", ComputeFixedJointTransform);
-    ROS_INFO_NAMED(RCM_LOGGER, "ComputeRevoluteJointTransform: %p", ComputeRevoluteJointTransform);
-    ROS_INFO_NAMED(RCM_LOGGER, "ComputeContinuousJointTransform: %p", ComputeContinuousJointTransform);
-    ROS_INFO_NAMED(RCM_LOGGER, "ComputePrismaticJointTransform: %p", ComputePrismaticJointTransform);
-    ROS_INFO_NAMED(RCM_LOGGER, "ComputePlanarJointTransform: %p", ComputePlanarJointTransform);
-    ROS_INFO_NAMED(RCM_LOGGER, "ComputeFloatingJointTransform: %p", ComputeFloatingJointTransform);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "ComputeFixedJointTransform: %p", ComputeFixedJointTransform);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "ComputeRevoluteJointTransform: %p", ComputeRevoluteJointTransform);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "ComputeContinuousJointTransform: %p", ComputeContinuousJointTransform);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "ComputePrismaticJointTransform: %p", ComputePrismaticJointTransform);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "ComputePlanarJointTransform: %p", ComputePlanarJointTransform);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "ComputeFloatingJointTransform: %p", ComputeFloatingJointTransform);
 
-    ROS_INFO_NAMED(RCM_LOGGER, "Robot Model:");
-    ROS_INFO_NAMED(RCM_LOGGER, "  Name: %s", m_name.c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Model Frame: %s", m_model_frame.c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Variable Names: %s", to_string(m_jvar_names).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Variable Continuous: %s", to_string(m_jvar_continuous).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Variable Has Position Bounds: %s", to_string(m_jvar_has_position_bounds).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Variable Min Positions: %s", to_string(m_jvar_min_positions).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Variable Max Positions: %s", to_string(m_jvar_max_positions).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Variable Offsets: %s", to_string(m_joint_var_offset).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Transform Functions:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Robot Model:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Name: %s", m_name.c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Model Frame: %s", m_model_frame.c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Names: %s", to_string(m_jvar_names).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Continuous: %s", to_string(m_jvar_continuous).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Has Position Bounds: %s", to_string(m_jvar_has_position_bounds).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Min Positions: %s", to_string(m_jvar_min_positions).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Max Positions: %s", to_string(m_jvar_max_positions).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Offsets: %s", to_string(m_joint_var_offset).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Transform Functions:");
     for (auto p : m_joint_transforms) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    %p", p);
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    %p", p);
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Origins:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Origins:");
     for (const auto& o : m_joint_origins) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    %s", AffineToString(o).c_str());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    %s", AffineToString(o).c_str());
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Parent Links: %s", to_string(m_joint_parent_links).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Joint Child Links: %s", to_string(m_joint_child_links).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Link Names: %s", to_string(m_link_names).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Link Parent Joints: %s", to_string(m_link_parent_joints).c_str());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Link Child Joints: %s", to_string(m_link_children_joints).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Parent Links: %s", to_string(m_joint_parent_links).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Child Links: %s", to_string(m_joint_child_links).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Names: %s", to_string(m_link_names).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Parent Joints: %s", to_string(m_link_parent_joints).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Child Joints: %s", to_string(m_link_children_joints).c_str());
 
     return true;
 }
@@ -1988,10 +1989,10 @@ bool RobotCollisionModelImpl::initRobotState()
     m_dirty_link_transforms.assign(m_link_names.size(), true);
     m_link_transforms.assign(m_link_names.size(), Eigen::Affine3d::Identity());
 
-    ROS_INFO_NAMED(RCM_LOGGER, "Robot State:");
-    ROS_INFO_NAMED(RCM_LOGGER, "  %zu Joint Positions", m_jvar_positions.size());
-    ROS_INFO_NAMED(RCM_LOGGER, "  %zu Dirty Link Transforms", m_dirty_link_transforms.size());
-    ROS_INFO_NAMED(RCM_LOGGER, "  %zu Link Transforms", m_link_transforms.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Robot State:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  %zu Joint Positions", m_jvar_positions.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  %zu Dirty Link Transforms", m_dirty_link_transforms.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  %zu Link Transforms", m_link_transforms.size());
     return true;
 }
 
@@ -2084,22 +2085,22 @@ bool RobotCollisionModelImpl::initCollisionModel(
 
     assert(checkCollisionModelReferences());
 
-    ROS_INFO_NAMED(RCM_LOGGER, "Collision Model:");
-    ROS_INFO_NAMED(RCM_LOGGER, "  Sphere Models: [%p, %p]", m_sphere_models.data(), m_sphere_models.data() + m_sphere_models.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Collision Model:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere Models: [%p, %p]", m_sphere_models.data(), m_sphere_models.data() + m_sphere_models.size());
     for (const auto& sphere_model : m_sphere_models) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    name: %s, center: (%0.3f, %0.3f, %0.3f), radius: %0.3f, priority: %d", sphere_model.name.c_str(), sphere_model.center.x(), sphere_model.center.y(), sphere_model.center.z(), sphere_model.radius, sphere_model.priority);
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    name: %s, center: (%0.3f, %0.3f, %0.3f), radius: %0.3f, priority: %d", sphere_model.name.c_str(), sphere_model.center.x(), sphere_model.center.y(), sphere_model.center.z(), sphere_model.radius, sphere_model.priority);
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Spheres Models: [%p, %p]", m_spheres_models.data(), m_spheres_models.data() + m_spheres_models.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Models: [%p, %p]", m_spheres_models.data(), m_spheres_models.data() + m_spheres_models.size());
     for (const auto& spheres_model : m_spheres_models) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    link_index: %d, spheres: %s", spheres_model.link_index, to_string(spheres_model.spheres).c_str());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    link_index: %d, spheres: %s", spheres_model.link_index, to_string(spheres_model.spheres).c_str());
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Voxels Models: [%p, %p]", m_voxels_models.data(), m_voxels_models.data() + m_voxels_models.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels Models: [%p, %p]", m_voxels_models.data(), m_voxels_models.data() + m_voxels_models.size());
     for (const auto& voxels_model : m_voxels_models) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    link_index: %d, voxel_res: %0.3f, voxel count: %zu", voxels_model.link_index, voxels_model.voxel_res, voxels_model.voxels.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    link_index: %d, voxel_res: %0.3f, voxel count: %zu", voxels_model.link_index, voxels_model.voxel_res, voxels_model.voxels.size());
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Group Models:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Group Models:");
     for (const auto& group_model : m_group_models) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    name: %s, link_indices: %s", group_model.name.c_str(), to_string(group_model.link_indices).c_str());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    name: %s, link_indices: %s", group_model.name.c_str(), to_string(group_model.link_indices).c_str());
     }
 
     return true;
@@ -2177,24 +2178,24 @@ bool RobotCollisionModelImpl::initCollisionState()
 
     assert(checkCollisionStateReferences());
 
-    ROS_INFO_NAMED(RCM_LOGGER, "Collision State:");
-    ROS_INFO_NAMED(RCM_LOGGER, "  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Sphere States: [%p, %p]", m_sphere_states.data(), m_sphere_states.data() + m_sphere_states.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Collision State:");
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere States: [%p, %p]", m_sphere_states.data(), m_sphere_states.data() + m_sphere_states.size());
     for (const auto& sphere_state : m_sphere_states) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    model: %p, parent_state: %p, pos: (%0.3f, %0.3f, %0.3f)", sphere_state.model, sphere_state.parent_state, sphere_state.pos.x(), sphere_state.pos.y(), sphere_state.pos.z());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, parent_state: %p, pos: (%0.3f, %0.3f, %0.3f)", sphere_state.model, sphere_state.parent_state, sphere_state.pos.x(), sphere_state.pos.y(), sphere_state.pos.z());
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
     for (const auto& spheres_state : m_spheres_states) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Dirty Voxels States: %zu", m_dirty_voxels_states.size());
-    ROS_INFO_NAMED(RCM_LOGGER, "  Voxels States: [%p, %p]", m_voxels_states.data(), m_voxels_states.data() + m_voxels_states.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Dirty Voxels States: %zu", m_dirty_voxels_states.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels States: [%p, %p]", m_voxels_states.data(), m_voxels_states.data() + m_voxels_states.size());
     for (const auto& voxels_state : m_voxels_states) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    model: %p, voxels: %zu", voxels_state.model, voxels_state.voxels.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, voxels: %zu", voxels_state.model, voxels_state.voxels.size());
     }
-    ROS_INFO_NAMED(RCM_LOGGER, "  Group States: [%p, %p]", m_group_states.data(), m_group_states.data() + m_group_states.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Group States: [%p, %p]", m_group_states.data(), m_group_states.data() + m_group_states.size());
     for (const auto& group_state : m_group_states) {
-        ROS_INFO_NAMED(RCM_LOGGER, "    model: %p, sphere_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.sphere_indices).c_str(), to_string(group_state.voxels_indices).c_str());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, sphere_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.sphere_indices).c_str(), to_string(group_state.voxels_indices).c_str());
     }
 
     return true;
