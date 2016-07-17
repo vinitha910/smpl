@@ -513,11 +513,8 @@ Eigen::Affine3d ComputeFloatingJointTransform(
     double* jvals)
 {
     return origin *
-            Eigen::Translation3d(Eigen::Vector3d(
-                    jvals[0], jvals[1], jvals[2])) *
-            Eigen::AngleAxisd(jvals[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(jvals[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(jvals[3], Eigen::Vector3d::UnitZ());
+            Eigen::Translation3d(Eigen::Vector3d(jvals[0], jvals[1], jvals[2])) *
+            Eigen::Quaterniond(jvals[6], jvals[3], jvals[4], jvals[5]);
 }
 
 Eigen::Affine3d ComputePlanarJointTransform(
@@ -1756,13 +1753,6 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
             switch (joint->type) {
             case urdf::Joint::FIXED:
             {
-//                m_jvar_names.push_back(joint_name);
-//                m_jvar_continuous.push_back(false);
-//                m_jvar_has_position_bounds.push_back(false);
-//                m_jvar_min_positions.push_back(std::numeric_limits<double>::quiet_NaN());
-//                m_jvar_max_positions.push_back(std::numeric_limits<double>::quiet_NaN());
-//                m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
-
                 m_joint_transforms.push_back(ComputeFixedJointTransform);
             }   break;
             case urdf::Joint::REVOLUTE:
@@ -1803,84 +1793,94 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
             }   break;
             case urdf::Joint::PLANAR:
             {
+                // NOTE: local joint variable names follow moveit conventions
                 std::string var_name;
 
                 var_name = joint_name + "/x";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/y";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
-                var_name = joint_name + "/yaw";
+                var_name = joint_name + "/theta";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(true);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputePlanarJointTransform);
             }   break;
             case urdf::Joint::FLOATING:
             {
+                // NOTE: local joint variable names follow moveit conventions
                 std::string var_name;
 
-                var_name = joint_name + "/x";
+                var_name = joint_name + "/trans_x";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
-                var_name = joint_name + "/y";
+                var_name = joint_name + "/trans_y";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
-                var_name = joint_name + "/z";
+                var_name = joint_name + "/trans_z";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(true);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
-                var_name = joint_name + "/roll";
+                var_name = joint_name + "/rot_x";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_has_position_bounds.push_back(true);
+                m_jvar_min_positions.push_back(-1.0);
+                m_jvar_max_positions.push_back(1.0);
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
-                var_name = joint_name + "/pitch";
+                var_name = joint_name + "/rot_y";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_has_position_bounds.push_back(true);
+                m_jvar_min_positions.push_back(-1.0);
+                m_jvar_max_positions.push_back(1.0);
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
-                var_name = joint_name + "/yaw";
+                var_name = joint_name + "/rot_z";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(true);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_has_position_bounds.push_back(true);
+                m_jvar_min_positions.push_back(-1.0);
+                m_jvar_max_positions.push_back(1.0);
+                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+                var_name = joint_name + "/rot_w";
+                m_jvar_names.push_back(var_name);
+                m_jvar_continuous.push_back(true);
+                m_jvar_has_position_bounds.push_back(true);
+                m_jvar_min_positions.push_back(-1.0);
+                m_jvar_max_positions.push_back(1.0);
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputeFloatingJointTransform);
@@ -1938,7 +1938,7 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
             d += 3;
         }
         else if (f == ComputeFloatingJointTransform) {
-            d += 6;
+            d += 7;
         }
         else {
             ROS_ERROR_NAMED(RCM_LOGGER, "Unrecognized JointTransformFunction");
