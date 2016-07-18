@@ -211,7 +211,7 @@ bool CollisionSpheresModelConfig::Load(
             return false;
         }
         XmlRpc::XmlRpcValue& spheres_value = config["spheres"];
-        if (spheres_value.getType() != XmlRpc::XmlRpcValue::TypeString ||
+        if (spheres_value.getType() != XmlRpc::XmlRpcValue::TypeString &&
             spheres_value.getType() != XmlRpc::XmlRpcValue::TypeArray)
         {
             ROS_ERROR("spheres model config 'spheres' element must be an array or a string");
@@ -232,7 +232,7 @@ bool CollisionSpheresModelConfig::Load(
             std::stringstream ss((std::string)spheres_value);
             std::string sphere_name;
             while (ss >> sphere_name) {
-                cfg.spheres.push_back(sphere_name);
+                spheres.push_back(sphere_name);
             }
         }
         else {
