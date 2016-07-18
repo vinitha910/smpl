@@ -40,22 +40,23 @@
 
 // system includes
 #include <Eigen/Dense>
-#include <Eigen/StdVector>
 #include <geometric_shapes/shapes.h>
 #include <urdf_model/model.h>
-#include <visualization_msgs/MarkerArray.h>
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
+#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {
 
-typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
-typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
-
 /// \ingroup Collision Model
 ///@{
+
+typedef Eigen::Affine3d (*JointTransformFunction)(
+    const Eigen::Affine3d& origin,
+    const Eigen::Vector3d& axis,
+    double* jvals);
 
 /// \brief Collision Sphere Model Specification
 struct CollisionSphereModel
@@ -93,42 +94,8 @@ struct CollisionGroupModel
 
 /// @}
 
-/// \ingroup Collision State
-///@{
-
-struct CollisionSpheresState;
-
-/// \brief Sphere Collision State Specification
-struct CollisionSphereState
-{
-    const CollisionSphereModel* model;
-    const CollisionSpheresState* parent_state;
-    Eigen::Vector3d pos;
-};
-
-struct CollisionSpheresState
-{
-    const CollisionSpheresModel* model;
-    std::vector<CollisionSphereState*> spheres;
-};
-
-/// \brief Voxel Collision State Specification
-struct CollisionVoxelsState
-{
-    const CollisionVoxelsModel* model;
-    std::vector<Eigen::Vector3d> voxels; // in the model frame
-};
-
-/// \brief Collision Group State
-struct CollisionGroupState
-{
-    const CollisionGroupModel* model;
-    std::vector<int> sphere_indices; ///< sphere states inside the group
-    std::vector<int> voxels_indices; ///< voxels states outside the group
-};
-
-///@}
-
+class RobotCollisionState;
+class RobotCollisionStateImpl;
 class RobotCollisionModelImpl;
 
 /// \brief Represents the collision model of the robot used for planning.
@@ -149,7 +116,7 @@ public:
     auto   modelFrame() const -> const std::string&;
     ///@}
 
-    /// \name Robot Model - Joint Information
+    /// \name Robot Model - Variable Information
     ///@{
     size_t jointVarCount() const;
     auto   jointVarNames() const -> const std::vector<std::string>&;
@@ -160,13 +127,25 @@ public:
 
     bool   jointVarIsContinuous(const std::string& joint_name) const;
     bool   jointVarHasPositionBounds(const std::string& joint_name) const;
-    double jointVarMaxPosition(const std::string& joint_name) const;
     double jointVarMinPosition(const std::string& joint_name) const;
+    double jointVarMaxPosition(const std::string& joint_name) const;
 
     bool   jointVarIsContinuous(int jidx) const;
     bool   jointVarHasPositionBounds(int jidx) const;
     double jointVarMinPosition(int jidx) const;
     double jointVarMaxPosition(int jidx) const;
+    ///@}
+
+    /// \name Robot Model - Joint Information
+    ///@{
+    size_t jointCount() const;
+
+    int    jointParentLinkIndex(int jidx) const;
+    int    jointChildLinkIndex(int jidx) const;
+
+    auto   jointOrigin(int jidx) const -> const Eigen::Affine3d&;
+    auto   jointAxis(int jidx) const -> const Eigen::Vector3d&;
+    auto   jointTransformFn(int jidx) const -> JointTransformFunction;
     ///@}
 
     /// \name Robot Model - Link Information
@@ -177,6 +156,10 @@ public:
     bool  hasLink(const std::string& link_name) const;
     int   linkIndex(const std::string& link_name) const;
     auto  linkName(int lidx) const -> const std::string&;
+
+    int   linkParentJointIndex(int lidx) const;
+    auto  linkChildJointIndices(int lidx) const ->
+            const std::vector<int>&;
     ///@}
 
     /// \name Robot Model - Dynamic Model
@@ -199,167 +182,46 @@ public:
     bool   hasAttachedBody(const std::string& id) const;
     int    attachedBodyIndex(const std::string& id) const;
     auto   attachedBodyName(int abidx) const -> const std::string&;
+    int    attachedBodyLinkIndex(int abidx) const;
 
     auto attachedBodyIndices(const std::string& link_name) const ->
             const std::vector<int>&;
     auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
+
     ///@}
 
-    /// \name Collision Model - Collision Spheres Information
+    /// \name Collision Model
     ///@{
-
-    /// \brief Return the number of sphere collision models
     size_t sphereModelCount() const;
-
-    /// TODO: this should probably operate over the domain of unique collision
-    ///       sphere states but underneath it looks like it just grabs one of
-    ///       the collision sphere models
-
-    /// \brief Return the sphere collision model for a given sphere collision
-    ///        state
     auto   sphereModel(int smidx) const -> const CollisionSphereModel&;
 
-    ///@}
+    bool   hasSpheresModel(const std::string& link_name) const;
+    bool   hasSpheresModel(int lidx) const;
+    size_t spheresModelCount() const;
+    auto   spheresModel(int smidx) const -> const CollisionSpheresModel&;
 
-    /// \name Collision Model - Collision Spheres Model Information
-    ///@{
-    bool hasSpheresModel(const std::string& link_name) const;
-    bool hasSpheresModel(int lidx) const;
-    ///@}
-
-    /// \name Collision Model - Collision Voxels Model Information
-    ///@{
-
-    bool hasVoxelsModel(const std::string& link_name) const;
-    bool hasVoxelsModel(int lidx) const;
-
-    /// \brief Return the number of voxel model collision states
+    bool   hasVoxelsModel(const std::string& link_name) const;
+    bool   hasVoxelsModel(int lidx) const;
     size_t voxelsModelCount() const;
-
-    /// \brief Return the voxel collision model for a given voxel collision state
     auto   voxelsModel(int vmidx) const -> const CollisionVoxelsModel&;
 
-    ///@}
-
-    /// \name Collision Model - Group Information
-    ///@{
-
-    /// \brief Return the number of collision groups
     size_t groupCount() const;
-
-    /// \brief Return the collision groups
-    auto   groups() const -> const std::vector<CollisionGroupModel>&;
-
-    /// \brief Return whether a collision group exists within the model
+    auto   group(int gidx) const -> const CollisionGroupModel&;
     bool   hasGroup(const std::string& group_name) const;
-
-    /// \brief Return the index for a collision group
     int    groupIndex(const std::string& group_name) const;
-
-    /// \brief Return the name of a collision group from its index
     auto   groupName(int gidx) const -> const std::string&;
 
-    /// \brief Return the indices of the links belonging to a group
     auto   groupLinkIndices(const std::string& group_name) const ->
             const std::vector<int>&;
     auto   groupLinkIndices(int gidx) const ->
             const std::vector<int>&;
-
-    /// \brief Return the indices of the collision sphere states belonging to
-    ///        this group
-    auto   groupSphereStateIndices(const std::string& group_name) const ->
-            const std::vector<int>&;
-    auto   groupSphereStateIndices(int gidx) const ->
-            const std::vector<int>&;
-
-    /// \brief Return the indices of the collision voxels states NOT belonging
-    ///        to this group.
-    auto  groupOutsideVoxelsStateIndices(const std::string& group_name) const ->
-            const std::vector<int>&;
-    auto   groupOutsideVoxelsStateIndices(int gidx) const ->
-            const std::vector<int>&;
-
     ///@}
-
-    /// \name Robot State
-    ///@{
-    auto   worldToModelTransform() const -> const Eigen::Affine3d&;
-    bool   setWorldToModelTransform(const Eigen::Affine3d& transform);
-
-    auto   jointPositions() const -> const std::vector<double>&;
-    auto   linkTransforms() const -> const Affine3dVector&;
-
-    double jointPosition(const std::string& joint_name) const;
-    double jointPosition(int jidx) const;
-
-    bool   setJointPosition(const std::string& name, double position);
-    bool   setJointPosition(int jidx, double position);
-
-    auto   linkTransform(const std::string& link_name) const ->
-            const Eigen::Affine3d&;
-    auto   linkTransform(int lidx) const -> const Eigen::Affine3d&;
-
-    bool   linkTransformDirty(const std::string& link_name) const;
-    bool   linkTransformDirty(int lidx) const;
-
-    /// \brief Update the transforms of all links in the kinematic tree
-    /// \return Whether the transform required updating; all link transforms
-    ///         will be up to date in all cases afterwards
-    bool   updateLinkTransforms();
-
-    /// \brief Update the transform of a link in the kinematic  tree
-    /// \return Whether the transform required updating; the link transform will
-    ///         be up to date in all cases afterwards
-    bool   updateLinkTransform(int lidx);
-    bool   updateLinkTransform(const std::string& link_name);
-    ///@}
-
-    /// \name Robot State - Dynamic Model
-    ///@{
-    auto attachedBodyTransform(const std::string& id) const ->
-            const Eigen::Affine3d&;
-    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
-
-    bool attachedBodyTransformDirty(const std::string& id) const;
-    bool attachedBodyTransformDirty(int abidx) const;
-
-    bool updateAttachedBodyTransform(const std::string& id);
-    bool updateAttachedBodyTransform(int abidx);
-    ///@}
-
-    /// \name CollisionState
-    ///@{
-    auto voxelsState(int vsidx) const -> const CollisionVoxelsState&;
-    bool voxelsStateDirty(int vsidx) const;
-    bool updateVoxelsStates();
-    bool updateVoxelsState(int vsidx);
-
-    auto sphereState(int ssidx) const -> const CollisionSphereState&;
-    bool sphereStateDirty(int ssidx) const;
-    bool updateSphereStates();
-    bool updateSphereState(int ssidx);
-    ///@}
-
-    auto getVisualization() const ->
-            visualization_msgs::MarkerArray;
-    auto getVisualization(const std::string& group_name) const ->
-            visualization_msgs::MarkerArray;
-    auto getVisualization(int gidx) const ->
-            visualization_msgs::MarkerArray;
-    auto getStaticModelVisualization() const ->
-            visualization_msgs::MarkerArray;
-    auto getStaticModelVisualization(const std::string& group_name) const ->
-            visualization_msgs::MarkerArray;
-    auto getStaticModelVisualization(int gidx) const ->
-            visualization_msgs::MarkerArray;
-    auto getDynamicModelVisualization() const ->
-            visualization_msgs::MarkerArray;
-    auto getDynamicModelVisualization(const std::string& group_name) const ->
-            visualization_msgs::MarkerArray;
-    auto getDynamicModelVisualization(int gidx) const ->
-            visualization_msgs::MarkerArray;
 
 private:
+
+    friend RobotCollisionStateImpl;
+    bool registerRobotCollisionState(RobotCollisionState* state);
+    bool unregisterRobotCollisionState(RobotCollisionState* state);
 
     std::unique_ptr<RobotCollisionModelImpl> m_impl;
 };

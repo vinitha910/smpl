@@ -54,6 +54,7 @@
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/world_collision_model.h>
 #include <sbpl_collision_checking/types.h>
 
@@ -228,6 +229,7 @@ private:
     OccupancyGrid* m_grid;
     WorldCollisionModel m_world;
     RobotCollisionModel m_model;
+    RobotCollisionState m_state;
 
     // Collision Group
     std::string m_group_name;

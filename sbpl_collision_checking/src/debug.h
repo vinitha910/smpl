@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016, Benjamin Cohen
+// Copyright (c) 2016, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,62 +29,35 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_types_h
-#define sbpl_collision_types_h
+#ifndef sbpl_collision_debug_h
+#define sbpl_collision_debug_h
 
-// standrad includes
-#include <stdio.h>
-#include <functional>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <utility>
+// COMPILE-TIME ASSERT = no assert
+// RUNTIME UNRECOVERABLE ASSERT = assert
+// RUNTIME RECOVERABLE ASSERT = exception
 
-// system includes
-#include <Eigen/Dense>
-#include <Eigen/StdVector>
-#include <moveit/collision_detection/world.h>
-#include <moveit_msgs/CollisionObject.h>
+#define RANGE_ASSERT_COMPILE_TIME 0             // no assertion
+#define RANGE_ASSERT_RUNTIME_UNRECOVERABLE 1    // assert macro
+#define RANGE_ASSERT_RUNTIME_RECOVERABLE 2      // std::out_of_range exception
+#define RANGE_ASSERT_METHOD RANGE_ASSERT_RUNTIME_RECOVERABLE
 
-namespace sbpl {
-namespace collision {
-
-struct Sphere
-{
-    Eigen::Vector3d center;
-    double          radius;
-};
-
-typedef collision_detection::World::Object Object;
-typedef collision_detection::World::ObjectPtr ObjectPtr;
-typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
-
-typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
-typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
-
-template <
-    class Key,
-    class T,
-    class Hash = std::hash<Key>,
-    class KeyEqual = std::equal_to<Key>,
-    class Allocator = std::allocator<std::pair<const Key, T>>>
-using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
-
-inline
-std::string AffineToString(const Eigen::Affine3d& t)
-{
-    const Eigen::Vector3d pos(t.translation());
-    const Eigen::Quaterniond rot(t.rotation());
-    const int ENOUGH = 1024;
-    char buff[ENOUGH] = { 0 };
-    snprintf(buff, ENOUGH, "{ pos = (%0.3f, %0.3f, %0.3f), rot = (%0.3f, %0.3f, %0.3f, %0.3f) }", pos.x(), pos.y(), pos.z(), rot.w(), rot.x(), rot.y(), rot.z());
-    return std::string(buff);
+#if RANGE_ASSERT_METHOD == RANGE_ASSERT_RUNTIME_RECOVERABLE
+#define ASSERT_RANGE(cond) \
+{\
+    if (!(cond)) {\
+        throw std::out_of_range(#cond);\
+    }\
 }
+#elif RANGE_ASSERT_METHOD == RANGE_ASSERT_RUNTIME_UNRECOVERABLE
+#define ASSERT_RANGE(cond) \
+{\
+    assert(cond);\
+}
+#else
+#define ASSERT_RANGE(cond)
+#endif
 
-ObjectConstPtr ConvertCollisionObjectToObject(
-    const moveit_msgs::CollisionObject& co);
-
-} // namespace collision
-} // namespace sbpl
+#define ASSERT_VECTOR_RANGE(vector, index) \
+ASSERT_RANGE(index >= 0 && index < vector.size());
 
 #endif

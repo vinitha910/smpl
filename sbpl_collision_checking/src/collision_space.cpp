@@ -58,6 +58,7 @@ CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_grid(grid),
     m_world(grid),
     m_model(),
+    m_state(&m_model),
     m_group_name(),
     m_group_index(-1),
     m_sphere_indices(),
@@ -134,20 +135,20 @@ bool CollisionSpace::init(
     m_group_name = group_name;
     m_group_index = m_model.groupIndex(m_group_name);
 
-    m_sphere_indices = m_model.groupSphereStateIndices(m_group_index);
+    m_sphere_indices = m_state.groupSphereStateIndices(m_group_index);
 
     // sort sphere state indices by priority
     std::sort(m_sphere_indices.begin(), m_sphere_indices.end(),
             [&](int ssidx1, int ssidx2)
             {
                 const CollisionSphereModel* sph1 =
-                        m_model.sphereState(ssidx1).model;
+                        m_state.sphereState(ssidx1).model;
                 const CollisionSphereModel* sph2 =
-                        m_model.sphereState(ssidx2).model;
+                        m_state.sphereState(ssidx2).model;
                 return sph1->priority < sph2->priority;
             });
 
-    m_voxels_indices = m_model.groupOutsideVoxelsStateIndices(m_group_index);
+    m_voxels_indices = m_state.groupOutsideVoxelsStateIndices(m_group_index);
 
     return true;
 }
@@ -175,8 +176,8 @@ void CollisionSpace::updateVoxelsStates()
     std::vector<Eigen::Vector3d> voxel_removals;
     std::vector<Eigen::Vector3d> voxel_insertions;
     for (int vsidx : m_voxels_indices) {
-        if (m_model.voxelsStateDirty(vsidx)) {
-            const CollisionVoxelsState& voxels_state = m_model.voxelsState(vsidx);
+        if (m_state.voxelsStateDirty(vsidx)) {
+            const CollisionVoxelsState& voxels_state = m_state.voxelsState(vsidx);
 
             // copy over voxels to be removed before updating
             voxel_removals.insert(
@@ -184,7 +185,7 @@ void CollisionSpace::updateVoxelsStates()
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            m_model.updateVoxelsState(vsidx);
+            m_state.updateVoxelsState(vsidx);
 
             // copy over voxels to be inserted
             voxel_insertions.insert(
@@ -309,9 +310,9 @@ void CollisionSpace::updateAttachedBodyIndices()
     std::sort(static_voxels_indices.begin(), static_sphere_indices.end());
 
     std::vector<int> ss_indices =
-            m_model.groupSphereStateIndices(m_group_index);
+            m_state.groupSphereStateIndices(m_group_index);
     std::vector<int> ovs_indices =
-            m_model.groupOutsideVoxelsStateIndices(m_group_index);
+            m_state.groupOutsideVoxelsStateIndices(m_group_index);
     std::sort(ss_indices.begin(), ss_indices.end());
     std::sort(ovs_indices.begin(), ovs_indices.end());
 
@@ -336,24 +337,24 @@ bool CollisionSpace::withinJointPositionLimits(
     const std::vector<double>& positions) const
 {
     assert(positions.size() == planningVariableCount());
+    bool inside = true;
     for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
         const double pos = positions[vidx];
-        if (isContinuous(vidx)) {
-            return true;
-        }
-        else if (!hasLimit(vidx)) {
-            return true;
-        }
-        else {
-            return pos >= minLimit(vidx) && pos <= maxLimit(vidx);
+        if (!(isContinuous(vidx) ||
+            !hasLimit(vidx) ||
+            (pos >= minLimit(vidx) && pos <= maxLimit(vidx))))
+        {
+            inside = false;
+            break;
         }
     }
+    return inside;
 }
 
 bool CollisionSpace::checkSphereCollision(int ssidx, bool verbose, double& dist)
 {
-    m_model.updateSphereState(ssidx);
-    const CollisionSphereState& ss = m_model.sphereState(ssidx);
+    m_state.updateSphereState(ssidx);
+    const CollisionSphereState& ss = m_state.sphereState(ssidx);
 
     int gx, gy, gz;
     m_grid->worldToGrid(ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
@@ -361,7 +362,7 @@ bool CollisionSpace::checkSphereCollision(int ssidx, bool verbose, double& dist)
     // check bounds
     if (!m_grid->isInBounds(gx, gy, gz)) {
         if (verbose) {
-            ROS_INFO_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_model.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
+            ROS_INFO_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", m_state.sphereState(ssidx).model->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
         }
         dist = 0.0;
         return false;
@@ -370,7 +371,7 @@ bool CollisionSpace::checkSphereCollision(int ssidx, bool verbose, double& dist)
     // check for collision with world
     double obs_dist = m_grid->getDistance(gx, gy, gz);
     const double effective_radius =
-            m_model.sphereState(ssidx).model->radius +
+            m_state.sphereState(ssidx).model->radius +
             0.5 * m_grid->getResolution() +
             m_padding;
 
@@ -393,14 +394,14 @@ bool CollisionSpace::checkRobotCollision(
         double obs_dist;
         if (!checkSphereCollision(ssidx, verbose, obs_dist)) {
             if (verbose) {
-                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, radius: %0.3fm, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), m_model.sphereState(ssidx).model->radius, obs_dist);
+                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, radius: %0.3fm, dist: %0.3fm", ssidx, m_state.sphereState(ssidx).model->name.c_str(), m_state.sphereState(ssidx).model->radius, obs_dist);
             }
 
             if (visualize) {
                 in_collision = true;
                 Sphere s;
-                s.center = m_model.sphereState(ssidx).pos;
-                s.radius = m_model.sphereState(ssidx).model->radius;
+                s.center = m_state.sphereState(ssidx).pos;
+                s.radius = m_state.sphereState(ssidx).model->radius;
                 m_collision_spheres.push_back(s);
             }
             else {
@@ -425,11 +426,11 @@ bool CollisionSpace::checkSelfCollision(
     bool self_collision = false;
     // check self collisions
     for (size_t sidx1 = 0; sidx1 < m_sphere_indices.size(); ++sidx1) {
-        const CollisionSphereState& ss1 = m_model.sphereState(sidx1);
+        const CollisionSphereState& ss1 = m_state.sphereState(sidx1);
         const CollisionSphereModel& smodel1 = *ss1.model;
 
         for (size_t sidx2 = 0; sidx2 < m_sphere_indices.size(); ++sidx2) {
-            const CollisionSphereState& ss2 = m_model.sphereState(sidx2);
+            const CollisionSphereState& ss2 = m_state.sphereState(sidx2);
             const CollisionSphereModel& smodel2 = *ss2.model;
 
             Eigen::Vector3d dx = ss2.pos - ss1.pos;
@@ -471,14 +472,14 @@ bool CollisionSpace::checkAttachedObjectCollision(
         double obs_dist;
         if (!checkSphereCollision(ssidx, verbose, obs_dist)) {
             if (verbose) {
-                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, radius: %0.3f, dist: %0.3fm", ssidx, m_model.sphereState(ssidx).model->name.c_str(), m_model.sphereState(ssidx).model->radius, obs_dist);
+                ROS_INFO_NAMED(CC_LOGGER, "    *collision* idx: %d, name: %s, radius: %0.3f, dist: %0.3fm", ssidx, m_state.sphereState(ssidx).model->name.c_str(), m_state.sphereState(ssidx).model->radius, obs_dist);
             }
 
             if (visualize) {
                 in_collision = true;
                 Sphere s;
-                s.center = m_model.sphereState(ssidx).pos;
-                s.radius = m_model.sphereState(ssidx).model->radius;
+                s.center = m_state.sphereState(ssidx).pos;
+                s.radius = m_state.sphereState(ssidx).model->radius;
                 m_collision_spheres.push_back(s);
             }
             else {
@@ -602,7 +603,7 @@ bool CollisionSpace::setJointPosition(
     double position)
 {
     if (m_model.hasJointVar(name)) {
-        m_model.setJointPosition(name, position);
+        m_state.setJointPosition(name, position);
         return true;
     }
     else {
@@ -613,7 +614,7 @@ bool CollisionSpace::setJointPosition(
 void CollisionSpace::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
-    m_model.setWorldToModelTransform(transform);
+    m_state.setWorldToModelTransform(transform);
 }
 
 bool CollisionSpace::interpolatePath(
@@ -728,7 +729,7 @@ bool CollisionSpace::isStateValid(
     // update the robot state
     for (size_t i = 0; i < angles.size(); ++i) {
         int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_model.setJointPosition(jidx, angles[i]);
+        m_state.setJointPosition(jidx, angles[i]);
     }
 
     updateVoxelsStates();
@@ -859,7 +860,7 @@ bool CollisionSpace::setPlanningScene(
     for (size_t i = 0; i < joint_state.name.size(); ++i) {
         const std::string& joint_name = joint_state.name[i];
         double joint_position = joint_state.position[i];
-        m_model.setJointPosition(joint_name, joint_position);
+        m_state.setJointPosition(joint_name, joint_position);
     }
 
     const sensor_msgs::MultiDOFJointState& multi_dof_joint_state =
@@ -986,7 +987,7 @@ CollisionSpace::getCollisionWorldVisualization() const
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionRobotVisualization() const
 {
-    auto markers = m_model.getVisualization();
+    auto markers = m_state.getVisualization();
     for (auto& m : markers.markers) {
         m.header.frame_id = getReferenceFrame();
     }
@@ -1047,7 +1048,7 @@ CollisionSpace::getVisualization(
         return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0));
     }
     else if (type == "attached_object") {
-        return m_model.getDynamicModelVisualization();
+        return m_state.getDynamicModelVisualization();
     }
     else {
         return m_grid->getVisualization(type);

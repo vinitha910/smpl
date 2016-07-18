@@ -38,6 +38,7 @@
 #include <leatherman/print.h>
 #include <ros/ros.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_state.h>
 #include <urdf/model.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -115,6 +116,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    sbpl::collision::RobotCollisionState state(&model);
+
     visualization_msgs::MarkerArray prev_ma;
     auto publish_model_viz = [&]()
     {
@@ -124,7 +127,7 @@ int main(int argc, char* argv[])
         }
         vis_pub.publish(prev_ma);
 
-        auto ma = model.getVisualization("manipulator");
+        auto ma = state.getVisualization("manipulator");
         for (auto& marker : ma.markers) {
             marker.header.frame_id = "world";
         }
@@ -147,16 +150,16 @@ int main(int argc, char* argv[])
     ros::Duration(1.0).sleep();
 
     for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
-        model.setJointPosition(jidx, 0.0);
+        state.setJointPosition(jidx, 0.0);
     }
 
-    model.updateSphereStates();
+    state.updateSphereStates();
     publish_model_viz();
 
     ROS_WARN("Publishing Modified State Visualization");
 
-    model.setJointPosition(0, 0.8);
-    model.updateSphereStates();
+    state.setJointPosition(0, 0.8);
+    state.updateSphereStates();
     publish_model_viz();
 
     ROS_WARN("Attaching Cylinder and Publishing Visualization");
@@ -183,7 +186,7 @@ int main(int argc, char* argv[])
     ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
     ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
 
-    model.updateSphereStates();
+    state.updateSphereStates();
     publish_model_viz();
 
     ROS_WARN("Detaching Cylinder and Publishing Visualization");
@@ -199,7 +202,7 @@ int main(int argc, char* argv[])
         ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
     }
 
-    model.updateSphereStates();
+    state.updateSphereStates();
     publish_model_viz();
 
     return 0;
