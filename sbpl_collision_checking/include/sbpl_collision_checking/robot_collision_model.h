@@ -94,8 +94,6 @@ struct CollisionGroupModel
 
 /// @}
 
-class RobotCollisionState;
-class RobotCollisionStateImpl;
 class RobotCollisionModelImpl;
 
 /// \brief Represents the collision model of the robot used for planning.
@@ -162,34 +160,6 @@ public:
             const std::vector<int>&;
     ///@}
 
-    /// \name Robot Model - Dynamic Model
-    ///@{
-
-    /// \brief Attach a body to the collision model
-    /// \param shapes The shapes making up the body
-    /// \param transforms The offsets from the attached link for each shape
-    /// \param link_name The link to attach to
-    bool attachBody(
-        const std::string& id,
-        const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
-        const std::string& link_name,
-        bool create_voxels_model = true,
-        bool create_spheres_model = true);
-    bool detachBody(const std::string& id);
-
-    size_t attachedBodyCount() const;
-    bool   hasAttachedBody(const std::string& id) const;
-    int    attachedBodyIndex(const std::string& id) const;
-    auto   attachedBodyName(int abidx) const -> const std::string&;
-    int    attachedBodyLinkIndex(int abidx) const;
-
-    auto attachedBodyIndices(const std::string& link_name) const ->
-            const std::vector<int>&;
-    auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
-
-    ///@}
-
     /// \name Collision Model
     ///@{
     size_t sphereModelCount() const;
@@ -219,12 +189,11 @@ public:
 
 private:
 
-    friend RobotCollisionStateImpl;
-    bool registerRobotCollisionState(RobotCollisionState* state);
-    bool unregisterRobotCollisionState(RobotCollisionState* state);
-
     std::unique_ptr<RobotCollisionModelImpl> m_impl;
 };
+
+typedef std::shared_ptr<RobotCollisionModel> RobotCollisionModelPtr;
+typedef std::shared_ptr<const RobotCollisionModel> RobotCollisionModelConstPtr;
 
 } // namespace collision
 } // namespace sbpl

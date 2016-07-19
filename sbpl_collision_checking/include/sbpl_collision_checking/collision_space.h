@@ -88,6 +88,11 @@ public:
         const CollisionModelConfig& config,
         const std::vector<std::string>& planning_joints);
 
+    bool init(
+        const RobotCollisionModelPtr& rcm,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
     /// \brief Return the reference frame of the occupancy grid
@@ -227,9 +232,13 @@ public:
 private:
 
     OccupancyGrid* m_grid;
-    WorldCollisionModel m_world;
+
     RobotCollisionModel m_model;
     RobotCollisionState m_state;
+
+    WorldCollisionModel         m_world;
+    SelfCollisionModel          m_self;
+    AttachedBodyCollisionModel  m_attached_body_model;
 
     // Collision Group
     std::string m_group_name;

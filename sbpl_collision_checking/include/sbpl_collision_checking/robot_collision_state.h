@@ -43,7 +43,6 @@
 // project includes
 #include <sbpl_collision_checking/robot_collision_model.h>
 
-
 namespace sbpl {
 namespace collision {
 
@@ -87,10 +86,9 @@ class RobotCollisionState
 {
 public:
 
-    RobotCollisionState(RobotCollisionModel* model);
+    RobotCollisionState(const RobotCollisionModel* model);
     ~RobotCollisionState();
 
-    RobotCollisionModel* model();
     const RobotCollisionModel* model() const;
 
     /// \name Robot State
@@ -126,19 +124,6 @@ public:
     bool   updateLinkTransform(const std::string& link_name);
     ///@}
 
-    /// \name Robot State - Dynamic Model
-    ///@{
-    auto attachedBodyTransform(const std::string& id) const ->
-            const Eigen::Affine3d&;
-    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
-
-    bool attachedBodyTransformDirty(const std::string& id) const;
-    bool attachedBodyTransformDirty(int abidx) const;
-
-    bool updateAttachedBodyTransform(const std::string& id);
-    bool updateAttachedBodyTransform(int abidx);
-
-    ///@}
     /// \name CollisionState
     ///@{
     auto voxelsState(int vsidx) const -> const CollisionVoxelsState&;
@@ -186,14 +171,6 @@ public:
             visualization_msgs::MarkerArray;
 
 private:
-
-    friend RobotCollisionModelImpl;
-    void bodyAttached(
-        int abidx,
-        const CollisionSpheresModel* spheres,
-        const CollisionVoxelsModel* voxels);
-    void bodyDetached(
-        int abidx);
 
     std::unique_ptr<RobotCollisionStateImpl> m_impl;
 };

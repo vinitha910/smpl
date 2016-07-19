@@ -154,6 +154,13 @@ bool CollisionSpace::init(
 }
 
 bool CollisionSpace::init(
+    const RobotCollisionModelPtr& rcm
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+}
+
+bool CollisionSpace::init(
     const std::string& urdf_string,
     const std::string& group_name,
     const CollisionModelConfig& config,

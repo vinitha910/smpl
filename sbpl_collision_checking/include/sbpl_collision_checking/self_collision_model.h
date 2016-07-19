@@ -29,66 +29,31 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_world_collision_model_h
-#define sbpl_collision_world_collision_model_h
-
-// standard includes
-#include <memory>
-#include <string>
-#include <vector>
-
-// system includes
-#include <moveit_msgs/CollisionObject.h>
-#include <octomap_msgs/OctomapWithPose.h>
-#include <sbpl_arm_planner/occupancy_grid.h>
-#include <shape_msgs/MeshTriangle.h>
-#include <visualization_msgs/MarkerArray.h>
-
-// project includes
-#include <sbpl_collision_checking/types.h>
+#ifndef sbpl_collision_self_collision_model_h
+#define sbpl_collision_self_collision_model_h
 
 namespace sbpl {
 namespace collision {
 
-class WorldCollisionModelImpl;
+class SelfCollisionModelImpl;
 
-class WorldCollisionModel
+class SelfCollisionModel
 {
 public:
 
-    WorldCollisionModel(
+    SelfCollisionModel(
         OccupancyGrid* grid,
         const std::string& group_name,
         const RobotCollisionStatePtr& state = RobotCollisionStatePtr());
 
-    ~WorldCollisionModel();
-
-    bool insertObject(const ObjectConstPtr& object);
-    bool removeObject(const ObjectConstPtr& object);
-    bool moveShapes(const ObjectConstPtr& object);
-    bool insertShapes(const ObjectConstPtr& object);
-    bool removeShapes(const ObjectConstPtr& object);
-
-    bool processCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool insertOctomap(const octomap_msgs::OctomapWithPose& octomap);
-
-    bool removeObject(const std::string& object_name);
-
-    /// \brief Reset the underlying occupancy grid.
-    ///
-    /// Resets the WorldCollisionModel by clearing the underlying occupancy grid and
-    /// revoxelizing all of the managed objects.
-    void reset();
+    ~SelfCollisionModel();
 
     void setRobotCollisionState(const RobotCollisionStatePtr& state);
     bool checkCollision();
 
-    visualization_msgs::MarkerArray getWorldVisualization() const;
-    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
-
 private:
 
-    std::unique_ptr<WorldCollisionModelImpl> m_impl;
+    std::unique_ptr<SelfCollisionModelImpl> m_impl;
 };
 
 } // namespace collision

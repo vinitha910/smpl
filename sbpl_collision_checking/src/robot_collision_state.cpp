@@ -76,10 +76,9 @@ public:
 
     RobotCollisionStateImpl(
         RobotCollisionState* iface,
-        RobotCollisionModel* impl);
+        const RobotCollisionModel* impl);
     ~RobotCollisionStateImpl();
 
-    RobotCollisionModel* model();
     const RobotCollisionModel* model() const;
 
     auto   worldToModelTransform() const -> const Eigen::Affine3d&;
@@ -104,22 +103,6 @@ public:
     bool   updateLinkTransforms();
     bool   updateLinkTransform(int lidx);
     bool   updateLinkTransform(const std::string& link_name);
-
-    void bodyAttached(
-        int abidx,
-        const CollisionSpheresModel* spheres,
-        const CollisionVoxelsModel* voxels);
-    void bodyDetached(int abidx);
-
-    auto attachedBodyTransform(const std::string& id) const ->
-            const Eigen::Affine3d&;
-    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
-
-    bool attachedBodyTransformDirty(const std::string& id) const;
-    bool attachedBodyTransformDirty(int abidx) const;
-
-    bool updateAttachedBodyTransform(const std::string& id);
-    bool updateAttachedBodyTransform(int abidx);
 
     auto voxelsState(int vsidx) const -> const CollisionVoxelsState&;
     bool voxelsStateDirty(int vsidx) const;
@@ -162,7 +145,7 @@ public:
 private:
 
     RobotCollisionState* m_iface;
-    RobotCollisionModel* m_model;
+    const RobotCollisionModel* m_model;
 
     /// \name Robot State
     ///@{
@@ -194,9 +177,6 @@ private:
     std::vector<CollisionVoxelsState*>      m_link_voxels_states;
     std::vector<CollisionSpheresState*>     m_link_spheres_states;
 
-    hash_map<int, CollisionSpheresState*>   m_attached_body_spheres_states;
-    hash_map<int, CollisionVoxelsState*>    m_attached_body_voxels_states;
-
     ///@}
 
     void initRobotState();
@@ -216,7 +196,7 @@ private:
     // update the set of indices into sphere states and set of indices into
     // voxels states for a collision group; assumes the group model's
     // link_indices and body_indices are valid and the
-    // m_[link|attached_body]_[voxels|spheres]_states mappings are current
+    // m_link_[voxels|spheres]_states mappings are current
     bool updateGroupStateReferences(
         const CollisionGroupModel& model,
         CollisionGroupState& state);
@@ -228,7 +208,7 @@ private:
 
 RobotCollisionStateImpl::RobotCollisionStateImpl(
     RobotCollisionState* iface,
-    RobotCollisionModel* model)
+    const RobotCollisionModel* model)
 :
     m_iface(iface),
     m_model(model),
@@ -283,12 +263,6 @@ const std::vector<int>& RobotCollisionStateImpl::groupOutsideVoxelsStateIndices(
 {
     ASSERT_VECTOR_RANGE(m_group_states, gidx);
     return m_group_states[gidx].voxels_indices;
-}
-
-inline
-RobotCollisionModel* RobotCollisionStateImpl::model()
-{
-    return m_model;
 }
 
 inline
@@ -481,159 +455,6 @@ inline
 bool RobotCollisionStateImpl::updateLinkTransform(const std::string& link_name)
 {
     const int lidx = m_model->linkIndex(link_name);
-    return updateLinkTransform(lidx);
-}
-
-void RobotCollisionStateImpl::bodyAttached(
-    int abidx,
-    const CollisionSpheresModel* spheres,
-    const CollisionVoxelsModel* voxels)
-{
-    // initialize sphere(s) states and update all references between sphere(s)
-    // states and sphere(s) models
-    if (spheres) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Adding sphere(s) states and updating references");
-        // append new sphere states
-        int unique_sphere_count = spheres->spheres.size();
-        m_sphere_states.resize(m_sphere_states.size() + unique_sphere_count);
-        ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere State Count %zu -> %zu", m_sphere_states.size() - unique_sphere_count, m_sphere_states.size());
-
-        // dirty new sphere states
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Dirtying new sphere states");
-        m_dirty_sphere_states.resize(m_sphere_states.size(), true);
-
-        // append a new spheres state
-        m_spheres_states.resize(m_spheres_states.size() + 1);
-        ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres State Count %zu -> %zu", m_spheres_states.size() - 1, m_spheres_states.size());
-
-        updateSpheresStateToSphereStatesReferences();
-        updateLinkBodyToSpheresStateReferences();
-    }
-
-    // initialize voxels state and update references to voxels models
-    if (voxels) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Adding voxels state and updating references");
-        m_voxels_states.resize(m_voxels_states.size() + 1);
-        CollisionVoxelsState& voxels_state = m_voxels_states.back();
-        voxels_state.voxels = voxels->voxels;
-        m_dirty_voxels_states.resize(m_dirty_voxels_states.size() + 1, true);
-
-        updateVoxelsStateToModelReferences();
-        updateLinkBodyToVoxelsStateReferences();
-    }
-
-    // update all references from group states to sphere and voxels states
-    assert(m_model->groupCount() == m_group_states.size());
-    updateGroupStateReferences();
-}
-
-void RobotCollisionStateImpl::bodyDetached(int abidx)
-{
-    int ret;
-
-    // defer regeneration of group state references until group models are
-    // updated and attached body voxel states are removed
-
-    // get the corresponding voxels model and state, if one exists
-    auto vsit = m_attached_body_voxels_states.find(abidx);
-    assert(vsit != m_attached_body_voxels_states.end());
-    CollisionVoxelsState* voxels_state = vsit->second;
-
-    // remove the per-body voxels model and state
-    m_attached_body_voxels_states.erase(abidx);
-
-    if (voxels_state) {
-        // remove the voxels state
-        const auto vsidx = std::distance(m_voxels_states.data(), voxels_state);
-        m_voxels_states.erase(m_voxels_states.begin() + vsidx);
-        m_dirty_voxels_states.erase(m_dirty_voxels_states.begin() + vsidx);
-    }
-
-    updateLinkBodyToVoxelsStateReferences();
-    updateVoxelsStateToModelReferences();
-
-    // get the corresponding spheres model and state, if one exists
-    auto ssit = m_attached_body_spheres_states.find(abidx);
-    assert(ssit != m_attached_body_spheres_states.end());
-    CollisionSpheresState* spheres_state = ssit->second;
-
-    // remove the per-body spheres model and state
-    m_attached_body_spheres_states.erase(abidx);
-
-    if (spheres_state) {
-        if (!spheres_state->spheres.empty()) {
-            // remove the sphere states; NOTE: this takes advantage of the fact
-            // that the sphere states for an attached body are added
-            // contiguously to the sphere state array; this way we can remove
-            // them all in one iteration
-            const auto ssfirst_idx = std::distance(
-                    m_sphere_states.data(), spheres_state->spheres.front());
-            const auto sslast_idx = std::distance(
-                    m_sphere_states.data(), spheres_state->spheres.back());
-            m_sphere_states.erase(
-                    m_sphere_states.begin() + ssfirst_idx,
-                    m_sphere_states.begin() + sslast_idx + 1);
-            m_dirty_sphere_states.erase(
-                    m_dirty_sphere_states.begin() + ssfirst_idx,
-                    m_dirty_sphere_states.begin() + sslast_idx + 1);
-        }
-
-        // remove the spheres state
-        const auto ssidx = std::distance(m_spheres_states.data(), spheres_state);
-        m_spheres_states.erase(m_spheres_states.begin() + ssidx);
-    }
-
-    updateLinkBodyToSpheresStateReferences();
-    updateSpheresStateToSphereStatesReferences();
-
-    updateGroupStateReferences();
-}
-
-inline
-const Eigen::Affine3d& RobotCollisionStateImpl::attachedBodyTransform(
-    const std::string& id) const
-{
-    const int abidx = m_model->attachedBodyIndex(id);
-    const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_link_transforms[lidx];
-}
-
-inline
-const Eigen::Affine3d& RobotCollisionStateImpl::attachedBodyTransform(
-    int abidx) const
-{
-    const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_link_transforms[lidx];
-}
-
-inline
-bool RobotCollisionStateImpl::attachedBodyTransformDirty(
-    const std::string& id) const
-{
-    const int abidx = m_model->attachedBodyIndex(id);
-    const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_dirty_link_transforms[lidx];
-}
-
-inline
-bool RobotCollisionStateImpl::attachedBodyTransformDirty(int abidx) const
-{
-    const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_dirty_link_transforms[lidx];
-}
-
-inline
-bool RobotCollisionStateImpl::updateAttachedBodyTransform(const std::string& id)
-{
-    const int abidx = m_model->attachedBodyIndex(id);
-    const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return updateLinkTransform(lidx);
-}
-
-inline
-bool RobotCollisionStateImpl::updateAttachedBodyTransform(int abidx)
-{
-    const int lidx = m_model->attachedBodyLinkIndex(abidx);
     return updateLinkTransform(lidx);
 }
 
@@ -1199,14 +1020,9 @@ bool RobotCollisionStateImpl::updateGroupStateReferences(
 // RobotCollisionModel Implementation //
 ////////////////////////////////////////
 
-RobotCollisionState::RobotCollisionState(RobotCollisionModel* model) :
+RobotCollisionState::RobotCollisionState(const RobotCollisionModel* model) :
     m_impl(new RobotCollisionStateImpl(this, model))
 {
-}
-
-RobotCollisionModel* RobotCollisionState::model()
-{
-    return m_impl->model();
 }
 
 const RobotCollisionModel* RobotCollisionState::model() const
@@ -1295,36 +1111,6 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
 bool RobotCollisionState::updateLinkTransform(const std::string& link_name)
 {
     return m_impl->updateLinkTransform(link_name);
-}
-
-const Eigen::Affine3d& RobotCollisionState::attachedBodyTransform(const std::string& id) const
-{
-    return m_impl->attachedBodyTransform(id);
-}
-
-const Eigen::Affine3d& RobotCollisionState::attachedBodyTransform(int abidx) const
-{
-    return m_impl->attachedBodyTransform(abidx);
-}
-
-bool RobotCollisionState::attachedBodyTransformDirty(const std::string& id) const
-{
-    return m_impl->attachedBodyTransformDirty(id);
-}
-
-bool RobotCollisionState::attachedBodyTransformDirty(int abidx) const
-{
-    return m_impl->attachedBodyTransformDirty(abidx);
-}
-
-bool RobotCollisionState::updateAttachedBodyTransform(const std::string& id)
-{
-    return m_impl->updateAttachedBodyTransform(id);
-}
-
-bool RobotCollisionState::updateAttachedBodyTransform(int abidx)
-{
-    return m_impl->updateAttachedBodyTransform(abidx);
 }
 
 const CollisionVoxelsState& RobotCollisionState::voxelsState(int vsidx) const
@@ -1445,19 +1231,6 @@ visualization_msgs::MarkerArray
 RobotCollisionState::getDynamicModelVisualization(int gidx) const
 {
     return m_impl->getDynamicModelVisualization(gidx);
-}
-
-void RobotCollisionState::bodyAttached(
-    int abidx,
-    const CollisionSpheresModel* spheres,
-    const CollisionVoxelsModel* voxels)
-{
-    return m_impl->bodyAttached(abidx, spheres, voxels);
-}
-
-void RobotCollisionState::bodyDetached(int abidx)
-{
-    return m_impl->bodyDetached(abidx);
 }
 
 } // namespace collision
