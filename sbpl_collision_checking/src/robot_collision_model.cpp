@@ -66,6 +66,45 @@ namespace collision {
 
 static const char* RCM_LOGGER = "robot";
 
+std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm)
+{
+    o << "{ name: " << csm.name << ", center: (" << csm.center.x() << ", " <<
+            csm.center.y() << ", " << csm.center.z() << "), radius: " <<
+            csm.radius << ", priority: " << csm.priority << " }";
+    return o;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm)
+{
+    o << "{ link_index: " << csm.link_index << ", spheres: " << csm.spheres <<
+            " }";
+    return o;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionVoxelsModel& cvm)
+{
+    o << "{ link_index: " << cvm.link_index << ", voxel_res: " <<
+            cvm.voxel_res << ", voxels: [" << cvm.voxels.size() << "]" << " }";
+    return o;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionGroupModel& cgm)
+{
+    o << "{ name: " << cgm.name << ", link_indices: " << cgm.link_indices << " }";
+    return o;
+}
+
+std::ostream& operator<<(std::ostream& o, const SphereIndex& i)
+{
+    o << "(" << i.ss << ", " << i.s <<")";
+    return o;
+}
+
+std::string to_string(const SphereIndex& i)
+{
+    std::stringstream ss; ss << i; return ss.str();
+}
+
 /////////////////////////////////////////
 // RobotCollisionModelImpl Declaration //
 /////////////////////////////////////////
@@ -121,7 +160,6 @@ public:
             const std::vector<int>&;
 
     size_t sphereModelCount() const;
-    auto   sphereModel(int smidx) const -> const CollisionSphereModel&;
 
     bool   hasSpheresModel(const std::string& link_name) const;
     bool   hasSpheresModel(int lidx) const;
@@ -173,10 +211,6 @@ private:
 
     /// \name Collision Model
     ///@{
-
-    // one entry per element specific through config that may be shared between
-    // multiple collision sphere states
-    std::vector<CollisionSphereModel>   m_sphere_models;
 
     // one entry for each link that has a spheres model
     std::vector<CollisionSpheresModel>  m_spheres_models;
@@ -253,7 +287,6 @@ RobotCollisionModelImpl::RobotCollisionModelImpl() :
     m_joint_transforms(),
     m_link_names(),
     m_link_name_to_index(),
-    m_sphere_models(),
     m_spheres_models(),
     m_voxels_models(),
     m_group_models(),
@@ -476,14 +509,11 @@ const std::vector<int>& RobotCollisionModelImpl::linkChildJointIndices(
 inline
 size_t RobotCollisionModelImpl::sphereModelCount() const
 {
-    return m_sphere_models.size();
-}
-
-inline
-const CollisionSphereModel& RobotCollisionModelImpl::sphereModel(int smidx) const
-{
-    ASSERT_VECTOR_RANGE(m_sphere_models, smidx);
-    return m_sphere_models[smidx];
+    size_t sphere_count = 0;
+    for (const auto& spheres_model : m_spheres_models) {
+        sphere_count += spheres_model.spheres.size();
+    }
+    return sphere_count;
 }
 
 inline
@@ -628,7 +658,6 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
         m_link_name_to_index[m_link_names.back()] = lidx;
 
         m_link_children_joints.push_back(std::vector<int>());
-        m_link_attached_bodies.push_back(std::vector<int>());
 
         // for each joint
         for (const auto& joint : link->child_joints) {
@@ -853,17 +882,6 @@ bool RobotCollisionModelImpl::initCollisionModel(
     const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
 {
-    // initialize sphere models
-    m_sphere_models.resize(config.spheres.size());
-    for (size_t i = 0; i < m_sphere_models.size(); ++i) {
-        const CollisionSphereConfig& sphere_config = config.spheres[i];
-        CollisionSphereModel& sphere_model = m_sphere_models[i];
-        sphere_model.name = sphere_config.name;
-        sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
-        sphere_model.radius = sphere_config.radius;
-        sphere_model.priority = sphere_config.priority;
-    }
-
     // initialize spheres models
     m_spheres_models.resize(config.spheres_models.size());
     for (size_t i = 0; i < m_spheres_models.size(); ++i) {
@@ -872,24 +890,12 @@ bool RobotCollisionModelImpl::initCollisionModel(
 
         // attach to the link
         spheres_model.link_index = linkIndex(spheres_config.link_name);
-        spheres_model.body_index = -1;
-
-        // add references to all spheres; NOTE: cannot use
-        // updateSpheresModelToSphereModelsReferences(at this point
-        for (const std::string& sphere_name : spheres_config.spheres) {
-            // find the sphere model with this name
-            auto sit = std::find_if(m_sphere_models.begin(), m_sphere_models.end(),
-                    [&sphere_name](const CollisionSphereModel& sphere)
-                    {
-                        return sphere.name == sphere_name;
-                    });
-            if (sit == m_sphere_models.end()) {
-                ROS_ERROR_NAMED(RCM_LOGGER, "Failed to find sphere '%s' specified in spheres model for link '%s'", sphere_name.c_str(), spheres_config.link_name.c_str());
-                return false;
-            }
-            const CollisionSphereModel* sphere_model =
-                    m_sphere_models.data() +
-                    std::distance(m_sphere_models.begin(), sit);
+        for (const auto& sphere_config : spheres_config.spheres) {
+            CollisionSphereModel sphere_model;
+            sphere_model.name = sphere_config.name;
+            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+            sphere_model.radius = sphere_config.radius;
+            sphere_model.priority = sphere_config.priority;
             spheres_model.spheres.push_back(sphere_model);
         }
     }
@@ -900,8 +906,7 @@ bool RobotCollisionModelImpl::initCollisionModel(
         CollisionVoxelsModel& voxels_model = m_voxels_models[i];
         const std::string& link_name = config.voxel_models[i].link_name;
         voxels_model.link_index = linkIndex(link_name);
-        voxels_model.body_index = -1;
-        const double LINK_VOXEL_RESOLUTION = 0.01;
+        const double LINK_VOXEL_RESOLUTION = 0.01; // TODO:
         voxels_model.voxel_res = LINK_VOXEL_RESOLUTION;
         if (!voxelizeLink(urdf, link_name, voxels_model)) {
             ROS_ERROR_NAMED(RCM_LOGGER, "Failed to voxelize link '%s'", link_name.c_str());
@@ -939,10 +944,6 @@ bool RobotCollisionModelImpl::initCollisionModel(
     assert(checkCollisionModelReferences());
 
     ROS_DEBUG_NAMED(RCM_LOGGER, "Collision Model:");
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere Models: [%p, %p]", m_sphere_models.data(), m_sphere_models.data() + m_sphere_models.size());
-    for (const auto& sphere_model : m_sphere_models) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    name: %s, center: (%0.3f, %0.3f, %0.3f), radius: %0.3f, priority: %d", sphere_model.name.c_str(), sphere_model.center.x(), sphere_model.center.y(), sphere_model.center.z(), sphere_model.radius, sphere_model.priority);
-    }
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Models: [%p, %p]", m_spheres_models.data(), m_spheres_models.data() + m_spheres_models.size());
     for (const auto& spheres_model : m_spheres_models) {
         ROS_DEBUG_NAMED(RCM_LOGGER, "    link_index: %d, spheres: %s", spheres_model.link_index, to_string(spheres_model.spheres).c_str());
@@ -970,14 +971,6 @@ bool RobotCollisionModelImpl::checkCollisionModelReferences() const
         {
             return false;
         }
-
-        for (auto sphere : spheres_model.spheres) {
-            if (!(sphere >= m_sphere_models.data() &&
-                    sphere < m_sphere_models.data() + m_sphere_models.size()))
-            {
-                return false;
-            }
-        }
     }
 
     for (const auto& voxels_model : m_voxels_models) {
@@ -1004,40 +997,6 @@ bool RobotCollisionModelImpl::checkCollisionModelReferences() const
 
 bool RobotCollisionModelImpl::updateSpheresModelToSphereModelsReferences()
 {
-    // assumes you're finished changing the set of sphere models and spheres
-    // models and updates the following references:
-    // * spheres model -> sphere model[]
-    for (CollisionSpheresModel& spheres_model : m_spheres_models) {
-        spheres_model.spheres.clear();
-    }
-
-    for (size_t i = 0; i < m_spheres_models.size(); ++i) {
-        CollisionSpheresModel& model = m_spheres_models[i];
-        const CollisionSpheresModelConfig& config =
-                i < m_config.spheres_models.size() ?
-                        m_config.spheres_models[i] :
-                        m_attached_body_spheres_config.at(model.body_index);
-
-        for (const std::string& sphere_name : config.spheres) {
-            auto sit = std::find_if(m_sphere_models.begin(), m_sphere_models.end(),
-                    [&sphere_name](const CollisionSphereModel& sphere)
-                    {
-                        return sphere.name == sphere_name;
-                    });
-            if (sit == m_sphere_models.end()) {
-                ROS_ERROR_NAMED(RCM_LOGGER, "Failed to find sphere '%s' specified in spheres model for link '%s'", sphere_name.c_str(), config.link_name.c_str());
-                // TODO: what to do if this fails
-                return false;
-            }
-
-            const CollisionSphereModel* sphere_model =
-                    m_sphere_models.data() +
-                    std::distance(m_sphere_models.begin(), sit);
-            model.spheres.push_back(sphere_model);
-        }
-    }
-
-    ROS_DEBUG_NAMED(RCM_LOGGER, " Regenerated sphere references");
     return true;
 }
 
@@ -1274,16 +1233,16 @@ bool RobotCollisionModel::jointVarHasPositionBounds(
     return m_impl->jointVarHasPositionBounds(joint_name);
 }
 
-double RobotCollisionModel::jointVarMaxPosition(
-    const std::string& joint_name) const
-{
-    return m_impl->jointVarMaxPosition(joint_name);
-}
-
 double RobotCollisionModel::jointVarMinPosition(
     const std::string& joint_name) const
 {
     return m_impl->jointVarMinPosition(joint_name);
+}
+
+double RobotCollisionModel::jointVarMaxPosition(
+    const std::string& joint_name) const
+{
+    return m_impl->jointVarMaxPosition(joint_name);
 }
 
 bool RobotCollisionModel::jointVarIsContinuous(int jidx) const
@@ -1372,19 +1331,9 @@ const std::vector<int>& RobotCollisionModel::linkChildJointIndices(
     return m_impl->linkChildJointIndices(lidx);
 }
 
-bool RobotCollisionModel::hasAttachedBody(const std::string& id) const
-{
-    return m_impl->hasAttachedBody(id);
-}
-
 size_t RobotCollisionModel::sphereModelCount() const
 {
     return m_impl->sphereModelCount();
-}
-
-const CollisionSphereModel& RobotCollisionModel::sphereModel(int smidx) const
-{
-    return m_impl->sphereModel(smidx);
 }
 
 bool RobotCollisionModel::hasSpheresModel(const std::string& link_name) const

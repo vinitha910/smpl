@@ -177,6 +177,122 @@ private:
         const Affine3dVector& transforms,
         const std::string& link_name,
         CollisionVoxelModelConfig& voxels_models);
+
+    void updateLinkBodyToSpheresStateReferences()
+    {
+        m_attached_body_spheres_states[spheres_model.body_index] = spheres_state;
+    }
+    void updateLinkBodyToVoxelsStateReferences()
+    {
+        m_attached_body_voxels_states[voxels_model.body_index] = voxels_state;
+    }
+    void updateGroupStateReferences()
+    {
+        for (int bidx : model.body_indices) {
+            CollisionSpheresState* spheres_state = m_attached_body_spheres_states[bidx];
+            if (spheres_state) {
+                for (CollisionSphereState* sphere_state : spheres_state->spheres) {
+                    int ssidx = std::distance(m_sphere_states.data(), sphere_state);
+                    state.sphere_indices.push_back(ssidx);
+                }
+            }
+        }
+
+        // gather the indices of all attached body voxels states that do NOT
+        // belong to this group
+        for (const auto& entry : m_attached_body_voxels_states) {
+            if (std::find(
+                    model.body_indices.begin(),
+                    model.body_indices.end(),
+                    entry.first) ==
+                model.body_indices.end())
+            {
+                CollisionVoxelsState* voxels_state = entry.second;
+                if (voxels_state) {
+                    int vsidx = std::distance(m_voxels_states.data(), voxels_state);
+                    state.voxels_indices.push_back(vsidx);
+                }
+            }
+        }
+    }
+
+    bool updateSpheresStateToSphereStatesReferences()
+    {
+        // assumes you're finished changing the set of sphere models, spheres
+        // models, sphere states, and spheres states and updates the following
+        // references:
+        // * sphere state -> sphere model
+        // * sphere state -> spheres state
+        // * spheres state -> sphere state[]
+        // * spheres state -> spheres model
+
+        for (auto& spheres_state : m_spheres_states) {
+            spheres_state.spheres.clear();
+        }
+
+        int sphere_state_idx = 0;
+        for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
+            // NOTE: careful with the variable shadowing here
+            const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
+                CollisionSpheresState& spheres_state = m_spheres_states[i];
+            // spheres state -> spheres model
+            spheres_state.model = &spheres_model;
+
+            for (const CollisionSphereModel* sphere_model : spheres_model.spheres) {
+                // sphere state -> sphere model
+                m_sphere_states[sphere_state_idx].model = sphere_model;
+                // sphere state -> spheres state
+                m_sphere_states[sphere_state_idx].parent_state = &spheres_state;
+                // spheres state -> sphere state[]
+                spheres_state.spheres.push_back(&m_sphere_states[sphere_state_idx]);
+                ++sphere_state_idx;
+            }
+        }
+
+        return true;
+    }
+
+    bool updateVoxelsStateToModelReferences()
+    {
+        assert(m_model->voxelsModelCount() == m_voxels_states.size());
+        for (size_t i = 0; i < m_model->voxelsModelCount(); ++i) {
+            const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
+                CollisionVoxelsState& voxels_state = m_voxels_states[i];
+            voxels_state.model = &voxels_model;
+        }
+        return true;
+    }
+
+    bool updateLinkBodyToSpheresStateReferences()
+    {
+        // assumes that the links/attached bodies do have a corresponding sphere
+        // state but that the pointer reference has been invalidated by an increase
+        // in the size of the spheres state array
+        assert(m_model->spheresModelCount() == m_spheres_states.size());
+        for (size_t i = 0; i < m_spheres_states.size(); ++i) {
+            const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
+            CollisionSpheresState* spheres_state = &m_spheres_states[i];
+            assert(spheres_model.link_index < m_link_spheres_states.size());
+            m_link_spheres_states[spheres_model.link_index] = spheres_state;
+        }
+
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Updated per-link and per-body spheres state references");
+        return true;
+    }
+
+    bool updateLinkBodyToVoxelsStateReferences()
+    {
+        // assumes that the links/attached bodies do have a corresponding voxels
+        // state but that the pointer reference has been invalidated by an increase
+        // in the size of the voxels state array
+        assert(m_voxels_states.size() == m_model->voxelsModelCount());
+        for (size_t i = 0; i < m_voxels_states.size(); ++i) {
+            const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
+            CollisionVoxelsState* voxels_state = &m_voxels_states[i];
+            m_link_voxels_states[voxels_model.link_index] = voxels_state;
+        }
+        return true;
+    }
 };
 
 AttachedBodesCollisionModel::AttachedBodiesCollisionModel(
@@ -544,6 +660,16 @@ bool AttachedBodiesCollisionModel::updateVoxelsStates()
 
 bool AttachedBodiesCollisionModel::updateVoxelsState(int vsidx)
 {
+        const int bidx = state.model->body_index;
+        updateAttachedBodyTransform(bidx);
+
+        const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
+
+        // transform voxels into the model frame
+        new_voxels.resize(state.model->voxels.size());
+        for (size_t i = 0; i < state.model->voxels.size(); ++i) {
+            new_voxels[i] = T_model_body * state.model->voxels[i];
+        }
     return false;
 }
 
@@ -564,6 +690,12 @@ bool AttachedBodiesCollisionModel::updateSphereStates()
 
 bool AttachedBodiesCollisionModel::updateSphereState(int ssidx)
 {
+        const int bidx = m_sphere_states[sidx].parent_state->model->body_index;
+        updateAttachedBodyTransform(bidx);
+
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Updating position of sphere '%s'", m_sphere_states[sidx].model->name.c_str());
+        const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
+        m_sphere_states[sidx].pos = T_model_body * m_sphere_states[sidx].model->center;
     return false;
 }
 

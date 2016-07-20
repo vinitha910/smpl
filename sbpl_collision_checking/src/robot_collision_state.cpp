@@ -35,6 +35,7 @@
 // standard includes
 #include <assert.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <queue>
@@ -74,9 +75,7 @@ class RobotCollisionStateImpl
 {
 public:
 
-    RobotCollisionStateImpl(
-        RobotCollisionState* iface,
-        const RobotCollisionModel* impl);
+    RobotCollisionStateImpl(const RobotCollisionModel* impl);
     ~RobotCollisionStateImpl();
 
     const RobotCollisionModel* model() const;
@@ -109,14 +108,16 @@ public:
     bool updateVoxelsStates();
     bool updateVoxelsState(int vsidx);
 
-    auto sphereState(int ssidx) const -> const CollisionSphereState&;
-    bool sphereStateDirty(int ssidx) const;
-    bool updateSphereStates();
-    bool updateSphereState(int ssidx);
+    auto spheresState(int ssidx) const -> const CollisionSpheresState&;
 
-    auto   groupSphereStateIndices(const std::string& group_name) const ->
+    auto sphereState(const SphereIndex& sidx) const -> const CollisionSphereState&;
+    bool sphereStateDirty(const SphereIndex& sidx) const;
+    bool updateSphereStates();
+    bool updateSphereState(const SphereIndex& sidx);
+
+    auto   groupSpheresStateIndices(const std::string& group_name) const ->
             const std::vector<int>&;
-    auto   groupSphereStateIndices(int gidx) const ->
+    auto   groupSpheresStateIndices(int gidx) const ->
             const std::vector<int>&;
     auto  groupOutsideVoxelsStateIndices(const std::string& group_name) const ->
             const std::vector<int>&;
@@ -144,7 +145,6 @@ public:
 
 private:
 
-    RobotCollisionState* m_iface;
     const RobotCollisionModel* m_model;
 
     /// \name Robot State
@@ -158,12 +158,8 @@ private:
     /// \name Collision State
     ///@{
 
-    // one entry for each unique sphere, i.e. for each sphere model referenced
-    // for each spheres model
-    std::vector<bool>                       m_dirty_sphere_states;
-    std::vector<CollisionSphereState>       m_sphere_states;
-
-    // one entry for each spheres model
+    std::vector<bool>                       m_dirty_sphere_states; // per-sphere
+    std::vector<int>                        m_sphere_offsets;
     std::vector<CollisionSpheresState>      m_spheres_states;
 
     // one entry for each voxels model
@@ -189,17 +185,7 @@ private:
     bool updateLinkBodyToSpheresStateReferences();
     bool updateLinkBodyToVoxelsStateReferences();
 
-    bool updateGroupStateToModelReferences();
-
-    bool updateGroupStateReferences();
-
-    // update the set of indices into sphere states and set of indices into
-    // voxels states for a collision group; assumes the group model's
-    // link_indices and body_indices are valid and the
-    // m_link_[voxels|spheres]_states mappings are current
-    bool updateGroupStateReferences(
-        const CollisionGroupModel& model,
-        CollisionGroupState& state);
+    int sphereIndex(const SphereIndex& sidx) const;
 };
 
 ////////////////////////////////////////
@@ -207,16 +193,13 @@ private:
 ////////////////////////////////////////
 
 RobotCollisionStateImpl::RobotCollisionStateImpl(
-    RobotCollisionState* iface,
     const RobotCollisionModel* model)
 :
-    m_iface(iface),
     m_model(model),
     m_jvar_positions(),
     m_dirty_link_transforms(),
     m_link_transforms(),
     m_dirty_sphere_states(),
-    m_sphere_states(),
     m_dirty_voxels_states(),
     m_voxels_states(),
     m_group_states(),
@@ -225,28 +208,26 @@ RobotCollisionStateImpl::RobotCollisionStateImpl(
 {
     initRobotState();
     initCollisionState();
-    model->registerRobotCollisionState(m_iface);
 }
 
 RobotCollisionStateImpl::~RobotCollisionStateImpl()
 {
-    m_model->unregisterRobotCollisionState(m_iface);
 }
 
 inline
-const std::vector<int>& RobotCollisionStateImpl::groupSphereStateIndices(
+const std::vector<int>& RobotCollisionStateImpl::groupSpheresStateIndices(
     const std::string& group_name) const
 {
     const int gidx = m_model->groupIndex(group_name);
-    return m_group_states[gidx].sphere_indices;
+    return m_group_states[gidx].spheres_indices;
 }
 
 inline
-const std::vector<int>& RobotCollisionStateImpl::groupSphereStateIndices(
+const std::vector<int>& RobotCollisionStateImpl::groupSpheresStateIndices(
     int gidx) const
 {
     ASSERT_VECTOR_RANGE(m_group_states, gidx);
-    return m_group_states[gidx].sphere_indices;
+    return m_group_states[gidx].spheres_indices;
 }
 
 inline
@@ -357,12 +338,13 @@ bool RobotCollisionStateImpl::setJointPosition(int jidx, double position)
 
             // dirty the sphere states of any attached sphere models
             if (m_link_spheres_states[lidx]) {
-                for (CollisionSphereState* sphere_state :
-                    m_link_spheres_states[lidx]->spheres)
-                {
-                    int dssidx = std::distance(m_sphere_states.data(), sphere_state);
-                    m_dirty_sphere_states[dssidx] = true;
-                }
+                CollisionSpheresState* spheres_state;
+                int ssidx = std::distance(m_spheres_states.data(), sphere_state);
+                int off = m_sphere_offsets[ssidx];
+                std::assign(
+                        &m_dirty_sphere_states[off],
+                        &m_dirty_sphere_states[off] + spheres_state->spheres.size(),
+                        true);
             }
 
             // add child links to the queue
@@ -493,29 +475,15 @@ bool RobotCollisionStateImpl::updateVoxelsState(int vsidx)
     CollisionVoxelsState& state = m_voxels_states[vsidx];
 
     std::vector<Eigen::Vector3d> new_voxels;
-    if (state.model->body_index < 0) {
-        const int lidx = state.model->link_index;
-        updateLinkTransform(lidx);
+    const int lidx = state.model->link_index;
+    updateLinkTransform(lidx);
 
-        const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
+    const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
 
-        // transform voxels into the model frame
-        new_voxels.resize(state.model->voxels.size());
-        for (size_t i = 0; i < state.model->voxels.size(); ++i) {
-            new_voxels[i] = T_model_link * state.model->voxels[i];
-        }
-    }
-    else {
-        const int bidx = state.model->body_index;
-        updateAttachedBodyTransform(bidx);
-
-        const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
-
-        // transform voxels into the model frame
-        new_voxels.resize(state.model->voxels.size());
-        for (size_t i = 0; i < state.model->voxels.size(); ++i) {
-            new_voxels[i] = T_model_body * state.model->voxels[i];
-        }
+    // transform voxels into the model frame
+    new_voxels.resize(state.model->voxels.size());
+    for (size_t i = 0; i < state.model->voxels.size(); ++i) {
+        new_voxels[i] = T_model_link * state.model->voxels[i];
     }
 
     state.voxels = std::move(new_voxels);
@@ -523,56 +491,62 @@ bool RobotCollisionStateImpl::updateVoxelsState(int vsidx)
     return true;
 }
 
-inline
-const CollisionSphereState& RobotCollisionStateImpl::sphereState(int ssidx) const
+const CollisionSpheresState& RobotCollisionStateImpl::spheresState(
+    int ssidx) const
 {
-    ASSERT_VECTOR_RANGE(m_sphere_states, ssidx);
-    return m_sphere_states[ssidx];
+    ASSERT_VECTOR_RANGE(m_spheres_states, ssidx);
+    return m_spheres_states[ssidx];
 }
 
 inline
-bool RobotCollisionStateImpl::sphereStateDirty(int ssidx) const
+const CollisionSphereState& RobotCollisionStateImpl::sphereState(
+    const SphereIndex& sidx) const
 {
-    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, ssidx);
-    return m_dirty_sphere_states[ssidx];
+    ASSERT_VECTOR_RANGE(m_spheres_states, sidx.ss);
+    ASSERT_VECTOR_RANGE(m_spheres_states[sidx.ss], sidx.s);
+    return m_spheres_states[sidx.ss].spheres[sidx.s];
+}
+
+inline
+bool RobotCollisionStateImpl::sphereStateDirty(const SphereIndex& sidx) const
+{
+    const int idx = sphereIndex(sidx);
+    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, idx);
+    return m_dirty_sphere_states[idx];
 }
 
 bool RobotCollisionStateImpl::updateSphereStates()
 {
     ROS_DEBUG_NAMED(RCM_LOGGER, "Updating all sphere positions");
     bool updated = false;
-    for (size_t ssidx = 0; ssidx < m_sphere_states.size(); ++ssidx) {
-        updated |= updateSphereState(ssidx);
+    for (size_t ssidx = 0; ssidx < m_spheres_states.size(); ++ssidx) {
+        const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
+        for (size_t sidx = 0; sidx < spheres_state.spheres.size(); ++sidx) {
+            updated |= updateSphereState(SphereIndex(ssidx, sidx));
+        }
     }
     return updated;
 }
 
-bool RobotCollisionStateImpl::updateSphereState(int sidx)
+bool RobotCollisionStateImpl::updateSphereState(const SphereIndex& sidx)
 {
-    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, sidx);
+    const int idx = sphereIndex(sidx);
+    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, idx);
 
-    if (!m_dirty_sphere_states[sidx]) {
+    if (!m_dirty_sphere_states[idx]) {
         return false;
     }
 
-    if (m_sphere_states[sidx].parent_state->model->body_index < 0) {
-        const int lidx = m_sphere_states[sidx].parent_state->model->link_index;
-        updateLinkTransform(lidx);
+    CollisionSphereState& sphere_state = m_spheres_states[sidx.ss].spheres[sidx.s];
 
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Updating position of sphere '%s'", m_sphere_states[sidx].model->name.c_str());
-        const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
-        m_sphere_states[sidx].pos = T_model_link * m_sphere_states[sidx].model->center;
-    }
-    else {
-        const int bidx = m_sphere_states[sidx].parent_state->model->body_index;
-        updateAttachedBodyTransform(bidx);
+    const int lidx = sphere_state.parent_state->model->link_index;
+    updateLinkTransform(lidx);
 
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Updating position of sphere '%s'", m_sphere_states[sidx].model->name.c_str());
-        const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
-        m_sphere_states[sidx].pos = T_model_body * m_sphere_states[sidx].model->center;
-    }
+    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating position of sphere '%s'", sphere_state.model->name.c_str());
+    const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
+    sphere_state.pos = T_model_link * sphere_state.model->center;
 
-    m_dirty_sphere_states[sidx] = false;
+    m_dirty_sphere_states[idx] = false;
     return true;
 }
 
@@ -603,18 +577,29 @@ RobotCollisionStateImpl::getVisualization(int gidx) const
 
     std::vector<std::vector<double>> spheres;
     std::vector<double> rad;
-    spheres.reserve(group_state.sphere_indices.size());
-    rad.reserve(group_state.sphere_indices.size());
 
-    for (int ssidx : group_state.sphere_indices) {
-        const CollisionSphereState& sphere_state = m_sphere_states[ssidx];
-        std::vector<double> sphere(4, 0.0);
-        sphere[0] = sphere_state.pos.x();
-        sphere[1] = sphere_state.pos.y();
-        sphere[2] = sphere_state.pos.z();
-        sphere[3] = sphere_state.model->radius;
-        spheres.push_back(std::move(sphere));
-        rad.push_back(sphere_state.model->radius);
+    size_t sphere_count = 0;
+    for (int ssidx : group_state.spheres_indices) {
+        const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
+        for (const CollisionSphereState& sphere_state : spheres_state.spheres) {
+            ++sphere_count;
+        }
+    }
+
+    spheres.reserve(sphere_count);
+    rad.reserve(sphere_count);
+
+    for (int ssidx : group_state.spheres_indices) {
+        const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
+        for (const CollisionSphereState& sphere_state : spheres_state.spheres) {
+            std::vector<double> sphere(4, 0.0);
+            sphere[0] = sphere_state.pos.x();
+            sphere[1] = sphere_state.pos.y();
+            sphere[2] = sphere_state.pos.z();
+            sphere[3] = sphere_state.model->radius;
+            spheres.push_back(std::move(sphere));
+            rad.push_back(sphere_state.model->radius);
+        }
     }
 
     const int hue = 90;
@@ -710,41 +695,30 @@ void RobotCollisionStateImpl::initRobotState()
 
 void RobotCollisionStateImpl::initCollisionState()
 {
-    // preallocate the spheres states array so that we can use valid pointers
-    // as references
-
-    int unique_sphere_count = 0;
-    for (size_t smidx = 0; smidx < m_model->spheresModelCount(); ++smidx) {
-        const auto& spheres_model = m_model->spheresModel(smidx);
-        for (auto sphere_model : spheres_model.spheres) {
-            ++unique_sphere_count;
-        }
-    }
-
-    m_sphere_states.assign(unique_sphere_count, CollisionSphereState());
-
     // initialize sphere and spheres states
-    int sphere_state_idx = 0;
     m_spheres_states.assign(m_model->spheresModelCount(), CollisionSpheresState());
+    int offset = 0;
     for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
+        m_sphere_offsets[i] = offset;
         const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
               CollisionSpheresState& spheres_state = m_spheres_states[i];
+
+        // map spheres state -> spheres model
         spheres_state.model = &spheres_model;
 
-        // initialize sphere and map sphere state -> spheres state and spheres
-        // state -> sphere states
-        for (const CollisionSphereModel* sphere_model : spheres_model.spheres) {
-            m_sphere_states[sphere_state_idx].model = sphere_model;
-            m_sphere_states[sphere_state_idx].parent_state = &spheres_state;
-            spheres_state.spheres.push_back(&m_sphere_states[sphere_state_idx]);
-            ++sphere_state_idx;
+        // map sphere state -> sphere model
+        // map sphere state -> spheres state
+        spheres_state.spheres.resize(spheres_model.spheres.size());
+        for (size_t j = 0; j < spheres_model.spheres.size(); ++j) {
+            spheres_state.spheres[j].model = &spheres_model.spheres[j];
+            spheres_state.spheres[j].parent_state = &spheres_state;
+            ++offset;
         }
     }
 
-    m_dirty_sphere_states.assign(m_sphere_states.size(), true);
+    m_dirty_sphere_states.assign(sphereModelCount(), true);
 
     // initialize voxels states
-
     m_dirty_voxels_states.assign(m_model->voxelsModelCount(), true);
     m_voxels_states.assign(m_model->voxelsModelCount(), CollisionVoxelsState());
 
@@ -754,6 +728,53 @@ void RobotCollisionStateImpl::initCollisionState()
         // duplicate voxels from voxels model
         voxels_state.model = &voxels_model;
         voxels_state.voxels = voxels_model.voxels;
+    }
+
+    // initialize group states
+    m_group_states.assign(m_model->groupCount(), CollisionGroupState());
+    for (size_t i = 0; i < m_model->groupCount(); ++i) {
+        const CollisionGroupModel& group_model = m_model->group(i);
+              CollisionGroupState& group_state = m_group_states[i];
+        // map group state -> group model
+        group_state.model = &group_model;
+    }
+
+    // map group state -> spheres states
+    for (size_t ssidx = 0; ssidx < m_spheres_states.size(); ++ssidx) {
+        const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
+        // get the link this spheres state is attached to
+        const int lidx = spheres_state.model->link_index;
+        for (size_t gidx = 0; gidx < m_model->groupCount(); ++gidx) {
+            const CollisionGroupModel& group_model = m_model->group(gidx);
+            // check if this link index is part of the group model
+            if (std::find(
+                    group_model.link_indices.begin(),
+                    group_model.link_indices.end(),
+                    lidx) !=
+                group_model.link_indices.end())
+            {
+                m_group_states[gidx].spheres_indices.push_back(ssidx);
+            }
+        }
+    }
+
+    // map group state -> (outside) voxels states
+    for (size_t vsidx = 0; vsidx < m_voxels_states.size(); ++vsidx) {
+        const CollisionVoxelsState& voxels_state = m_voxels_states[vsidx];
+        // get the link this spheres state is attached to
+        const int lidx = voxels_state.model->link_index;
+        for (size_t gidx = 0; gidx < m_model->groupCount(); ++gidx) {
+            const CollisionGroupModel& group_model = m_model->group(gidx);
+            // check if this link index is part of the group model
+            if (std::find(
+                    group_model.link_indices.begin(),
+                    group_model.link_indices.end(),
+                    lidx) ==
+                group_model.link_indices.end())
+            {
+                m_group_states[gidx].voxels_indices.push_back(vsidx);
+            }
+        }
     }
 
     // initialize link voxels states
@@ -772,21 +793,10 @@ void RobotCollisionStateImpl::initCollisionState()
         m_link_spheres_states[spheres_model.link_index] = spheres_state;
     }
 
-    // initialize group states
-
-    m_group_states.assign(m_model->groupCount(), CollisionGroupState());
-
-    updateGroupStateToModelReferences();
-    updateGroupStateReferences();
-
     assert(checkCollisionStateReferences());
 
     ROS_DEBUG_NAMED(RCM_LOGGER, "Collision State:");
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere States: [%p, %p]", m_sphere_states.data(), m_sphere_states.data() + m_sphere_states.size());
-    for (const auto& sphere_state : m_sphere_states) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, parent_state: %p, pos: (%0.3f, %0.3f, %0.3f)", sphere_state.model, sphere_state.parent_state, sphere_state.pos.x(), sphere_state.pos.y(), sphere_state.pos.z());
-    }
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
     for (const auto& spheres_state : m_spheres_states) {
         ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
@@ -798,7 +808,7 @@ void RobotCollisionStateImpl::initCollisionState()
     }
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Group States: [%p, %p]", m_group_states.data(), m_group_states.data() + m_group_states.size());
     for (const auto& group_state : m_group_states) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, sphere_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.sphere_indices).c_str(), to_string(group_state.voxels_indices).c_str());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, spheres_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.spheres_indices).c_str(), to_string(group_state.voxels_indices).c_str());
     }
 }
 
@@ -809,27 +819,32 @@ bool RobotCollisionStateImpl::checkCollisionStateReferences() const
         return ptr >= start && ptr < end;
     };
 
-    for (const auto& sphere_state : m_sphere_states) {
-        if (!within(sphere_state.parent_state,
-                m_spheres_states.data(),
-                m_spheres_states.data() + m_spheres_states.size()))
-        {
-            return false;
+    // check valid sphere state -> spheres state references
+    for (const auto& spheres_state : m_spheres_states) {
+        for (const auto& sphere_state : spheres_state.spheres) {
+            if (!within(sphere_state.parent_state,
+                    m_spheres_states.data(),
+                    m_spheres_states.data() + m_spheres_states.size()))
+            {
+                return false;
+            }
         }
     }
 
     for (const auto& group_state : m_group_states) {
+        // check valid group state -> spheres states references
         if (std::any_of(
-                group_state.sphere_indices.begin(),
-                group_state.sphere_indices.end(),
+                group_state.spheres_indices.begin(),
+                group_state.spheres_indices.end(),
                 [&](int ssidx)
                 {
-                    return ssidx < 0 || ssidx >= m_sphere_states.size();
+                    return ssidx < 0 || ssidx >= m_spheres_states.size();
                 }))
         {
             return false;
         }
 
+        // check valid group state -> voxels states references
         if (std::any_of(
                 group_state.voxels_indices.begin(),
                 group_state.voxels_indices.end(),
@@ -845,175 +860,13 @@ bool RobotCollisionStateImpl::checkCollisionStateReferences() const
     return true;
 }
 
-bool RobotCollisionStateImpl::updateSpheresStateToSphereStatesReferences()
 {
-    // assumes you're finished changing the set of sphere models, spheres
-    // models, sphere states, and spheres states and updates the following
-    // references:
-    // * sphere state -> sphere model
-    // * sphere state -> spheres state
-    // * spheres state -> sphere state[]
-    // * spheres state -> spheres model
-
-    for (auto& spheres_state : m_spheres_states) {
-        spheres_state.spheres.clear();
-    }
-
-    int sphere_state_idx = 0;
-    for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
-        // NOTE: careful with the variable shadowing here
-        const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
-              CollisionSpheresState& spheres_state = m_spheres_states[i];
-        // spheres state -> spheres model
-        spheres_state.model = &spheres_model;
-
-        for (const CollisionSphereModel* sphere_model : spheres_model.spheres) {
-            // sphere state -> sphere model
-            m_sphere_states[sphere_state_idx].model = sphere_model;
-            // sphere state -> spheres state
-            m_sphere_states[sphere_state_idx].parent_state = &spheres_state;
-            // spheres state -> sphere state[]
-            spheres_state.spheres.push_back(&m_sphere_states[sphere_state_idx]);
-            ++sphere_state_idx;
-        }
-    }
-
     return true;
 }
 
-bool RobotCollisionStateImpl::updateVoxelsStateToModelReferences()
+int RobotCollisionStateImpl::sphereIndex(const SphereIndex& sidx) const
 {
-    assert(m_model->voxelsModelCount() == m_voxels_states.size());
-    for (size_t i = 0; i < m_model->voxelsModelCount(); ++i) {
-        const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
-              CollisionVoxelsState& voxels_state = m_voxels_states[i];
-        voxels_state.model = &voxels_model;
-    }
-    return true;
-}
-
-bool RobotCollisionStateImpl::updateLinkBodyToSpheresStateReferences()
-{
-    // assumes that the links/attached bodies do have a corresponding sphere
-    // state but that the pointer reference has been invalidated by an increase
-    // in the size of the spheres state array
-    assert(m_model->spheresModelCount() == m_spheres_states.size());
-    for (size_t i = 0; i < m_spheres_states.size(); ++i) {
-        const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
-        CollisionSpheresState* spheres_state = &m_spheres_states[i];
-        if (spheres_model.link_index >= 0) {
-            assert(spheres_model.link_index < m_link_spheres_states.size());
-            m_link_spheres_states[spheres_model.link_index] = spheres_state;
-        }
-        else if (spheres_model.body_index >= 0) {
-            m_attached_body_spheres_states[spheres_model.body_index] = spheres_state;
-        }
-    }
-
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updated per-link and per-body spheres state references");
-    return true;
-}
-
-bool RobotCollisionStateImpl::updateLinkBodyToVoxelsStateReferences()
-{
-    // assumes that the links/attached bodies do have a corresponding voxels
-    // state but that the pointer reference has been invalidated by an increase
-    // in the size of the voxels state array
-    assert(m_voxels_states.size() == m_model->voxelsModelCount());
-    for (size_t i = 0; i < m_voxels_states.size(); ++i) {
-        const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
-        CollisionVoxelsState* voxels_state = &m_voxels_states[i];
-        if (voxels_model.link_index >= 0) {
-            m_link_voxels_states[voxels_model.link_index] = voxels_state;
-        }
-        else if (voxels_model.body_index >= 0) {
-            m_attached_body_voxels_states[voxels_model.body_index] = voxels_state;
-        }
-    }
-    return true;
-}
-
-bool RobotCollisionStateImpl::updateGroupStateToModelReferences()
-{
-    for (size_t i = 0; i < m_model->groupCount(); ++i) {
-        const CollisionGroupModel& group_model = m_model->group(i);
-              CollisionGroupState& group_state = m_group_states[i];
-        group_state.model = &group_model;
-    }
-    return true;
-}
-
-bool RobotCollisionStateImpl::updateGroupStateReferences()
-{
-    for (size_t i = 0; i < m_model->groupCount(); ++i) {
-        const CollisionGroupModel& group_model = m_model->group(i);
-        CollisionGroupState& group_state = m_group_states[i];
-        updateGroupStateReferences(group_model, group_state);
-    }
-    return true;
-}
-
-bool RobotCollisionStateImpl::updateGroupStateReferences(
-    const CollisionGroupModel& model,
-    CollisionGroupState& state)
-{
-    state.sphere_indices.clear();
-    state.voxels_indices.clear();
-
-    for (int lidx : model.link_indices) {
-        CollisionSpheresState* spheres_state = m_link_spheres_states[lidx];
-        if (spheres_state) {
-            for (CollisionSphereState* sphere_state : spheres_state->spheres) {
-                int ssidx = std::distance(m_sphere_states.data(), sphere_state);
-                state.sphere_indices.push_back(ssidx);
-            }
-        }
-    }
-
-    for (int bidx : model.body_indices) {
-        CollisionSpheresState* spheres_state = m_attached_body_spheres_states[bidx];
-        if (spheres_state) {
-            for (CollisionSphereState* sphere_state : spheres_state->spheres) {
-                int ssidx = std::distance(m_sphere_states.data(), sphere_state);
-                state.sphere_indices.push_back(ssidx);
-            }
-        }
-    }
-
-    // gather the indices of all link voxels states that do NOT belong to this group
-    for (size_t lidx = 0; lidx < m_model->linkCount(); ++lidx) {
-        if (std::find(
-                model.link_indices.begin(),
-                model.link_indices.end(),
-                (int)lidx) ==
-            model.link_indices.end())
-        {
-            CollisionVoxelsState* voxels_state = m_link_voxels_states[lidx];
-            if (voxels_state) {
-                int vsidx = std::distance(m_voxels_states.data(), voxels_state);
-                state.voxels_indices.push_back(vsidx);
-            }
-        }
-    }
-
-    // gather the indices of all attached body voxels states that do NOT
-    // belong to this group
-    for (const auto& entry : m_attached_body_voxels_states) {
-        if (std::find(
-                model.body_indices.begin(),
-                model.body_indices.end(),
-                entry.first) ==
-            model.body_indices.end())
-        {
-            CollisionVoxelsState* voxels_state = entry.second;
-            if (voxels_state) {
-                int vsidx = std::distance(m_voxels_states.data(), voxels_state);
-                state.voxels_indices.push_back(vsidx);
-            }
-        }
-    }
-
-    return true;
+    return m_sphere_offsets[sidx.ss] + sidx.s;
 }
 
 ////////////////////////////////////////
@@ -1021,7 +874,7 @@ bool RobotCollisionStateImpl::updateGroupStateReferences(
 ////////////////////////////////////////
 
 RobotCollisionState::RobotCollisionState(const RobotCollisionModel* model) :
-    m_impl(new RobotCollisionStateImpl(this, model))
+    m_impl(new RobotCollisionStateImpl(model))
 {
 }
 
@@ -1133,14 +986,15 @@ bool RobotCollisionState::updateVoxelsState(int vsidx)
     return m_impl->updateVoxelsState(vsidx);
 }
 
-const CollisionSphereState& RobotCollisionState::sphereState(int ssidx) const
+const CollisionSphereState& RobotCollisionState::sphereState(
+    const SphereIndex& sidx) const
 {
-    return m_impl->sphereState(ssidx);
+    return m_impl->sphereState(sidx);
 }
 
-bool RobotCollisionState::sphereStateDirty(int ssidx) const
+bool RobotCollisionState::sphereStateDirty(const SphereIndex& sidx) const
 {
-    return m_impl->sphereStateDirty(ssidx);
+    return m_impl->sphereStateDirty(sidx);
 }
 
 bool RobotCollisionState::updateSphereStates()
@@ -1148,21 +1002,21 @@ bool RobotCollisionState::updateSphereStates()
     return m_impl->updateSphereStates();
 }
 
-bool RobotCollisionState::updateSphereState(int ssidx)
+bool RobotCollisionState::updateSphereState(const SphereIndex& sidx)
 {
-    return m_impl->updateSphereState(ssidx);
+    return m_impl->updateSphereState(sidx);
 }
 
-const std::vector<int>& RobotCollisionState::groupSphereStateIndices(
+const std::vector<int>& RobotCollisionState::groupSpheresStateIndices(
     const std::string& group_name) const
 {
-    return m_impl->groupSphereStateIndices(group_name);
+    return m_impl->groupSpheresStateIndices(group_name);
 }
 
-const std::vector<int>& RobotCollisionState::groupSphereStateIndices(
+const std::vector<int>& RobotCollisionState::groupSpheresStateIndices(
     int gidx) const
 {
-    return m_impl->groupSphereStateIndices(gidx);
+    return m_impl->groupSpheresStateIndices(gidx);
 }
 
 const std::vector<int>& RobotCollisionState::groupOutsideVoxelsStateIndices(

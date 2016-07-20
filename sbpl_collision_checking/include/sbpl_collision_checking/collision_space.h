@@ -88,11 +88,6 @@ public:
         const CollisionModelConfig& config,
         const std::vector<std::string>& planning_joints);
 
-    bool init(
-        const RobotCollisionModelPtr& rcm,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
-
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
     /// \brief Return the reference frame of the occupancy grid
@@ -154,7 +149,7 @@ public:
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms,
-        const std::string& link_namme);
+        const std::string& link_name);
 
     bool removeAttachedObject(const std::string& id);
 
@@ -237,16 +232,14 @@ private:
     RobotCollisionState m_state;
 
     WorldCollisionModel         m_world;
-    SelfCollisionModel          m_self;
-    AttachedBodyCollisionModel  m_attached_body_model;
 
     // Collision Group
     std::string m_group_name;
     int m_group_index;
-    std::vector<int> m_sphere_indices;
-    std::vector<int> m_voxels_indices;
-    std::vector<int> m_ao_sphere_indices;
-    std::vector<int> m_ao_voxels_indices;
+    std::vector<SphereIndex>    m_sphere_indices;
+    std::vector<int>            m_voxels_indices;
+    std::vector<int>            m_ao_sphere_indices;
+    std::vector<int>            m_ao_voxels_indices;
 
     // Planning Joint Information
     std::vector<int> m_planning_joint_to_collision_model_indices;
@@ -282,10 +275,6 @@ private:
     void updateVoxelsStates();
 
     void initAllowedCollisionMatrix(const CollisionModelConfig& config);
-    bool findAttachedLink(
-        const CollisionModelConfig& config,
-        const std::string& sphere,
-        std::string& link_name) const;
 
     ////////////////////////
     // Collision Checking //
@@ -302,7 +291,10 @@ private:
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
 
-    bool checkSphereCollision(int ssidx, bool verbose, double& dist);
+    bool checkSphereCollision(
+        const SphereIndex& sidx,
+        bool verbose,
+        double& dist);
 
     bool checkRobotCollision(bool verbose, bool visualize, double& dist);
     bool checkSelfCollision(bool verbose, bool visualize, double& dist);

@@ -162,48 +162,48 @@ int main(int argc, char* argv[])
     state.updateSphereStates();
     publish_model_viz();
 
-    ROS_WARN("Attaching Cylinder and Publishing Visualization");
-
-    std::vector<shapes::ShapeConstPtr> shapes;
-    sbpl::collision::Affine3dVector transforms;
-
-    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
-
-    shapes.push_back(ao_shape);
-    transforms.push_back(Eigen::Affine3d::Identity());
-
-    const std::string attach_link = "ee_link";
-    const std::string attached_body_id = "ao1";
-    if (!model.attachBody(attached_body_id, shapes, transforms, attach_link)) {
-        ROS_ERROR("Failed to attach body to '%s'", attach_link.c_str());
-        return 1;
-    }
-
-    ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
-    ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
-    const int abidx = model.attachedBodyIndex(attached_body_id);
-    ROS_INFO("Attached Body Index: %d", abidx);
-    ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
-    ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
-
-    state.updateSphereStates();
-    publish_model_viz();
-
-    ROS_WARN("Detaching Cylinder and Publishing Visualization");
-
-    if (!model.detachBody(attached_body_id)) {
-        ROS_ERROR("Failed to detach body '%s'", attached_body_id.c_str());
-        return 1;
-    }
-
-    {
-        ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
-        ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
-        ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
-    }
-
-    state.updateSphereStates();
-    publish_model_viz();
+//    ROS_WARN("Attaching Cylinder and Publishing Visualization");
+//
+//    std::vector<shapes::ShapeConstPtr> shapes;
+//    sbpl::collision::Affine3dVector transforms;
+//
+//    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
+//
+//    shapes.push_back(ao_shape);
+//    transforms.push_back(Eigen::Affine3d::Identity());
+//
+//    const std::string attach_link = "ee_link";
+//    const std::string attached_body_id = "ao1";
+//    if (!model.attachBody(attached_body_id, shapes, transforms, attach_link)) {
+//        ROS_ERROR("Failed to attach body to '%s'", attach_link.c_str());
+//        return 1;
+//    }
+//
+//    ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
+//    ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
+//    const int abidx = model.attachedBodyIndex(attached_body_id);
+//    ROS_INFO("Attached Body Index: %d", abidx);
+//    ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
+//    ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
+//
+//    state.updateSphereStates();
+//    publish_model_viz();
+//
+//    ROS_WARN("Detaching Cylinder and Publishing Visualization");
+//
+//    if (!model.detachBody(attached_body_id)) {
+//        ROS_ERROR("Failed to detach body '%s'", attached_body_id.c_str());
+//        return 1;
+//    }
+//
+//    {
+//        ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
+//        ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
+//        ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
+//    }
+//
+//    state.updateSphereStates();
+//    publish_model_viz();
 
     return 0;
 }

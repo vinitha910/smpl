@@ -50,9 +50,6 @@
 namespace sbpl {
 namespace collision {
 
-/// \ingroup Collision Model
-///@{
-
 typedef Eigen::Affine3d (*JointTransformFunction)(
     const Eigen::Affine3d& origin,
     const Eigen::Vector3d& axis,
@@ -67,32 +64,47 @@ struct CollisionSphereModel
     int priority;
 };
 
+std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);
+
 /// \brief Collision Spheres Model Specification
 struct CollisionSpheresModel
 {
-    int link_index; // -1 if not attached to a link
-    int body_index; // -1 if not attached to an attached body
-    std::vector<const CollisionSphereModel*> spheres;
+    int link_index;
+    std::vector<CollisionSphereModel> spheres;
 };
+
+std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm);
 
 /// \brief Collision Voxels Model Specification
 struct CollisionVoxelsModel
 {
     int link_index; // -1 if not attached to a link
-    int body_index; // -1 if not attached to an attached body
     double voxel_res;
     std::vector<Eigen::Vector3d> voxels; // in the link frame
 };
+
+std::ostream& operator<<(std::ostream& o, const CollisionVoxelsModel& cvm);
 
 /// \brief Collision Group Model Specification
 struct CollisionGroupModel
 {
     std::string name;
     std::vector<int> link_indices;
-    std::vector<int> body_indices;
 };
 
-/// @}
+std::ostream& operator<<(std::ostream& o, const CollisionGroupModel& cgm);
+
+struct SphereIndex
+{
+    int ss;
+    int s;
+
+    SphereIndex() { }
+    SphereIndex(int ss, int s) : ss(ss), s(s) { }
+};
+
+std::ostream& operator<<(std::ostream& o, const SphereIndex& i);
+std::string to_string(const SphereIndex& i);
 
 class RobotCollisionModelImpl;
 
@@ -163,7 +175,6 @@ public:
     /// \name Collision Model
     ///@{
     size_t sphereModelCount() const;
-    auto   sphereModel(int smidx) const -> const CollisionSphereModel&;
 
     bool   hasSpheresModel(const std::string& link_name) const;
     bool   hasSpheresModel(int lidx) const;

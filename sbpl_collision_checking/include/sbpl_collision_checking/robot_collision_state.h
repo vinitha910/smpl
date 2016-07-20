@@ -62,7 +62,7 @@ struct CollisionSphereState
 struct CollisionSpheresState
 {
     const CollisionSpheresModel* model;
-    std::vector<CollisionSphereState*> spheres;
+    std::vector<CollisionSphereState> spheres;
 };
 
 /// \brief Voxel Collision State Specification
@@ -76,7 +76,7 @@ struct CollisionVoxelsState
 struct CollisionGroupState
 {
     const CollisionGroupModel* model;
-    std::vector<int> sphere_indices; ///< sphere states inside the group
+    std::vector<int> spheres_indices; ///< sphere states inside the group
     std::vector<int> voxels_indices; ///< voxels states outside the group
 };
 
@@ -131,16 +131,18 @@ public:
     bool updateVoxelsStates();
     bool updateVoxelsState(int vsidx);
 
-    auto sphereState(int ssidx) const -> const CollisionSphereState&;
-    bool sphereStateDirty(int ssidx) const;
-    bool updateSphereStates();
-    bool updateSphereState(int ssidx);
+    auto spheresState(int ssidx) const -> const CollisionSpheresState&;
+
+    auto sphereState(const SphereIndex& sidx) const -> const CollisionSphereState&;
+    bool sphereStateDirty(const SphereIndex& sidx) const;
+    bool updateSphereStates(int ssidx);
+    bool updateSphereState(const SphereIndex& sidx);
 
     /// \brief Return the indices of the collision sphere states belonging to
     ///        this group
-    auto   groupSphereStateIndices(const std::string& group_name) const ->
+    auto   groupSpheresStateIndices(const std::string& group_name) const ->
             const std::vector<int>&;
-    auto   groupSphereStateIndices(int gidx) const ->
+    auto   groupSpheresStateIndices(int gidx) const ->
             const std::vector<int>&;
 
     /// \brief Return the indices of the collision voxels states NOT belonging

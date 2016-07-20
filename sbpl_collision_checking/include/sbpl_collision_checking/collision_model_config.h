@@ -63,7 +63,7 @@ struct CollisionSpheresModelConfig
     std::string link_name;
     bool autogenerate;
     double radius; // relevant if autogenerate = true
-    std::vector<std::string> spheres; // relevant if autogenerate = false
+    std::vector<CollisionSphereConfig> spheres;
 
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionSpheresModelConfig& cfg);
 };
@@ -91,7 +91,6 @@ std::ostream& operator<<(std::ostream&, const CollisionGroupConfig&);
 
 struct CollisionModelConfig
 {
-    std::vector<CollisionSphereConfig>          spheres;
     std::vector<CollisionSpheresModelConfig>    spheres_models;
     std::vector<CollisionVoxelModelConfig>      voxel_models;
     std::vector<CollisionGroupConfig>           groups;

@@ -56,10 +56,7 @@ class WorldCollisionModel
 {
 public:
 
-    WorldCollisionModel(
-        OccupancyGrid* grid,
-        const std::string& group_name,
-        const RobotCollisionStatePtr& state = RobotCollisionStatePtr());
+    WorldCollisionModel(OccupancyGrid* grid);
 
     ~WorldCollisionModel();
 
@@ -79,9 +76,6 @@ public:
     /// Resets the WorldCollisionModel by clearing the underlying occupancy grid and
     /// revoxelizing all of the managed objects.
     void reset();
-
-    void setRobotCollisionState(const RobotCollisionStatePtr& state);
-    bool checkCollision();
 
     visualization_msgs::MarkerArray getWorldVisualization() const;
     visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
