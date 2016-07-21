@@ -46,12 +46,9 @@
 namespace sbpl {
 namespace collision {
 
-/// \ingroup Collision State
-///@{
-
 struct CollisionSpheresState;
 
-/// \brief Sphere Collision State Specification
+/// \brief Collision Sphere State Specification
 struct CollisionSphereState
 {
     const CollisionSphereModel* model;
@@ -59,18 +56,25 @@ struct CollisionSphereState
     Eigen::Vector3d pos;
 };
 
+std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css);
+
+/// \brief Collision Spheres State Specification
 struct CollisionSpheresState
 {
     const CollisionSpheresModel* model;
     std::vector<CollisionSphereState> spheres;
 };
 
-/// \brief Voxel Collision State Specification
+std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css);
+
+/// \brief Collision Voxels State Specification
 struct CollisionVoxelsState
 {
     const CollisionVoxelsModel* model;
     std::vector<Eigen::Vector3d> voxels; // in the model frame
 };
+
+std::ostream& operator<<(std::ostream& o, const CollisionVoxelsState& cvs);
 
 /// \brief Collision Group State
 struct CollisionGroupState
@@ -79,6 +83,8 @@ struct CollisionGroupState
     std::vector<int> spheres_indices; ///< sphere states inside the group
     std::vector<int> voxels_indices; ///< voxels states outside the group
 };
+
+std::ostream& operator<<(std::ostream& o, const CollisionGroupState& cgs);
 
 class RobotCollisionStateImpl;
 
@@ -96,14 +102,14 @@ public:
     auto   worldToModelTransform() const -> const Eigen::Affine3d&;
     bool   setWorldToModelTransform(const Eigen::Affine3d& transform);
 
-    auto   jointPositions() const -> const std::vector<double>&;
+    auto   jointVarPositions() const -> const std::vector<double>&;
     auto   linkTransforms() const -> const Affine3dVector&;
 
-    double jointPosition(const std::string& joint_name) const;
-    double jointPosition(int jidx) const;
+    double jointVarPosition(const std::string& var_name) const;
+    double jointVarPosition(int vidx) const;
 
-    bool   setJointPosition(const std::string& name, double position);
-    bool   setJointPosition(int jidx, double position);
+    bool   setJointVarPosition(const std::string& var_name, double position);
+    bool   setJointVarPosition(int vidx, double position);
 
     auto   linkTransform(const std::string& link_name) const ->
             const Eigen::Affine3d&;
@@ -135,6 +141,7 @@ public:
 
     auto sphereState(const SphereIndex& sidx) const -> const CollisionSphereState&;
     bool sphereStateDirty(const SphereIndex& sidx) const;
+    bool updateSphereStates();
     bool updateSphereStates(int ssidx);
     bool updateSphereState(const SphereIndex& sidx);
 
@@ -158,18 +165,6 @@ public:
     auto getVisualization(const std::string& group_name) const ->
             visualization_msgs::MarkerArray;
     auto getVisualization(int gidx) const ->
-            visualization_msgs::MarkerArray;
-    auto getStaticModelVisualization() const ->
-            visualization_msgs::MarkerArray;
-    auto getStaticModelVisualization(const std::string& group_name) const ->
-            visualization_msgs::MarkerArray;
-    auto getStaticModelVisualization(int gidx) const ->
-            visualization_msgs::MarkerArray;
-    auto getDynamicModelVisualization() const ->
-            visualization_msgs::MarkerArray;
-    auto getDynamicModelVisualization(const std::string& group_name) const ->
-            visualization_msgs::MarkerArray;
-    auto getDynamicModelVisualization(int gidx) const ->
             visualization_msgs::MarkerArray;
 
 private:

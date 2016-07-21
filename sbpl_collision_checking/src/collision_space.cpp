@@ -588,7 +588,7 @@ bool CollisionSpace::setJointPosition(
     double position)
 {
     if (m_model.hasJointVar(name)) {
-        m_state.setJointPosition(name, position);
+        m_state.setJointVarPosition(name, position);
         return true;
     }
     else {
@@ -714,7 +714,7 @@ bool CollisionSpace::isStateValid(
     // update the robot state
     for (size_t i = 0; i < angles.size(); ++i) {
         int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_state.setJointPosition(jidx, angles[i]);
+        m_state.setJointVarPosition(jidx, angles[i]);
     }
 
     updateVoxelsStates();
@@ -845,7 +845,7 @@ bool CollisionSpace::setPlanningScene(
     for (size_t i = 0; i < joint_state.name.size(); ++i) {
         const std::string& joint_name = joint_state.name[i];
         double joint_position = joint_state.position[i];
-        m_state.setJointPosition(joint_name, joint_position);
+        m_state.setJointVarPosition(joint_name, joint_position);
     }
 
     const sensor_msgs::MultiDOFJointState& multi_dof_joint_state =
@@ -1033,7 +1033,7 @@ CollisionSpace::getVisualization(
         return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0));
     }
     else if (type == "attached_object") {
-        return m_state.getDynamicModelVisualization();
+        return visualization_msgs::MarkerArray();
     }
     else {
         return m_grid->getVisualization(type);

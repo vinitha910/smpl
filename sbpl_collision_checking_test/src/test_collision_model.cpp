@@ -65,11 +65,6 @@ int main(int argc, char* argv[])
 
     ROS_INFO("Successfully loaded Collision Model Config");
 
-    ROS_INFO("Spheres:");
-    for (const auto& sphere : config.spheres) {
-        ROS_INFO_STREAM("  " << sphere);
-    }
-
     ROS_INFO("Spheres Models:");
     for (const auto& spheres_model : config.spheres_models) {
         ROS_INFO_STREAM("  " << spheres_model);
@@ -150,7 +145,7 @@ int main(int argc, char* argv[])
     ros::Duration(1.0).sleep();
 
     for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
-        state.setJointPosition(jidx, 0.0);
+        state.setJointVarPosition(jidx, 0.0);
     }
 
     state.updateSphereStates();
@@ -158,7 +153,7 @@ int main(int argc, char* argv[])
 
     ROS_WARN("Publishing Modified State Visualization");
 
-    state.setJointPosition(0, 0.8);
+    state.setJointVarPosition(0, 0.8);
     state.updateSphereStates();
     publish_model_viz();
 

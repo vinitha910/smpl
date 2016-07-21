@@ -626,6 +626,11 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
     m_name = urdf.getName();
 
     auto root_link = urdf.getRoot();
+    if (!root_link) {
+        ROS_ERROR("URDF specifies no root link");
+        return false;
+    }
+
     m_model_frame = root_link->name;
 
     // TODO: depth-first or post-traversal reordering to keep dependent
