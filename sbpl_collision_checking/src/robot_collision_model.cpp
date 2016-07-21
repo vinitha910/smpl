@@ -66,45 +66,6 @@ namespace collision {
 
 static const char* RCM_LOGGER = "robot";
 
-std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm)
-{
-    o << "{ name: " << csm.name << ", center: (" << csm.center.x() << ", " <<
-            csm.center.y() << ", " << csm.center.z() << "), radius: " <<
-            csm.radius << ", priority: " << csm.priority << " }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm)
-{
-    o << "{ link_index: " << csm.link_index << ", spheres: " << csm.spheres <<
-            " }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const CollisionVoxelsModel& cvm)
-{
-    o << "{ link_index: " << cvm.link_index << ", voxel_res: " <<
-            cvm.voxel_res << ", voxels: [" << cvm.voxels.size() << "]" << " }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const CollisionGroupModel& cgm)
-{
-    o << "{ name: " << cgm.name << ", link_indices: " << cgm.link_indices << " }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const SphereIndex& i)
-{
-    o << "(" << i.ss << ", " << i.s <<")";
-    return o;
-}
-
-std::string to_string(const SphereIndex& i)
-{
-    std::stringstream ss; ss << i; return ss.str();
-}
-
 /////////////////////////////////////////
 // RobotCollisionModelImpl Declaration //
 /////////////////////////////////////////

@@ -65,34 +65,6 @@ namespace collision {
 
 static const char* RCM_LOGGER = "robot";
 
-std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css)
-{
-    o << "{ model: " << css.model << ", parent_state: " << css.parent_state <<
-            ", pos: (" << css.pos.x() << ", " << css.pos.y() << ", " <<
-            css.pos.z() << ") }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css)
-{
-    o << "{ model: " << css.model << ", spheres: " << css.spheres << " }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const CollisionVoxelsState& cvs)
-{
-    o << "{ model: " << cvs.model << ", voxels: [" << cvs.voxels.size() << "] }";
-    return o;
-}
-
-std::ostream& operator<<(std::ostream& o, const CollisionGroupState& cgs)
-{
-    o << "{ model: " << cgs.model << ", sphere_indices: " <<
-            cgs.spheres_indices << ", voxels_indices: " << cgs.voxels_indices <<
-            " }";
-    return o;
-}
-
 /////////////////////////////////////////
 // RobotCollisionStateImpl Declaration //
 /////////////////////////////////////////

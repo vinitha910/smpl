@@ -45,6 +45,7 @@
 #include <urdf_model/model.h>
 
 // project includes
+#include <sbpl_collision_checking/base_collision_models.h>
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/types.h>
 
@@ -55,57 +56,6 @@ typedef Eigen::Affine3d (*JointTransformFunction)(
     const Eigen::Affine3d& origin,
     const Eigen::Vector3d& axis,
     double* jvals);
-
-/// \brief Collision Sphere Model Specification
-struct CollisionSphereModel
-{
-    std::string name;
-    Eigen::Vector3d center; ///< offset from link center
-    double radius;
-    int priority;
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);
-
-/// \brief Collision Spheres Model Specification
-struct CollisionSpheresModel
-{
-    int link_index;
-    std::vector<CollisionSphereModel> spheres;
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm);
-
-/// \brief Collision Voxels Model Specification
-struct CollisionVoxelsModel
-{
-    int link_index; // -1 if not attached to a link
-    double voxel_res;
-    std::vector<Eigen::Vector3d> voxels; // in the link frame
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionVoxelsModel& cvm);
-
-/// \brief Collision Group Model Specification
-struct CollisionGroupModel
-{
-    std::string name;
-    std::vector<int> link_indices;
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionGroupModel& cgm);
-
-struct SphereIndex
-{
-    int ss;
-    int s;
-
-    SphereIndex() { }
-    SphereIndex(int ss, int s) : ss(ss), s(s) { }
-};
-
-std::ostream& operator<<(std::ostream& o, const SphereIndex& i);
-std::string to_string(const SphereIndex& i);
 
 class RobotCollisionModelImpl;
 

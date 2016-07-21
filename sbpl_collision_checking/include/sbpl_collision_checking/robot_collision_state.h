@@ -41,50 +41,11 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
+#include <sbpl_collision_checking/base_collision_states.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
 
 namespace sbpl {
 namespace collision {
-
-struct CollisionSpheresState;
-
-/// \brief Collision Sphere State Specification
-struct CollisionSphereState
-{
-    const CollisionSphereModel* model;
-    const CollisionSpheresState* parent_state;
-    Eigen::Vector3d pos;
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css);
-
-/// \brief Collision Spheres State Specification
-struct CollisionSpheresState
-{
-    const CollisionSpheresModel* model;
-    std::vector<CollisionSphereState> spheres;
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css);
-
-/// \brief Collision Voxels State Specification
-struct CollisionVoxelsState
-{
-    const CollisionVoxelsModel* model;
-    std::vector<Eigen::Vector3d> voxels; // in the model frame
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionVoxelsState& cvs);
-
-/// \brief Collision Group State
-struct CollisionGroupState
-{
-    const CollisionGroupModel* model;
-    std::vector<int> spheres_indices; ///< sphere states inside the group
-    std::vector<int> voxels_indices; ///< voxels states outside the group
-};
-
-std::ostream& operator<<(std::ostream& o, const CollisionGroupState& cgs);
 
 class RobotCollisionStateImpl;
 
