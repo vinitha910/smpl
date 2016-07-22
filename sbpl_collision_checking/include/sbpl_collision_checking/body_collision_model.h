@@ -38,18 +38,7 @@ public:
 
     BodyCollisionModel();
 
-    /// \brief Add a set of collision spheres
-    ///
-    /// Objects of type InputIt must be able to be dereferenced and then
-    /// implicitly convertible to type const CollisionSphereConfig&. Objects
-    /// of type Indexer must meet the requirements of a Callable type with
-    /// ArgumentType const std::string& and ReturnType int
-    template <typename InputIt, typename Indexer>
-    void insertCollisionSpheres(
-        InputSphereIt first, InputSphereIt last,
-        const Indexer& indexer);
-
-    /// \brief Add a set of collision spheres models
+    /// \brief Insert a set of collision spheres models
     ///
     /// Objects of type InputIt must be able to be dereferenced and then
     /// implicitly convertible to type const CollisionSpheresModelConfig&.
@@ -57,10 +46,22 @@ public:
     /// with ArgumentType const std::string& and ReturnType int
     template <typename InputIt, typename Indexer>
     void insertCollisionSpheresModels(
-        InputIt first, Inputit last,
+        InputIt first, InputIt last,
         const Indexer& indexer);
 
-    /// \brief Add a set of collision voxels models
+    /// \brief Remove a set of collision spheres models
+    ///
+    /// Objects of type InputIt must be able to be dereferenced and then
+    /// implicitly convertible to type const std::string&. Objects of type
+    /// Indexer must meet the requirements of a Callable type with ArgumentType
+    /// const std::string& and ReturnType int
+    template <typename InputIt, typename Indexer>
+    void removeCollisionSpheresModel(
+        InputIt first, InputIt last,
+        const Indexer& indexer)
+    { }
+
+    /// \brief Insert a set of collision voxels models
     ///
     /// Objects of type InputIt must be able to be dereferenced and then
     /// implicitly convertible to type const CollisionVoxelsModelConfig&.
@@ -71,7 +72,19 @@ public:
         InputIt first, InputIt last,
         const Indexer& indexer);
 
-    /// \brief Add a set of group models
+    /// \brief Remove a set of collision voxels models
+    ///
+    /// Objects of type InputIt must be able to be dereferenced and then
+    /// implicitly convertible to type const std::string&. Objects of type
+    /// Indexer must meet the requirements of a Callable type with ArgumentType
+    /// const std::string& and ReturnType int
+    template <typename InputIt, typename Indexer>
+    void removeCollisionVoxelsModel(
+        InputIt first, InputIt last,
+        const Indexer& indexer)
+    { }
+
+    /// \brief Insert a set of group models
     ///
     /// Objects of type InputIt must be able to be dereferenced and then
     /// implicitly convertible to type const CollisionGroupConfig&. Objects
@@ -80,14 +93,22 @@ public:
     template <typename InputIt, typename Indexer>
     void insertGroupModels(
         InputIt first, InputIt last,
-        const Indexer& index);
+        const Indexer& indexer);
 
-    void removeCollisionSpheres(
-        InputIt first, InputIt last)
+    /// \brief Remove a set of group models
+    ///
+    /// Objects of type InputIt must be able to be dereferenced and then
+    /// implicitly convertible to type const std::string&. Objects of type
+    /// Indexer must meet the requirements of a Callable type with ArgumentType
+    /// const std::string& and ReturnType int
+    template <typename InputIt, typename Indexer>
+    void removeGroupModels(
+        InputIt first, InputIt last,
+        const Indexer& indexer)
+    { }
 
 private:
 
-    std::vector<CollisionSphereModel>   m_sphere_models;
     std::vector<CollisionSpheresModel>  m_spheres_models;
     std::vector<CollisionVoxelsModel>   m_voxels_models;
     std::vector<CollisionGroupModel>    m_group_models;
@@ -95,35 +116,33 @@ private:
 };
 
 template <typename InputIt, typename Indexer>
-void BodyCollisionModel::insertCollisionSpheres(
-    InputSphereIt first, InputSphereIt last,
-    const Indexer& indexer)
-{
-    auto new_sphere_count = std::distance(first, last);
-    auto prev_size = m_sphere_models.size();
-    auto prev_capacity = m_sphere_models.capacity();
-    m_sphere_models.resize(prev_size + new_sphere_count);
-    size_t i = prev_size;
-    for (auto it = first; it != last; ++it) {
-        const CollisionSphereConfig& config = *it;
-        CollisionSphereModel& sphere = m_sphere_models[i++];
-        sphere.name = config.name;
-        sphere.center = Eigen::Vector3d(config.x, config.y, config.z);
-        sphere.radius = config.radius;
-        sphere.priority = config.priority;
-    }
-
-    if (m_sphere_models.size() > prev_capacity) {
-        // regenerate references from all
-    }
-}
-
-template <typename InputIt, typename Indexer>
 void BodyCollisionModel::insertCollisionSpheresModels(
     InputIt first, Inputit last,
     const Indexer& indexer)
 {
+    auto prev_size = m_spheres_models.size();
+    auto new_size = prev_size + std::distance(first, last);
+    auto prev_cap = m_spheres_models.capacity();
+    m_spheres_models.resize(new_size);
+    auto i = prev_size;
+    for (auto it = first; it != last; ++it) {
+        const CollisionSpheresModelConfig& spheres_config = *it;
+        CollisionSpheresModel& spheres_model = m_spheres_models[i++];
 
+        // attach to the body
+        spheres_model.link_index = indexer(spheres_config.link_name);
+
+        // initialize sphere models
+        spheres_model.spheres.resize(spheres_config.spheres.size());
+        for (size_t j = 0; j < spheres_model.spheres.size(); ++j) {
+            const CollisionSphereConfig& sphere_config = spheres_config.spheres[j];
+            CollisionSphereModel& sphere_model = spheres_model.spheres[j];
+            sphere_model.name = sphere_config.name;
+            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+            sphere_model.radius = sphere_config.radius;
+            sphere_model.priority = sphere_config.priority;
+        }
+    }
 }
 
 template <typename InputIt, typename Indexer>
@@ -131,7 +150,29 @@ void BodyCollisionModel::insertCollisionVoxelsModels(
     InputIt first, InputIt last,
     const Indexer& indexer)
 {
+    auto prev_size = m_voxels_models.size();
+    auto new_size = prev_size + std::distance(first, last);
+    auto prev_cap = m_voxels_models.capacity();
+    m_voxels_models.resize(new_size);
+    auto i = prev_size;
+    for (auto it = first; it != last; ++it) {
+        const CollisionVoxelsModelConfig& voxels_config = *it;
+        CollisionVoxelsModel& voxels_model = m_voxels_models[i++];
 
+        // attach to the body
+        voxels_model.link_index = indexer(voxels_config.link_name);
+
+        // initialize sphere models
+        voxels_model.spheres.resize(voxels_config.spheres.size());
+        for (size_t j = 0; j < voxels_model.spheres.size(); ++j) {
+            const CollisionSphereConfig& sphere_config = voxels_config.spheres[j];
+            CollisionSphereModel& sphere_model = voxels_model.spheres[j];
+            sphere_model.name = sphere_config.name;
+            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+            sphere_model.radius = sphere_config.radius;
+            sphere_model.priority = sphere_config.priority;
+        }
+    }
 }
 
 template <typename InputIt, typename Indexer>

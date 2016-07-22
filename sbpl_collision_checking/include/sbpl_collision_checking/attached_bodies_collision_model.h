@@ -32,6 +32,19 @@
 #ifndef sbpl_collision_attached_bodies_collision_model_h
 #define sbpl_collision_attached_bodies_collision_model_h
 
+// standard includes
+#include <memory>
+#include <string>
+#include <vector>
+
+// system includes
+#include <geometric_shapes/shapes.h>
+
+// project includes
+#include <sbpl_collision_checking/base_collision_models.h>
+#include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/types.h>
+
 namespace sbpl {
 namespace collision {
 
@@ -41,7 +54,7 @@ class AttachedBodiesCollisionModel
 {
 public:
 
-    AttachedBodiesCollisionModel(RobotCollisionState* state);
+    AttachedBodiesCollisionModel(const RobotCollisionModel* model);
 
     ~AttachedBodiesCollisionModel();
 
@@ -54,51 +67,47 @@ public:
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms,
         const std::string& link_name,
-        bool create_voxels_model,
-        bool create_spheres_model);
+        bool create_voxels_model = true,
+        bool create_spheres_model = true);
     bool detachBody(const std::string& id);
 
+    /// \name Attached Bodies Model
+    ///@{
     size_t attachedBodyCount() const;
     bool   hasAttachedBody(const std::string& id) const;
     int    attachedBodyIndex(const std::string& id) const;
     auto   attachedBodyName(int abidx) const -> const std::string&;
     int    attachedBodyLinkIndex(int abidx) const;
 
-    auto attachedBodyIndices(const std::string& link_name) const ->
-            const std::vector<int>&;
+    auto attachedBodyIndices(const std::string& link_name) const
+            -> const std::vector<int>&;
     auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
+    ///@}
 
-    auto attachedBodyTransform(const std::string& id) const ->
-            const Eigen::Affine3d&;
-    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
+    /// \name Attached Bodies Collision Model
+    ///@{
+    size_t sphereModelCount() const;
 
-    bool attachedBodyTransformDirty(const std::string& id) const;
-    bool attachedBodyTransformDirty(int abidx) const;
+    bool   hasSpheresModel(const std::string& id) const;
+    bool   hasSpheresModel(int abidx) const;
+    size_t spheresModelCount() const;
+    auto   spheresModel(int smidx) const -> const CollisionSpheresModel&;
 
-    bool updateAttachedBodyTransform(const std::string& id);
-    bool updateAttachedBodyTransform(int abidx);
+    bool   hasVoxelsModel(const std::string& id) const;
+    bool   hasVoxelsModel(int abidx) const;
+    size_t voxelsModelCount() const;
+    auto   voxelsModel(int vmidx) const -> const CollisionVoxelsModel&;
 
-    auto voxelsState(int vsidx) const -> const CollisionVoxelsState&;
-    bool voxelsStateDirty(int vsidx) const;
-    bool updateVoxelsStates();
-    bool updateVoxelsState(int vsidx);
+    size_t groupCount();
+    auto   group(int gidx) const -> const CollisionGroupModel&;
+    bool   hasGroup(const std::string& group_name) const;
+    int    groupIndex(const std::string& group_name) const;
+    auto   groupName(int gidx) const -> const std::string&;
 
-    auto sphereState(int ssidx) const -> const CollisionSphereState&;
-    bool sphereStateDirty(int ssidx) const;
-    bool updateSphereStates();
-    bool updateSphereState(int ssidx);
-
-    auto   groupSphereStateIndices(const std::string& group_name) const ->
-            const std::vector<int>&;
-    auto   groupSphereStateIndices(int gidx) const ->
-            const std::vector<int>&;
-
-    /// \brief Return the indices of the collision voxels states NOT belonging
-    ///        to this group.
-    auto  groupOutsideVoxelsStateIndices(const std::string& group_name) const ->
-            const std::vector<int>&;
-    auto   groupOutsideVoxelsStateIndices(int gidx) const ->
-            const std::vector<int>&;
+    auto groupLinkIndices(const std::string& group_name) const
+            -> const std::vector<int>&;
+    auto groupLinkIndices(int gidx) const -> const std::vector<int>&;
+    ///@}
 
 private:
 

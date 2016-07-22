@@ -83,7 +83,9 @@ int main(int argc, char* argv[])
     ROS_INFO("Allowed Collision Matrix:");
     config.acm.print(std::cout);
 
-    ROS_WARN("Initialize Robot Model");
+    ///////////////////////
+    // Load the UR5 URDF //
+    ///////////////////////
 
     std::string robot_description_param;
     if (!nh.searchParam("robot_description", robot_description_param)) {
@@ -94,7 +96,6 @@ int main(int argc, char* argv[])
     std::string robot_description;
     nh.getParam(robot_description_param, robot_description);
 
-    sbpl::collision::RobotCollisionModel model;
     auto urdf = boost::make_shared<urdf::Model>();
     if (!urdf->initString(robot_description)) {
         ROS_ERROR("Failed to parse URDF");
@@ -106,13 +107,24 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    //////////////////////////////////////
+    // Create the Robot Collision Model //
+    //////////////////////////////////////
+
+    ROS_WARN("Initialize Robot Model");
+    sbpl::collision::RobotCollisionModel model;
     if (!model.init(*urdf, config)) {
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
     }
 
+    //////////////////////////////////////////////
+    // Create a dependent Robot Collision State //
+    //////////////////////////////////////////////
+
     sbpl::collision::RobotCollisionState state(&model);
 
+    // convenience lambda for publishing visualization of the current state
     visualization_msgs::MarkerArray prev_ma;
     auto publish_model_viz = [&]()
     {
@@ -135,46 +147,56 @@ int main(int argc, char* argv[])
         ros::Duration(1.0).sleep();
     };
 
-    ROS_WARN("Publishing Zero State Visualization");
-
     /////////////////////////////////////////////
     // publish visualization of the zero state //
     /////////////////////////////////////////////
-
-    // let ros and the publisher set up
-    ros::Duration(1.0).sleep();
 
     for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
         state.setJointVarPosition(jidx, 0.0);
     }
 
     state.updateSphereStates();
-    publish_model_viz();
 
-    ROS_WARN("Publishing Modified State Visualization");
+    // let ros and the publisher set up prior to the first visualization
+    ros::Duration(1.0).sleep();
+
+    ROS_WARN("Publishing Zero State Visualization");
+    publish_model_viz();
 
     state.setJointVarPosition(0, 0.8);
     state.updateSphereStates();
+
+    ROS_WARN("Publishing Modified State Visualization");
     publish_model_viz();
 
-//    ROS_WARN("Attaching Cylinder and Publishing Visualization");
-//
-//    std::vector<shapes::ShapeConstPtr> shapes;
-//    sbpl::collision::Affine3dVector transforms;
-//
-//    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
-//
-//    shapes.push_back(ao_shape);
-//    transforms.push_back(Eigen::Affine3d::Identity());
-//
-//    const std::string attach_link = "ee_link";
-//    const std::string attached_body_id = "ao1";
-//    if (!model.attachBody(attached_body_id, shapes, transforms, attach_link)) {
-//        ROS_ERROR("Failed to attach body to '%s'", attach_link.c_str());
-//        return 1;
-//    }
-//
-//    ROS_INFO("Attached Body Count %zu", model.attachedBodyCount());
+    ////////////////////////////////////////////////////////
+    // create a dependent Attached Bodies Collision Model //
+    ////////////////////////////////////////////////////////
+
+    sbpl::collision::AttachedBodiesCollisionModel ab_model(&model);
+
+    ////////////////////////////////////////////////////////
+    // create a dependent Attached Bodies Collision Model //
+    ////////////////////////////////////////////////////////
+
+    std::vector<shapes::ShapeConstPtr> shapes;
+    sbpl::collision::Affine3dVector transforms;
+
+    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
+
+    shapes.push_back(ao_shape);
+    transforms.push_back(Eigen::Affine3d::Identity());
+
+    const std::string attach_link = "ee_link";
+    const std::string attached_body_id = "ao1";
+    if (!ab_model.attachBody(attached_body_id, shapes, transforms, attach_link)) {
+        ROS_ERROR("Failed to attach body to '%s'", attach_link.c_str());
+        return 1;
+    }
+
+    ROS_WARN("Attaching Cylinder and Publishing Visualization");
+
+    ROS_INFO("Attached Body Count %zu", ab_model.attachedBodyCount());
 //    ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
 //    const int abidx = model.attachedBodyIndex(attached_body_id);
 //    ROS_INFO("Attached Body Index: %d", abidx);

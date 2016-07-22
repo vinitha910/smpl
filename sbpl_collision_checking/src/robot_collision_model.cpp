@@ -217,11 +217,6 @@ private:
         const Eigen::Affine3d& pose,
         double res,
         std::vector<Eigen::Vector3d>& voxels) const;
-
-    bool voxelizeAttachedBody(
-        const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
-        CollisionVoxelsModel& model) const;
 };
 
 // TODO:
@@ -1025,27 +1020,6 @@ bool RobotCollisionModelImpl::voxelizeLink(
 
     if (model.voxels.empty()) {
         ROS_WARN_NAMED(RCM_LOGGER, "Voxelizing collision elements for link '%s' produced 0 voxels", link_name.c_str());
-    }
-
-    return true;
-}
-
-bool RobotCollisionModelImpl::voxelizeAttachedBody(
-    const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
-    CollisionVoxelsModel& model) const
-{
-    if (shapes.size() != transforms.size()) {
-        ROS_ERROR_NAMED(RCM_LOGGER, "shapes array and transforms array must have equal length");
-        return false;
-    }
-
-    std::vector<Eigen::Vector3d> voxels;
-    for (size_t i = 0; i < shapes.size(); ++i) {
-        const shapes::Shape& shape = *shapes[i];
-        const Eigen::Affine3d& transform = transforms[i];
-        VoxelizeShape(
-                shape, transform, model.voxel_res, Eigen::Vector3d::Zero(), model.voxels);
     }
 
     return true;
