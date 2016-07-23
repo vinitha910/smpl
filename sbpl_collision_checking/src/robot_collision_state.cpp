@@ -132,19 +132,18 @@ public:
 
 private:
 
-    const RobotCollisionModel* m_model;
+    const RobotCollisionModel*              m_model;
 
     /// \name Robot State
     ///@{
-    std::vector<double>     m_jvar_positions;           // per variable
-    std::vector<double*>    m_joint_var_offsets;        // per joint
-    std::vector<bool>       m_dirty_link_transforms;    // per link
-    Affine3dVector          m_link_transforms;          // per link
+    std::vector<double>                     m_jvar_positions;
+    std::vector<double*>                    m_joint_var_offsets;
+    std::vector<bool>                       m_dirty_link_transforms;
+    Affine3dVector                          m_link_transforms;
     ///@}
 
     /// \name Collision State
     ///@{
-
     // per sphere state
     std::vector<bool>                       m_dirty_sphere_states;
 
@@ -164,18 +163,12 @@ private:
     // per-link references to corresponding spheres and voxels states
     std::vector<CollisionVoxelsState*>      m_link_voxels_states;
     std::vector<CollisionSpheresState*>     m_link_spheres_states;
-
     ///@}
 
     void initRobotState();
     void initCollisionState();
 
     bool checkCollisionStateReferences() const;
-
-    bool updateSpheresStateToSphereStatesReferences();
-    bool updateVoxelsStateToModelReferences();
-    bool updateLinkBodyToSpheresStateReferences();
-    bool updateLinkBodyToVoxelsStateReferences();
 
     int sphereIndex(const SphereIndex& sidx) const;
 };
@@ -662,13 +655,14 @@ void RobotCollisionStateImpl::initRobotState()
 void RobotCollisionStateImpl::initCollisionState()
 {
     // initialize sphere and spheres states
-    m_spheres_states.assign(m_model->spheresModelCount(), CollisionSpheresState());
+    m_dirty_sphere_states.assign(m_model->sphereModelCount(), true);
     m_sphere_offsets.assign(m_model->spheresModelCount(), 0);
+    m_spheres_states.assign(m_model->spheresModelCount(), CollisionSpheresState());
     int offset = 0;
     for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
         m_sphere_offsets[i] = offset;
         const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
-              CollisionSpheresState& spheres_state = m_spheres_states[i];
+        CollisionSpheresState& spheres_state = m_spheres_states[i];
 
         // map spheres state -> spheres model
         spheres_state.model = &spheres_model;
@@ -683,7 +677,6 @@ void RobotCollisionStateImpl::initCollisionState()
         }
     }
 
-    m_dirty_sphere_states.assign(m_model->sphereModelCount(), true);
 
     // initialize voxels states
     m_dirty_voxels_states.assign(m_model->voxelsModelCount(), true);

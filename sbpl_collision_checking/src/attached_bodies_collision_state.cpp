@@ -29,6 +29,11 @@
 
 /// \author Andrew Dornbush
 
+#include <algorithm>
+
+#include <sbpl_collision_checking/attached_bodies_collision_state.h>
+#include "debug.h"
+
 namespace sbpl {
 namespace collision {
 
@@ -48,11 +53,12 @@ public:
     ///@{
     auto attachedBodyTransform(const std::string& id) const
             -> const Eigen::Affine3d&;
-    auto attachedBodyTransform(int lidx) const -> const Eigen::Affine3d&;
+    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
 
     bool attachedBodyTransformDirty(const std::string& id) const;
     bool attachedBodyTransformDirty(int abidx) const;
 
+    bool updateAttachedBodyTransforms();
     bool updateAttachedBodyTransform(const std::string& id);
     bool updateAttachedBodyTransform(int abidx);
     ///@}
@@ -90,234 +96,369 @@ public:
 
 private:
 
-    const AttachedBodiesCollisionModel* m_model;
-    RobotCollisionState* m_state;
+    const AttachedBodiesCollisionModel*     m_model;
+    RobotCollisionState*                    m_state;
 
-    std::vector<bool>                   m_dirty_sphere_states;
-    std::vector<CollisionSphereState>   m_sphere_states;
-    std::vector<CollisionSpheresState>  m_spheres_states;
-    std::vector<bool>                   m_dirty_voxels_states;
-    std::vector<CollisionVoxelsState>   m_voxels_states;
-    std::vector<CollisionGroupState>    m_group_states;
+    std::vector<bool>                       m_dirty_sphere_states;
+    std::vector<int>                        m_sphere_offsets;
+    std::vector<CollisionSpheresState>      m_spheres_states;
+    std::vector<bool>                       m_dirty_voxels_states;
+    std::vector<CollisionVoxelsState>       m_voxels_states;
+    std::vector<CollisionGroupState>        m_group_states;
 
-    hash_map<int, CollisionSpheresState*>       m_attached_body_spheres_states;
-    hash_map<int, CollisionVoxelsState*>        m_attached_body_voxels_states;
+    hash_map<int, CollisionSpheresState*>   m_attached_body_spheres_states;
+    hash_map<int, CollisionVoxelsState*>    m_attached_body_voxels_states;
+
+    int sphereIndex(const SphereIndex& sidx) const;
 };
 
-AttachedBodiesCollisionState::AttachedBodiesCollisionState(
+AttachedBodiesCollisionStateImpl::AttachedBodiesCollisionStateImpl(
     const AttachedBodiesCollisionModel* model,
     RobotCollisionState* state)
 :
     m_model(model),
-    m_state(state)
+    m_state(state),
+    m_dirty_sphere_states(),
+    m_sphere_offsets(),
+    m_dirty_voxels_states(),
+    m_voxels_states(),
+    m_group_states(),
+    m_attached_body_spheres_states(),
+    m_attached_body_voxels_states()
 {
-    // initialize sphere(s) states and update all references between sphere(s)
-    // states and sphere(s) models
-    if (spheres) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Adding sphere(s) states and updating references");
-        // append new sphere states
-        int unique_sphere_count = spheres->spheres.size();
-        m_sphere_states.resize(m_sphere_states.size() + unique_sphere_count);
-        ROS_DEBUG_NAMED(RCM_LOGGER, "  Sphere State Count %zu -> %zu", m_sphere_states.size() - unique_sphere_count, m_sphere_states.size());
+    m_dirty_sphere_states.assign(m_model->sphereModelCount(), true);
+    m_sphere_offsets.resize(m_model->spheresModelCount(), 0);
+    m_spheres_states.resize(m_model->spheresModelCount());
+    int offset = 0;
+    for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
+        m_sphere_offsets[i] = offset;
+        const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
+        CollisionSpheresState& spheres_state = m_spheres_states[i];
 
-        // dirty new sphere states
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Dirtying new sphere states");
-        m_dirty_sphere_states.resize(m_sphere_states.size(), true);
+        spheres_state.model = &spheres_model;
 
-        // append a new spheres state
-        m_spheres_states.resize(m_spheres_states.size() + 1);
-        ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres State Count %zu -> %zu", m_spheres_states.size() - 1, m_spheres_states.size());
-
-        updateSpheresStateToSphereStatesReferences();
-        updateLinkBodyToSpheresStateReferences();
+        spheres_state.spheres.resize(spheres_model.spheres.size());
+        for (size_t j = 0; j < spheres_model.spheres.size(); ++j) {
+            spheres_state.spheres[j].model = &spheres_model.spheres[j];
+            spheres_state.spheres[j].parent_state = &spheres_state;
+            ++offset;
+        }
     }
 
-    // initialize voxels state and update references to voxels models
-    if (voxels) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Adding voxels state and updating references");
-        m_voxels_states.resize(m_voxels_states.size() + 1);
-        CollisionVoxelsState& voxels_state = m_voxels_states.back();
-        voxels_state.voxels = voxels->voxels;
-        m_dirty_voxels_states.resize(m_dirty_voxels_states.size() + 1, true);
+    // initialize voxels states
+    m_dirty_voxels_states.assign(m_model->voxelsModelCount(), true);
+    m_voxels_states.assign(m_model->voxelsModelCount(), CollisionVoxelsState());
 
-        updateVoxelsStateToModelReferences();
-        updateLinkBodyToVoxelsStateReferences();
+    for (size_t i = 0; i < m_model->voxelsModelCount(); ++i) {
+        const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
+              CollisionVoxelsState& voxels_state = m_voxels_states[i];
+        // duplicate voxels from voxels model
+        voxels_state.model = &voxels_model;
+        voxels_state.voxels = voxels_model.voxels;
     }
 
-    // update all references from group states to sphere and voxels states
-    assert(m_model->groupCount() == m_group_states.size());
-    updateGroupStateReferences();
+    // initialize group states
+    m_group_states.assign(m_model->groupCount(), CollisionGroupState());
+    for (size_t i = 0; i < m_model->groupCount(); ++i) {
+        const CollisionGroupModel& group_model = m_model->group(i);
+              CollisionGroupState& group_state = m_group_states[i];
+        // map group state -> group model
+        group_state.model = &group_model;
+    }
+
+    // map group state -> spheres states
+    for (size_t ssidx = 0; ssidx < m_spheres_states.size(); ++ssidx) {
+        const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
+        // get the link this spheres state is attached to
+        const int lidx = spheres_state.model->link_index;
+        for (size_t gidx = 0; gidx < m_model->groupCount(); ++gidx) {
+            const CollisionGroupModel& group_model = m_model->group(gidx);
+            // check if this link index is part of the group model
+            if (std::find(
+                    group_model.link_indices.begin(),
+                    group_model.link_indices.end(),
+                    lidx) !=
+                group_model.link_indices.end())
+            {
+                m_group_states[gidx].spheres_indices.push_back(ssidx);
+            }
+        }
+    }
+
+    // map group state -> (outside) voxels states
+    for (size_t vsidx = 0; vsidx < m_voxels_states.size(); ++vsidx) {
+        const CollisionVoxelsState& voxels_state = m_voxels_states[vsidx];
+        // get the link this spheres state is attached to
+        const int lidx = voxels_state.model->link_index;
+        for (size_t gidx = 0; gidx < m_model->groupCount(); ++gidx) {
+            const CollisionGroupModel& group_model = m_model->group(gidx);
+            // check if this link index is part of the group model
+            if (std::find(
+                    group_model.link_indices.begin(),
+                    group_model.link_indices.end(),
+                    lidx) ==
+                group_model.link_indices.end())
+            {
+                m_group_states[gidx].voxels_indices.push_back(vsidx);
+            }
+        }
+    }
+
+    // initialize attached bodies voxels states
+    // initialize attached bodies spheres states
 }
 
-AttachedBodiesCollisionState::~AttachedBodiesCollisionState()
+AttachedBodiesCollisionStateImpl::~AttachedBodiesCollisionStateImpl()
 {
 
 }
 
 inline
-const AttachedBodiesCollisionModel* AttachedBodiesCollisionState::model()
+const AttachedBodiesCollisionModel* AttachedBodiesCollisionStateImpl::model()
 {
     return m_model;
 }
 
 inline
-RobotCollisionState* AttachedBodiesCollisionState::state()
+RobotCollisionState* AttachedBodiesCollisionStateImpl::state()
 {
     return m_state;
 }
 
 inline
-const Eigen::Affine3d& AttachedBodiesCollisionState::attachedBodyTransform(
+const Eigen::Affine3d& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
     const std::string& id) const
 {
     const int abidx = m_model->attachedBodyIndex(id);
     const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_link_transforms[lidx];
+    return m_state->linkTransform(lidx);
 }
 
 inline
-const Eigen::Affine3d& AttachedBodiesCollisionState::attachedBodyTransform(
-    int lidx) const
+const Eigen::Affine3d& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
+    int abidx) const
 {
     const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_link_transforms[lidx];
+    return m_state->linkTransform(lidx);
 }
 
 inline
-bool AttachedBodiesCollisionState::attachedBodyTransformDirty(
+bool AttachedBodiesCollisionStateImpl::attachedBodyTransformDirty(
     const std::string& id) const
 {
     const int abidx = m_model->attachedBodyIndex(id);
     const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_dirty_link_transforms[lidx];
+    return m_state->linkTransformDirty(lidx);
 }
 
 inline
-bool AttachedBodiesCollisionState::attachedBodyTransformDirty(int abidx) const
+bool AttachedBodiesCollisionStateImpl::attachedBodyTransformDirty(
+    int abidx) const
 {
     const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return m_dirty_link_transforms[lidx];
+    return m_state->linkTransformDirty(lidx);
 }
 
 inline
-bool AttachedBodiesCollisionState::updateAttachedBodyTransform(
+bool AttachedBodiesCollisionStateImpl::updateAttachedBodyTransforms()
+{
+    return m_state->updateLinkTransforms();
+}
+
+inline
+bool AttachedBodiesCollisionStateImpl::updateAttachedBodyTransform(
     const std::string& id)
 {
     const int abidx = m_model->attachedBodyIndex(id);
     const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return updateLinkTransform(lidx);
+    return m_state->updateLinkTransform(lidx);
 }
 
 inline
-bool AttachedBodiesCollisionState::updateAttachedBodyTransform(int abidx)
+bool AttachedBodiesCollisionStateImpl::updateAttachedBodyTransform(int abidx)
 {
     const int lidx = m_model->attachedBodyLinkIndex(abidx);
-    return updateLinkTransform(lidx);
+    return m_state->updateLinkTransform(lidx);
 }
 
-const CollisionVoxelsState& AttachedBodiesCollisionState::voxelsState(
+inline
+const CollisionVoxelsState& AttachedBodiesCollisionStateImpl::voxelsState(
     int vsidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_voxels_states, vsidx);
+    return m_voxels_states[vsidx];
 }
 
-bool AttachedBodiesCollisionState::voxelsStateDirty(int vsidx) const
+inline
+bool AttachedBodiesCollisionStateImpl::voxelsStateDirty(int vsidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_voxels_states, vsidx);
+    return m_dirty_voxels_states[vsidx];
 }
 
-bool AttachedBodiesCollisionState::updateVoxelsStates()
+inline
+bool AttachedBodiesCollisionStateImpl::updateVoxelsStates()
 {
-
+    bool updated = false;
+    for (size_t vsidx = 0; vsidx < m_voxels_states.size(); ++vsidx) {
+        updated |= updateVoxelsState(vsidx);
+    }
+    return updated;
 }
 
-bool AttachedBodiesCollisionState::updateVoxelsState(int vsidx)
+inline
+bool AttachedBodiesCollisionStateImpl::updateVoxelsState(int vsidx)
 {
-    const int bidx = state.model->body_index;
+    ASSERT_VECTOR_RANGE(m_dirty_voxels_states, vsidx);
+
+    if (!m_dirty_voxels_states[vsidx]) {
+        return false;
+    }
+
+    CollisionVoxelsState& state = m_voxels_states[vsidx];
+
+    const int bidx = state.model->link_index;
     updateAttachedBodyTransform(bidx);
 
     const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
 
     // transform voxels into the model frame
-    new_voxels.resize(state.model->voxels.size());
+    std::vector<Eigen::Vector3d> new_voxels(state.model->voxels.size());
     for (size_t i = 0; i < state.model->voxels.size(); ++i) {
         new_voxels[i] = T_model_body * state.model->voxels[i];
     }
-    return false;
+
+    state.voxels = std::move(new_voxels);
+    m_dirty_voxels_states[vsidx] = false;
+    return true;
 }
 
-const CollisionSpheresState& AttachedBodiesCollisionState::spheresState(
+inline
+const CollisionSpheresState& AttachedBodiesCollisionStateImpl::spheresState(
     int ssidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_spheres_states, ssidx);
+    return m_spheres_states[ssidx];
 }
 
-const CollisionSpheresState& AttachedBodiesCollisionState::sphereState(
+inline
+const CollisionSphereState& AttachedBodiesCollisionStateImpl::sphereState(
     const SphereIndex& sidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_spheres_states, sidx.ss);
+    ASSERT_VECTOR_RANGE(m_spheres_states[sidx.ss].spheres, sidx.s);
+    return m_spheres_states[sidx.ss].spheres[sidx.s];
 }
 
-bool AttachedBodiesCollisionState::sphereStateDirty(
+inline
+bool AttachedBodiesCollisionStateImpl::sphereStateDirty(
     const SphereIndex& sidx) const
 {
-
+    const int idx = sphereIndex(sidx);
+    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, idx);
+    return m_dirty_sphere_states[idx];
 }
 
-bool AttachedBodiesCollisionState::updateSphereStates()
+inline
+bool AttachedBodiesCollisionStateImpl::updateSphereStates()
 {
-
+    bool updated = false;
+    for (size_t ssidx = 0; ssidx < m_spheres_states.size(); ++ssidx) {
+        updated |= updateSphereStates(ssidx);
+    }
+    return updated;
 }
 
-bool AttachedBodiesCollisionState::updateSphereStates(int ssidx)
+inline
+bool AttachedBodiesCollisionStateImpl::updateSphereStates(int ssidx)
 {
-    const int bidx = m_sphere_states[sidx].parent_state->model->body_index;
-    updateAttachedBodyTransform(bidx);
-
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating position of sphere '%s'", m_sphere_states[sidx].model->name.c_str());
-    const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
-    m_sphere_states[sidx].pos = T_model_body * m_sphere_states[sidx].model->center;
-    return false;
+    bool updated = false;
+    const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
+    for (size_t sidx = 0; sidx < spheres_state.spheres.size(); ++sidx) {
+        updated |= updateSphereState(SphereIndex(ssidx, sidx));
+    }
+    return updated;
 }
 
-bool AttachedBodiesCollisionState::updateSphereState(const SphereIndex& sidx)
+inline
+bool AttachedBodiesCollisionStateImpl::updateSphereState(
+    const SphereIndex& sidx)
 {
+    const int idx = sphereIndex(sidx);
+    ASSERT_VECTOR_RANGE(m_dirty_sphere_states, idx);
 
+    if (!m_dirty_sphere_states[idx]) {
+        return false;
+    }
+
+    CollisionSphereState& sphere_state = m_spheres_states[sidx.ss].spheres[sidx.s];
+
+    const int abidx = sphere_state.parent_state->model->link_index;
+    updateAttachedBodyTransform(abidx);
+
+    const Eigen::Affine3d& T_model_body = attachedBodyTransform(abidx);
+    sphere_state.pos = T_model_body * sphere_state.model->center;
+
+    m_dirty_sphere_states[idx] = false;
+    return true;
 }
 
-const std::vector<int>& AttachedBodiesCollisionState::groupSpheresStateIndices(const std::string& group_name) const
+inline
+const std::vector<int>&
+AttachedBodiesCollisionStateImpl::groupSpheresStateIndices(
+    const std::string& group_name) const
 {
-
+    const int gidx = m_model->groupIndex(group_name);
+    return m_group_states[gidx].spheres_indices;
 }
 
-const std::vector<int>& AttachedBodiesCollisionState::groupSpheresStateIndices(int gidx) const
+inline
+const std::vector<int>&
+AttachedBodiesCollisionStateImpl::groupSpheresStateIndices(int gidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_group_states, gidx);
+    return m_group_states[gidx].spheres_indices;
 }
 
-const std::vector<int>& AttachedBodiesCollisionState::groupOutsideVoxelsStateIndices(const std::string& group_name) const
+inline
+const std::vector<int>&
+AttachedBodiesCollisionStateImpl::groupOutsideVoxelsStateIndices(
+    const std::string& group_name) const
 {
-
+    const int gidx = m_model->groupIndex(group_name);
+    return m_group_states[gidx].voxels_indices;
 }
 
-const std::vector<int>& AttachedBodiesCollisionState::groupOutsideVoxelsStateIndices(int gidx) const
+inline
+const std::vector<int>&
+AttachedBodiesCollisionStateImpl::groupOutsideVoxelsStateIndices(int gidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_group_states, gidx);
+    return m_group_states[gidx].voxels_indices;
 }
 
-visualization_msgs::MarkerArray AttachedBodiesCollisionState::getVisualization() const
+visualization_msgs::MarkerArray
+AttachedBodiesCollisionStateImpl::getVisualization() const
 {
-
+    return visualization_msgs::MarkerArray();
 }
 
-visualization_msgs::MarkerArray AttachedBodiesCollisionState::getVisualization(const std::string& group_name) const
+visualization_msgs::MarkerArray
+AttachedBodiesCollisionStateImpl::getVisualization(
+    const std::string& group_name) const
 {
-
+    return visualization_msgs::MarkerArray();
 }
 
-visualization_msgs::MarkerArray AttachedBodiesCollisionState::getVisualization(int gidx) const
+visualization_msgs::MarkerArray
+AttachedBodiesCollisionStateImpl::getVisualization(int gidx) const
 {
+    return visualization_msgs::MarkerArray();
+}
 
+int AttachedBodiesCollisionStateImpl::sphereIndex(const SphereIndex& sidx) const
+{
+    return m_sphere_offsets[sidx.ss] + sidx.s;
 }
 
 /////////////////////////////////////////////////
@@ -353,9 +494,9 @@ const Eigen::Affine3d& AttachedBodiesCollisionState::attachedBodyTransform(
 }
 
 const Eigen::Affine3d& AttachedBodiesCollisionState::attachedBodyTransform(
-    int lidx) const
+    int abidx) const
 {
-    return m_impl->attachedBodyTransform(lidx);
+    return m_impl->attachedBodyTransform(abidx);
 }
 
 bool AttachedBodiesCollisionState::attachedBodyTransformDirty(
@@ -367,6 +508,11 @@ bool AttachedBodiesCollisionState::attachedBodyTransformDirty(
 bool AttachedBodiesCollisionState::attachedBodyTransformDirty(int abidx) const
 {
     return m_impl->attachedBodyTransformDirty(abidx);
+}
+
+bool AttachedBodiesCollisionState::updateAttachedBodyTransforms()
+{
+    return m_impl->updateAttachedBodyTransforms();
 }
 
 bool AttachedBodiesCollisionState::updateAttachedBodyTransform(
@@ -388,7 +534,7 @@ const CollisionVoxelsState& AttachedBodiesCollisionState::voxelsState(
 
 bool AttachedBodiesCollisionState::voxelsStateDirty(int vsidx) const
 {
-    return m_impl->voxelsStateDirty();
+    return m_impl->voxelsStateDirty(vsidx);
 }
 
 bool AttachedBodiesCollisionState::updateVoxelsStates()
@@ -407,7 +553,7 @@ const CollisionSpheresState& AttachedBodiesCollisionState::spheresState(
     return m_impl->spheresState(ssidx);
 }
 
-const CollisionSpheresState& AttachedBodiesCollisionState::sphereState(
+const CollisionSphereState& AttachedBodiesCollisionState::sphereState(
     const SphereIndex& sidx) const
 {
     return m_impl->sphereState(sidx);
@@ -448,7 +594,7 @@ const std::vector<int>& AttachedBodiesCollisionState::groupSpheresStateIndices(
 
 const std::vector<int>&
 AttachedBodiesCollisionState::groupOutsideVoxelsStateIndices(
-    const std::string& group_name) cons
+    const std::string& group_name) const
 {
     return m_impl->groupOutsideVoxelsStateIndices(group_name);
 }
@@ -456,7 +602,7 @@ AttachedBodiesCollisionState::groupOutsideVoxelsStateIndices(
 const std::vector<int>&
 AttachedBodiesCollisionState::groupOutsideVoxelsStateIndices(int gidx) const
 {
-    return m_impl->groupOutsideVoxelsStateIndices();
+    return m_impl->groupOutsideVoxelsStateIndices(gidx);
 }
 
 visualization_msgs::MarkerArray
@@ -466,7 +612,8 @@ AttachedBodiesCollisionState::getVisualization() const
 }
 
 visualization_msgs::MarkerArray
-AttachedBodiesCollisionState::getVisualization(const std::string& group_name) const
+AttachedBodiesCollisionState::getVisualization(
+    const std::string& group_name) const
 {
     return m_impl->getVisualization(group_name);
 }
@@ -479,123 +626,3 @@ AttachedBodiesCollisionState::getVisualization(int gidx) const
 
 } // namespace collision
 } // namespace sbpl
-
-////////////////////
-// FOR PROCESSING //
-////////////////////
-
-    bool updateSpheresStateToSphereStatesReferences()
-    {
-        // assumes you're finished changing the set of sphere models, spheres
-        // models, sphere states, and spheres states and updates the following
-        // references:
-        // * sphere state -> sphere model
-        // * sphere state -> spheres state
-        // * spheres state -> sphere state[]
-        // * spheres state -> spheres model
-
-        for (auto& spheres_state : m_spheres_states) {
-            spheres_state.spheres.clear();
-        }
-
-        int sphere_state_idx = 0;
-        for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
-            // NOTE: careful with the variable shadowing here
-            const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
-                CollisionSpheresState& spheres_state = m_spheres_states[i];
-            // spheres state -> spheres model
-            spheres_state.model = &spheres_model;
-
-            for (const CollisionSphereModel* sphere_model : spheres_model.spheres) {
-                // sphere state -> sphere model
-                m_sphere_states[sphere_state_idx].model = sphere_model;
-                // sphere state -> spheres state
-                m_sphere_states[sphere_state_idx].parent_state = &spheres_state;
-                // spheres state -> sphere state[]
-                spheres_state.spheres.push_back(&m_sphere_states[sphere_state_idx]);
-                ++sphere_state_idx;
-            }
-        }
-
-        return true;
-    }
-
-    bool updateVoxelsStateToModelReferences()
-    {
-        assert(m_model->voxelsModelCount() == m_voxels_states.size());
-        for (size_t i = 0; i < m_model->voxelsModelCount(); ++i) {
-            const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
-                CollisionVoxelsState& voxels_state = m_voxels_states[i];
-            voxels_state.model = &voxels_model;
-        }
-        return true;
-    }
-
-    bool updateLinkBodyToSpheresStateReferences()
-    {
-        // assumes that the links/attached bodies do have a corresponding sphere
-        // state but that the pointer reference has been invalidated by an increase
-        // in the size of the spheres state array
-        assert(m_model->spheresModelCount() == m_spheres_states.size());
-        for (size_t i = 0; i < m_spheres_states.size(); ++i) {
-            const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
-            CollisionSpheresState* spheres_state = &m_spheres_states[i];
-            assert(spheres_model.link_index < m_link_spheres_states.size());
-            m_link_spheres_states[spheres_model.link_index] = spheres_state;
-        }
-
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Updated per-link and per-body spheres state references");
-        return true;
-    }
-
-    bool updateLinkBodyToVoxelsStateReferences()
-    {
-        // assumes that the links/attached bodies do have a corresponding voxels
-        // state but that the pointer reference has been invalidated by an increase
-        // in the size of the voxels state array
-        assert(m_voxels_states.size() == m_model->voxelsModelCount());
-        for (size_t i = 0; i < m_voxels_states.size(); ++i) {
-            const CollisionVoxelsModel& voxels_model = m_model->voxelsModel(i);
-            CollisionVoxelsState* voxels_state = &m_voxels_states[i];
-            m_link_voxels_states[voxels_model.link_index] = voxels_state;
-        }
-        return true;
-    }
-
-    void updateLinkBodyToSpheresStateReferences()
-    {
-        m_attached_body_spheres_states[spheres_model.body_index] = spheres_state;
-    }
-    void updateLinkBodyToVoxelsStateReferences()
-    {
-        m_attached_body_voxels_states[voxels_model.body_index] = voxels_state;
-    }
-    void updateGroupStateReferences()
-    {
-        for (int bidx : model.body_indices) {
-            CollisionSpheresState* spheres_state = m_attached_body_spheres_states[bidx];
-            if (spheres_state) {
-                for (CollisionSphereState* sphere_state : spheres_state->spheres) {
-                    int ssidx = std::distance(m_sphere_states.data(), sphere_state);
-                    state.sphere_indices.push_back(ssidx);
-                }
-            }
-        }
-
-        // gather the indices of all attached body voxels states that do NOT
-        // belong to this group
-        for (const auto& entry : m_attached_body_voxels_states) {
-            if (std::find(
-                    model.body_indices.begin(),
-                    model.body_indices.end(),
-                    entry.first) ==
-                model.body_indices.end())
-            {
-                CollisionVoxelsState* voxels_state = entry.second;
-                if (voxels_state) {
-                    int vsidx = std::distance(m_voxels_states.data(), voxels_state);
-                    state.voxels_indices.push_back(vsidx);
-                }
-            }
-        }
-    }

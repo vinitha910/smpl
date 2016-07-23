@@ -66,6 +66,7 @@ include_directories(include)
 add_library(
     sbpl_collision_checking
     src/attached_bodies_collision_model.cpp
+    src/attached_bodies_collision_state.cpp
     src/base_collision_models.cpp
     src/base_collision_states.cpp
     src/collision_model_config.cpp

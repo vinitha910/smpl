@@ -38,6 +38,7 @@
 #include <leatherman/print.h>
 #include <ros/ros.h>
 #include <sbpl_collision_checking/attached_bodies_collision_model.h>
+#include <sbpl_collision_checking/attached_bodies_collision_state.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <urdf/model.h>
@@ -198,12 +199,19 @@ int main(int argc, char* argv[])
     ROS_WARN("Attaching Cylinder and Publishing Visualization");
 
     ROS_INFO("Attached Body Count %zu", ab_model.attachedBodyCount());
-//    ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), model.hasAttachedBody(attached_body_id.c_str()) ? "true" : "false");
-//    const int abidx = model.attachedBodyIndex(attached_body_id);
-//    ROS_INFO("Attached Body Index: %d", abidx);
-//    ROS_INFO("Attached Body Name(%d): %s", abidx, model.attachedBodyName(abidx).c_str());
-//    ROS_INFO("Attached Body Indices: %s", to_string(model.attachedBodyIndices(attach_link)).c_str());
-//
+    ROS_INFO("Has Attached Body(%s): %s", attached_body_id.c_str(), ab_model.hasAttachedBody(attached_body_id) ? "true" : "false");
+    const int abidx = ab_model.attachedBodyIndex(attached_body_id);
+    ROS_INFO("Attached Body Index: %d", abidx);
+    ROS_INFO("Attached Body Name(%d): %s", abidx, ab_model.attachedBodyName(abidx).c_str());
+    ROS_INFO("Attached Body Indices: %s", to_string(ab_model.attachedBodyIndices(attach_link)).c_str());
+
+    ////////////////////////////////////////////////////////
+    // create a dependent Attached Bodies Collision State //
+    ////////////////////////////////////////////////////////
+
+    sbpl::collision::AttachedBodiesCollisionState ab_state(&ab_model, &state);
+    ab_state.updateSphereStates();
+
 //    state.updateSphereStates();
 //    publish_model_viz();
 //

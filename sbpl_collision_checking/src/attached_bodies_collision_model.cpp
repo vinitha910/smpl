@@ -77,7 +77,7 @@ public:
     size_t voxelsModelCount() const;
     auto   voxelsModel(int vmidx) const -> const CollisionVoxelsModel&;
 
-    size_t groupCount();
+    size_t groupCount() const;
     auto   group(int gidx) const -> const CollisionGroupModel&;
     bool   hasGroup(const std::string& group_name) const;
     int    groupIndex(const std::string& group_name) const;
@@ -450,7 +450,7 @@ const CollisionVoxelsModel& AttachedBodiesCollisionModelImpl::voxelsModel(
 }
 
 inline
-size_t AttachedBodiesCollisionModelImpl::groupCount()
+size_t AttachedBodiesCollisionModelImpl::groupCount() const
 {
     return m_group_models.size();
 }
@@ -746,6 +746,92 @@ const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
     int lidx) const
 {
     return m_impl->attachedBodyIndices(lidx);
+}
+
+size_t AttachedBodiesCollisionModel::sphereModelCount() const
+{
+    return m_impl->sphereModelCount();
+}
+
+bool AttachedBodiesCollisionModel::hasSpheresModel(const std::string& id) const
+{
+    return m_impl->hasSpheresModel(id);
+}
+
+bool AttachedBodiesCollisionModel::hasSpheresModel(int abidx) const
+{
+    return m_impl->hasSpheresModel(abidx);
+}
+
+size_t AttachedBodiesCollisionModel::spheresModelCount() const
+{
+    return m_impl->spheresModelCount();
+}
+
+const CollisionSpheresModel& AttachedBodiesCollisionModel::spheresModel(
+    int smidx) const
+{
+    return m_impl->spheresModel(smidx);
+}
+
+bool AttachedBodiesCollisionModel::hasVoxelsModel(const std::string& id) const
+{
+    return m_impl->hasVoxelsModel(id);
+}
+
+bool AttachedBodiesCollisionModel::hasVoxelsModel(int abidx) const
+{
+    return m_impl->hasVoxelsModel(abidx);
+}
+
+size_t AttachedBodiesCollisionModel::voxelsModelCount() const
+{
+    return m_impl->voxelsModelCount();
+}
+
+const CollisionVoxelsModel& AttachedBodiesCollisionModel::voxelsModel(
+    int vmidx) const
+{
+    return m_impl->voxelsModel(vmidx);
+}
+
+size_t AttachedBodiesCollisionModel::groupCount() const
+{
+    return m_impl->groupCount();
+}
+
+const CollisionGroupModel& AttachedBodiesCollisionModel::group(int gidx) const
+{
+    return m_impl->group(gidx);
+}
+
+bool AttachedBodiesCollisionModel::hasGroup(
+    const std::string& group_name) const
+{
+    return m_impl->hasGroup(group_name);
+}
+
+int AttachedBodiesCollisionModel::groupIndex(
+    const std::string& group_name) const
+{
+    return m_impl->groupIndex(group_name);
+}
+
+const std::string& AttachedBodiesCollisionModel::groupName(int gidx) const
+{
+    return m_impl->groupName(gidx);
+}
+
+const std::vector<int>& AttachedBodiesCollisionModel::groupLinkIndices(
+    const std::string& group_name) const
+{
+    return m_impl->groupLinkIndices(group_name);
+}
+
+const std::vector<int>& AttachedBodiesCollisionModel::groupLinkIndices(
+    int gidx) const
+{
+    return m_impl->groupLinkIndices(gidx);
 }
 
 } // namespace collision

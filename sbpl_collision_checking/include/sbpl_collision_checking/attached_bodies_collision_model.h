@@ -98,7 +98,7 @@ public:
     size_t voxelsModelCount() const;
     auto   voxelsModel(int vmidx) const -> const CollisionVoxelsModel&;
 
-    size_t groupCount();
+    size_t groupCount() const;
     auto   group(int gidx) const -> const CollisionGroupModel&;
     bool   hasGroup(const std::string& group_name) const;
     int    groupIndex(const std::string& group_name) const;

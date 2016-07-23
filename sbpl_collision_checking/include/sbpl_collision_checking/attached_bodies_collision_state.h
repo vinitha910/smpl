@@ -32,6 +32,20 @@
 #ifndef sbpl_collision_attached_bodies_collision_state_h
 #define sbpl_collision_attached_bodies_collision_state_h
 
+// standard includes
+#include <memory>
+#include <string>
+#include <vector>
+
+// system includes
+#include <Eigen/Dense>
+#include <visualization_msgs/MarkerArray.h>
+
+// project includes
+#include <sbpl_collision_checking/attached_bodies_collision_model.h>
+#include <sbpl_collision_checking/base_collision_states.h>
+#include <sbpl_collision_checking/robot_collision_state.h>
+
 namespace sbpl {
 namespace collision {
 
@@ -53,11 +67,12 @@ public:
     ///@{
     auto attachedBodyTransform(const std::string& link_name) const
             -> const Eigen::Affine3d&;
-    auto attachedBodyTransform(int lidx) const -> const Eigen::Affine3d&;
+    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
 
     bool attachedBodyTransformDirty(const std::string& id) const;
     bool attachedBodyTransformDirty(int abidx) const;
 
+    bool updateAttachedBodyTransforms();
     bool updateAttachedBodyTransform(const std::string& id);
     bool updateAttachedBodyTransform(int abidx);
     ///@}
