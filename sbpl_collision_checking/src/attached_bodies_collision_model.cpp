@@ -29,12 +29,13 @@
 
 /// \author Andrew Dornbush
 
-namespace sbpl {
-namespace collision {
-
 // project includes
 #include <sbpl_collision_checking/attached_bodies_collision_model.h>
+#include "debug.h"
 #include "voxel_operations.h"
+
+namespace sbpl {
+namespace collision {
 
 static const char* RCM_LOGGER = "robot";
 
@@ -94,7 +95,7 @@ private:
         int link_index;
     };
 
-    const RobotCollisionModel* m_model;
+    const RobotCollisionModel*                  m_model;
 
     // Attached Body Information
     hash_map<int, AttachedBodyModel>            m_attached_bodies;
@@ -109,56 +110,48 @@ private:
     std::vector<std::vector<int>>               m_link_attached_bodies;
 
     // Collision Model
-    std::vector<CollisionSpheresModel>  m_spheres_models;
-    std::vector<CollisionVoxelsModel>   m_voxels_models;
-    std::vector<CollisionGroupModels>   m_group_models;
-    hash_map<std::string, int>          m_group_name_to_index;
+    std::vector<CollisionSpheresModel>          m_spheres_models;
+    std::vector<CollisionVoxelsModel>           m_voxels_models;
+    std::vector<CollisionGroupModel>            m_group_models;
+    hash_map<std::string, int>                  m_group_name_to_index;
 
     // per-attached-body references to corresponding spheres and voxels models
     hash_map<int, const CollisionSpheresModel*> m_attached_body_spheres_models;
     hash_map<int, const CollisionVoxelsModel*>  m_attached_body_voxels_models;
 
-    /// save
     int generateAttachedBodyIndex();
 
-    // save
     void createSpheresModel(
         int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms);
 
-    // save
     void createVoxelsModel(
         int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms);
 
-    /// save
     void generateSpheresModel(
-        int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms,
         CollisionSpheresModelConfig& spheres_model);
 
-    // save
     void generateVoxelsModel(
-        int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms,
         CollisionVoxelModelConfig& voxels_models);
 
-    // save
     bool voxelizeAttachedBody(
         const std::vector<shapes::ShapeConstPtr>& shapes,
         const Affine3dVector& transforms,
         CollisionVoxelsModel& model) const;
 };
 
-AttachedBodesCollisionModelImpl::AttachedBodiesCollisionModelImpl(
+AttachedBodiesCollisionModelImpl::AttachedBodiesCollisionModelImpl(
     const RobotCollisionModel* model)
 :
     m_model(model),
@@ -323,20 +316,22 @@ bool AttachedBodiesCollisionModelImpl::detachBody(const std::string& id)
 }
 
 inline
-size_t AttachedBodiesCollisionModel::attachedBodyCount() const
+size_t AttachedBodiesCollisionModelImpl::attachedBodyCount() const
 {
     return m_attached_bodies.size();
 }
 
 inline
-bool AttachedBodiesCollisionModel::hasAttachedBody(const std::string& id) const
+bool AttachedBodiesCollisionModelImpl::hasAttachedBody(
+    const std::string& id) const
 {
     return m_attached_body_name_to_index.find(id) !=
             m_attached_body_name_to_index.end();
 }
 
 inline
-int AttachedBodiesCollisionModel::attachedBodyIndex(const std::string& id) const
+int AttachedBodiesCollisionModelImpl::attachedBodyIndex(
+    const std::string& id) const
 {
     auto it = m_attached_body_name_to_index.find(id);
     ASSERT_RANGE(it != m_attached_body_name_to_index.end());
@@ -345,7 +340,7 @@ int AttachedBodiesCollisionModel::attachedBodyIndex(const std::string& id) const
 }
 
 inline
-const std::string& AttachedBodiesCollisionModel::attachedBodyName(
+const std::string& AttachedBodiesCollisionModelImpl::attachedBodyName(
     int abidx) const
 {
     auto it = m_attached_bodies.find(abidx);
@@ -354,7 +349,7 @@ const std::string& AttachedBodiesCollisionModel::attachedBodyName(
 }
 
 inline
-int AttachedBodiesCollisionModel::attachedBodyLinkIndex(int abidx) const
+int AttachedBodiesCollisionModelImpl::attachedBodyLinkIndex(int abidx) const
 {
     auto it = m_attached_bodies.find(abidx);
     ASSERT_RANGE(it != m_attached_bodies.end());
@@ -362,7 +357,7 @@ int AttachedBodiesCollisionModel::attachedBodyLinkIndex(int abidx) const
 }
 
 inline
-const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
+const std::vector<int>& AttachedBodiesCollisionModelImpl::attachedBodyIndices(
     const std::string& link_name) const
 {
     const int lidx = m_model->linkIndex(link_name);
@@ -370,7 +365,7 @@ const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
 }
 
 inline
-const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
+const std::vector<int>& AttachedBodiesCollisionModelImpl::attachedBodyIndices(
     int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_attached_bodies, lidx);
@@ -388,12 +383,14 @@ size_t AttachedBodiesCollisionModelImpl::sphereModelCount() const
 }
 
 inline
-bool AttachedBodiesCollisionModelImpl::hasSpheresModel(const std::string& id) const
+bool AttachedBodiesCollisionModelImpl::hasSpheresModel(
+    const std::string& id) const
 {
     auto it = m_attached_body_name_to_index.find(id);
-    ASSERT_RANGE(it != m_attached_body_name_to_index.ed());
+    ASSERT_RANGE(it != m_attached_body_name_to_index.end());
     assert(m_attached_bodies.find(it->second) != m_attached_bodies.end());
-    return m_attached_body_spheres_models.find(it->second) != m_attached_body_spheres_models.end();
+    return m_attached_body_spheres_models.find(it->second) !=
+            m_attached_body_spheres_models.end();
 }
 
 inline
@@ -401,7 +398,8 @@ bool AttachedBodiesCollisionModelImpl::hasSpheresModel(int abidx) const
 {
     auto it = m_attached_bodies.find(abidx);
     ASSERT_RANGE(it != m_attached_bodies.end());
-    return m_attached_body_spheres_models.find(abidx) != m_attached_body_spheres_models.end();
+    return m_attached_body_spheres_models.find(abidx) !=
+            m_attached_body_spheres_models.end();
 }
 
 inline
@@ -414,75 +412,97 @@ inline
 const CollisionSpheresModel& AttachedBodiesCollisionModelImpl::spheresModel(
     int smidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_spheres_models, smidx);
+    return m_spheres_models[smidx];
 }
 
 inline
-bool AttachedBodiesCollisionModelImpl::hasVoxelsModel(const std::string& id) const
+bool AttachedBodiesCollisionModelImpl::hasVoxelsModel(
+    const std::string& id) const
 {
-
+    auto it = m_attached_body_name_to_index.find(id);
+    ASSERT_RANGE(it != m_attached_body_name_to_index.end());
+    auto vmit = m_attached_body_voxels_models.find(it->second);
+    return vmit != m_attached_body_voxels_models.end();
 }
 
 inline
 bool AttachedBodiesCollisionModelImpl::hasVoxelsModel(int abidx) const
 {
-
+    auto it = m_attached_bodies.find(abidx);
+    ASSERT_RANGE(it != m_attached_bodies.end());
+    auto vmit = m_attached_body_voxels_models.find(abidx);
+    return vmit != m_attached_body_voxels_models.end();
 }
 
 inline
 size_t AttachedBodiesCollisionModelImpl::voxelsModelCount() const
 {
-
+    return m_voxels_models.size();
 }
 
 inline
-const CollisionVoxelsModel& AttachedBodiesCollisionModelImpl::voxelsModel(int vmidx) const
+const CollisionVoxelsModel& AttachedBodiesCollisionModelImpl::voxelsModel(
+    int vmidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_voxels_models, vmidx);
+    return m_voxels_models[vmidx];
 }
 
 inline
 size_t AttachedBodiesCollisionModelImpl::groupCount()
 {
-
+    return m_group_models.size();
 }
 
 inline
-const CollisionGroupModel& AttachedBodiesCollisionModelImpl::group(int gidx) const
+const CollisionGroupModel& AttachedBodiesCollisionModelImpl::group(
+    int gidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_group_models, gidx);
+    return m_group_models[gidx];
 }
 
 inline
-bool AttachedBodiesCollisionModelImpl::hasGroup(const std::string& group_name) const
+bool AttachedBodiesCollisionModelImpl::hasGroup(
+    const std::string& group_name) const
 {
-
+    auto it = m_group_name_to_index.find(group_name);
+    return it != m_group_name_to_index.end();
 }
 
 inline
-int AttachedBodiesCollisionModelImpl::groupIndex(const std::string& group_name) const
+int AttachedBodiesCollisionModelImpl::groupIndex(
+    const std::string& group_name) const
 {
-
+    auto it = m_group_name_to_index.find(group_name);
+    ASSERT_RANGE(it != m_group_name_to_index.end());
+    return it->second;
 }
 
 inline
 const std::string& AttachedBodiesCollisionModelImpl::groupName(int gidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_group_models, gidx);
+    return m_group_models[gidx].name;
 }
 
 inline
-const std::vector<int>& AttachedBodiesCollisionModelImpl::groupLinkIndices(const std::string& group_name) const
+const std::vector<int>& AttachedBodiesCollisionModelImpl::groupLinkIndices(
+    const std::string& group_name) const
 {
-
+    auto it = m_group_name_to_index.find(group_name);
+    ASSERT_RANGE(it != m_group_name_to_index.end());
+    m_group_models[it->second].link_indices;
 }
 
 inline
-const std::vector<int>& AttachedBodiesCollisionModelImpl::groupLinkIndices(int gidx) const
+const std::vector<int>& AttachedBodiesCollisionModelImpl::groupLinkIndices(
+    int gidx) const
 {
-
+    ASSERT_VECTOR_RANGE(m_group_models, gidx);
+    return m_group_models[gidx].link_indices;
 }
-
 
 inline
 int AttachedBodiesCollisionModelImpl::generateAttachedBodyIndex()
@@ -508,7 +528,7 @@ void AttachedBodiesCollisionModelImpl::createSpheresModel(
 
     // create configuration spheres and a spheres model for this body
     CollisionSpheresModelConfig spheres_config;
-    generateSpheresModel(abidx, id, shapes, transforms, spheres_config);
+    generateSpheresModel(id, shapes, transforms, spheres_config);
 
     // stash the config for regenerating references
     m_attached_body_spheres_config[abidx] = spheres_config;
@@ -534,12 +554,12 @@ void AttachedBodiesCollisionModelImpl::createSpheresModel(
     // map attached body -> collision spheres model
     m_attached_body_spheres_models.clear();
     for (const CollisionSpheresModel& sm : m_spheres_models) {
-        m_attached_body_spheres[sm.link_index] = &sm;
+        m_attached_body_spheres_models[sm.link_index] = &sm;
     }
 }
 
 inline
-void AttachedBodiesCollisionModel::createVoxelsModel(
+void AttachedBodiesCollisionModelImpl::createVoxelsModel(
     int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
@@ -548,14 +568,14 @@ void AttachedBodiesCollisionModel::createVoxelsModel(
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating voxels model");
     // create configuration voxels model for this body
     CollisionVoxelModelConfig voxels_config;
-    generateVoxelsModel(abidx, id, shapes, transforms, voxels_config);
+    generateVoxelsModel(id, shapes, transforms, voxels_config);
 
     // stash the config perhaps for future use
     m_attached_body_voxels_config[abidx] = voxels_config;
 
     // append voxels models
     m_voxels_models.resize(m_voxels_models.size() + 1);
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels Model Count %zu -> %zu", prev_voxels_model_count, m_voxels_models.size());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels Model Count %zu -> %zu", m_voxels_models.size() - 1, m_voxels_models.size());
     CollisionVoxelsModel* voxels_model = &m_voxels_models.back();
 
     // attach to the attached body
@@ -571,14 +591,13 @@ void AttachedBodiesCollisionModel::createVoxelsModel(
 
     // map attached body -> collision voxels model
     m_attached_body_voxels_models.clear();
-    for (const CollisionVoxelsModel& vm : m_voxels_model) {
+    for (const CollisionVoxelsModel& vm : m_voxels_models) {
         m_attached_body_voxels_models[vm.link_index] = &vm;
     }
 }
 
 inline
 void AttachedBodiesCollisionModelImpl::generateSpheresModel(
-    int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
     const Affine3dVector& transforms,
@@ -609,7 +628,7 @@ void AttachedBodiesCollisionModelImpl::generateSpheresModel(
         }
     }
 
-    spheres_model.link_index = abidx;
+    spheres_model.link_name = id;
     spheres_model.spheres.clear();
 
     for (size_t i = 0; i < voxels.size(); ++i) {
@@ -626,7 +645,6 @@ void AttachedBodiesCollisionModelImpl::generateSpheresModel(
 
 inline
 void AttachedBodiesCollisionModelImpl::generateVoxelsModel(
-    int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
     const Affine3dVector& transforms,
@@ -651,7 +669,8 @@ bool AttachedBodiesCollisionModelImpl::voxelizeAttachedBody(
         const shapes::Shape& shape = *shapes[i];
         const Eigen::Affine3d& transform = transforms[i];
         VoxelizeShape(
-                shape, transform, model.voxel_res, Eigen::Vector3d::Zero(), model.voxels);
+                shape, transform,
+                model.voxel_res, Eigen::Vector3d::Zero(), model.voxels);
     }
 
     return true;
@@ -664,7 +683,7 @@ bool AttachedBodiesCollisionModelImpl::voxelizeAttachedBody(
 AttachedBodiesCollisionModel::AttachedBodiesCollisionModel(
     const RobotCollisionModel* model)
 :
-    m_impl(new AttachedBodiesCollisionModel(model));
+    m_impl(new AttachedBodiesCollisionModelImpl(model))
 {
 }
 
@@ -727,106 +746,6 @@ const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
     int lidx) const
 {
     return m_impl->attachedBodyIndices(lidx);
-}
-
-const Eigen::Affine3d& AttachedBodiesCollisionModel::attachedBodyTransform(
-    const std::string& id) const
-{
-    return m_impl->attachedBodyTransform(id);
-}
-
-const Eigen::Affine3d& AttachedBodiesCollisionModel::attachedBodyTransform(
-    int abidx) const
-{
-    return m_impl->attachedBodyTransform(abidx);
-}
-
-bool AttachedBodiesCollisionModel::attachedBodyTransformDirty(
-    const std::string& id) const
-{
-    return m_impl->attachedBodyTransformDirty(id);
-}
-
-bool AttachedBodiesCollisionModel::attachedBodyTransformDirty(int abidx) const
-{
-    return m_impl->attachedBodyTransformDirty(abidx);
-}
-
-bool AttachedBodiesCollisionModel::updateAttachedBodyTransform(
-    const std::string& id)
-{
-    return m_impl->updateAttachedBodyTransform(id);
-}
-
-bool AttachedBodiesCollisionModel::updateAttachedBodyTransform(int abidx)
-{
-    return m_impl->updateAttachedBodyTransform(abidx);
-}
-
-const CollisionVoxelsState& AttachedBodiesCollisionModel::voxelsState(
-    int vsidx) const
-{
-    return m_impl->voxelsState(vsidx);
-}
-
-bool AttachedBodiesCollisionModel::voxelsStateDirty(int vsidx) const
-{
-    return m_impl->voxelsStateDirty();
-}
-
-bool AttachedBodiesCollisionModel::updateVoxelsStates()
-{
-    return m_impl->updateVoxelsStates();
-}
-
-bool AttachedBodiesCollisionModel::updateVoxelsState(int vsidx)
-{
-    return m_impl->updateVoxelsState(vsidx);
-}
-
-const CollisionSphereState& AttachedBodiesCollisionModel::sphereState(
-    int ssidx) const
-{
-    return m_impl->sphereState(ssidx);
-}
-
-bool AttachedBodiesCollisionModel::sphereStateDirty(int ssidx) const
-{
-    return m_impl->sphereStateDirty(ssidx);
-}
-
-bool AttachedBodiesCollisionModel::updateSphereStates()
-{
-    return m_impl->updateSphereStates();
-}
-
-bool AttachedBodiesCollisionModel::updateSphereState(int ssidx)
-{
-    return m_impl->updateSphereState(ssidx);
-}
-
-const std::vector<int>& AttachedBodiesCollisionModel::groupSphereStateIndices(
-    const std::string& group_name) const
-{
-    return m_impl->groupSphereStateIndices(group_name);
-}
-
-const std::vector<int>& AttachedBodiesCollisionModel::groupSphereStateIndices(
-    int gidx) const
-{
-    return m_impl->groupSphereStateIndices(gidx);
-}
-
-const std::vector<int>& AttachedBodiesCollisionModel::groupOutsideVoxelsStateIndices(
-    const std::string& group_name) const
-{
-    return m_impl->groupOutsideVoxelsStateIndices(group_name);
-}
-
-const std::vector<int>& AttachedBodiesCollisionModel::groupOutsideVoxelsStateIndices(
-    int gidx) const
-{
-    return m_impl->groupOutsideVoxelsStateIndices(gidx);
 }
 
 } // namespace collision

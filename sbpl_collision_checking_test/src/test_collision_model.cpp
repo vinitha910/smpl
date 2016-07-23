@@ -37,6 +37,7 @@
 #include <geometric_shapes/shapes.h>
 #include <leatherman/print.h>
 #include <ros/ros.h>
+#include <sbpl_collision_checking/attached_bodies_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <urdf/model.h>
