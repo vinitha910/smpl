@@ -70,9 +70,11 @@ add_library(
     src/base_collision_models.cpp
     src/base_collision_states.cpp
     src/collision_model_config.cpp
+    src/collision_operations.cpp
     src/collision_space.cpp
     src/robot_collision_model.cpp
     src/robot_collision_state.cpp
+    src/self_collision_model.cpp
     src/types.cpp
     src/voxel_operations.cpp
     src/world_collision_model.cpp)

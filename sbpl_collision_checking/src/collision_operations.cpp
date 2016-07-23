@@ -29,75 +29,49 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_self_collision_model_h
-#define sbpl_collision_self_collision_model_h
+#include <ros/console.h>
 
-// standard includes
-#include <memory>
-#include <string>
-
-// system includes
-#include <sbpl_arm_planner/occupancy_grid.h>
-
-// project includes
-#include <sbpl_collision_checking/attached_bodies_collision_model.h>
-#include <sbpl_collision_checking/attached_bodies_collision_state.h>
-#include <sbpl_collision_checking/robot_collision_model.h>
-#include <sbpl_collision_checking/robot_collision_state.h>
-#include <sbpl_collision_checking/types.h>
+#include "collision_operations.h"
 
 namespace sbpl {
 namespace collision {
 
-class SelfCollisionModelImpl;
+static const char* CC_LOGGER = "collision";
 
-class SelfCollisionModel
+bool CheckSphereCollision(
+    const OccupancyGrid& grid,
+    RobotCollisionState& state,
+    double padding,
+    const SphereIndex& sidx,
+    double& dist)
 {
-public:
+    state.updateSphereState(sidx);
+    const CollisionSphereState& ss = state.sphereState(sidx);
 
-    SelfCollisionModel(
-        OccupancyGrid* grid,
-        const RobotCollisionModel* model,
-        const AttachedBodiesCollisionModel* ab_model = nullptr);
+    int gx, gy, gz;
+    grid.worldToGrid(ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
 
-    ~SelfCollisionModel();
+    // check bounds
+    if (!grid.isInBounds(gx, gy, gz)) {
+        const CollisionSphereModel* sm = ss.model;
+        ROS_DEBUG_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", sm->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
+        dist = 0.0;
+        return false;
+    }
 
-    void setAllowedCollisionMatrix(
-        const AllowedCollisionMatrix& acm);
-    void setPadding(double padding);
+    // check for collision with world
+    double obs_dist = grid.getDistance(gx, gy, gz);
+    const double effective_radius =
+            ss.model->radius + 0.5 * grid.getResolution() + padding;
 
-    bool checkCollision(
-        RobotCollisionState& state,
-        const std::string& group_name,
-        double& dist);
+    if (obs_dist <= effective_radius) {
+        dist = obs_dist;
+        return false;
+    }
 
-    bool checkCollision(
-        RobotCollisionState& state,
-        const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const std::string& group_name,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        double& dist);
-
-    // TODO: distance checks
-    // TODO: contacts checks
-    // TODO: detailed checks
-
-private:
-
-    std::unique_ptr<SelfCollisionModelImpl> m_impl;
-};
+    dist = obs_dist;
+    return true;
+}
 
 } // namespace collision
 } // namespace sbpl
-
-#endif

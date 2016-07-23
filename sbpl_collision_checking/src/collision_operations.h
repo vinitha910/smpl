@@ -29,73 +29,21 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_self_collision_model_h
-#define sbpl_collision_self_collision_model_h
+#ifndef sbpl_collision_collision_operations_h
+#define sbpl_collision_collision_operations_h
 
-// standard includes
-#include <memory>
-#include <string>
-
-// system includes
 #include <sbpl_arm_planner/occupancy_grid.h>
-
-// project includes
-#include <sbpl_collision_checking/attached_bodies_collision_model.h>
-#include <sbpl_collision_checking/attached_bodies_collision_state.h>
-#include <sbpl_collision_checking/robot_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
-#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {
 
-class SelfCollisionModelImpl;
-
-class SelfCollisionModel
-{
-public:
-
-    SelfCollisionModel(
-        OccupancyGrid* grid,
-        const RobotCollisionModel* model,
-        const AttachedBodiesCollisionModel* ab_model = nullptr);
-
-    ~SelfCollisionModel();
-
-    void setAllowedCollisionMatrix(
-        const AllowedCollisionMatrix& acm);
-    void setPadding(double padding);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        const std::string& group_name,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const std::string& group_name,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        double& dist);
-
-    // TODO: distance checks
-    // TODO: contacts checks
-    // TODO: detailed checks
-
-private:
-
-    std::unique_ptr<SelfCollisionModelImpl> m_impl;
-};
+bool CheckSphereCollision(
+    const OccupancyGrid& grid,
+    RobotCollisionState& state,
+    double padding,
+    const SphereIndex& sidx,
+    double& dist);
 
 } // namespace collision
 } // namespace sbpl

@@ -45,6 +45,8 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
+#include <sbpl_collision_checking/attached_bodies_collision_state.h>
+#include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
@@ -79,6 +81,30 @@ public:
 
     visualization_msgs::MarkerArray getWorldVisualization() const;
     visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
+
+    void setPadding(double padding);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        const std::string& group_name,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        const int gidx,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const std::string& group_name,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx,
+        double& dist);
 
 private:
 

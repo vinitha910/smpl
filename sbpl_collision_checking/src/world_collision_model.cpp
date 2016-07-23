@@ -47,6 +47,7 @@
 
 // project includes
 #include "voxel_operations.h"
+#include "collision_operations.h"
 
 namespace sbpl {
 namespace collision {
@@ -79,6 +80,30 @@ public:
     visualization_msgs::MarkerArray getWorldVisualization() const;
     visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
 
+    void setPadding(double padding);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        const std::string& group_name,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        const int gidx,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const std::string& group_name,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx,
+        double& dist);
+
 private:
 
     OccupancyGrid* m_grid;
@@ -89,6 +114,18 @@ private:
     // voxelization of objects in the grid reference frame
     typedef std::vector<Eigen::Vector3d> VoxelList;
     std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
+
+    double m_padding;
+
+    const RobotCollisionModel* m_model;
+    int m_gidx;
+    std::vector<SphereIndex> m_sphere_indices;
+
+    void updateSphereIndices(const RobotCollisionState& state, int gidx);
+
+    bool checkSpheresStateCollisions(
+        RobotCollisionState& state,
+        double& dist);
 
     ////////////////////
     // Generic Shapes //
@@ -150,7 +187,8 @@ private:
 WorldCollisionModelImpl::WorldCollisionModelImpl(OccupancyGrid* grid) :
     m_grid(grid),
     m_object_map(),
-    m_object_voxel_map()
+    m_object_voxel_map(),
+    m_padding(0.0)
 {
 }
 
@@ -330,6 +368,103 @@ WorldCollisionModelImpl::getCollisionWorldVisualization() const
     ma.markers.push_back(marker);
 
     return ma;
+}
+
+void WorldCollisionModelImpl::setPadding(double padding)
+{
+    m_padding = padding;
+}
+
+bool WorldCollisionModelImpl::checkCollision(
+    RobotCollisionState& state,
+    const std::string& group_name,
+    double& dist)
+{
+    if (!state.model()->hasGroup(group_name)) {
+        return false;
+    }
+
+    const int gidx = state.model()->groupIndex(group_name);
+    updateSphereIndices(state, gidx);
+    return checkSpheresStateCollisions(state, dist);
+}
+
+bool WorldCollisionModelImpl::checkCollision(
+    RobotCollisionState& state,
+    const int gidx,
+    double& dist)
+{
+    return false;
+}
+
+bool WorldCollisionModelImpl::checkCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const std::string& group_name,
+    double& dist)
+{
+    return false;
+}
+
+bool WorldCollisionModelImpl::checkCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const int gidx,
+    double& dist)
+{
+    return false;
+}
+
+void WorldCollisionModelImpl::updateSphereIndices(
+    const RobotCollisionState& state,
+    int gidx)
+{
+    if (state.model() == m_model && gidx == m_gidx) {
+        return;
+    }
+
+    m_sphere_indices.clear();
+    std::vector<int> ss_indices = state.groupSpheresStateIndices(gidx);
+    for (int ssidx : ss_indices) {
+        const CollisionSpheresState& spheres_state = state.spheresState(ssidx);
+        std::vector<int> s_indices(spheres_state.spheres.size());
+        int n = 0;
+        std::generate(s_indices.begin(), s_indices.end(), [&]() { return n++; });
+        for (int sidx : s_indices) {
+            m_sphere_indices.emplace_back(ssidx, sidx);
+        }
+    }
+
+    // sort sphere state indices by priority
+    std::sort(m_sphere_indices.begin(), m_sphere_indices.end(),
+            [&](const SphereIndex& sidx1, const SphereIndex& sidx2)
+            {
+                const CollisionSphereState& ss1 = state.sphereState(sidx1);
+                const CollisionSphereState& ss2 = state.sphereState(sidx2);
+                const CollisionSphereModel* sph1 = ss1.model;
+                const CollisionSphereModel* sph2 = ss2.model;
+                return sph1->priority < sph2->priority;
+            });
+}
+
+bool WorldCollisionModelImpl::checkSpheresStateCollisions(
+    RobotCollisionState& state,
+    double& dist)
+{
+    for (const auto& sidx : m_sphere_indices) {
+        double obs_dist;
+        if (!CheckSphereCollision(*m_grid, state, m_padding, sidx, obs_dist)) {
+            const CollisionSphereModel* sm = state.sphereState(sidx).model;
+            ROS_DEBUG_NAMED(WCM_LOGGER, "    *collision* idx: %s, name: %s, radius: %0.3fm, dist: %0.3fm", to_string(sidx).c_str(), sm->name.c_str(), sm->radius, obs_dist);
+            dist = obs_dist;
+            return false;
+        }
+
+        if (obs_dist < dist) {
+            dist = obs_dist;
+        }
+    }
+    return true;
 }
 
 bool WorldCollisionModelImpl::haveObject(const std::string& name) const
@@ -656,7 +791,6 @@ WorldCollisionModel::WorldCollisionModel(OccupancyGrid* grid) :
 
 WorldCollisionModel::~WorldCollisionModel()
 {
-
 }
 
 bool WorldCollisionModel::insertObject(const ObjectConstPtr& object)
@@ -684,12 +818,14 @@ bool WorldCollisionModel::removeShapes(const ObjectConstPtr& object)
     return m_impl->removeShapes(object);
 }
 
-bool WorldCollisionModel::processCollisionObject(const moveit_msgs::CollisionObject& object)
+bool WorldCollisionModel::processCollisionObject(
+    const moveit_msgs::CollisionObject& object)
 {
     return m_impl->processCollisionObject(object);
 }
 
-bool WorldCollisionModel::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
+bool WorldCollisionModel::insertOctomap(
+    const octomap_msgs::OctomapWithPose& octomap)
 {
     return m_impl->insertOctomap(octomap);
 }
@@ -704,14 +840,55 @@ void WorldCollisionModel::reset()
     return m_impl->reset();
 }
 
-visualization_msgs::MarkerArray WorldCollisionModel::getWorldVisualization() const
+visualization_msgs::MarkerArray
+WorldCollisionModel::getWorldVisualization() const
 {
     return m_impl->getWorldVisualization();
 }
 
-visualization_msgs::MarkerArray WorldCollisionModel::getCollisionWorldVisualization() const
+visualization_msgs::MarkerArray
+WorldCollisionModel::getCollisionWorldVisualization() const
 {
     return m_impl->getCollisionWorldVisualization();
+}
+
+void WorldCollisionModel::setPadding(double padding)
+{
+    return m_impl->setPadding(padding);
+}
+
+bool WorldCollisionModel::checkCollision(
+    RobotCollisionState& state,
+    const std::string& group_name,
+    double& dist)
+{
+    return m_impl->checkCollision(state, group_name, dist);
+}
+
+bool WorldCollisionModel::checkCollision(
+    RobotCollisionState& state,
+    const int gidx,
+    double& dist)
+{
+    return m_impl->checkCollision(state, gidx, dist);
+}
+
+bool WorldCollisionModel::checkCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const std::string& group_name,
+    double& dist)
+{
+    return m_impl->checkCollision(state, ab_state, group_name, dist);
+}
+
+bool WorldCollisionModel::checkCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const int gidx,
+    double& dist)
+{
+    return m_impl->checkCollision(state, ab_state, gidx, dist);
 }
 
 } // namespace collision

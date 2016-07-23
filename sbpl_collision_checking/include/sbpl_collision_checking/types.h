@@ -43,6 +43,7 @@
 // system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <moveit/collision_detection/collision_matrix.h>
 #include <moveit/collision_detection/world.h>
 #include <moveit_msgs/CollisionObject.h>
 
@@ -58,6 +59,8 @@ struct Sphere
 typedef collision_detection::World::Object Object;
 typedef collision_detection::World::ObjectPtr ObjectPtr;
 typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
+
+typedef collision_detection::AllowedCollisionMatrix AllowedCollisionMatrix;
 
 typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
 typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
