@@ -193,6 +193,7 @@ private:
     bool initCollisionModel(
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
+    bool checkCollisionModelConfig(const CollisionModelConfig& config);
 
     bool checkCollisionModelReferences() const;
 
@@ -817,24 +818,34 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
     ROS_DEBUG_NAMED(RCM_LOGGER, "Robot Model:");
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Name: %s", m_name.c_str());
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Model Frame: %s", m_model_frame.c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Names: %s", to_string(m_jvar_names).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Continuous: %s", to_string(m_jvar_continuous).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Has Position Bounds: %s", to_string(m_jvar_has_position_bounds).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Min Positions: %s", to_string(m_jvar_min_positions).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variable Max Positions: %s", to_string(m_jvar_max_positions).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Transform Functions:");
-    for (auto p : m_joint_transforms) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    %p", p);
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Variables:");
+    for (size_t vidx = 0; vidx < m_jvar_names.size(); ++vidx) {
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    Name: %s, Continuous: %d, Has Position Bounds: %d, Bounds: [ %0.3lg, %0.3lg ]",
+                m_jvar_names[vidx].c_str(),
+                (int)m_jvar_continuous[vidx],
+                (int)m_jvar_has_position_bounds[vidx],
+                m_jvar_min_positions[vidx],
+                m_jvar_max_positions[vidx]);
     }
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Origins:");
-    for (const auto& o : m_joint_origins) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    %s", AffineToString(o).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joints:");
+    for (size_t jidx = 0; jidx < m_joint_origins.size(); ++jidx) {
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    Origin: %s, Axis: (%0.3f, %0.3f, %0.3f), Transform Function: %p, Parent Link: %s, Child Link: %s",
+                AffineToString(m_joint_origins[jidx]).c_str(),
+                m_joint_axes[jidx].x(),
+                m_joint_axes[jidx].y(),
+                m_joint_axes[jidx].z(),
+                m_joint_transforms[jidx],
+                (m_joint_parent_links[jidx] != -1) ? m_link_names[m_joint_parent_links[jidx]].c_str() : "(null)",
+                m_link_names[m_joint_child_links[jidx]].c_str());
     }
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Parent Links: %s", to_string(m_joint_parent_links).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Joint Child Links: %s", to_string(m_joint_child_links).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Names: %s", to_string(m_link_names).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Parent Joints: %s", to_string(m_link_parent_joints).c_str());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Child Joints: %s", to_string(m_link_children_joints).c_str());
+    ROS_DEBUG_NAMED(RCM_LOGGER, "  Links:");
+    for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    Name: %s, Parent Joint: %d, Child Joints: %s, Index: %d",
+                m_link_names[lidx].c_str(),
+                m_link_parent_joints[lidx],
+                to_string(m_link_children_joints[lidx]).c_str(),
+                m_link_name_to_index[m_link_names[lidx]]);
+    }
 
     return true;
 }
@@ -843,13 +854,15 @@ bool RobotCollisionModelImpl::initCollisionModel(
     const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
 {
+    if (!checkCollisionModelConfig(config)) {
+        return false;
+    }
+
     // initialize spheres models
     m_spheres_models.resize(config.spheres_models.size());
     for (size_t i = 0; i < m_spheres_models.size(); ++i) {
         const CollisionSpheresModelConfig& spheres_config = config.spheres_models[i];
         CollisionSpheresModel& spheres_model = m_spheres_models[i];
-
-        // attach to the link
         spheres_model.link_index = linkIndex(spheres_config.link_name);
         for (const auto& sphere_config : spheres_config.spheres) {
             CollisionSphereModel sphere_model;
@@ -916,6 +929,37 @@ bool RobotCollisionModelImpl::initCollisionModel(
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Group Models:");
     for (const auto& group_model : m_group_models) {
         ROS_DEBUG_NAMED(RCM_LOGGER, "    name: %s, link_indices: %s", group_model.name.c_str(), to_string(group_model.link_indices).c_str());
+    }
+
+    return true;
+}
+
+bool RobotCollisionModelImpl::checkCollisionModelConfig(
+    const CollisionModelConfig& config)
+{
+    // TODO:: report the more fine-grained sources of errors
+
+    for (const auto& spheres_config : config.spheres_models) {
+        if (!hasLink(spheres_config.link_name)) {
+            ROS_ERROR("No link '%s' found in robot model", spheres_config.link_name.c_str());
+            return false;
+        }
+    }
+
+    for (const auto& voxels_config : config.voxel_models) {
+        if (!hasLink(voxels_config.link_name)) {
+            ROS_ERROR("No link '%s' found in robot model", voxels_config.link_name.c_str());
+            return false;
+        }
+    }
+
+    for (const auto& group_config : config.groups) {
+        for (const std::string& link_name : group_config.links) {
+            if (!hasLink(link_name)) {
+                ROS_ERROR("No link '%s' found in robot model", link_name.c_str());
+                return false;
+            }
+        }
     }
 
     return true;
