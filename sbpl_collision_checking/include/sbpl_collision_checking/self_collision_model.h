@@ -88,7 +88,24 @@ public:
         const int gidx,
         double& dist);
 
-    // TODO: distance checks
+    double collisionDistance(
+        RobotCollisionState& state,
+        const std::string& group_name);
+
+    double collisionDistance(
+        RobotCollisionState& state,
+        const int gidx);
+
+    double collisionDistance(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const std::string& group_name);
+
+    double collisionDistance(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx);
+
     // TODO: contacts checks
     // TODO: detailed checks
 

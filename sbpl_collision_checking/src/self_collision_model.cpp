@@ -75,6 +75,24 @@ public:
         const int gidx,
         double& dist);
 
+    double collisionDistance(
+        RobotCollisionState& state,
+        const std::string& group_name);
+
+    double collisionDistance(
+        RobotCollisionState& state,
+        const int gidx);
+
+    double collisionDistance(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const std::string& group_name);
+
+    double collisionDistance(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx);
+
 private:
 
     OccupancyGrid*                          m_grid;
@@ -82,17 +100,25 @@ private:
     const AttachedBodiesCollisionModel*     m_ab_model;
 
     RobotCollisionState                     m_state;
+
+    // cached group information updated when a collision check for a different
+    // group is made
     int                                     m_gidx;
     std::vector<int>                        m_voxels_indices;
     std::vector<SphereIndex>                m_sphere_indices;
 
-    AllowedCollisionMatrix m_acm;
-    double m_padding;
+    int                                     m_ab_gidx;
+    std::vector<int>                        m_ab_voxel_indices;
+    std::vector<int>                        m_ab_sphere_indices;
+
+    AllowedCollisionMatrix                  m_acm;
+    double                                  m_padding;
 
     // switch to checking for a new collision group; removes voxels from groups
     // that are inside the new collision group and add voxels that are outside
     // the new collision group
     void switchGroup(int gidx);
+    void switchAttachedBodyGroup(int ab_gidx);
 
     void copyState(const RobotCollisionState& state);
 
@@ -101,9 +127,11 @@ private:
     // update the state of outside-group voxels and check for collisions between
     // spheres and occupied voxels
     bool checkVoxelsStateCollisions(double& dist);
+    bool checkAttachedBodyVoxelsStateCollisions(double& dist);
 
     // check for collisions between inside-group spheres
     bool checkSpheresStateCollisions(double& dist);
+    bool checkAttachedBodySpheresStateCollisions(double& dist);
 };
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
@@ -117,6 +145,7 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_state(m_model),
     m_gidx(-1),
     m_voxels_indices(),
+    m_sphere_indices(),
     m_acm(),
     m_padding(0.0)
 {
@@ -157,11 +186,9 @@ bool SelfCollisionModelImpl::checkCollision(
 
     copyState(state);
 
-    if (!checkVoxelsStateCollisions(dist)) {
-        return false;
-    }
-
-    if (!checkSpheresStateCollisions(dist)) {
+    if (!checkVoxelsStateCollisions(dist) ||
+        !checkSpheresStateCollisions(dist))
+    {
         return false;
     }
 
@@ -174,6 +201,22 @@ bool SelfCollisionModelImpl::checkCollision(
     double& dist)
 {
     if (state.model() != m_model) {
+        return false;
+    }
+
+    if (gidx < 0 || gidx >= m_model->groupCount()) {
+        return false;
+    }
+
+    if (gidx != m_gidx) {
+        switchGroup(gidx);
+    }
+
+    copyState(state);
+
+    if (!checkVoxelsStateCollisions(dist) ||
+        !checkSpheresStateCollisions(dist))
+    {
         return false;
     }
 
@@ -186,17 +229,29 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
-    if (state.model() != m_model) {
+    if (state.model() != m_model || ab_state.model() != m_ab_model) {
         return false;
     }
 
-    if (!m_model->hasGroup(group_name)) {
+    if (!m_model->hasGroup(group_name) || !m_ab_model->hasGroup(group_name)) {
         return false;
     }
 
-    int gidx = m_model->groupIndex(group_name);
+    const int gidx = m_model->groupIndex(group_name);
     if (gidx != m_gidx) {
         switchGroup(gidx);
+    }
+    const int ab_gidx = m_ab_model->groupIndex(group_name);
+    if (ab_gidx != m_gidx) {
+        switchAttachedBodyGroup(ab_gidx);
+    }
+
+    if (!checkVoxelsStateCollisions(dist) ||
+        !checkAttachedBodyVoxelsStateCollisions(dist) ||
+        !checkSpheresStateCollisions(dist) ||
+        !checkAttachedBodySpheresStateCollisions(dist))
+    {
+        return false;
     }
 
     return true;
@@ -208,11 +263,63 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    if (state.model() != m_model) {
-        return false;
-    }
+//    if (state.model() != m_model || ab_state.model() != m_ab_model) {
+//        return false;
+//    }
+//
+//    if (!m_model->hasGroup(group_name) || !m_ab_model->hasGroup(group_name)) {
+//        return false;
+//    }
+//
+//    const int gidx = m_model->groupIndex(group_name);
+//    if (gidx != m_gidx) {
+//        switchGroup(gidx);
+//    }
+//    const int ab_gidx = m_ab_model->groupIndex(group_name)
+//    if (ab_gidx != m_gidx) {
+//        switchAttachedBodyGroup(ab_gidx);
+//    }
+//
+//    if (!checkVoxelsStateCollisions(dist) ||
+//        !checkAttachedBodyVoxelsStateCollisions(dist) ||
+//        !checkSpheresStateCollisions(dist) ||
+//        !checkAttachedBodySpheresStateCollisions(dist))
+//    {
+//        return false;
+//    }
+//
+//    return true;
+    return false;
+}
 
-    return true;
+double SelfCollisionModelImpl::collisionDistance(
+    RobotCollisionState& state,
+    const std::string& group_name)
+{
+    return 0.0;
+}
+
+double SelfCollisionModelImpl::collisionDistance(
+    RobotCollisionState& state,
+    const int gidx)
+{
+    return 0.0;
+}
+
+double SelfCollisionModelImpl::collisionDistance(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const std::string& group_name)
+{
+    return 0.0;
+}
+
+double SelfCollisionModelImpl::collisionDistance(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const int gidx)
+{
+    return 0.0;
 }
 
 void SelfCollisionModelImpl::switchGroup(int gidx)
@@ -300,6 +407,11 @@ void SelfCollisionModelImpl::switchGroup(int gidx)
     m_gidx = gidx;
 }
 
+void SelfCollisionModelImpl::switchAttachedBodyGroup(int ab_gidx)
+{
+
+}
+
 void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 {
     for (size_t vidx = 0; vidx < m_state.model()->jointVarCount(); ++vidx) {
@@ -370,6 +482,12 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
     return true;
 }
 
+bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
+    double& dist)
+{
+    return false;
+}
+
 bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 {
     // check self collisions
@@ -396,6 +514,12 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
     }
 
     return true;
+}
+
+bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
+    double& dist)
+{
+    return false;
 }
 
 ///////////////////////////////////////
@@ -458,6 +582,36 @@ bool SelfCollisionModel::checkCollision(
     double& dist)
 {
     return m_impl->checkCollision(state, ab_state, gidx, dist);
+}
+
+double SelfCollisionModel::collisionDistance(
+    RobotCollisionState& state,
+    const std::string& group_name)
+{
+    return m_impl->collisionDistance(state, group_name);
+}
+
+double SelfCollisionModel::collisionDistance(
+    RobotCollisionState& state,
+    const int gidx)
+{
+    return m_impl->collisionDistance(state, gidx);
+}
+
+double SelfCollisionModel::collisionDistance(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const std::string& group_name)
+{
+    return m_impl->collisionDistance(state, ab_state, group_name);
+}
+
+double SelfCollisionModel::collisionDistance(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const int gidx)
+{
+    return m_impl->collisionDistance(state, ab_state, gidx);
 }
 
 } // namespace collision
