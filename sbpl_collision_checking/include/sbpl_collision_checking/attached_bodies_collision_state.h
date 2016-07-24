@@ -113,6 +113,9 @@ private:
     std::unique_ptr<AttachedBodiesCollisionStateImpl> m_impl;
 };
 
+typedef std::shared_ptr<AttachedBodiesCollisionState> AttachedBodiesCollisionStatePtr;
+typedef std::shared_ptr<const AttachedBodiesCollisionState> AttachedBodiesCollisionStateConstPtr;
+
 } // namespace collision
 } // namespace sbpl
 

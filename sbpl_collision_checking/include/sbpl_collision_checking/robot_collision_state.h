@@ -131,7 +131,8 @@ private:
     std::unique_ptr<RobotCollisionStateImpl> m_impl;
 };
 
-///@}
+typedef std::shared_ptr<RobotCollisionState> RobotCollisionStatePtr;
+typedef std::shared_ptr<const RobotCollisionState> RobotCollisionStateConstPtr;
 
 } // namespace collision
 } // namespace sbpl
