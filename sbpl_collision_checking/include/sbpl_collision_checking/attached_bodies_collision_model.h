@@ -58,10 +58,8 @@ public:
 
     ~AttachedBodiesCollisionModel();
 
-    /// \brief Attach a body to the collision model
-    /// \param shapes The shapes making up the body
-    /// \param transforms The offsets from the attached link for each shape
-    /// \param link_name The link to attach to
+    /// \name Attached Bodies Model
+    ///@{
     bool attachBody(
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
@@ -71,8 +69,6 @@ public:
         bool create_spheres_model = true);
     bool detachBody(const std::string& id);
 
-    /// \name Attached Bodies Model
-    ///@{
     size_t attachedBodyCount() const;
     bool   hasAttachedBody(const std::string& id) const;
     int    attachedBodyIndex(const std::string& id) const;
@@ -82,6 +78,8 @@ public:
     auto attachedBodyIndices(const std::string& link_name) const
             -> const std::vector<int>&;
     auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
+
+    int version() const;
     ///@}
 
     /// \name Attached Bodies Collision Model

@@ -65,6 +65,8 @@ public:
             const std::vector<int>&;
     auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;
 
+    int version() const;
+
     size_t sphereModelCount() const;
 
     bool   hasSpheresModel(const std::string& id) const;
@@ -119,6 +121,8 @@ private:
     hash_map<int, const CollisionSpheresModel*> m_attached_body_spheres_models;
     hash_map<int, const CollisionVoxelsModel*>  m_attached_body_voxels_models;
 
+    int m_version;
+
     int generateAttachedBodyIndex();
 
     void createSpheresModel(
@@ -166,7 +170,8 @@ AttachedBodiesCollisionModelImpl::AttachedBodiesCollisionModelImpl(
     m_group_models(),
     m_group_name_to_index(),
     m_attached_body_spheres_models(),
-    m_attached_body_voxels_models()
+    m_attached_body_voxels_models(),
+    m_version(0)
 {
     m_link_attached_bodies.resize(m_model->linkCount());
 }
@@ -235,6 +240,7 @@ bool AttachedBodiesCollisionModelImpl::attachBody(
         }
     }
 
+    ++m_version;
     return true;
 }
 
@@ -312,6 +318,7 @@ bool AttachedBodiesCollisionModelImpl::detachBody(const std::string& id)
     ret = m_attached_bodies.erase(abidx);
     assert(ret > 0);
 
+    ++m_version;
     return true;
 }
 
@@ -370,6 +377,12 @@ const std::vector<int>& AttachedBodiesCollisionModelImpl::attachedBodyIndices(
 {
     ASSERT_VECTOR_RANGE(m_link_attached_bodies, lidx);
     return m_link_attached_bodies[lidx];
+}
+
+inline
+int AttachedBodiesCollisionModelImpl::version() const
+{
+    return m_version;
 }
 
 inline
@@ -691,6 +704,10 @@ AttachedBodiesCollisionModel::~AttachedBodiesCollisionModel()
 {
 }
 
+/// \brief Attach a body to the collision model
+/// \param shapes The shapes making up the body
+/// \param transforms The offsets from the attached link for each shape
+/// \param link_name The link to attach to
 bool AttachedBodiesCollisionModel::attachBody(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
@@ -746,6 +763,11 @@ const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
     int lidx) const
 {
     return m_impl->attachedBodyIndices(lidx);
+}
+
+int AttachedBodiesCollisionModel::version() const
+{
+    return m_impl->version();
 }
 
 size_t AttachedBodiesCollisionModel::sphereModelCount() const
