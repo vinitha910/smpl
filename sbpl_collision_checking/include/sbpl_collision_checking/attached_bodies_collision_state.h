@@ -51,6 +51,8 @@ namespace collision {
 
 class AttachedBodiesCollisionStateImpl;
 
+/// Const member functions of this class are not thread-safe but multiple
+/// instances may be created.
 class AttachedBodiesCollisionState
 {
 public:
