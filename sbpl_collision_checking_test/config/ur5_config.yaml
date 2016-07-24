@@ -44,9 +44,7 @@ robot_collision_model:
         - { name: w20, x: 0.0, y: -0.018, z:  0.090, radius: 0.055, priority: 1 }
         - { name: w21, x: 0.0, y:  0.018, z:  0.090, radius: 0.050, priority: 1 }
 #    - link_name: wrist_3_link
-#      spheres: rf0 rf1
 #    - link_name: ee_link
-#      spheres:
 #  voxels_models:
 #    - link_name: world
   collision_groups:
