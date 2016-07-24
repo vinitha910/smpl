@@ -298,7 +298,7 @@ bool CollisionGroupConfig::Load(
         !config.hasMember("name") ||
         !config.hasMember("links"))
     {
-        ROS_ERROR("group config is malformed");
+        ROS_ERROR("group config is malformed. expected { name: <name>, links: [...] }");
         return false;
     }
 
@@ -322,7 +322,7 @@ bool CollisionGroupConfig::Load(
         if (link_value.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
             !link_value.hasMember("name"))
         {
-            ROS_ERROR("links config is malformed");
+            ROS_ERROR("links config is malformed. expected { name: <name> }");
             return false;
         }
 
