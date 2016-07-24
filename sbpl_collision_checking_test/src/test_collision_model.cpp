@@ -104,26 +104,23 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (urdf->getName() != "ur5") {
-        ROS_ERROR("This test is intended for the UR5 robot");
-        return 1;
-    }
-
     //////////////////////////////////////
     // Create the Robot Collision Model //
     //////////////////////////////////////
 
-    ROS_WARN("Initialize Robot Model");
+    ROS_WARN("Initialize Robot Collision Model");
     sbpl::collision::RobotCollisionModel model;
     if (!model.init(*urdf, config)) {
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
     }
+    ROS_WARN(" -> Initialized Robot Collision Model");
 
     //////////////////////////////////////////////
     // Create a dependent Robot Collision State //
     //////////////////////////////////////////////
 
+    ROS_WARN("Create Robot Collision State");
     sbpl::collision::RobotCollisionState state(&model);
 
     // convenience lambda for publishing visualization of the current state
@@ -136,9 +133,9 @@ int main(int argc, char* argv[])
         }
         vis_pub.publish(prev_ma);
 
-        auto ma = state.getVisualization("manipulator");
+        auto ma = state.getVisualization();
         for (auto& marker : ma.markers) {
-            marker.header.frame_id = "world";
+            marker.header.frame_id = model.modelFrame();
         }
 
         vis_pub.publish(ma);
