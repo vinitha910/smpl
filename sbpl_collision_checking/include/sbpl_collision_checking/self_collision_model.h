@@ -57,8 +57,8 @@ public:
 
     SelfCollisionModel(
         OccupancyGrid* grid,
-        const RobotCollisionModel* model,
-        const AttachedBodiesCollisionModel* ab_model = nullptr);
+        const RobotCollisionModel* rcm,
+        const AttachedBodiesCollisionModel* ab_model);
 
     ~SelfCollisionModel();
 
@@ -113,6 +113,9 @@ private:
 
     std::unique_ptr<SelfCollisionModelImpl> m_impl;
 };
+
+typedef std::shared_ptr<SelfCollisionModel> SelfCollisionModelPtr;
+typedef std::shared_ptr<const SelfCollisionModel> SelfCollisionModelConstPtr;
 
 } // namespace collision
 } // namespace sbpl

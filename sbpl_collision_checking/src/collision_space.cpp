@@ -63,7 +63,7 @@ CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
     m_rcs(&m_rcm),
     m_abcs(&m_abcm, &m_rcs),
     m_wcm(grid),
-    m_scm(grid, &m_rcm),
+    m_scm(grid, &m_rcm, &m_abcm),
     m_group_name(),
     m_gidx(-1),
     m_planning_joint_to_collision_model_indices(),

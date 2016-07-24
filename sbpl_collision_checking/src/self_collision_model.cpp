@@ -44,7 +44,7 @@ public:
 
     SelfCollisionModelImpl(
         OccupancyGrid* grid,
-        const RobotCollisionModel* model,
+        const RobotCollisionModel* rcm,
         const AttachedBodiesCollisionModel* ab_model);
 
     ~SelfCollisionModelImpl();
@@ -96,10 +96,11 @@ public:
 private:
 
     OccupancyGrid*                          m_grid;
-    const RobotCollisionModel*              m_model;
-    const AttachedBodiesCollisionModel*     m_ab_model;
+    const RobotCollisionModel*              m_rcm;
+    const AttachedBodiesCollisionModel*     m_abcm;
 
-    RobotCollisionState                     m_state;
+    RobotCollisionState                     m_rcs;
+    AttachedBodiesCollisionState            m_abcs;
 
     // cached group information updated when a collision check for a different
     // group is made
@@ -117,7 +118,7 @@ private:
     // switch to checking for a new collision group; removes voxels from groups
     // that are inside the new collision group and add voxels that are outside
     // the new collision group
-    void switchGroup(int gidx);
+    void updateGroup(int gidx);
     void switchAttachedBodyGroup(int ab_gidx);
 
     void copyState(const RobotCollisionState& state);
@@ -136,13 +137,14 @@ private:
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
     OccupancyGrid* grid,
-    const RobotCollisionModel* model,
+    const RobotCollisionModel* rcm,
     const AttachedBodiesCollisionModel* ab_model)
 :
     m_grid(grid),
-    m_model(model),
-    m_ab_model(ab_model),
-    m_state(m_model),
+    m_rcm(rcm),
+    m_abcm(ab_model),
+    m_rcs(rcm),
+    m_abcs(ab_model, &m_rcs),
     m_gidx(-1),
     m_voxels_indices(),
     m_sphere_indices(),
@@ -171,18 +173,16 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
-    if (state.model() != m_model) {
+    if (state.model() != m_rcm) {
         return false;
     }
 
-    if (!m_model->hasGroup(group_name)) {
+    if (!m_rcm->hasGroup(group_name)) {
         return false;
     }
 
-    int gidx = m_model->groupIndex(group_name);
-    if (gidx != m_gidx) {
-        switchGroup(gidx);
-    }
+    int gidx = m_rcm->groupIndex(group_name);
+    updateGroup(gidx);
 
     copyState(state);
 
@@ -200,18 +200,15 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    if (state.model() != m_model) {
+    if (state.model() != m_rcm) {
         return false;
     }
 
-    if (gidx < 0 || gidx >= m_model->groupCount()) {
+    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
         return false;
     }
 
-    if (gidx != m_gidx) {
-        switchGroup(gidx);
-    }
-
+    updateGroup(gidx);
     copyState(state);
 
     if (!checkVoxelsStateCollisions(dist) ||
@@ -229,22 +226,22 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
-    if (state.model() != m_model || ab_state.model() != m_ab_model) {
+    if (state.model() != m_rcm || ab_state.model() != m_abcm) {
         return false;
     }
 
-    if (!m_model->hasGroup(group_name) || !m_ab_model->hasGroup(group_name)) {
+    if (!m_rcm->hasGroup(group_name) || !m_abcm->hasGroup(group_name)) {
         return false;
     }
 
-    const int gidx = m_model->groupIndex(group_name);
-    if (gidx != m_gidx) {
-        switchGroup(gidx);
-    }
-    const int ab_gidx = m_ab_model->groupIndex(group_name);
+    const int gidx = m_rcm->groupIndex(group_name);
+    updateGroup(gidx);
+    const int ab_gidx = m_abcm->groupIndex(group_name);
     if (ab_gidx != m_gidx) {
         switchAttachedBodyGroup(ab_gidx);
     }
+
+    copyState(state);
 
     if (!checkVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -263,33 +260,31 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-//    if (state.model() != m_model || ab_state.model() != m_ab_model) {
-//        return false;
-//    }
-//
-//    if (!m_model->hasGroup(group_name) || !m_ab_model->hasGroup(group_name)) {
-//        return false;
-//    }
-//
-//    const int gidx = m_model->groupIndex(group_name);
-//    if (gidx != m_gidx) {
-//        switchGroup(gidx);
-//    }
-//    const int ab_gidx = m_ab_model->groupIndex(group_name)
-//    if (ab_gidx != m_gidx) {
-//        switchAttachedBodyGroup(ab_gidx);
-//    }
-//
-//    if (!checkVoxelsStateCollisions(dist) ||
-//        !checkAttachedBodyVoxelsStateCollisions(dist) ||
-//        !checkSpheresStateCollisions(dist) ||
-//        !checkAttachedBodySpheresStateCollisions(dist))
-//    {
-//        return false;
-//    }
-//
-//    return true;
-    return false;
+    if (state.model() != m_rcm || ab_state.model() != m_abcm) {
+        return false;
+    }
+
+    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount())
+    {
+        return false;
+    }
+
+    updateGroup(gidx);
+    if (gidx != m_ab_gidx) {
+        switchAttachedBodyGroup(gidx);
+    }
+
+    copyState(state);
+
+    if (!checkVoxelsStateCollisions(dist) ||
+        !checkAttachedBodyVoxelsStateCollisions(dist) ||
+        !checkSpheresStateCollisions(dist) ||
+        !checkAttachedBodySpheresStateCollisions(dist))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 double SelfCollisionModelImpl::collisionDistance(
@@ -322,69 +317,69 @@ double SelfCollisionModelImpl::collisionDistance(
     return 0.0;
 }
 
-void SelfCollisionModelImpl::switchGroup(int gidx)
+void SelfCollisionModelImpl::updateGroup(int gidx)
 {
-    std::vector<int> old_outside_indices_sorted = m_voxels_indices;
+    if (gidx == m_gidx) {
+        return;
+    }
 
-    std::sort(
-            old_outside_indices_sorted.begin(),
-            old_outside_indices_sorted.end());
+    // switch to new voxels state context
 
-    std::vector<int> new_outside_indices_sorted =
-            m_state.groupSpheresStateIndices(gidx);
-    std::sort(
-            new_outside_indices_sorted.begin(),
-            new_outside_indices_sorted.end());
+    std::vector<int> old_ov_indices = m_voxels_indices;
+
+    std::sort(old_ov_indices.begin(), old_ov_indices.end());
+
+    std::vector<int> new_ov_indices = m_rcs.groupOutsideVoxelsStateIndices(gidx);
+    std::sort(new_ov_indices.begin(), new_ov_indices.end());
 
     // get the indices of the voxels states that were outside the group but are
     // now inside and must be removed
-    std::vector<int> outside_index_removals;
+    std::vector<int> ovidx_rem;
     std::set_difference(
-            old_outside_indices_sorted.begin(),
-            old_outside_indices_sorted.end(),
-            new_outside_indices_sorted.begin(),
-            new_outside_indices_sorted.end(),
-            std::back_inserter(outside_index_removals));
+            old_ov_indices.begin(), old_ov_indices.end(),
+            new_ov_indices.begin(), new_ov_indices.end(),
+            std::back_inserter(ovidx_rem));
 
     // get the indices of the voxels states that were inside the group but are
     // now outside and must be inserted
-    std::vector<int> outside_index_insertions;
+    std::vector<int> ovidx_ins;
     std::set_difference(
-            new_outside_indices_sorted.begin(),
-            new_outside_indices_sorted.end(),
-            old_outside_indices_sorted.begin(),
-            old_outside_indices_sorted.end(),
-            std::back_inserter(outside_index_removals));
+            new_ov_indices.begin(), new_ov_indices.end(),
+            old_ov_indices.begin(), old_ov_indices.end(),
+            std::back_inserter(ovidx_rem));
 
     // gather the voxels to be removed
-    std::vector<Eigen::Vector3d> voxel_removals;
-    for (int vsidx : outside_index_removals) {
-        const CollisionVoxelsState& vs = m_state.voxelsState(vsidx);
-        voxel_removals.insert(
-            voxel_removals.end(), vs.voxels.begin(), vs.voxels.end());
+    std::vector<Eigen::Vector3d> v_rem;
+    for (int vsidx : ovidx_rem) {
+        const CollisionVoxelsState& vs = m_rcs.voxelsState(vsidx);
+        v_rem.insert(v_rem.end(), vs.voxels.begin(), vs.voxels.end());
     }
 
     // gather the voxels to be inserted
-    std::vector<Eigen::Vector3d> voxel_insertions;
-    for (int vsidx : outside_index_insertions) {
-        const CollisionVoxelsState& vs = m_state.voxelsState(vsidx);
-        voxel_insertions.insert(
-                voxel_insertions.end(), vs.voxels.begin(), vs.voxels.end());
+    std::vector<Eigen::Vector3d> v_ins;
+    for (int vsidx : ovidx_ins) {
+        const CollisionVoxelsState& vs = m_rcs.voxelsState(vsidx);
+        v_ins.insert(v_ins.end(), vs.voxels.begin(), vs.voxels.end());
     }
 
     // insert/remove the voxels
-    if (!voxel_removals.empty()) {
-        m_grid->removePointsFromField(voxel_removals);
+    if (!v_rem.empty()) {
+        m_grid->removePointsFromField(v_rem);
     }
-    if (!voxel_insertions.empty()) {
-        m_grid->addPointsToField(voxel_insertions);
+    if (!v_ins.empty()) {
+        m_grid->addPointsToField(v_ins);
     }
 
+    // prepare voxels indices
+
+    m_voxels_indices = std::move(new_ov_indices);
+
+    // prepare sphere indices
+
     m_sphere_indices.clear();
-    std::vector<int> ss_indices = m_state.groupSpheresStateIndices(gidx);
+    std::vector<int> ss_indices = m_rcs.groupSpheresStateIndices(gidx);
     for (int ssidx : ss_indices) {
-        const CollisionSpheresState& spheres_state =
-                m_state.spheresState(ssidx);
+        const CollisionSpheresState& spheres_state = m_rcs.spheresState(ssidx);
         std::vector<int> s_indices(spheres_state.spheres.size());
         int n = 0;
         std::generate(s_indices.begin(), s_indices.end(), [&]() { return n++; });
@@ -393,17 +388,18 @@ void SelfCollisionModelImpl::switchGroup(int gidx)
         }
     }
 
-    // sort sphere m_state indices by priority
+    // sort sphere indices by priority
     std::sort(m_sphere_indices.begin(), m_sphere_indices.end(),
             [&](const SphereIndex& sidx1, const SphereIndex& sidx2)
             {
-                const CollisionSphereState& ss1 = m_state.sphereState(sidx1);
-                const CollisionSphereState& ss2 = m_state.sphereState(sidx2);
+                const CollisionSphereState& ss1 = m_rcs.sphereState(sidx1);
+                const CollisionSphereState& ss2 = m_rcs.sphereState(sidx2);
                 const CollisionSphereModel* sph1 = ss1.model;
                 const CollisionSphereModel* sph2 = ss2.model;
                 return sph1->priority < sph2->priority;
             });
 
+    // activate the group
     m_gidx = gidx;
 }
 
@@ -414,9 +410,9 @@ void SelfCollisionModelImpl::switchAttachedBodyGroup(int ab_gidx)
 
 void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 {
-    for (size_t vidx = 0; vidx < m_state.model()->jointVarCount(); ++vidx) {
+    for (size_t vidx = 0; vidx < m_rcs.model()->jointVarCount(); ++vidx) {
         const double p = state.jointVarPosition(vidx);
-        m_state.setJointVarPosition(vidx, p);
+        m_rcs.setJointVarPosition(vidx, p);
     }
 }
 
@@ -425,38 +421,38 @@ void SelfCollisionModelImpl::updateVoxelsStates()
     // update voxel groups; gather voxels before updating so as to impose only
     // a single distance field update (TODO: does the distance field recompute
     // with every call to insert/remove/update points?)
-    std::vector<Eigen::Vector3d> voxel_removals;
-    std::vector<Eigen::Vector3d> voxel_insertions;
+    std::vector<Eigen::Vector3d> v_rem;
+    std::vector<Eigen::Vector3d> v_ins;
     for (int vsidx : m_voxels_indices) {
-        if (m_state.voxelsStateDirty(vsidx)) {
-            const CollisionVoxelsState& voxels_state = m_state.voxelsState(vsidx);
+        if (m_rcs.voxelsStateDirty(vsidx)) {
+            const CollisionVoxelsState& voxels_state = m_rcs.voxelsState(vsidx);
 
             // copy over voxels to be removed before updating
-            voxel_removals.insert(
-                    voxel_removals.end(),
+            v_rem.insert(
+                    v_rem.end(),
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            m_state.updateVoxelsState(vsidx);
+            m_rcs.updateVoxelsState(vsidx);
 
             // copy over voxels to be inserted
-            voxel_insertions.insert(
-                    voxel_insertions.end(),
+            v_ins.insert(
+                    v_ins.end(),
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", voxel_removals.size());
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", v_rem.size());
         }
     }
 
     // TODO: check for voxel state updates from attached objects
 
     // update occupancy grid with new voxel data
-    if (!voxel_removals.empty()) {
-        m_grid->removePointsFromField(voxel_removals);
+    if (!v_rem.empty()) {
+        m_grid->removePointsFromField(v_rem);
     }
-    if (!voxel_insertions.empty()) {
-        m_grid->addPointsToField(voxel_insertions);
+    if (!v_ins.empty()) {
+        m_grid->addPointsToField(v_ins);
     }
 }
 
@@ -466,9 +462,9 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 
     for (const auto& sidx : m_sphere_indices) {
         double obs_dist;
-        if (!CheckSphereCollision(*m_grid, m_state, m_padding, sidx, obs_dist))
+        if (!CheckSphereCollision(*m_grid, m_rcs, m_padding, sidx, obs_dist))
         {
-            const CollisionSphereModel* sm = m_state.sphereState(sidx).model;
+            const CollisionSphereModel* sm = m_rcs.sphereState(sidx).model;
             ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* idx: %s, name: %s, radius: %0.3fm, dist: %0.3fm", to_string(sidx).c_str(), sm->name.c_str(), sm->radius, obs_dist);
             dist = obs_dist;
             return false;
@@ -492,11 +488,11 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 {
     // check self collisions
     for (const SphereIndex& sidx1 : m_sphere_indices) {
-        const CollisionSphereState& ss1 = m_state.sphereState(sidx1);
+        const CollisionSphereState& ss1 = m_rcs.sphereState(sidx1);
         const CollisionSphereModel& smodel1 = *ss1.model;
 
         for (const SphereIndex& sidx2 : m_sphere_indices) {
-            const CollisionSphereState& ss2 = m_state.sphereState(sidx2);
+            const CollisionSphereState& ss2 = m_rcs.sphereState(sidx2);
             const CollisionSphereModel& smodel2 = *ss2.model;
 
             Eigen::Vector3d dx = ss2.pos - ss1.pos;
