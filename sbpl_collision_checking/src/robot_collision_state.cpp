@@ -555,16 +555,22 @@ inline
 visualization_msgs::MarkerArray
 RobotCollisionStateImpl::getVisualization() const
 {
+    // TODO: cull out spheres duplicated between groups
     visualization_msgs::MarkerArray ma;
     for (int i = 0; i < m_model->groupCount(); ++i) {
         auto marr = getVisualization(i);
+        auto prev_size = ma.markers.size();
         ma.markers.insert(ma.markers.end(), marr.markers.begin(), marr.markers.end());
+        for (size_t i = prev_size; i < ma.markers.size(); ++i) {
+            ma.markers[i].id = i;
+        }
     }
     return ma;
 }
 
 inline
-visualization_msgs::MarkerArray RobotCollisionStateImpl::getVisualization(
+visualization_msgs::MarkerArray
+RobotCollisionStateImpl::getVisualization(
     const std::string& group_name) const
 {
     const int gidx = m_model->groupIndex(group_name);
@@ -612,11 +618,24 @@ RobotCollisionStateImpl::getVisualization(int gidx) const
 
 void RobotCollisionStateImpl::initRobotState()
 {
-    // initialize joint variable offsets
-    // NOTE: need to initialize this before initRobotState to set up these
-    // references
+    // NOTE: need to initialize this before determining per-joint offsets below
     m_jvar_positions.assign(m_model->jointVarCount(), 0.0);
+    for (size_t vidx = 0; vidx < m_model->jointVarCount(); ++vidx) {
+        if (m_model->jointVarHasPositionBounds(vidx)) {
+            if (m_model->jointVarMinPosition(vidx) > 0.0 ||
+                m_model->jointVarMaxPosition(vidx) < 0.0)
+            {
+                m_jvar_positions[vidx] = 0.5 *
+                        (
+                            m_model->jointVarMinPosition(vidx) +
+                            m_model->jointVarMaxPosition(vidx)
+                        );
+                ROS_DEBUG_NAMED(RCM_LOGGER, "Set joint variable %zu to position %0.3f", vidx, m_jvar_positions[vidx]);
+            }
+        }
+    }
 
+    // initialize joint variable offsets
     m_joint_var_offsets.resize(m_model->jointCount());
     double* d = m_jvar_positions.data();
     for (size_t i = 0; i < m_model->jointCount(); ++i) {

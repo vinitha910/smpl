@@ -639,8 +639,15 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
 
             if (limits) {
                 has_position_limit = true;
-                min_position_limit = limits->lower;
-                max_position_limit = limits->upper;
+                auto safety = joint->safety;
+                if (safety) {
+                    min_position_limit = safety->soft_lower_limit;
+                    max_position_limit = safety->soft_upper_limit;
+                }
+                else {
+                    min_position_limit = limits->lower;
+                    max_position_limit = limits->upper;
+                }
             }
 
             switch (joint->type) {
