@@ -30,7 +30,9 @@
 /// \author Benjamin Cohen, Andrew Dornbush
 
 // standard includes
+#include <math.h>
 #include <iostream>
+#include <random>
 #include <string>
 
 // system includes
@@ -85,9 +87,9 @@ int main(int argc, char* argv[])
     ROS_INFO("Allowed Collision Matrix:");
     config.acm.print(std::cout);
 
-    ///////////////////////
-    // Load the UR5 URDF //
-    ///////////////////////
+    ///////////////////
+    // Load the URDF //
+    ///////////////////
 
     std::string robot_description_param;
     if (!nh.searchParam("robot_description", robot_description_param)) {
@@ -150,9 +152,14 @@ int main(int argc, char* argv[])
     // publish visualization of the zero state //
     /////////////////////////////////////////////
 
-    for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
-        state.setJointVarPosition(jidx, 0.0);
-    }
+    // NOTE: this was removed to use the default-initialized joint values...
+    // which of course makes the assumption that they're "zero"-initialized. The
+    // desired effect here is to get visualization of the zero state with
+    // respect to safety limits
+
+//    for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
+//        state.setJointVarPosition(jidx, 0.0);
+//    }
 
     state.updateSphereStates();
 
@@ -162,10 +169,28 @@ int main(int argc, char* argv[])
     ROS_WARN("Publishing Zero State Visualization");
     publish_model_viz();
 
-    state.setJointVarPosition(0, 0.8);
+    std::minstd_rand rng;
+    std::uniform_real_distribution<double> dist;
+    for (size_t vidx = 0; vidx < model.jointVarCount(); ++vidx) {
+        double rv;
+        if (model.jointVarIsContinuous(vidx)) {
+            rv = M_PI * dist(rng);
+        }
+        else if (model.jointVarHasPositionBounds(vidx)) {
+            const double span =
+                    model.jointVarMaxPosition(vidx) -
+                    model.jointVarMinPosition(vidx);
+            rv = model.jointVarMinPosition(vidx) + dist(rng) * span;
+        }
+        else {
+            rv = dist(rng);
+        }
+        state.setJointVarPosition(vidx, rv);
+    }
+
     state.updateSphereStates();
 
-    ROS_WARN("Publishing Modified State Visualization");
+    ROS_WARN("Publishing Random State Visualization");
     publish_model_viz();
 
     ////////////////////////////////////////////////////////
