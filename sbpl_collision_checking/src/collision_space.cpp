@@ -797,7 +797,7 @@ bool CollisionSpace::checkAttachedObjectCollision(
     bool visualize,
     double& dist)
 {
-    return false;
+    return true;
 }
 
 /// \brief Return the distance from a line segment to the nearest occupied cell
