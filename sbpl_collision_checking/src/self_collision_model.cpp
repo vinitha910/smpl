@@ -110,6 +110,9 @@ private:
     std::vector<int>                        m_voxels_indices;
     std::vector<SphereIndex>                m_sphere_indices;
 
+    // set of spheres state pairs that should be checked for self collisions
+    std::vector<std::pair<int, int>>        m_checked_spheres_states;
+
     int                                     m_ab_gidx;
     std::vector<int>                        m_ab_voxel_indices;
     std::vector<int>                        m_ab_sphere_indices;
@@ -161,27 +164,39 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
 
 void SelfCollisionModelImpl::initAllowedCollisionMatrix()
 {
-//    // add allowed collisions between spheres on the same link
-//    for (const auto& spheres_config : config.spheres_models) {
-//        for (size_t i = 0; i < spheres_config.spheres.size(); ++i) {
-//            const std::string& s1_name = spheres_config.spheres[i].name;
-//            if (!m_acm.hasEntry(s1_name)) {
-//                ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", s1_name.c_str());
-//                m_acm.setEntry(s1_name, false);
-//            }
-//            for (size_t j = i + 1; j < spheres_config.spheres.size(); ++j) {
-//                const std::string& s2_name = spheres_config.spheres[j].name;
-//                if (!m_acm.hasEntry(s2_name)) {
-//                    ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", s2_name.c_str());
-//                    m_acm.setEntry(s2_name, false);
-//                }
-//
-//                ROS_INFO_NAMED(CC_LOGGER, "Spheres '%s' and '%s' attached to the same link...allowing collision", s1_name.c_str(), s2_name.c_str());
-//                m_acm.setEntry(s1_name, s2_name, true);
-//            }
-//        }
-//    }
-//
+    for (size_t lidx = 0; lidx < m_rcm->linkCount(); ++lidx) {
+        const std::string& link_name = m_rcm->linkName(lidx);
+        if (!m_acm.hasEntry(link_name)) {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Adding entry '%s' to the ACM", link_name.c_str());
+            m_acm.setEntry(link_name, false);
+        }
+
+        int pjidx = m_rcm->linkParentJointIndex(lidx);
+        if (pjidx != 0) {
+            const int plidx = m_rcm->jointParentLinkIndex(pjidx);
+            const std::string& parent_link_name = m_rcm->linkName(plidx);
+            if (!m_acm.hasEntry(parent_link_name)) {
+                ROS_DEBUG_NAMED(SCM_LOGGER, "Adding entry '%s' to the ACM", parent_link_name.c_str());
+                m_acm.setEntry(parent_link_name, false);
+            }
+
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Allowing collisions between adjacent links '%s' and '%s'", link_name.c_str(), parent_link_name.c_str());
+            m_acm.setEntry(link_name, parent_link_name, true);
+        }
+
+        for (int cjidx : m_rcm->linkChildJointIndices(lidx)) {
+            int clidx = m_rcm->jointChildLinkIndex(cjidx);
+            const std::string& child_link_name = m_rcm->linkName(clidx);
+            if (!m_acm.hasEntry(child_link_name)) {
+                ROS_DEBUG_NAMED(SCM_LOGGER, "Adding entry '%s' to the ACM", child_link_name.c_str());
+                m_acm.setEntry(child_link_name, false);
+            }
+
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Allowing collisions between adjacent links '%s' and '%s'", link_name.c_str(), child_link_name.c_str());
+            m_acm.setEntry(link_name, child_link_name, true);
+        }
+    }
+
 //    // add in additional allowed collisions from config
 //    std::vector<std::string> config_entries;
 //    config.acm.getAllEntryNames(config_entries);
@@ -252,6 +267,7 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState&, const std::string&, double&)");
     if (state.model() != m_rcm) {
         ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
@@ -281,6 +297,7 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState&, const int, double&)");
     if (state.model() != m_rcm) {
         ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
@@ -309,6 +326,7 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const std::string&, double&)");
     if (state.model() != m_rcm) {
         ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
@@ -349,6 +367,7 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState& state, AttachedBodiesCollisionState&, const int, double&)");
     if (state.model() != m_rcm || ab_state.model() != m_abcm) {
         return false;
     }
@@ -493,6 +512,45 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
                 return sph1->priority < sph2->priority;
             });
 
+    // prepare the set of spheres states that should be checked for collision
+    m_checked_spheres_states.clear();
+    const std::vector<int>& group_link_indices = m_rcm->groupLinkIndices(gidx);
+    for (int l1 = 0; l1 < m_rcm->linkCount(); ++l1) {
+        bool l1_in_group = std::find(
+                group_link_indices.begin(),
+                group_link_indices.end(),
+                l1) != group_link_indices.end();
+        bool l1_has_spheres = m_rcm->hasSpheresModel(l1);
+        if (!l1_in_group || !l1_has_spheres) {
+            continue;
+        }
+        const std::string& l1_name = m_rcm->linkName(l1);
+        for (int l2 = l1 + 1; l2 < m_rcm->linkCount(); ++l2) {
+            const bool l2_in_group = std::find(
+                    group_link_indices.begin(),
+                    group_link_indices.end(), l2) != group_link_indices.end();
+            const bool l2_has_spheres = m_rcm->hasSpheresModel(l2);
+            if (!l2_in_group || !l2_has_spheres) {
+                continue;
+            }
+            const std::string& l2_name = m_rcm->linkName(l2);
+
+            collision_detection::AllowedCollision::Type type;
+            if (m_acm.getEntry(l1_name, l2_name, type)) {
+                if (type != collision_detection::AllowedCollision::ALWAYS) {
+                    m_checked_spheres_states.emplace_back(
+                            m_rcs.linkSpheresStateIndex(l1),
+                            m_rcs.linkSpheresStateIndex(l2));
+                }
+            }
+            else {
+                m_checked_spheres_states.emplace_back(
+                        m_rcs.linkSpheresStateIndex(l1),
+                        m_rcs.linkSpheresStateIndex(l2));
+            }
+        }
+    }
+
     // activate the group
     m_gidx = gidx;
 }
@@ -580,31 +638,48 @@ bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
     double& dist)
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Voxels States");
-    return false;
+    return true;
 }
 
 bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Self Collisions against Spheres States");
 
-    // check self collisions
-    for (const SphereIndex& sidx1 : m_sphere_indices) {
-        const CollisionSphereState& ss1 = m_rcs.sphereState(sidx1);
-        const CollisionSphereModel& smodel1 = *ss1.model;
+    for (const auto& ss_pair : m_checked_spheres_states) {
+        int ss1idx = ss_pair.first;
+        int ss2idx = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1idx);
+        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2idx);
 
-        for (const SphereIndex& sidx2 : m_sphere_indices) {
-            const CollisionSphereState& ss2 = m_rcs.sphereState(sidx2);
-            const CollisionSphereModel& smodel2 = *ss2.model;
+        for (size_t s1idx = 0; s1idx < ss1.spheres.size(); ++s1idx) {
+            for (size_t s2idx = 0; s2idx < ss2.spheres.size(); ++s2idx) {
+                // lazily update the state of the queried spheres
+                const SphereIndex si1(ss1idx, s1idx);
+                const SphereIndex si2(ss2idx, s2idx);
+                m_rcs.updateSphereState(si1);
+                m_rcs.updateSphereState(si2);
 
-            Eigen::Vector3d dx = ss2.pos - ss1.pos;
-            const double radius_combined = smodel1.radius + smodel2.radius;
-            if (dx.squaredNorm() < radius_combined * radius_combined) {
-                collision_detection::AllowedCollision::Type type;
-                if (!m_acm.getEntry(smodel1.name, smodel2.name, type)) {
-                    ROS_ERROR_NAMED(SCM_LOGGER, "An allowed collisions entry wasn't found for a collision sphere");
-                }
-                if (type == collision_detection::AllowedCollision::NEVER) {
-                    return false;
+                const CollisionSphereState& sphere_state_1 = m_rcs.sphereState(si1);
+                const CollisionSphereModel& sphere_model_1 = *sphere_state_1.model;
+
+                const CollisionSphereState& sphere_state_2 = m_rcs.sphereState(si2);
+                const CollisionSphereModel& sphere_model_2 = *sphere_state_2.model;
+
+                Eigen::Vector3d dx = sphere_state_2.pos - sphere_state_1.pos;
+                const double radius_combined = sphere_model_1.radius + sphere_model_2.radius;
+                if (dx.squaredNorm() < radius_combined * radius_combined) {
+                    // check for an entry for these particular spheres
+                    collision_detection::AllowedCollision::Type type;
+                    if (m_acm.getEntry(sphere_model_1.name, sphere_model_2.name, type)) {
+                        if (type != collision_detection::AllowedCollision::ALWAYS) {
+                            ROS_DEBUG("  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
+                            return false;
+                        }
+                    }
+                    else {
+                        ROS_DEBUG("  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
+                        return false;
+                    }
                 }
             }
         }
@@ -617,7 +692,7 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
     double& dist)
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Spheres States");
-    return false;
+    return true;
 }
 
 ///////////////////////////////////////
