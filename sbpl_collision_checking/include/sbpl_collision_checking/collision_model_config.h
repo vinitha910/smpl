@@ -41,6 +41,9 @@
 #include <moveit/collision_detection/collision_matrix.h>
 #include <ros/ros.h> // for NodeHandle and XmlRpcValue
 
+// project includes
+#include <sbpl_collision_checking/types.h>
+
 namespace sbpl {
 namespace collision {
 
@@ -94,7 +97,6 @@ struct CollisionModelConfig
     std::vector<CollisionSpheresModelConfig>    spheres_models;
     std::vector<CollisionVoxelModelConfig>      voxel_models;
     std::vector<CollisionGroupConfig>           groups;
-    collision_detection::AllowedCollisionMatrix acm;
 
     // TODO: change this to search for params under "robot_collision_model"
     // and provide another Load function operating directly on the XmlRpc
@@ -102,7 +104,16 @@ struct CollisionModelConfig
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionModelConfig& cfg);
 };
 
+bool LoadAllowedCollisionMatrix(
+    const ros::NodeHandle& nh,
+    AllowedCollisionMatrix& acm);
+
+bool LoadAllowedCollisionMatrix(
+    XmlRpc::XmlRpcValue& config,
+    AllowedCollisionMatrix& acm);
+
 } // namespace collision
 } // namespace sbpl
 
 #endif
+

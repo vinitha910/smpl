@@ -54,103 +54,36 @@ namespace collision {
 
 static const char* CC_LOGGER = "cspace";
 
-CollisionSpace::CollisionSpace(OccupancyGrid* grid) :
-    m_grid(grid),
-    m_rcm(),
-    // TODO: objects dependent on robot collision model should be instantiated
-    // after its initialization
-    m_abcm(&m_rcm),
-    m_rcs(&m_rcm),
-    m_abcs(&m_abcm, &m_rcs),
-    m_wcm(grid),
-    m_scm(grid, &m_rcm, &m_abcm),
-    m_group_name(),
-    m_gidx(-1),
-    m_planning_joint_to_collision_model_indices(),
-    m_increments()
-{
-}
-
 CollisionSpace::~CollisionSpace()
 {
 }
 
-bool CollisionSpace::init(
-    const urdf::ModelInterface& urdf,
-    const std::string& group_name,
-    const CollisionModelConfig& config,
-    const std::vector<std::string>& planning_joints)
+/// \brief Set the planning scene
+/// \param scene The scene
+/// \return true if the scene was updated correctly; false otherwise
+bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
 {
-    ROS_DEBUG_NAMED(CC_LOGGER, "Initializing collision space for group '%s'", group_name.c_str());
-
-    if (!m_rcm.init(urdf, config)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to initialize the Robot Collision Model");
-        return false;
-    }
-
-    if (!setPlanningJoints(planning_joints)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to set planning joints");
-        return false;
-    }
-
-    if (!m_rcm.hasGroup(group_name)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Group '%s' was not found in the Robot Collision Model", group_name.c_str());
-        return false;
-    }
-
-    AllowedCollisionMatrix acm;
-    initAllowedCollisionMatrix(config, acm);
-    acm.print(std::cout);
-    m_scm.setAllowedCollisionMatrix(acm);
-
-    m_group_name = group_name;
-    m_gidx = m_rcm.groupIndex(m_group_name);
-
-    return true;
-}
-
-/// \brief Initialize the Collision Space
-/// \param urdf_string string description of the robot in URDF format
-/// \param group_name collision group for which collision detection is
-///        performed
-/// \param config collision model configuration
-/// \param planning_joints The set of joint variable names being planned for
-///        in the order they will appear in calls to isStateValid and
-///        friends
-bool CollisionSpace::init(
-    const std::string& urdf_string,
-    const std::string& group_name,
-    const CollisionModelConfig& config,
-    const std::vector<std::string>& planning_joints)
-{
-    auto urdf = boost::make_shared<urdf::Model>();
-    if (!urdf->initString(urdf_string)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to parse URDF");
-        return false;
-    }
-
-    return init(*urdf, group_name, config, planning_joints);
-}
-
-bool CollisionSpace::setPlanningScene(
-    const moveit_msgs::PlanningScene& scene)
-{
-    ROS_INFO_NAMED(CC_LOGGER, "Setting the Planning Scene");
+    ROS_INFO_NAMED(CC_LOGGER, "Updating the Collision Space from Planning Scene '%s'", scene.name.c_str());
 
     // TODO: currently ignored fields from moveit_msgs::PlanningScene
-    // * name
-    // * --robot_state--
-    // * robot_model_name
     // * fixed_frame_transforms
-    // * allowed_collision_matrix
     // * link_padding
     // * link_scale
     // * object_colors
-    // * --world--
-    // * --is_diff--
 
-    if (scene.is_diff) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Collision space does not support differential planning scene updates");
+    //////////////////////
+    // robot model name //
+    //////////////////////
+
+    if (scene.robot_model_name != m_rcm->name()) {
+        ROS_ERROR_NAMED(CC_LOGGER, "Planning Scene passed to CollisionSpace::setPlanningScene is not for this robot");
+        return false;
+    }
+
+    // TODO: for full planning scenes, remove all collision objects from the
+    // world collision model
+    if (!scene.is_diff) {
+        ROS_ERROR_NAMED(CC_LOGGER, "Collision space does not support complete planning scene updates");
         return false;
     }
 
@@ -170,7 +103,7 @@ bool CollisionSpace::setPlanningScene(
     for (size_t i = 0; i < joint_state.name.size(); ++i) {
         const std::string& joint_name = joint_state.name[i];
         double joint_position = joint_state.position[i];
-        m_rcs.setJointVarPosition(joint_name, joint_position);
+        m_rcs->setJointVarPosition(joint_name, joint_position);
     }
 
     const sensor_msgs::MultiDOFJointState& multi_dof_joint_state =
@@ -179,12 +112,28 @@ bool CollisionSpace::setPlanningScene(
         // TODO: handle multi-dof joint state
     }
 
-    // TODO: handle world -> model transform
+    // TODO: handle world -> model transform by looking up the transform from
+    // the occupancy grid reference frame to the robot collision model frame
 
     const auto& attached_collision_objects =
             robot_state.attached_collision_objects;
-    for (const auto& attached_collision_object : attached_collision_objects) {
-        // TODO: handle attached collision objects
+    for (const auto& aco : attached_collision_objects) {
+        if (!processAttachedCollisionObject(aco)) {
+            ROS_ERROR_NAMED(CC_LOGGER, "Failed to process attached collision object");
+            return false;
+        }
+    }
+
+    //////////////////////////////
+    // allowed collision matrix //
+    //////////////////////////////
+
+    AllowedCollisionMatrix acm(scene.allowed_collision_matrix);
+    if (scene.is_diff) {
+        m_scm->updateAllowedCollisionMatrix(acm);
+    }
+    else {
+        m_scm->setAllowedCollisionMatrix(acm);
     }
 
     //////////////////////////
@@ -198,34 +147,29 @@ bool CollisionSpace::setPlanningScene(
     for (const moveit_msgs::CollisionObject& collision_object : scene.world.collision_objects) {
         if (!processCollisionObject(collision_object)) {
             ROS_ERROR_NAMED(CC_LOGGER, "Failed to process collision object '%s'", collision_object.id.c_str());
+            return false;
         }
     }
 
     const auto& octomap = planning_scene_world.octomap;
     if (!processOctomapMsg(octomap)) {
         ROS_ERROR_NAMED(CC_LOGGER, "Failed to process octomap '%s'", octomap.octomap.id.c_str());
+        return false;
     }
-
-    // self collision
-    // TODO: This now occurs during checkCollision under the assumption that
-    // some planning joints may force voxels model updates. It may be worthwhile
-    // to assert whether planning joints can affect the state of voxels models
-    // here and make a single update here instead of on every call to
-    // checkCollision
-//    updateVoxelGroups();
 
     return true;
 }
 
-
 /// \brief Set a joint variable in the robot state
+/// \param The joint variable name
+/// \param The joint variable position
 /// \return true if the joint variable exists; false otherwise
 bool CollisionSpace::setJointPosition(
     const std::string& name,
     double position)
 {
-    if (m_rcm.hasJointVar(name)) {
-        m_rcs.setJointVarPosition(name, position);
+    if (m_rcm->hasJointVar(name)) {
+        m_rcs->setJointVarPosition(name, position);
         return true;
     }
     else {
@@ -233,90 +177,137 @@ bool CollisionSpace::setJointPosition(
     }
 }
 
-/// \brief Set the reference to robot model frame transform
+/// \brief Set the transform from the reference frame to the robot model frame
+/// \param transform The transform from the reference frame to the robot frame
 void CollisionSpace::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
-    m_rcs.setWorldToModelTransform(transform);
+    m_rcs->setWorldToModelTransform(transform);
 }
 
 /// \brief Set the padding applied to the collision model
 void CollisionSpace::setPadding(double padding)
 {
-    m_wcm.setPadding(padding);
-    m_scm.setPadding(padding);
+    m_wcm->setPadding(padding);
+    m_scm->setPadding(padding);
 }
 
+/// \brief Return the allowed collision matrix
+/// \return The allowed collision matrix
+const AllowedCollisionMatrix& CollisionSpace::allowedCollisionMatrix() const
+{
+    return m_scm->allowedCollisionMatrix();
+}
+
+/// \brief Update the allowed collisoin matrix
+/// \param acm The allowed collision matrix
+void CollisionSpace::updateAllowedCollisionMatrix(
+    const AllowedCollisionMatrix& acm)
+{
+    return m_scm->updateAllowedCollisionMatrix(acm);
+}
+
+/// \brief Set the allowed collision matrix
+/// \param acm The allowed collision matrix
 void CollisionSpace::setAllowedCollisionMatrix(
     const AllowedCollisionMatrix& acm)
 {
-    m_scm.setAllowedCollisionMatrix(acm);
+    m_scm->setAllowedCollisionMatrix(acm);
 }
 
+/// \brief Insert an object into the world
+/// \param object The object
+/// \return true if the object was inserted; false otherwise
 bool CollisionSpace::insertObject(const ObjectConstPtr& object)
 {
-    return m_wcm.insertObject(object);
+    return m_wcm->insertObject(object);
 }
 
+/// \brief Remove an object from the world
+/// \param object The object
+/// \return true if the object was removed; false otherwise
 bool CollisionSpace::removeObject(const ObjectConstPtr& object)
 {
-    return m_wcm.removeObject(object);
+    return m_wcm->removeObject(object);
 }
 
+/// \brief Remove an object from the world
+/// \param object_name The name of the object
+/// \return true if the object was removed; false otherwise
 bool CollisionSpace::removeObject(const std::string& object_name)
 {
-    return m_wcm.removeObject(object_name);
+    return m_wcm->removeObject(object_name);
 }
 
+/// \brief Move an object in the world
+/// \param object The object to be moved, with its new shapes
+/// \return true if the object was moved; false otherwise
 bool CollisionSpace::moveShapes(const ObjectConstPtr& object)
 {
-    return m_wcm.moveShapes(object);
+    return m_wcm->moveShapes(object);
 }
 
+/// \brief Append shapes to an object
+/// \param object The object to append shapes to, with its new shapes
+/// \return true if the shapes were appended to the object; false otherwise
 bool CollisionSpace::insertShapes(const ObjectConstPtr& object)
 {
-    return m_wcm.insertShapes(object);
+    return m_wcm->insertShapes(object);
 }
 
+/// \brief Remove shapes from an object
+/// \param object The object to remove shapes from, with the shapes to be removed
+/// \return true if the shapes were removed; false otherwise
 bool CollisionSpace::removeShapes(const ObjectConstPtr& object)
 {
-    return m_wcm.removeShapes(object);
+    return m_wcm->removeShapes(object);
 }
 
+/// \brief Process a collision object
+/// \param object The collision object to be processed
+/// \return true if the object was processed successfully; false otherwise
 bool CollisionSpace::processCollisionObject(
     const moveit_msgs::CollisionObject& object)
 {
-    return m_wcm.processCollisionObject(object);
+    return m_wcm->processCollisionObject(object);
 }
 
+/// \brief Process an octomap
+/// \param octomap The octomap
+/// \return true if the octomap was processed successfully; false otherwise
 bool CollisionSpace::processOctomapMsg(
     const octomap_msgs::OctomapWithPose& octomap)
 {
-    return m_wcm.insertOctomap(octomap);
+    return m_wcm->insertOctomap(octomap);
 }
 
+/// \brief Attach a collision object to the robot
+/// \param id The name of the object
+/// \param shapes The shapes composing the object
+/// \param transforms The pose of each shape with respect to the attached link
+/// \param link_name The link to attach the object to
+/// \return true if the object was attached; false otherwise
 bool CollisionSpace::attachObject(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
     const Affine3dVector& transforms,
     const std::string& link_name)
 {
-//    if (!m_rcm.attachBody(id, shapes, transforms, link_name)) {
-//        return false;
-//    }
-//    updateAttachedBodyIndices();
-//    return true;
+    return m_abcm->attachBody(id, shapes, transforms, link_name);
 }
 
-bool CollisionSpace::removeAttachedObject(const std::string& id)
+/// \brief Detach a collision object from the robot
+/// \param id The name of the object
+/// \return true if the object was detached; false otherwise
+bool CollisionSpace::detachObject(const std::string& id)
 {
-//    if (!m_rcm.detachBody(id)) {
-//        return false;
-//    }
-//    updateAttachedBodyIndices();
-//    return true;
+    return m_abcm->detachBody(id);
 }
 
+/// \brief Process an attached collision object
+/// \param ao The attached collision object
+/// \return true if the attached collision object was processed successfully;
+///     false otherwise
 bool CollisionSpace::processAttachedCollisionObject(
     const moveit_msgs::AttachedCollisionObject& ao)
 {
@@ -331,17 +322,13 @@ bool CollisionSpace::processAttachedCollisionObject(
         }
 
         // TODO: handle touch links
-
-        updateAttachedBodyIndices();
         return true;
     }   break;
     case moveit_msgs::CollisionObject::REMOVE:
     {
-        if (!removeAttachedObject(ao.object.id)) {
+        if (!detachObject(ao.object.id)) {
             return false;
         }
-
-        updateAttachedBodyIndices();
         return true;
     }   break;
     case moveit_msgs::CollisionObject::APPEND:
@@ -353,12 +340,18 @@ bool CollisionSpace::processAttachedCollisionObject(
     return false;
 }
 
+/// \brief Return a visualization of the current world
+///
+/// The visualization is of the set of collision object geometries
 visualization_msgs::MarkerArray
 CollisionSpace::getWorldVisualization() const
 {
-    return m_wcm.getWorldVisualization();
+    return m_wcm->getWorldVisualization();
 }
 
+/// \brief Return a visualization of the current robot state
+///
+/// The visualization is of the visual robot geometry
 visualization_msgs::MarkerArray
 CollisionSpace::getRobotVisualization() const
 {
@@ -366,22 +359,29 @@ CollisionSpace::getRobotVisualization() const
     return visualization_msgs::MarkerArray();
 }
 
+/// \brief Return a visualization of the current collision world
+///
+/// The visualization is of the occupied voxels in the grid
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionWorldVisualization() const
 {
-    return m_wcm.getCollisionWorldVisualization();
+    return m_wcm->getCollisionWorldVisualization();
 }
 
+/// \brief Return a visualization of the current collision robot state
+///
+/// The visualization is of the robot bounding geometry
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionRobotVisualization() const
 {
-    auto markers = m_rcs.getVisualization();
+    auto markers = m_rcs->getVisualization();
     for (auto& m : markers.markers) {
         m.header.frame_id = getReferenceFrame();
     }
     return markers;
 }
 
+/// \brief Return a visualization of the collision details for a given state
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionDetailsVisualization(
     const std::vector<double>& vals) const
@@ -390,18 +390,21 @@ CollisionSpace::getCollisionDetailsVisualization(
     return visualization_msgs::MarkerArray();
 }
 
+/// \brief Return a visualization of the bounding box
 visualization_msgs::MarkerArray
 CollisionSpace::getBoundingBoxVisualization() const
 {
     return m_grid->getBoundingBoxVisualization();
 }
 
+/// \brief Return a visualization of the distance field
 visualization_msgs::MarkerArray
 CollisionSpace::getDistanceFieldVisualization() const
 {
     return m_grid->getDistanceFieldVisualization();
 }
 
+/// \brief Return a visualization of the occupied voxels
 visualization_msgs::MarkerArray
 CollisionSpace::getOccupiedVoxelsVisualization() const
 {
@@ -420,7 +423,7 @@ bool CollisionSpace::isStateValid(
     // update the robot state
     for (size_t i = 0; i < angles.size(); ++i) {
         int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_rcs.setJointVarPosition(jidx, angles[i]);
+        m_rcs->setJointVarPosition(jidx, angles[i]);
     }
 
     // world collisions are implicitly checked via the self collision model
@@ -626,11 +629,108 @@ CollisionSpace::getVisualization(
     }
 }
 
+CollisionSpace::CollisionSpace() :
+    m_grid(),
+    m_rcm(),
+    m_abcm(),
+    m_rcs(),
+    m_abcs(),
+    m_wcm(),
+    m_scm(),
+    m_group_name(),
+    m_gidx(-1),
+    m_planning_joint_to_collision_model_indices(),
+    m_increments()
+{
+}
+
+/// \brief Initialize the Collision Space
+/// \param urdf_string String description of the robot in URDF format
+/// \param config Collision model configuration
+/// \param group_name The group for which collision detection is performed
+/// \param planning_joints The set of joint variable names in the order they
+///     will appear in calls to isStateValid and friends
+bool CollisionSpace::init(
+    OccupancyGrid* grid,
+    const std::string& urdf_string,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+    auto urdf = boost::make_shared<urdf::Model>();
+    if (!urdf->initString(urdf_string)) {
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to parse URDF");
+        return false;
+    }
+
+    return init(grid, *urdf, config, group_name, planning_joints);
+}
+
+/// \brief Initialize the Collision Space
+/// \param urdf The URDF of the robot
+/// \param config Collision model configuration
+/// \param group_name Group for which collision detection is performed
+/// \param planning_joints The set of joint variable names in the order they
+///     will appear in calls to isStateValid and friends
+bool CollisionSpace::init(
+    OccupancyGrid* grid,
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+    ROS_DEBUG_NAMED(CC_LOGGER, "Initializing collision space for group '%s'", group_name.c_str());
+
+    auto rcm = RobotCollisionModel::Load(urdf, config);
+    return init(grid, rcm, group_name, planning_joints);
+}
+
+/// \brief Initialize the Collision Space
+/// \param rcm The robot collision model
+/// \param group_name The group for which collision detection is performed
+/// \param planning_joints The set of joint variable names in the order they
+///     will appear in calls to isStateValid and friends
+bool CollisionSpace::init(
+    OccupancyGrid* grid,
+    const RobotCollisionModelConstPtr& rcm,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+    m_grid = grid;
+    m_rcm = rcm;
+    if (!m_rcm) {
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to initialize the Robot Collision Model");
+        return false;
+    }
+
+    if (!setPlanningJoints(planning_joints)) {
+        ROS_ERROR_NAMED(CC_LOGGER, "Failed to set planning joints");
+        return false;
+    }
+
+    if (!m_rcm->hasGroup(group_name)) {
+        ROS_ERROR_NAMED(CC_LOGGER, "Group '%s' was not found in the Robot Collision Model", group_name.c_str());
+        return false;
+    }
+
+    m_group_name = group_name;
+    m_gidx = m_rcm->groupIndex(m_group_name);
+
+    m_abcm = std::make_shared<AttachedBodiesCollisionModel>(m_rcm.get()),
+    m_rcs = std::make_shared<RobotCollisionState>(m_rcm.get());
+    m_abcs = std::make_shared<AttachedBodiesCollisionState>(m_abcm.get(), m_rcs.get());
+    m_wcm = std::make_shared<WorldCollisionModel>(m_grid);
+    m_scm = std::make_shared<SelfCollisionModel>(m_grid, m_rcm.get(), m_abcm.get());
+
+    return true;
+}
+
+/// \brief Set the joint variables in the order they appear to isStateValid calls
 bool CollisionSpace::setPlanningJoints(
     const std::vector<std::string>& joint_names)
 {
     for (const std::string& joint_name : joint_names) {
-        if (!m_rcm.hasJointVar(joint_name)) {
+        if (!m_rcm->hasJointVar(joint_name)) {
             ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
             return false;
         }
@@ -642,7 +742,7 @@ bool CollisionSpace::setPlanningJoints(
     m_increments.resize(joint_names.size(), utils::ToRadians(2.0));
     for (size_t i = 0; i < joint_names.size(); ++i) {
         const std::string& joint_name = joint_names[i];;
-        int jidx = m_rcm.jointVarIndex(joint_name);
+        int jidx = m_rcm->jointVarIndex(joint_name);
 
         m_planning_joint_to_collision_model_indices[i] = jidx;
     }
@@ -650,101 +750,8 @@ bool CollisionSpace::setPlanningJoints(
     return true;
 }
 
-void CollisionSpace::initAllowedCollisionMatrix(
-    const CollisionModelConfig& config,
-    AllowedCollisionMatrix& acm)
-{
-    // add allowed collisions between spheres on the same link
-    for (const auto& spheres_config : config.spheres_models) {
-        for (size_t i = 0; i < spheres_config.spheres.size(); ++i) {
-            const std::string& s1_name = spheres_config.spheres[i].name;
-            if (!acm.hasEntry(s1_name)) {
-                ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", s1_name.c_str());
-                acm.setEntry(s1_name, false);
-            }
-            for (size_t j = i + 1; j < spheres_config.spheres.size(); ++j) {
-                const std::string& s2_name = spheres_config.spheres[j].name;
-                if (!acm.hasEntry(s2_name)) {
-                    ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", s2_name.c_str());
-                    acm.setEntry(s2_name, false);
-                }
-
-                ROS_INFO_NAMED(CC_LOGGER, "Spheres '%s' and '%s' attached to the same link...allowing collision", s1_name.c_str(), s2_name.c_str());
-                acm.setEntry(s1_name, s2_name, true);
-            }
-        }
-    }
-
-    // add in additional allowed collisions from config
-    std::vector<std::string> config_entries;
-    config.acm.getAllEntryNames(config_entries);
-    for (size_t i = 0; i < config_entries.size(); ++i) {
-        const std::string& entry1 = config_entries[i];
-        if (!acm.hasEntry(entry1)) {
-            ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry1.c_str());
-            continue;
-        }
-        for (size_t j = i; j < config_entries.size(); ++j) {
-            const std::string& entry2 = config_entries[j];
-            if (!acm.hasEntry(entry2)) {
-                ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry2.c_str());
-                continue;
-            }
-
-            if (!config.acm.hasEntry(entry1, entry2)) {
-                continue;
-            }
-
-            collision_detection::AllowedCollision::Type type;
-            config.acm.getEntry(entry1, entry2, type);
-            switch (type) {
-            case collision_detection::AllowedCollision::NEVER:
-                // NOTE: not that it matters, but this disallows config freeing
-                // collisions
-                break;
-            case collision_detection::AllowedCollision::ALWAYS:
-                ROS_INFO_NAMED(CC_LOGGER, "Configuration allows spheres '%s' and '%s' to be in collision", entry1.c_str(), entry2.c_str());
-                acm.setEntry(entry1, entry2, true);
-                break;
-            case collision_detection::AllowedCollision::CONDITIONAL:
-                ROS_WARN_NAMED(CC_LOGGER, "Conditional collisions not supported in SBPL Collision Detection");
-                break;
-            }
-        }
-    }
-}
-
-void CollisionSpace::updateAttachedBodyIndices()
-{
-//    std::vector<int> static_sphere_indices = m_sphere_indices;
-//    std::vector<int> static_voxels_indices = m_voxels_indices;
-//    std::sort(static_sphere_indices.begin(), static_sphere_indices.end());
-//    std::sort(static_voxels_indices.begin(), static_sphere_indices.end());
-//
-//    std::vector<int> ss_indices =
-//            m_rcs.groupSphereStateIndices(m_gidx);
-//    std::vector<int> ovs_indices =
-//            m_rcs.groupOutsideVoxelsStateIndices(m_gidx);
-//    std::sort(ss_indices.begin(), ss_indices.end());
-//    std::sort(ovs_indices.begin(), ovs_indices.end());
-//
-//    std::vector<int> dynamic_sphere_indices;
-//    std::vector<int> dynamic_voxels_indices;
-//
-//    std::set_difference(
-//            ss_indices.begin(), ss_indices.end(),
-//            static_sphere_indices.begin(), static_sphere_indices.end(),
-//            std::back_inserter(dynamic_sphere_indices));
-//
-//    std::set_difference(
-//            ovs_indices.begin(), ovs_indices.end(),
-//            static_voxels_indices.begin(), static_voxels_indices.end(),
-//            std::back_inserter(dynamic_voxels_indices));
-//
-//    m_ao_sphere_indices = dynamic_sphere_indices;
-//    m_ao_voxels_indices = dynamic_voxels_indices;
-}
-
+/// \brief Check whether the planning joint variables are within limits
+/// \return true if all variables are within limits; false otherwise
 bool CollisionSpace::withinJointPositionLimits(
     const std::vector<double>& positions) const
 {
@@ -763,22 +770,28 @@ bool CollisionSpace::withinJointPositionLimits(
     return inside;
 }
 
+/// \brief Check whether the robot is in collision with the world
+/// \return true if robot is free of collisions with the world; false otherwise
 bool CollisionSpace::checkRobotCollision(
     bool verbose,
     bool visualize,
     double& dist)
 {
-    return m_wcm.checkCollision(m_rcs, m_gidx, dist);
+    return m_wcm->checkCollision(*m_rcs, m_gidx, dist);
 }
 
+/// \brief Check whether the robot is in self collision
+/// \return true if robot is free of self collisions; false otherwise
 bool CollisionSpace::checkSelfCollision(
     bool verbose,
     bool visualize,
     double& dist)
 {
-    return m_scm.checkCollision(m_rcs, m_gidx, dist);
+    return m_scm->checkCollision(*m_rcs, m_gidx, dist);
 }
 
+/// \brief TODO
+/// \return TODO
 bool CollisionSpace::checkAttachedObjectCollision(
     bool verbose,
     bool visualize,
@@ -787,6 +800,7 @@ bool CollisionSpace::checkAttachedObjectCollision(
     return false;
 }
 
+/// \brief Return the distance from a line segment to the nearest occupied cell
 double CollisionSpace::isValidLineSegment(
     const std::vector<int>& a,
     const std::vector<int>& b,
@@ -838,6 +852,53 @@ double CollisionSpace::isValidLineSegment(
     }
     else {
         return 0;
+    }
+}
+
+CollisionSpacePtr CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const std::string& urdf_string,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+    CollisionSpacePtr cspace(new CollisionSpace);
+    if (cspace->init(grid, urdf_string, config, group_name, planning_joints)) {
+        return cspace;
+    }
+    else {
+        return CollisionSpacePtr();
+    }
+}
+
+CollisionSpacePtr CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+    CollisionSpacePtr cspace(new CollisionSpace);
+    if (cspace->init(grid, urdf, config, group_name, planning_joints)) {
+        return cspace;
+    }
+    else {
+        return CollisionSpacePtr();
+    }
+}
+
+CollisionSpacePtr CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const RobotCollisionModelConstPtr& rcm,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+{
+    CollisionSpacePtr cspace(new CollisionSpace);
+    if (cspace->init(grid, rcm, group_name, planning_joints)) {
+        return cspace;
+    }
+    else {
+        return CollisionSpacePtr();
     }
 }
 

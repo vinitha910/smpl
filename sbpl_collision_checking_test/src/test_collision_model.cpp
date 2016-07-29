@@ -84,9 +84,6 @@ int main(int argc, char* argv[])
         ROS_INFO_STREAM("  " << group);
     }
 
-    ROS_INFO("Allowed Collision Matrix:");
-    config.acm.print(std::cout);
-
     ///////////////////
     // Load the URDF //
     ///////////////////
@@ -111,8 +108,8 @@ int main(int argc, char* argv[])
     //////////////////////////////////////
 
     ROS_WARN("Initialize Robot Collision Model");
-    sbpl::collision::RobotCollisionModel model;
-    if (!model.init(*urdf, config)) {
+    auto model = sbpl::collision::RobotCollisionModel::Load(*urdf, config);
+    if (!model) {
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
     }
@@ -123,7 +120,7 @@ int main(int argc, char* argv[])
     //////////////////////////////////////////////
 
     ROS_WARN("Create Robot Collision State");
-    sbpl::collision::RobotCollisionState state(&model);
+    sbpl::collision::RobotCollisionState state(model.get());
 
     // convenience lambda for publishing visualization of the current state
     visualization_msgs::MarkerArray prev_ma;
@@ -137,7 +134,7 @@ int main(int argc, char* argv[])
 
         auto ma = state.getVisualization();
         for (auto& marker : ma.markers) {
-            marker.header.frame_id = model.modelFrame();
+            marker.header.frame_id = model->modelFrame();
         }
 
         vis_pub.publish(ma);
@@ -157,7 +154,7 @@ int main(int argc, char* argv[])
     // desired effect here is to get visualization of the zero state with
     // respect to safety limits
 
-//    for (size_t jidx = 0; jidx < model.jointVarCount(); ++jidx) {
+//    for (size_t jidx = 0; jidx < model->jointVarCount(); ++jidx) {
 //        state.setJointVarPosition(jidx, 0.0);
 //    }
 
@@ -171,16 +168,16 @@ int main(int argc, char* argv[])
 
     std::minstd_rand rng;
     std::uniform_real_distribution<double> dist;
-    for (size_t vidx = 0; vidx < model.jointVarCount(); ++vidx) {
+    for (size_t vidx = 0; vidx < model->jointVarCount(); ++vidx) {
         double rv;
-        if (model.jointVarIsContinuous(vidx)) {
+        if (model->jointVarIsContinuous(vidx)) {
             rv = M_PI * dist(rng);
         }
-        else if (model.jointVarHasPositionBounds(vidx)) {
+        else if (model->jointVarHasPositionBounds(vidx)) {
             const double span =
-                    model.jointVarMaxPosition(vidx) -
-                    model.jointVarMinPosition(vidx);
-            rv = model.jointVarMinPosition(vidx) + dist(rng) * span;
+                    model->jointVarMaxPosition(vidx) -
+                    model->jointVarMinPosition(vidx);
+            rv = model->jointVarMinPosition(vidx) + dist(rng) * span;
         }
         else {
             rv = dist(rng);
@@ -197,7 +194,7 @@ int main(int argc, char* argv[])
     // create a dependent Attached Bodies Collision Model //
     ////////////////////////////////////////////////////////
 
-    sbpl::collision::AttachedBodiesCollisionModel ab_model(&model);
+    sbpl::collision::AttachedBodiesCollisionModel ab_model(model.get());
 
     ////////////////////////////////////////////////////////
     // create a dependent Attached Bodies Collision Model //
@@ -239,7 +236,7 @@ int main(int argc, char* argv[])
 //
 //    ROS_WARN("Detaching Cylinder and Publishing Visualization");
 //
-//    if (!model.detachBody(attached_body_id)) {
+//    if (!model->detachBody(attached_body_id)) {
 //        ROS_ERROR("Failed to detach body '%s'", attached_body_id.c_str());
 //        return 1;
 //    }

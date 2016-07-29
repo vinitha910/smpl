@@ -85,11 +85,9 @@ int main(int argc, char **argv)
                     dims[0], dims[1], dims[2], 0.02, origin[0], origin[1], origin[2], 0.4);
     df->reset();
 
-    sbpl::OccupancyGrid* grid = new sbpl::OccupancyGrid(df);
+    sbpl::OccupancyGridPtr grid = std::make_shared<sbpl::OccupancyGrid>(df);
     grid->setReferenceFrame(world_frame);
 
-    sbpl::collision::CollisionSpace* cspace =
-            new sbpl::collision::CollisionSpace(grid);
 
     std::string urdf_string;
     if (!nh.getParam("robot_description", urdf_string)) {
@@ -100,7 +98,10 @@ int main(int argc, char **argv)
     sbpl::collision::CollisionModelConfig cspace_config;
     sbpl::collision::CollisionModelConfig::Load(ros::NodeHandle(), cspace_config);
 
-    if (!cspace->init(urdf_string, group_name, cspace_config, joint_names)) {
+    sbpl::collision::CollisionSpaceBuilder builder;
+    auto cspace = builder.build(
+            grid.get(), urdf_string, cspace_config, group_name, joint_names);
+    if (!cspace) {
         return false;
     }
 
@@ -150,7 +151,5 @@ int main(int argc, char **argv)
     sleep(1);
 
     ROS_INFO("Done");
-    delete cspace;
-    delete grid;
     return 0;
 }

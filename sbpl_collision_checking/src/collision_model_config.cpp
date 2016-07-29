@@ -404,17 +404,15 @@ bool CollisionModelConfig::Load(
     std::vector<CollisionSpheresModelConfig> spheres_models_config;
     std::vector<CollisionVoxelModelConfig> voxels_models_config;
     std::vector<CollisionGroupConfig> groups_config;
-    collision_detection::AllowedCollisionMatrix acm;
 
     if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
         ROS_ERROR("robot_collision_model config is malformed (Type: %s, Expected: %s)", XmlRpcValueTypeToString(config.getType()), XmlRpcValueTypeToString(XmlRpc::XmlRpcValue::Type::TypeString));
         return false;
     }
 
-    const std::string spheres_models_param_name = "spheres_models";
-    const std::string voxel_models_param_name = "voxel_models";
-    const std::string groups_param_name = "collision_groups";
-    const std::string acm_param_name = "allowed_collisions";
+    const char* spheres_models_param_name = "spheres_models";
+    const char* voxel_models_param_name = "voxel_models";
+    const char* groups_param_name = "collision_groups";
 
     if (config.hasMember("spheres_models")) {
         if (!LoadConfigArray(config["spheres_models"], spheres_models_config)) {
@@ -446,24 +444,34 @@ bool CollisionModelConfig::Load(
         ROS_WARN("No param 'collision_groups' found on the param server");
     }
 
-    if (config.hasMember("allowed_collisions")) {
-        if (!LoadAllowedCollisionsConfig(config["allowed_collisions"], acm)) {
-            ROS_ERROR("Failed to load Allowed Collision Matrix");
-            return false;
-        }
-    }
-    else {
-        ROS_WARN("No param 'allowed_collisions' found on the param server");
-    }
-
     // TODO: check references to spheres in collision_groups?
 
     cfg.spheres_models = std::move(spheres_models_config);
     cfg.voxel_models = std::move(voxels_models_config);
     cfg.groups = std::move(groups_config);
-    cfg.acm = acm;
     return true;
+}
+
+bool LoadAllowedCollisionMatrix(
+    const ros::NodeHandle& nh,
+    AllowedCollisionMatrix& acm)
+{
+    XmlRpc::XmlRpcValue acm_config;
+    const char* acm_param_name = "allowed_collisions";
+    if (!nh.getParam(acm_param_name, acm_config)) {
+        ROS_ERROR("Failed to retrieve '%s' from the param server", acm_param_name);
+        return false;
+    }
+    return LoadAllowedCollisionMatrix(acm_config, acm);
+}
+
+bool LoadAllowedCollisionMatrix(
+    XmlRpc::XmlRpcValue& config,
+    AllowedCollisionMatrix& acm)
+{
+    return LoadAllowedCollisionsConfig(config, acm);
 }
 
 } // namespace collision
 } // namespace sbpl
+

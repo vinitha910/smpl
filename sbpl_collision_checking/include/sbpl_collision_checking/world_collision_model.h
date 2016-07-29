@@ -111,6 +111,9 @@ private:
     std::unique_ptr<WorldCollisionModelImpl> m_impl;
 };
 
+typedef std::shared_ptr<WorldCollisionModel> WorldCollisionModelPtr;
+typedef std::shared_ptr<const WorldCollisionModel> WorldCollisionModelConstPtr;
+
 } // namespace collision
 } // namespace sbpl
 

@@ -62,8 +62,10 @@ public:
 
     ~SelfCollisionModel();
 
-    void setAllowedCollisionMatrix(
-        const AllowedCollisionMatrix& acm);
+    const AllowedCollisionMatrix& allowedCollisionMatrix() const;
+    void updateAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
+    void setAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
+
     void setPadding(double padding);
 
     bool checkCollision(

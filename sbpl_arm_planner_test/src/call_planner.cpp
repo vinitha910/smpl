@@ -433,8 +433,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    sbpl::collision::CollisionSpace cc(&grid);
-    if (!cc.init(urdf, group_name, cc_conf, planning_joints)) {
+    sbpl::collision::CollisionSpaceBuilder builder;
+    auto cc = builder.build(&grid, urdf, cc_conf, group_name, planning_joints);
+    if (!cc) {
         ROS_ERROR("Failed to initialize Collision Space");
         return 1;
     }
@@ -460,7 +461,7 @@ int main(int argc, char* argv[])
     ////////////////////////
 
     // planner interface
-    sbpl::manip::ArmPlannerInterface planner(rm.get(), &cc, &as, &grid);
+    sbpl::manip::ArmPlannerInterface planner(rm.get(), cc.get(), &as, &grid);
 
     if (!planner.init()) {
         ROS_ERROR("Failed to initialize Arm Planner Interface");
@@ -488,7 +489,7 @@ int main(int argc, char* argv[])
     scene->robot_state.joint_state.header.frame_id = planning_frame;
 
     // set planning scene
-    cc.setPlanningScene(*scene);
+    cc->setPlanningScene(*scene);
 
     //////////////
     // Planning //
@@ -552,12 +553,12 @@ int main(int argc, char* argv[])
 
     // visualizations
     ros::spinOnce();
-    ma_pub.publish(cc.getVisualization("bounds"));
-    ma_pub.publish(cc.getVisualization("distance_field"));
+    ma_pub.publish(cc->getVisualization("bounds"));
+    ma_pub.publish(cc->getVisualization("distance_field"));
     ma_pub.publish(planner.getVisualization("goal"));
     ma_pub.publish(planner.getVisualization("expansions"));
-    ma_pub.publish(cc.getVisualization("collision_objects"));
-    ma_pub.publish(cc.getCollisionModelVisualization(start_angles));
+    ma_pub.publish(cc->getVisualization("collision_objects"));
+    ma_pub.publish(cc->getCollisionModelVisualization(start_angles));
 
     ros::spinOnce();
 

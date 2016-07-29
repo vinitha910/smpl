@@ -59,17 +59,21 @@ typedef Eigen::Affine3d (*JointTransformFunction)(
 
 class RobotCollisionModelImpl;
 
+class RobotCollisionModel;
+typedef std::shared_ptr<RobotCollisionModel> RobotCollisionModelPtr;
+typedef std::shared_ptr<const RobotCollisionModel> RobotCollisionModelConstPtr;
+
 /// \brief Represents the collision model of the robot used for planning.
 class RobotCollisionModel
 {
 public:
 
-    RobotCollisionModel();
-    ~RobotCollisionModel();
-
-    bool init(
+    static
+    RobotCollisionModelPtr Load(
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
+
+    ~RobotCollisionModel();
 
     /// \name Robot Model - General Information
     ///@{
@@ -151,11 +155,10 @@ public:
 
 private:
 
+    RobotCollisionModel();
+
     std::unique_ptr<RobotCollisionModelImpl> m_impl;
 };
-
-typedef std::shared_ptr<RobotCollisionModel> RobotCollisionModelPtr;
-typedef std::shared_ptr<const RobotCollisionModel> RobotCollisionModelConstPtr;
 
 } // namespace collision
 } // namespace sbpl

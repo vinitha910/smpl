@@ -61,35 +61,28 @@
 namespace sbpl {
 namespace collision {
 
+class CollisionSpaceBuilder;
+
 class CollisionSpace : public manip::CollisionChecker
 {
 public:
 
-    CollisionSpace(OccupancyGrid* grid);
     ~CollisionSpace();
-
-    bool init(
-        const urdf::ModelInterface& urdf,
-        const std::string& group_name,
-        const CollisionModelConfig& config,
-        const std::vector<std::string>& planning_joints);
-
-    bool init(
-        const std::string& urdf_string,
-        const std::string& group_name,
-        const CollisionModelConfig& config,
-        const std::vector<std::string>& planning_joints);
 
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
+    /// \name Robot State
+    ///@{
     bool setJointPosition(const std::string& name, double position);
-
     void setWorldToModelTransform(const Eigen::Affine3d& transform);
+    ///@}
 
     void setPadding(double padding);
 
     /// \name Self Collisions
     ///@{
+    const AllowedCollisionMatrix& allowedCollisionMatrix() const;
+    void updateAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
     void setAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
     ///@}
 
@@ -113,7 +106,7 @@ public:
         const Affine3dVector& transforms,
         const std::string& link_name);
 
-    bool removeAttachedObject(const std::string& id);
+    bool detachObject(const std::string& id);
 
     bool processAttachedCollisionObject(
         const moveit_msgs::AttachedCollisionObject& obj);
@@ -123,8 +116,9 @@ public:
 
     const std::string& getGroupName() const;
 
-    const RobotCollisionModel& robotCollisionModel() const;
-    const WorldCollisionModel& worldCollisionModel() const;
+    const RobotCollisionModelConstPtr& robotCollisionModel() const;
+    WorldCollisionModelConstPtr worldCollisionModel() const;
+    SelfCollisionModelConstPtr selfCollisionModel() const;
 
     /// \name Visualization
     ///@{
@@ -173,13 +167,13 @@ private:
 
     OccupancyGrid*                  m_grid;
 
-    RobotCollisionModel             m_rcm;
-    AttachedBodiesCollisionModel    m_abcm;
-    RobotCollisionState             m_rcs;
-    AttachedBodiesCollisionState    m_abcs;
+    RobotCollisionModelConstPtr     m_rcm;
+    AttachedBodiesCollisionModelPtr m_abcm;
+    RobotCollisionStatePtr          m_rcs;
+    AttachedBodiesCollisionStatePtr m_abcs;
 
-    WorldCollisionModel             m_wcm;
-    SelfCollisionModel              m_scm;
+    WorldCollisionModelPtr          m_wcm;
+    SelfCollisionModelPtr           m_scm;
 
     // Collision Group
     std::string                     m_group_name;
@@ -189,6 +183,28 @@ private:
     std::vector<int>                m_planning_joint_to_collision_model_indices;
     std::vector<double>             m_increments;
 
+    CollisionSpace();
+
+    bool init(
+        OccupancyGrid* grid,
+        const std::string& urdf_string,
+        const CollisionModelConfig& config,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
+    bool init(
+        OccupancyGrid* grid,
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
+    bool init(
+        OccupancyGrid* grid,
+        const RobotCollisionModelConstPtr& rcm,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
     bool setPlanningJoints(const std::vector<std::string>& joint_names);
     size_t planningVariableCount() const;
 
@@ -196,12 +212,6 @@ private:
     bool hasLimit(int vidx) const;
     double minLimit(int vidx) const;
     double maxLimit(int vidx) const;
-
-    void initAllowedCollisionMatrix(
-        const CollisionModelConfig& config,
-        AllowedCollisionMatrix& acm);
-
-    void updateAttachedBodyIndices();
 
     // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
     // check as fast as possible, with all shortcutting policies enabled; a
@@ -221,6 +231,8 @@ private:
         const std::vector<int>& a,
         const std::vector<int>& b,
         const int radius);
+
+    friend class CollisionSpaceBuilder;
 };
 
 /// \brief Return the reference frame of the occupancy grid
@@ -238,15 +250,21 @@ const std::string& CollisionSpace::getGroupName() const
 }
 
 inline
-const RobotCollisionModel& CollisionSpace::robotCollisionModel() const
+const RobotCollisionModelConstPtr& CollisionSpace::robotCollisionModel() const
 {
     return m_rcm;
 }
 
 inline
-const WorldCollisionModel& CollisionSpace::worldCollisionModel() const
+WorldCollisionModelConstPtr CollisionSpace::worldCollisionModel() const
 {
     return m_wcm;
+}
+
+inline
+SelfCollisionModelConstPtr CollisionSpace::selfCollisionModel() const
+{
+    return m_scm;
 }
 
 inline
@@ -259,32 +277,57 @@ inline
 bool CollisionSpace::isContinuous(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
-    return m_rcm.jointVarIsContinuous(jidx);
+    return m_rcm->jointVarIsContinuous(jidx);
 }
 
 inline
 bool CollisionSpace::hasLimit(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
-    return m_rcm.jointVarHasPositionBounds(jidx);
+    return m_rcm->jointVarHasPositionBounds(jidx);
 }
 
 inline
 double CollisionSpace::minLimit(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
-    return m_rcm.jointVarMaxPosition(jidx);
+    return m_rcm->jointVarMaxPosition(jidx);
 }
 
 inline
 double CollisionSpace::maxLimit(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
-    return m_rcm.jointVarMinPosition(jidx);
+    return m_rcm->jointVarMinPosition(jidx);
 }
 
 typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;
 typedef std::shared_ptr<const CollisionSpace> CollisionSpaceConstPtr;
+
+class CollisionSpaceBuilder
+{
+public:
+
+    CollisionSpacePtr build(
+        OccupancyGrid* grid,
+        const std::string& urdf_string,
+        const CollisionModelConfig& config,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
+    CollisionSpacePtr build(
+        OccupancyGrid* grid,
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
+    CollisionSpacePtr build(
+        OccupancyGrid* grid,
+        const RobotCollisionModelConstPtr& rcm,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+};
 
 } // namespace collision
 } // namespace sbpl

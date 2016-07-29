@@ -1161,20 +1161,22 @@ bool RobotCollisionModelImpl::voxelizeGeometry(
 // RobotCollisionModel Implementation //
 ////////////////////////////////////////
 
-RobotCollisionModel::RobotCollisionModel() :
-    m_impl(new RobotCollisionModelImpl)
+RobotCollisionModelPtr RobotCollisionModel::Load(
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config)
 {
+    auto rcm = RobotCollisionModelPtr(new RobotCollisionModel); //std::make_shared<RobotCollisionModel>();
+    auto& ircm = rcm->m_impl;
+    if (!ircm->init(urdf, config)) {
+        return RobotCollisionModelPtr();
+    }
+    else {
+        return rcm;
+    }
 }
 
 RobotCollisionModel::~RobotCollisionModel()
 {
-}
-
-bool RobotCollisionModel::init(
-    const urdf::ModelInterface& urdf,
-    const CollisionModelConfig& config)
-{
-    return m_impl->init(urdf, config);
 }
 
 const std::string& RobotCollisionModel::name() const
@@ -1401,6 +1403,11 @@ const std::vector<int>& RobotCollisionModel::groupLinkIndices(
 const std::vector<int>& RobotCollisionModel::groupLinkIndices(int gidx) const
 {
     return m_impl->groupLinkIndices(gidx);
+}
+
+RobotCollisionModel::RobotCollisionModel() :
+    m_impl(new RobotCollisionModelImpl)
+{
 }
 
 } // namespace collision

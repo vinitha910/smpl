@@ -49,8 +49,10 @@ public:
 
     ~SelfCollisionModelImpl();
 
-    void setAllowedCollisionMatrix(
-        const AllowedCollisionMatrix& acm);
+    const AllowedCollisionMatrix& allowedCollisionMatrix() const;
+    void updateAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
+    void setAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
+
     void setPadding(double padding);
 
     bool checkCollision(
@@ -115,6 +117,8 @@ private:
     AllowedCollisionMatrix                  m_acm;
     double                                  m_padding;
 
+    void initAllowedCollisionMatrix();
+
     // switch to checking for a new collision group; removes voxels from groups
     // that are inside the new collision group and add voxels that are outside
     // the new collision group
@@ -151,9 +155,84 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_acm(),
     m_padding(0.0)
 {
+    initAllowedCollisionMatrix();
+    m_acm.print(std::cout);
+}
+
+void SelfCollisionModelImpl::initAllowedCollisionMatrix()
+{
+//    // add allowed collisions between spheres on the same link
+//    for (const auto& spheres_config : config.spheres_models) {
+//        for (size_t i = 0; i < spheres_config.spheres.size(); ++i) {
+//            const std::string& s1_name = spheres_config.spheres[i].name;
+//            if (!m_acm.hasEntry(s1_name)) {
+//                ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", s1_name.c_str());
+//                m_acm.setEntry(s1_name, false);
+//            }
+//            for (size_t j = i + 1; j < spheres_config.spheres.size(); ++j) {
+//                const std::string& s2_name = spheres_config.spheres[j].name;
+//                if (!m_acm.hasEntry(s2_name)) {
+//                    ROS_INFO_NAMED(CC_LOGGER, "Adding entry '%s' to the ACM", s2_name.c_str());
+//                    m_acm.setEntry(s2_name, false);
+//                }
+//
+//                ROS_INFO_NAMED(CC_LOGGER, "Spheres '%s' and '%s' attached to the same link...allowing collision", s1_name.c_str(), s2_name.c_str());
+//                m_acm.setEntry(s1_name, s2_name, true);
+//            }
+//        }
+//    }
+//
+//    // add in additional allowed collisions from config
+//    std::vector<std::string> config_entries;
+//    config.acm.getAllEntryNames(config_entries);
+//    for (size_t i = 0; i < config_entries.size(); ++i) {
+//        const std::string& entry1 = config_entries[i];
+//        if (!m_acm.hasEntry(entry1)) {
+//            ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry1.c_str());
+//            continue;
+//        }
+//        for (size_t j = i; j < config_entries.size(); ++j) {
+//            const std::string& entry2 = config_entries[j];
+//            if (!m_acm.hasEntry(entry2)) {
+//                ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry2.c_str());
+//                continue;
+//            }
+//
+//            if (!config.acm.hasEntry(entry1, entry2)) {
+//                continue;
+//            }
+//
+//            collision_detection::AllowedCollision::Type type;
+//            config.acm.getEntry(entry1, entry2, type);
+//            switch (type) {
+//            case collision_detection::AllowedCollision::NEVER:
+//                // NOTE: not that it matters, but this disallows config freeing
+//                // collisions
+//                break;
+//            case collision_detection::AllowedCollision::ALWAYS:
+//                ROS_INFO_NAMED(CC_LOGGER, "Configuration allows spheres '%s' and '%s' to be in collision", entry1.c_str(), entry2.c_str());
+//                m_acm.setEntry(entry1, entry2, true);
+//                break;
+//            case collision_detection::AllowedCollision::CONDITIONAL:
+//                ROS_WARN_NAMED(CC_LOGGER, "Conditional collisions not supported in SBPL Collision Detection");
+//                break;
+//            }
+//        }
+//    }
 }
 
 SelfCollisionModelImpl::~SelfCollisionModelImpl()
+{
+}
+
+const AllowedCollisionMatrix&
+SelfCollisionModelImpl::allowedCollisionMatrix() const
+{
+    return m_acm;
+}
+
+void SelfCollisionModelImpl::updateAllowedCollisionMatrix(
+    const AllowedCollisionMatrix& acm)
 {
 }
 
@@ -533,6 +612,17 @@ SelfCollisionModel::SelfCollisionModel(
 
 SelfCollisionModel::~SelfCollisionModel()
 {
+}
+
+const AllowedCollisionMatrix& SelfCollisionModel::allowedCollisionMatrix() const
+{
+    return m_impl->allowedCollisionMatrix();
+}
+
+void SelfCollisionModel::updateAllowedCollisionMatrix(
+    const AllowedCollisionMatrix& acm)
+{
+    return m_impl->updateAllowedCollisionMatrix(acm);
 }
 
 void SelfCollisionModel::setAllowedCollisionMatrix(
