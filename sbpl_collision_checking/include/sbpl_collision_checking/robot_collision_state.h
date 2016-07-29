@@ -98,6 +98,7 @@ public:
     bool updateVoxelsStates();
     bool updateVoxelsState(int vsidx);
 
+    int  linkSpheresStateIndex(int lidx) const;
     auto spheresState(int ssidx) const -> const CollisionSpheresState&;
 
     auto sphereState(const SphereIndex& sidx) const -> const CollisionSphereState&;

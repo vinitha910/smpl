@@ -106,6 +106,7 @@ public:
     bool updateVoxelsStates();
     bool updateVoxelsState(int vsidx);
 
+    int linkSpheresStateIndex(int lidx) const;
     auto spheresState(int ssidx) const -> const CollisionSpheresState&;
 
     auto sphereState(const SphereIndex& sidx) const -> const CollisionSphereState&;
@@ -447,6 +448,19 @@ bool RobotCollisionStateImpl::updateVoxelsState(int vsidx)
     state.voxels = std::move(new_voxels);
     m_dirty_voxels_states[vsidx] = false;
     return true;
+}
+
+inline
+int RobotCollisionStateImpl::linkSpheresStateIndex(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_spheres_states, lidx);
+    const CollisionSpheresState* ss = m_link_spheres_states[lidx];
+    if (ss) {
+        return std::distance(m_spheres_states.data(), ss);
+    }
+    else {
+        return -1;
+    }
 }
 
 inline
@@ -959,6 +973,13 @@ bool RobotCollisionState::updateVoxelsStates()
 bool RobotCollisionState::updateVoxelsState(int vsidx)
 {
     return m_impl->updateVoxelsState(vsidx);
+}
+
+/// \brief Return the index of the spheres state for the given link
+/// \return The index of the spheres state for the link if one exists, else -1
+int RobotCollisionState::linkSpheresStateIndex(int lidx) const
+{
+    return m_impl->linkSpheresStateIndex(lidx);
 }
 
 const CollisionSpheresState& RobotCollisionState::spheresState(int ssidx) const
