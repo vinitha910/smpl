@@ -253,10 +253,12 @@ bool SelfCollisionModelImpl::checkCollision(
     double& dist)
 {
     if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
     }
 
     if (!m_rcm->hasGroup(group_name)) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self Collision Check is for non-existent group");
         return false;
     }
 
@@ -280,10 +282,12 @@ bool SelfCollisionModelImpl::checkCollision(
     double& dist)
 {
     if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
     }
 
     if (gidx < 0 || gidx >= m_rcm->groupCount()) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self Collision Check is for non-existent group");
         return false;
     }
 
@@ -305,11 +309,17 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
-    if (state.model() != m_rcm || ab_state.model() != m_abcm) {
+    if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        return false;
+    }
+    if (ab_state.model() != m_abcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Attached Bodies Collision State is not derived from appropriate Attached Bodies Collision Model");
         return false;
     }
 
     if (!m_rcm->hasGroup(group_name) || !m_abcm->hasGroup(group_name)) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self Collision Check is for non-existent group");
         return false;
     }
 
@@ -402,6 +412,8 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
         return;
     }
 
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Self Collision Model to group %d", gidx);
+
     // switch to new voxels state context
 
     std::vector<int> old_ov_indices = m_voxels_indices;
@@ -440,6 +452,9 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
         const CollisionVoxelsState& vs = m_rcs.voxelsState(vsidx);
         v_ins.insert(v_ins.end(), vs.voxels.begin(), vs.voxels.end());
     }
+
+    ROS_DEBUG_NAMED(SCM_LOGGER, "  Removing %zu voxels from old voxels models", v_rem.size());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "  Inserting %zu voxels from new voxels models", v_ins.size());
 
     // insert/remove the voxels
     if (!v_rem.empty()) {
@@ -497,6 +512,7 @@ void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 
 void SelfCollisionModelImpl::updateVoxelsStates()
 {
+    ROS_DEBUG("Updating Voxels States");
     // update voxel groups; gather voxels before updating so as to impose only
     // a single distance field update (TODO: does the distance field recompute
     // with every call to insert/remove/update points?)
@@ -520,7 +536,7 @@ void SelfCollisionModelImpl::updateVoxelsStates()
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", v_rem.size());
+            ROS_DEBUG_NAMED(SCM_LOGGER, "  Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", v_rem.size());
         }
     }
 
@@ -528,15 +544,18 @@ void SelfCollisionModelImpl::updateVoxelsStates()
 
     // update occupancy grid with new voxel data
     if (!v_rem.empty()) {
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Removing %zu voxels", v_rem.size());
         m_grid->removePointsFromField(v_rem);
     }
     if (!v_ins.empty()) {
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Inserting %zu voxels", v_ins.size());
         m_grid->addPointsToField(v_ins);
     }
 }
 
 bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Self Collisions against Voxels States");
     updateVoxelsStates();
 
     for (const auto& sidx : m_sphere_indices) {
@@ -560,11 +579,14 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Voxels States");
     return false;
 }
 
 bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Self Collisions against Spheres States");
+
     // check self collisions
     for (const SphereIndex& sidx1 : m_sphere_indices) {
         const CollisionSphereState& ss1 = m_rcs.sphereState(sidx1);
@@ -594,6 +616,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Spheres States");
     return false;
 }
 
