@@ -127,9 +127,12 @@ public:
 
     visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
     visualization_msgs::MarkerArray getCollisionRobotVisualization() const;
+    visualization_msgs::MarkerArray getCollisionRobotVisualization(
+        const std::vector<double>& vals);
 
+    visualization_msgs::MarkerArray getCollisionDetailsVisualization() const;
     visualization_msgs::MarkerArray getCollisionDetailsVisualization(
-        const std::vector<double>& vals) const;
+        const std::vector<double>& vals);
 
     visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
     visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
@@ -212,6 +215,8 @@ private:
     bool hasLimit(int vidx) const;
     double minLimit(int vidx) const;
     double maxLimit(int vidx) const;
+
+    void updateState(const std::vector<double>& vals);
 
     // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
     // check as fast as possible, with all shortcutting policies enabled; a

@@ -381,10 +381,35 @@ CollisionSpace::getCollisionRobotVisualization() const
     return markers;
 }
 
+/// \brief Return a visualization of the collision robot at a given state
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionRobotVisualization(
+    const std::vector<double>& vals)
+{
+    updateState(vals);
+    // update the spheres within the group
+    for (int ssidx : m_rcs->groupSpheresStateIndices(m_gidx)) {
+        m_rcs->updateSphereStates(ssidx);
+    }
+    auto markers = m_rcs->getVisualization(m_gidx);
+    for (auto& m : markers.markers) {
+        m.header.frame_id = m_grid->getReferenceFrame();
+    }
+    return markers;
+}
+
+/// \brief Return a visualization of the collision details for the current state
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionDetailsVisualization() const
+{
+    // TODO: implement me
+    return visualization_msgs::MarkerArray();
+}
+
 /// \brief Return a visualization of the collision details for a given state
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionDetailsVisualization(
-    const std::vector<double>& vals) const
+    const std::vector<double>& vals)
 {
     // TODO: implement me
     return visualization_msgs::MarkerArray();
@@ -420,11 +445,7 @@ bool CollisionSpace::isStateValid(
     // allow subroutines to update minimum distance
     dist = std::numeric_limits<double>::max();
 
-    // update the robot state
-    for (size_t i = 0; i < angles.size(); ++i) {
-        int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_rcs->setJointVarPosition(jidx, angles[i]);
-    }
+    updateState(angles);
 
     // world collisions are implicitly checked via the self collision model
     // since the two models share the same occupancy grid
@@ -577,8 +598,7 @@ bool CollisionSpace::interpolatePath(
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionModelVisualization(const std::vector<double>& vals)
 {
-    // TODO: fill in input values
-    return getCollisionRobotVisualization();
+    return getCollisionRobotVisualization(vals);
 }
 
 /// \brief Retrieve visualization of the collision space
@@ -748,6 +768,15 @@ bool CollisionSpace::setPlanningJoints(
     }
 
     return true;
+}
+
+void CollisionSpace::updateState(const std::vector<double>& vals)
+{
+    // update the robot state
+    for (size_t i = 0; i < vals.size(); ++i) {
+        int jidx = m_planning_joint_to_collision_model_indices[i];
+        m_rcs->setJointVarPosition(jidx, vals[i]);
+    }
 }
 
 /// \brief Check whether the planning joint variables are within limits
