@@ -253,6 +253,25 @@ SelfCollisionModelImpl::allowedCollisionMatrix() const
 void SelfCollisionModelImpl::updateAllowedCollisionMatrix(
     const AllowedCollisionMatrix& acm)
 {
+    std::vector<std::string> all_entries;
+
+    acm.getAllEntryNames(all_entries);
+
+    collision_detection::AllowedCollision::Type type;
+    for (size_t i = 0; i < all_entries.size(); ++i) {
+        for (size_t j = i + 1; j < all_entries.size(); ++j) {
+            const std::string& entry1 = all_entries[i];
+            const std::string& entry2 = all_entries[j];
+            if (acm.getEntry(entry1, entry2, type)) {
+                if (type != collision_detection::AllowedCollision::NEVER) {
+                    m_acm.setEntry(entry1, entry2, false);
+                }
+                else {
+                    m_acm.setEntry(entry1, entry2, true);
+                }
+            }
+        }
+    }
 }
 
 void SelfCollisionModelImpl::setAllowedCollisionMatrix(
