@@ -31,6 +31,10 @@
 
 #include <sbpl_collision_checking/self_collision_model.h>
 
+// system includes
+#include <leatherman/print.h>
+
+// project includes
 #include "collision_operations.h"
 
 namespace sbpl {
@@ -428,16 +432,18 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
         return;
     }
 
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Self Collision Model to group %d", gidx);
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Self Collision Model from group %d to group %d", m_gidx, gidx);
 
     // switch to new voxels state context
 
     std::vector<int> old_ov_indices = m_voxels_indices;
 
     std::sort(old_ov_indices.begin(), old_ov_indices.end());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Old Outside Voxels Indices: %s", to_string(old_ov_indices).c_str());
 
     std::vector<int> new_ov_indices = m_rcs.groupOutsideVoxelsStateIndices(gidx);
     std::sort(new_ov_indices.begin(), new_ov_indices.end());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "New Outside Voxels Indices: %s", to_string(new_ov_indices).c_str());
 
     // get the indices of the voxels states that were outside the group but are
     // now inside and must be removed
@@ -446,6 +452,7 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
             old_ov_indices.begin(), old_ov_indices.end(),
             new_ov_indices.begin(), new_ov_indices.end(),
             std::back_inserter(ovidx_rem));
+    ROS_DEBUG_NAMED(SCM_LOGGER, "ovidx_rem: %s", to_string(ovidx_rem).c_str());
 
     // get the indices of the voxels states that were inside the group but are
     // now outside and must be inserted
@@ -453,7 +460,8 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     std::set_difference(
             new_ov_indices.begin(), new_ov_indices.end(),
             old_ov_indices.begin(), old_ov_indices.end(),
-            std::back_inserter(ovidx_rem));
+            std::back_inserter(ovidx_ins));
+    ROS_DEBUG_NAMED(SCM_LOGGER, "ovidx_ins: %s", to_string(ovidx_ins).c_str());
 
     // gather the voxels to be removed
     std::vector<Eigen::Vector3d> v_rem;
@@ -557,10 +565,12 @@ void SelfCollisionModelImpl::updateVoxelsStates()
             const CollisionVoxelsState& voxels_state = m_rcs.voxelsState(vsidx);
 
             // copy over voxels to be removed before updating
+            const size_t prev_size = v_rem.size();
             v_rem.insert(
                     v_rem.end(),
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
+            const size_t curr_size = v_rem.size();
 
             m_rcs.updateVoxelsState(vsidx);
 
@@ -570,7 +580,7 @@ void SelfCollisionModelImpl::updateVoxelsStates()
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            ROS_DEBUG_NAMED(SCM_LOGGER, "  Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", v_rem.size());
+            ROS_DEBUG_NAMED(SCM_LOGGER, "  Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", curr_size - prev_size);
         }
     }
 
@@ -644,12 +654,12 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
                     collision_detection::AllowedCollision::Type type;
                     if (m_acm.getEntry(sphere_model_1.name, sphere_model_2.name, type)) {
                         if (type != collision_detection::AllowedCollision::ALWAYS) {
-                            ROS_DEBUG("  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
+                            ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
                             return false;
                         }
                     }
                     else {
-                        ROS_DEBUG("  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
+                        ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
                         return false;
                     }
                 }
