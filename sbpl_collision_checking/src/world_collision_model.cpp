@@ -396,7 +396,14 @@ bool WorldCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    return false;
+    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState& state, const int, double&)");
+    if (gidx < 0 || gidx >= state.model()->groupCount()) {
+        ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
+        return false;
+    }
+
+    updateSphereIndices(state, gidx);
+    return checkSpheresStateCollisions(state, dist);
 }
 
 bool WorldCollisionModelImpl::checkCollision(
@@ -405,6 +412,7 @@ bool WorldCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
+    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const std::string&, double&)");
     return false;
 }
 
@@ -414,6 +422,7 @@ bool WorldCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
+    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const int, double&)");
     return false;
 }
 

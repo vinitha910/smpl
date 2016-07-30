@@ -593,8 +593,7 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 
     for (const auto& sidx : m_sphere_indices) {
         double obs_dist;
-        if (!CheckSphereCollision(*m_grid, m_rcs, m_padding, sidx, obs_dist))
-        {
+        if (!CheckSphereCollision(*m_grid, m_rcs, m_padding, sidx, obs_dist)) {
             const CollisionSphereModel* sm = m_rcs.sphereState(sidx).model;
             ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* idx: %s, name: %s, radius: %0.3fm, dist: %0.3fm", to_string(sidx).c_str(), sm->name.c_str(), sm->radius, obs_dist);
             dist = obs_dist;
