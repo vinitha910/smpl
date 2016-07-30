@@ -64,7 +64,7 @@
 namespace sbpl {
 namespace collision {
 
-static const char* RCM_LOGGER = "robot";
+static const char* RCM_LOGGER = "robot_model";
 
 /////////////////////////////////////////
 // RobotCollisionModelImpl Declaration //
