@@ -73,5 +73,40 @@ bool CheckSphereCollision(
     return true;
 }
 
+/// \brief Gather all sphere indices for a given group
+///
+/// The resulting sequence of sphere indices are already sorted by their
+/// corresponding sphere priorities.
+std::vector<SphereIndex> GatherSphereIndices(
+    const RobotCollisionState& state,
+    int gidx)
+{
+    std::vector<SphereIndex> sphere_indices;
+
+    std::vector<int> ss_indices = state.groupSpheresStateIndices(gidx);
+    for (int ssidx : ss_indices) {
+        const CollisionSpheresState& spheres_state = state.spheresState(ssidx);
+        std::vector<int> s_indices(spheres_state.spheres.size());
+        int n = 0;
+        std::generate(s_indices.begin(), s_indices.end(), [&]() { return n++; });
+        for (int sidx : s_indices) {
+            sphere_indices.emplace_back(ssidx, sidx);
+        }
+    }
+
+    // sort sphere indices by priority
+    std::sort(sphere_indices.begin(), sphere_indices.end(),
+            [&](const SphereIndex& sidx1, const SphereIndex& sidx2)
+            {
+                const CollisionSphereState& ss1 = state.sphereState(sidx1);
+                const CollisionSphereState& ss2 = state.sphereState(sidx2);
+                const CollisionSphereModel* sph1 = ss1.model;
+                const CollisionSphereModel* sph2 = ss2.model;
+                return sph1->priority < sph2->priority;
+            });
+
+    return sphere_indices;
+}
+
 } // namespace collision
 } // namespace sbpl

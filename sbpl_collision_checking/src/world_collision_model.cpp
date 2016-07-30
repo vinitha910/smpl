@@ -380,7 +380,9 @@ bool WorldCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
+    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, const std::string&, double&)");
     if (!state.model()->hasGroup(group_name)) {
+        ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
         return false;
     }
 
@@ -423,28 +425,7 @@ void WorldCollisionModelImpl::updateSphereIndices(
         return;
     }
 
-    m_sphere_indices.clear();
-    std::vector<int> ss_indices = state.groupSpheresStateIndices(gidx);
-    for (int ssidx : ss_indices) {
-        const CollisionSpheresState& spheres_state = state.spheresState(ssidx);
-        std::vector<int> s_indices(spheres_state.spheres.size());
-        int n = 0;
-        std::generate(s_indices.begin(), s_indices.end(), [&]() { return n++; });
-        for (int sidx : s_indices) {
-            m_sphere_indices.emplace_back(ssidx, sidx);
-        }
-    }
-
-    // sort sphere state indices by priority
-    std::sort(m_sphere_indices.begin(), m_sphere_indices.end(),
-            [&](const SphereIndex& sidx1, const SphereIndex& sidx2)
-            {
-                const CollisionSphereState& ss1 = state.sphereState(sidx1);
-                const CollisionSphereState& ss2 = state.sphereState(sidx2);
-                const CollisionSphereModel* sph1 = ss1.model;
-                const CollisionSphereModel* sph2 = ss2.model;
-                return sph1->priority < sph2->priority;
-            });
+    m_sphere_indices = GatherSphereIndices(state, gidx);
 }
 
 bool WorldCollisionModelImpl::checkSpheresStateCollisions(

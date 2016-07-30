@@ -159,7 +159,7 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_padding(0.0)
 {
     initAllowedCollisionMatrix();
-    m_acm.print(std::cout);
+//    m_acm.print(std::cout);
 }
 
 void SelfCollisionModelImpl::initAllowedCollisionMatrix()
@@ -267,7 +267,6 @@ bool SelfCollisionModelImpl::checkCollision(
     const std::string& group_name,
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState&, const std::string&, double&)");
     if (state.model() != m_rcm) {
         ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
@@ -280,7 +279,6 @@ bool SelfCollisionModelImpl::checkCollision(
 
     int gidx = m_rcm->groupIndex(group_name);
     updateGroup(gidx);
-
     copyState(state);
 
     if (!checkVoxelsStateCollisions(dist) ||
@@ -297,7 +295,6 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState&, const int, double&)");
     if (state.model() != m_rcm) {
         ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
         return false;
@@ -489,28 +486,7 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
 
     // prepare sphere indices
 
-    m_sphere_indices.clear();
-    std::vector<int> ss_indices = m_rcs.groupSpheresStateIndices(gidx);
-    for (int ssidx : ss_indices) {
-        const CollisionSpheresState& spheres_state = m_rcs.spheresState(ssidx);
-        std::vector<int> s_indices(spheres_state.spheres.size());
-        int n = 0;
-        std::generate(s_indices.begin(), s_indices.end(), [&]() { return n++; });
-        for (int sidx : s_indices) {
-            m_sphere_indices.emplace_back(ssidx, sidx);
-        }
-    }
-
-    // sort sphere indices by priority
-    std::sort(m_sphere_indices.begin(), m_sphere_indices.end(),
-            [&](const SphereIndex& sidx1, const SphereIndex& sidx2)
-            {
-                const CollisionSphereState& ss1 = m_rcs.sphereState(sidx1);
-                const CollisionSphereState& ss2 = m_rcs.sphereState(sidx2);
-                const CollisionSphereModel* sph1 = ss1.model;
-                const CollisionSphereModel* sph2 = ss2.model;
-                return sph1->priority < sph2->priority;
-            });
+    m_sphere_indices = GatherSphereIndices(m_rcs, gidx);
 
     // prepare the set of spheres states that should be checked for collision
     m_checked_spheres_states.clear();
@@ -613,7 +589,6 @@ void SelfCollisionModelImpl::updateVoxelsStates()
 
 bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Self Collisions against Voxels States");
     updateVoxelsStates();
 
     for (const auto& sidx : m_sphere_indices) {
@@ -643,8 +618,6 @@ bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
 
 bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Self Collisions against Spheres States");
-
     for (const auto& ss_pair : m_checked_spheres_states) {
         int ss1idx = ss_pair.first;
         int ss2idx = ss_pair.second;

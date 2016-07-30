@@ -45,6 +45,9 @@ bool CheckSphereCollision(
     const SphereIndex& sidx,
     double& dist);
 
+std::vector<SphereIndex> GatherSphereIndices(
+    const RobotCollisionState& state, int gidx);
+
 } // namespace collision
 } // namespace sbpl
 
