@@ -63,7 +63,7 @@
 namespace sbpl {
 namespace collision {
 
-static const char* RCM_LOGGER = "robot";
+static const char* RCS_LOGGER = "robot_state";
 
 /////////////////////////////////////////
 // RobotCollisionStateImpl Declaration //
@@ -138,6 +138,7 @@ private:
     /// \name Robot State
     ///@{
     std::vector<double>                     m_jvar_positions;
+    std::vector<int>                        m_jvar_joints;
     std::vector<double*>                    m_joint_var_offsets;
     std::vector<bool>                       m_dirty_link_transforms;
     Affine3dVector                          m_link_transforms;
@@ -273,19 +274,20 @@ bool RobotCollisionStateImpl::setJointVarPosition(int vidx, double position)
     ASSERT_VECTOR_RANGE(m_jvar_positions, vidx);
 
     if (m_jvar_positions[vidx] != position) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Setting joint position of joint %d to %0.3f", vidx, position);
+        ROS_DEBUG_NAMED(RCS_LOGGER, "Setting joint position of joint %d to %0.3f", vidx, position);
 
         m_jvar_positions[vidx] = position;
 
         // TODO: cache affected link transforms in a per-joint array?
 
         std::queue<int> q;
-        q.push(m_model->jointChildLinkIndex(vidx));
+        int jidx = m_jvar_joints[vidx];
+        q.push(m_model->jointChildLinkIndex(jidx));
         while (!q.empty()) {
             int lidx = q.front();
             q.pop();
 
-            ROS_DEBUG_NAMED(RCM_LOGGER, "Dirtying transform to link '%s'", m_model->linkName(lidx).c_str());
+            ROS_DEBUG_NAMED(RCS_LOGGER, "Dirtying transform to link '%s'", m_model->linkName(lidx).c_str());
 
             // dirty the transform of the affected link
             m_dirty_link_transforms[lidx] = true;
@@ -352,7 +354,7 @@ bool RobotCollisionStateImpl::linkTransformDirty(int lidx) const
 inline
 bool RobotCollisionStateImpl::updateLinkTransforms()
 {
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating all link transforms");
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Updating all link transforms");
     bool updated = false;
     for (size_t lidx = 0; lidx < m_model->linkCount(); ++lidx) {
         updated |= updateLinkTransform(lidx);
@@ -371,7 +373,7 @@ bool RobotCollisionStateImpl::updateLinkTransform(int lidx)
     int pjidx = m_model->linkParentJointIndex(lidx);
     int plidx = m_model->jointParentLinkIndex(pjidx);
 
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating transform for link '%s'. parent joint = %d, parent link = %d", m_model->linkName(lidx).c_str(), pjidx, plidx);
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Updating transform for link '%s'. parent joint = %d, parent link = %d", m_model->linkName(lidx).c_str(), pjidx, plidx);
 
     if (plidx >= 0) {
         // TODO: optimize out this recursion
@@ -385,7 +387,7 @@ bool RobotCollisionStateImpl::updateLinkTransform(int lidx)
         m_link_transforms[lidx] = T_world_parent * T_parent_link;
     }
 
-    ROS_DEBUG_NAMED(RCM_LOGGER, " -> %s", AffineToString(m_link_transforms[lidx]).c_str());
+    ROS_DEBUG_NAMED(RCS_LOGGER, " -> %s", AffineToString(m_link_transforms[lidx]).c_str());
 
     m_dirty_link_transforms[lidx] = false;
     return true;
@@ -415,7 +417,7 @@ bool RobotCollisionStateImpl::voxelsStateDirty(int vsidx) const
 inline
 bool RobotCollisionStateImpl::updateVoxelsStates()
 {
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating all voxels states");
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Updating all voxels states");
     bool updated = false;
     for (size_t vsidx = 0; vsidx < m_voxels_states.size(); ++vsidx) {
         updated |= updateVoxelsState(vsidx);
@@ -491,7 +493,7 @@ bool RobotCollisionStateImpl::sphereStateDirty(const SphereIndex& sidx) const
 inline
 bool RobotCollisionStateImpl::updateSphereStates()
 {
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating all sphere positions");
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Updating all sphere positions");
     bool updated = false;
     for (size_t ssidx = 0; ssidx < m_spheres_states.size(); ++ssidx) {
         updated |= updateSphereStates(ssidx);
@@ -525,7 +527,7 @@ bool RobotCollisionStateImpl::updateSphereState(const SphereIndex& sidx)
     const int lidx = sphere_state.parent_state->model->link_index;
     updateLinkTransform(lidx);
 
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating position of sphere '%s'", sphere_state.model->name.c_str());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Updating position of sphere '%s'", sphere_state.model->name.c_str());
     const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
     sphere_state.pos = T_model_link * sphere_state.model->center;
 
@@ -644,45 +646,52 @@ void RobotCollisionStateImpl::initRobotState()
                             m_model->jointVarMinPosition(vidx) +
                             m_model->jointVarMaxPosition(vidx)
                         );
-                ROS_DEBUG_NAMED(RCM_LOGGER, "Set joint variable %zu to position %0.3f", vidx, m_jvar_positions[vidx]);
+                ROS_DEBUG_NAMED(RCS_LOGGER, "Set joint variable %zu to position %0.3f", vidx, m_jvar_positions[vidx]);
             }
         }
     }
 
-    // initialize joint variable offsets
+    // map joints to joint variable arrays and vice versa
+    m_jvar_joints.reserve(m_model->jointVarCount());
     m_joint_var_offsets.resize(m_model->jointCount());
     double* d = m_jvar_positions.data();
-    for (size_t i = 0; i < m_model->jointCount(); ++i) {
-        m_joint_var_offsets[i] = d;
-        JointTransformFunction f = m_model->jointTransformFn(i);
+    for (size_t jidx = 0; jidx < m_model->jointCount(); ++jidx) {
+        m_joint_var_offsets[jidx] = d;
+        JointTransformFunction f = m_model->jointTransformFn(jidx);
+        size_t var_count;
         if (f == ComputeFixedJointTransform) {
-            d += 0;
+            var_count = 0;
         }
         else if (f == ComputeRevoluteJointTransform ||
                 f == ComputeContinuousJointTransform ||
                 f == ComputePrismaticJointTransform)
         {
-            d += 1;
+            var_count = 1;
         }
         else if (f == ComputePlanarJointTransform) {
-            d += 3;
+            var_count = 3;
         }
         else if (f == ComputeFloatingJointTransform) {
-            d += 7;
+            var_count = 7;
         }
         else {
-            ROS_ERROR_NAMED(RCM_LOGGER, "Unrecognized JointTransformFunction");
+            ROS_ERROR_NAMED(RCS_LOGGER, "Unrecognized JointTransformFunction");
             throw std::runtime_error("Unrecognized JointTransformFunction");
+        }
+
+        d += var_count;
+        for (size_t i = 0; i < var_count; ++i) {
+            m_jvar_joints.push_back(jidx);
         }
     }
 
     m_dirty_link_transforms.assign(m_model->linkCount(), true);
     m_link_transforms.assign(m_model->linkCount(), Eigen::Affine3d::Identity());
 
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Robot State:");
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  %zu Joint Positions", m_jvar_positions.size());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  %zu Dirty Link Transforms", m_dirty_link_transforms.size());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  %zu Link Transforms", m_link_transforms.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Robot State:");
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  %zu Joint Positions", m_jvar_positions.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  %zu Dirty Link Transforms", m_dirty_link_transforms.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  %zu Link Transforms", m_link_transforms.size());
 }
 
 void RobotCollisionStateImpl::initCollisionState()
@@ -788,20 +797,20 @@ void RobotCollisionStateImpl::initCollisionState()
 
     assert(checkCollisionStateReferences());
 
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Collision State:");
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "Collision State:");
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
     for (const auto& spheres_state : m_spheres_states) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
+        ROS_DEBUG_NAMED(RCS_LOGGER, "    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
     }
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Dirty Voxels States: %zu", m_dirty_voxels_states.size());
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels States: [%p, %p]", m_voxels_states.data(), m_voxels_states.data() + m_voxels_states.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  Dirty Voxels States: %zu", m_dirty_voxels_states.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  Voxels States: [%p, %p]", m_voxels_states.data(), m_voxels_states.data() + m_voxels_states.size());
     for (const auto& voxels_state : m_voxels_states) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, voxels: %zu", voxels_state.model, voxels_state.voxels.size());
+        ROS_DEBUG_NAMED(RCS_LOGGER, "    model: %p, voxels: %zu", voxels_state.model, voxels_state.voxels.size());
     }
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Group States: [%p, %p]", m_group_states.data(), m_group_states.data() + m_group_states.size());
+    ROS_DEBUG_NAMED(RCS_LOGGER, "  Group States: [%p, %p]", m_group_states.data(), m_group_states.data() + m_group_states.size());
     for (const auto& group_state : m_group_states) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    model: %p, spheres_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.spheres_indices).c_str(), to_string(group_state.voxels_indices).c_str());
+        ROS_DEBUG_NAMED(RCS_LOGGER, "    model: %p, spheres_indices: %s, voxels_indices: %s", group_state.model, to_string(group_state.spheres_indices).c_str(), to_string(group_state.voxels_indices).c_str());
     }
 }
 
