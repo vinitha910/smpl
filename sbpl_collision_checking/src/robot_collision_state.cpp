@@ -165,6 +165,8 @@ private:
     // per-link references to corresponding spheres and voxels states
     std::vector<CollisionVoxelsState*>      m_link_voxels_states;
     std::vector<CollisionSpheresState*>     m_link_spheres_states;
+
+    std::vector<int> m_q;
     ///@}
 
     void initRobotState();
@@ -280,12 +282,13 @@ bool RobotCollisionStateImpl::setJointVarPosition(int vidx, double position)
 
         // TODO: cache affected link transforms in a per-joint array?
 
-        std::queue<int> q;
+        std::vector<int>& q = m_q;
+        q.clear();
         int jidx = m_jvar_joints[vidx];
-        q.push(m_model->jointChildLinkIndex(jidx));
+        q.push_back(m_model->jointChildLinkIndex(jidx));
         while (!q.empty()) {
-            int lidx = q.front();
-            q.pop();
+            int lidx = q.back();
+            q.pop_back();
 
             ROS_DEBUG_NAMED(RCS_LOGGER, "Dirtying transform to link '%s'", m_model->linkName(lidx).c_str());
 
@@ -311,7 +314,7 @@ bool RobotCollisionStateImpl::setJointVarPosition(int vidx, double position)
 
             // add child links to the queue
             for (int cjidx : m_model->linkChildJointIndices(lidx)) {
-                q.push(m_model->jointChildLinkIndex(cjidx));
+                q.push_back(m_model->jointChildLinkIndex(cjidx));
             }
         }
 
