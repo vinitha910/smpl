@@ -170,10 +170,10 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
 
 void SelfCollisionModelImpl::initAllowedCollisionMatrix()
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Creating adjacent link entries in the allowed collision matrix");
     for (size_t lidx = 0; lidx < m_rcm->linkCount(); ++lidx) {
         const std::string& link_name = m_rcm->linkName(lidx);
         if (!m_acm.hasEntry(link_name)) {
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Adding entry '%s' to the ACM", link_name.c_str());
             m_acm.setEntry(link_name, false);
         }
 
@@ -182,11 +182,9 @@ void SelfCollisionModelImpl::initAllowedCollisionMatrix()
             const int plidx = m_rcm->jointParentLinkIndex(pjidx);
             const std::string& parent_link_name = m_rcm->linkName(plidx);
             if (!m_acm.hasEntry(parent_link_name)) {
-                ROS_DEBUG_NAMED(SCM_LOGGER, "Adding entry '%s' to the ACM", parent_link_name.c_str());
                 m_acm.setEntry(parent_link_name, false);
             }
 
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Allowing collisions between adjacent links '%s' and '%s'", link_name.c_str(), parent_link_name.c_str());
             m_acm.setEntry(link_name, parent_link_name, true);
         }
 
@@ -194,11 +192,9 @@ void SelfCollisionModelImpl::initAllowedCollisionMatrix()
             int clidx = m_rcm->jointChildLinkIndex(cjidx);
             const std::string& child_link_name = m_rcm->linkName(clidx);
             if (!m_acm.hasEntry(child_link_name)) {
-                ROS_DEBUG_NAMED(SCM_LOGGER, "Adding entry '%s' to the ACM", child_link_name.c_str());
                 m_acm.setEntry(child_link_name, false);
             }
 
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Allowing collisions between adjacent links '%s' and '%s'", link_name.c_str(), child_link_name.c_str());
             m_acm.setEntry(link_name, child_link_name, true);
         }
     }
@@ -217,6 +213,7 @@ SelfCollisionModelImpl::allowedCollisionMatrix() const
 void SelfCollisionModelImpl::updateAllowedCollisionMatrix(
     const AllowedCollisionMatrix& acm)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Update allowed collision matrix");
     std::vector<std::string> all_entries;
 
     acm.getAllEntryNames(all_entries);
@@ -242,6 +239,7 @@ void SelfCollisionModelImpl::updateAllowedCollisionMatrix(
 void SelfCollisionModelImpl::setAllowedCollisionMatrix(
     const AllowedCollisionMatrix& acm)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Overwrite allowed collision matrix");
     m_acm = acm;
     updateCheckedSpheresIndices();
 }
@@ -262,7 +260,7 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     if (!m_rcm->hasGroup(group_name)) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self Collision Check is for non-existent group");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
         return false;
     }
 
@@ -290,7 +288,7 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     if (gidx < 0 || gidx >= m_rcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self Collision Check is for non-existent group");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
         return false;
     }
 
@@ -323,7 +321,7 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     if (!m_rcm->hasGroup(group_name) || !m_abcm->hasGroup(group_name)) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self Collision Check is for non-existent group");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
         return false;
     }
 
@@ -417,18 +415,18 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
         return;
     }
 
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Updating Self Collision Model from group %d to group %d", m_gidx, gidx);
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Update Self Collision Model from group %d to group %d", m_gidx, gidx);
 
     // switch to new voxels state context
 
     std::vector<int> old_ov_indices = m_voxels_indices;
 
     std::sort(old_ov_indices.begin(), old_ov_indices.end());
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Old Outside Voxels Indices: %s", to_string(old_ov_indices).c_str());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Old outside voxels indices: %s", to_string(old_ov_indices).c_str());
 
     std::vector<int> new_ov_indices = m_rcs.groupOutsideVoxelsStateIndices(gidx);
     std::sort(new_ov_indices.begin(), new_ov_indices.end());
-    ROS_DEBUG_NAMED(SCM_LOGGER, "New Outside Voxels Indices: %s", to_string(new_ov_indices).c_str());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "New outside voxels indices: %s", to_string(new_ov_indices).c_str());
 
     // get the indices of the voxels states that were outside the group but are
     // now inside and must be removed
@@ -464,11 +462,11 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
 
     // insert/remove the voxels
     if (!v_rem.empty()) {
-        ROS_DEBUG_NAMED(SCM_LOGGER, "  Removing %zu voxels from old voxels models", v_rem.size());
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Remove %zu voxels from old voxels models", v_rem.size());
         m_grid->removePointsFromField(v_rem);
     }
     if (!v_ins.empty()) {
-        ROS_DEBUG_NAMED(SCM_LOGGER, "  Inserting %zu voxels from new voxels models", v_ins.size());
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Insert %zu voxels from new voxels models", v_ins.size());
         m_grid->addPointsToField(v_ins);
     }
 
@@ -502,7 +500,7 @@ void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 
 void SelfCollisionModelImpl::updateVoxelsStates()
 {
-    ROS_DEBUG("Updating Voxels States");
+    ROS_DEBUG("Update voxels states");
     // update voxel groups; gather voxels before updating so as to impose only
     // a single distance field update (TODO: does the distance field recompute
     // with every call to insert/remove/update points?)
@@ -528,7 +526,7 @@ void SelfCollisionModelImpl::updateVoxelsStates()
                     voxels_state.voxels.begin(),
                     voxels_state.voxels.end());
 
-            ROS_DEBUG_NAMED(SCM_LOGGER, "  Updating Occupancy Grid with change to Collision Voxels State (%zu displaced)", curr_size - prev_size);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "  Update Occupancy Grid with change to Collision Voxels State (%zu displaced)", curr_size - prev_size);
         }
     }
 
@@ -536,11 +534,11 @@ void SelfCollisionModelImpl::updateVoxelsStates()
 
     // update occupancy grid with new voxel data
     if (!v_rem.empty()) {
-        ROS_DEBUG_NAMED(SCM_LOGGER, "  Removing %zu voxels", v_rem.size());
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Remove %zu voxels", v_rem.size());
         m_grid->removePointsFromField(v_rem);
     }
     if (!v_ins.empty()) {
-        ROS_DEBUG_NAMED(SCM_LOGGER, "  Inserting %zu voxels", v_ins.size());
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Insert %zu voxels", v_ins.size());
         m_grid->addPointsToField(v_ins);
     }
 }
@@ -570,7 +568,7 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Voxels States");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against voxels states");
     return true;
 }
 
@@ -623,12 +621,13 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Spheres States");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against spheres states");
     return true;
 }
 
 void SelfCollisionModelImpl::updateCheckedSpheresIndices()
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Update checked sphere indices");
     m_checked_spheres_states.clear();
 
     if (m_gidx == -1) {
