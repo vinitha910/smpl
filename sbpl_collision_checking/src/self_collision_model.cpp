@@ -144,6 +144,8 @@ private:
     // check for collisions between inside-group spheres
     bool checkSpheresStateCollisions(double& dist);
     bool checkAttachedBodySpheresStateCollisions(double& dist);
+
+    void updateCheckedSpheresIndices();
 };
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
@@ -200,44 +202,6 @@ void SelfCollisionModelImpl::initAllowedCollisionMatrix()
             m_acm.setEntry(link_name, child_link_name, true);
         }
     }
-
-//    // add in additional allowed collisions from config
-//    std::vector<std::string> config_entries;
-//    config.acm.getAllEntryNames(config_entries);
-//    for (size_t i = 0; i < config_entries.size(); ++i) {
-//        const std::string& entry1 = config_entries[i];
-//        if (!m_acm.hasEntry(entry1)) {
-//            ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry1.c_str());
-//            continue;
-//        }
-//        for (size_t j = i; j < config_entries.size(); ++j) {
-//            const std::string& entry2 = config_entries[j];
-//            if (!m_acm.hasEntry(entry2)) {
-//                ROS_WARN_NAMED(CC_LOGGER, "Configured allowed collision entry '%s' was not found in the collision model", entry2.c_str());
-//                continue;
-//            }
-//
-//            if (!config.acm.hasEntry(entry1, entry2)) {
-//                continue;
-//            }
-//
-//            collision_detection::AllowedCollision::Type type;
-//            config.acm.getEntry(entry1, entry2, type);
-//            switch (type) {
-//            case collision_detection::AllowedCollision::NEVER:
-//                // NOTE: not that it matters, but this disallows config freeing
-//                // collisions
-//                break;
-//            case collision_detection::AllowedCollision::ALWAYS:
-//                ROS_INFO_NAMED(CC_LOGGER, "Configuration allows spheres '%s' and '%s' to be in collision", entry1.c_str(), entry2.c_str());
-//                m_acm.setEntry(entry1, entry2, true);
-//                break;
-//            case collision_detection::AllowedCollision::CONDITIONAL:
-//                ROS_WARN_NAMED(CC_LOGGER, "Conditional collisions not supported in SBPL Collision Detection");
-//                break;
-//            }
-//        }
-//    }
 }
 
 SelfCollisionModelImpl::~SelfCollisionModelImpl()
@@ -272,12 +236,14 @@ void SelfCollisionModelImpl::updateAllowedCollisionMatrix(
             }
         }
     }
+    updateCheckedSpheresIndices();
 }
 
 void SelfCollisionModelImpl::setAllowedCollisionMatrix(
     const AllowedCollisionMatrix& acm)
 {
     m_acm = acm;
+    updateCheckedSpheresIndices();
 }
 
 void SelfCollisionModelImpl::setPadding(double padding)
@@ -496,14 +462,13 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
         v_ins.insert(v_ins.end(), vs.voxels.begin(), vs.voxels.end());
     }
 
-    ROS_DEBUG_NAMED(SCM_LOGGER, "  Removing %zu voxels from old voxels models", v_rem.size());
-    ROS_DEBUG_NAMED(SCM_LOGGER, "  Inserting %zu voxels from new voxels models", v_ins.size());
-
     // insert/remove the voxels
     if (!v_rem.empty()) {
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Removing %zu voxels from old voxels models", v_rem.size());
         m_grid->removePointsFromField(v_rem);
     }
     if (!v_ins.empty()) {
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Inserting %zu voxels from new voxels models", v_ins.size());
         m_grid->addPointsToField(v_ins);
     }
 
@@ -515,47 +480,11 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
 
     m_sphere_indices = GatherSphereIndices(m_rcs, gidx);
 
-    // prepare the set of spheres states that should be checked for collision
-    m_checked_spheres_states.clear();
-    const std::vector<int>& group_link_indices = m_rcm->groupLinkIndices(gidx);
-    for (int l1 = 0; l1 < m_rcm->linkCount(); ++l1) {
-        bool l1_in_group = std::find(
-                group_link_indices.begin(),
-                group_link_indices.end(),
-                l1) != group_link_indices.end();
-        bool l1_has_spheres = m_rcm->hasSpheresModel(l1);
-        if (!l1_in_group || !l1_has_spheres) {
-            continue;
-        }
-        const std::string& l1_name = m_rcm->linkName(l1);
-        for (int l2 = l1 + 1; l2 < m_rcm->linkCount(); ++l2) {
-            const bool l2_in_group = std::find(
-                    group_link_indices.begin(),
-                    group_link_indices.end(), l2) != group_link_indices.end();
-            const bool l2_has_spheres = m_rcm->hasSpheresModel(l2);
-            if (!l2_in_group || !l2_has_spheres) {
-                continue;
-            }
-            const std::string& l2_name = m_rcm->linkName(l2);
-
-            collision_detection::AllowedCollision::Type type;
-            if (m_acm.getEntry(l1_name, l2_name, type)) {
-                if (type != collision_detection::AllowedCollision::ALWAYS) {
-                    m_checked_spheres_states.emplace_back(
-                            m_rcs.linkSpheresStateIndex(l1),
-                            m_rcs.linkSpheresStateIndex(l2));
-                }
-            }
-            else {
-                m_checked_spheres_states.emplace_back(
-                        m_rcs.linkSpheresStateIndex(l1),
-                        m_rcs.linkSpheresStateIndex(l2));
-            }
-        }
-    }
-
     // activate the group
     m_gidx = gidx;
+
+    // prepare the set of spheres states that should be checked for collision
+    updateCheckedSpheresIndices();
 }
 
 void SelfCollisionModelImpl::switchAttachedBodyGroup(int ab_gidx)
@@ -634,6 +563,7 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
         }
     }
 
+    ROS_DEBUG_NAMED(SCM_LOGGER, "No voxels collisions");
     return true;
 }
 
@@ -686,6 +616,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
         }
     }
 
+    ROS_DEBUG_NAMED(SCM_LOGGER, "No spheres collisions");
     return true;
 }
 
@@ -694,6 +625,52 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Checking Attached Body Self Collisions against Spheres States");
     return true;
+}
+
+void SelfCollisionModelImpl::updateCheckedSpheresIndices()
+{
+    m_checked_spheres_states.clear();
+
+    if (m_gidx == -1) {
+        return;
+    }
+
+    const std::vector<int>& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
+    for (int l1 = 0; l1 < m_rcm->linkCount(); ++l1) {
+        bool l1_in_group = std::find(
+                group_link_indices.begin(),
+                group_link_indices.end(),
+                l1) != group_link_indices.end();
+        bool l1_has_spheres = m_rcm->hasSpheresModel(l1);
+        if (!l1_in_group || !l1_has_spheres) {
+            continue;
+        }
+        const std::string& l1_name = m_rcm->linkName(l1);
+        for (int l2 = l1 + 1; l2 < m_rcm->linkCount(); ++l2) {
+            const bool l2_in_group = std::find(
+                    group_link_indices.begin(),
+                    group_link_indices.end(), l2) != group_link_indices.end();
+            const bool l2_has_spheres = m_rcm->hasSpheresModel(l2);
+            if (!l2_in_group || !l2_has_spheres) {
+                continue;
+            }
+            const std::string& l2_name = m_rcm->linkName(l2);
+
+            collision_detection::AllowedCollision::Type type;
+            if (m_acm.getEntry(l1_name, l2_name, type)) {
+                if (type != collision_detection::AllowedCollision::ALWAYS) {
+                    m_checked_spheres_states.emplace_back(
+                            m_rcs.linkSpheresStateIndex(l1),
+                            m_rcs.linkSpheresStateIndex(l2));
+                }
+            }
+            else {
+                m_checked_spheres_states.emplace_back(
+                        m_rcs.linkSpheresStateIndex(l1),
+                        m_rcs.linkSpheresStateIndex(l2));
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////
