@@ -36,6 +36,7 @@
 // standard includes
 #include <cmath>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -167,6 +168,8 @@ public:
     bool isInBounds(double x, double y, double z) const;
     bool isInBounds(int x, int y, int z) const;
 
+    size_t getOccupiedVoxelCount() const;
+
     /// \brief Get all occupied voxels in the grid
     void getOccupiedVoxels(std::vector<geometry_msgs::Point>& voxels) const;
 
@@ -278,7 +281,7 @@ double OccupancyGrid::getMaxDistance() const
 inline
 void OccupancyGrid::gridToWorld(
     int x, int y, int z,
-    double &wx, double &wy, double &wz) const
+    double& wx, double& wy, double& wz) const
 {
     grid_->gridToWorld(x, y, z, wx, wy, wz);
 }
@@ -286,7 +289,7 @@ void OccupancyGrid::gridToWorld(
 inline
 void OccupancyGrid::worldToGrid(
     double wx, double wy, double wz,
-    int &x, int &y, int &z) const
+    int& x, int& y, int& z) const
 {
     grid_->worldToGrid(wx, wy, wz, x, y, z);
 }
@@ -324,7 +327,7 @@ double OccupancyGrid::getCell(const int* xyz) const
 inline
 double OccupancyGrid::getDistance(int x, int y, int z) const
 {
-    return grid_->getDistance(x,y,z);
+    return grid_->getDistance(x, y, z);
 }
 
 inline

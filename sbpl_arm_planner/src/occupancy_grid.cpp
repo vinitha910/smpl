@@ -191,6 +191,18 @@ void OccupancyGrid::getOccupiedVoxels(
             });
 }
 
+size_t OccupancyGrid::getOccupiedVoxelCount() const
+{
+    size_t count = 0;
+    iterateCells([&](int x, int y, int z)
+    {
+        if (grid_->getDistance(x, y, z) == 0.0) {
+            ++count;
+        }
+    });
+    return count;
+}
+
 void OccupancyGrid::getOccupiedVoxels(
     std::vector<geometry_msgs::Point>& voxels) const
 {
@@ -318,7 +330,7 @@ void OccupancyGrid::addPointsToField(
             worldToGrid(v.x(), v.y(), v.z(), gx, gy, gz);
 
             if (isInBounds(gx, gy, gz)) {
-                int idx = coordToIndex(gx, gy, gz);
+                const int idx = coordToIndex(gx, gy, gz);
 
                 if (m_counts[idx] == 0) {
                     pts.emplace_back(v.x(), v.y(), v.z());
