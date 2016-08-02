@@ -140,6 +140,8 @@ private:
     std::vector<double>                     m_jvar_positions;
     std::vector<int>                        m_jvar_joints;
     std::vector<double*>                    m_joint_var_offsets;
+    std::vector<bool>                       m_dirty_joint_transforms;
+    Affine3dVector                          m_joint_transforms;
     std::vector<bool>                       m_dirty_link_transforms;
     Affine3dVector                          m_link_transforms;
     ///@}
@@ -279,6 +281,7 @@ bool RobotCollisionStateImpl::setJointVarPosition(int vidx, double position)
         ROS_DEBUG_NAMED(RCS_LOGGER, "Setting joint position of joint %d to %0.3f", vidx, position);
 
         m_jvar_positions[vidx] = position;
+        m_dirty_joint_transforms[m_jvar_joints[vidx]] = true;
 
         // TODO: cache affected link transforms in a per-joint array?
 
@@ -382,11 +385,16 @@ bool RobotCollisionStateImpl::updateLinkTransform(int lidx)
         // TODO: optimize out this recursion
         updateLinkTransform(plidx);
         const Eigen::Affine3d& T_world_parent = m_link_transforms[plidx];
-        JointTransformFunction fn = m_model->jointTransformFn(pjidx);
-        const Eigen::Affine3d& joint_origin = m_model->jointOrigin(pjidx);
-        const Eigen::Vector3d& joint_axis = m_model->jointAxis(pjidx);
-        double* variables = m_joint_var_offsets[pjidx];
-        const Eigen::Affine3d& T_parent_link = fn(joint_origin, joint_axis, variables);
+
+        if (m_dirty_joint_transforms[pjidx]) {
+            JointTransformFunction fn = m_model->jointTransformFn(pjidx);
+            const Eigen::Affine3d& joint_origin = m_model->jointOrigin(pjidx);
+            const Eigen::Vector3d& joint_axis = m_model->jointAxis(pjidx);
+            double* variables = m_joint_var_offsets[pjidx];
+            m_joint_transforms[pjidx] = fn(joint_origin, joint_axis, variables);
+            m_dirty_joint_transforms[pjidx] = false;
+        }
+        const Eigen::Affine3d& T_parent_link = m_joint_transforms[pjidx];
         m_link_transforms[lidx] = T_world_parent * T_parent_link;
     }
 
@@ -687,6 +695,9 @@ void RobotCollisionStateImpl::initRobotState()
             m_jvar_joints.push_back(jidx);
         }
     }
+
+    m_dirty_joint_transforms.assign(m_model->jointCount(), true);
+    m_joint_transforms.assign(m_model->jointCount(), Eigen::Affine3d::Identity());
 
     m_dirty_link_transforms.assign(m_model->linkCount(), true);
     m_link_transforms.assign(m_model->linkCount(), Eigen::Affine3d::Identity());
