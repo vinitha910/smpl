@@ -36,43 +36,6 @@
 namespace sbpl {
 namespace collision {
 
-static const char* CC_LOGGER = "collision";
-
-bool CheckSphereCollision(
-    const OccupancyGrid& grid,
-    RobotCollisionState& state,
-    double padding,
-    const SphereIndex& sidx,
-    double& dist)
-{
-    state.updateSphereState(sidx);
-    const CollisionSphereState& ss = state.sphereState(sidx);
-
-    int gx, gy, gz;
-    grid.worldToGrid(ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
-
-    // check bounds
-    if (!grid.isInBounds(gx, gy, gz)) {
-        const CollisionSphereModel* sm = ss.model;
-        ROS_DEBUG_NAMED(CC_LOGGER, "Sphere '%s' with center at (%0.3f, %0.3f, %0.3f) (%d, %d, %d) is out of bounds.", sm->name.c_str(), ss.pos.x(), ss.pos.y(), ss.pos.z(), gx, gy, gz);
-        dist = 0.0;
-        return false;
-    }
-
-    // check for collision with world
-    double obs_dist = grid.getDistance(gx, gy, gz);
-    const double effective_radius =
-            ss.model->radius + 0.5 * grid.getResolution() + padding;
-
-    if (obs_dist <= effective_radius) {
-        dist = obs_dist;
-        return false;
-    }
-
-    dist = obs_dist;
-    return true;
-}
-
 /// \brief Gather all sphere indices for a given group
 ///
 /// The resulting sequence of sphere indices are already sorted by their

@@ -45,6 +45,29 @@ bool CheckSphereCollision(
     const SphereIndex& sidx,
     double& dist);
 
+inline
+bool CheckSphereCollision(
+    const OccupancyGrid& grid,
+    RobotCollisionState& state,
+    double padding,
+    const SphereIndex& sidx,
+    double& dist)
+{
+    state.updateSphereState(sidx);
+    const CollisionSphereState& ss = state.sphereState(sidx);
+
+    // NOTE: no need to check bounds since getDistance will return the maximum
+    // value for invalid cells
+
+    // check for collision with world
+    double obs_dist = grid.getDistanceFromPoint(ss.pos.x(), ss.pos.y(), ss.pos.z());
+    const double effective_radius =
+            ss.model->radius + grid.getHalfResolution() + padding;
+
+    dist = obs_dist;
+    return obs_dist > effective_radius;
+}
+
 std::vector<SphereIndex> GatherSphereIndices(
     const RobotCollisionState& state, int gidx);
 
