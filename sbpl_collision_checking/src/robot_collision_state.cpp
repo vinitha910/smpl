@@ -617,9 +617,7 @@ RobotCollisionStateImpl::getVisualization(int gidx) const
     size_t sphere_count = 0;
     for (int ssidx : group_state.spheres_indices) {
         const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
-        for (const CollisionSphereState& sphere_state : spheres_state.spheres) {
-            ++sphere_count;
-        }
+        sphere_count += spheres_state.spheres.size();
     }
 
     spheres.reserve(sphere_count);
@@ -725,14 +723,9 @@ void RobotCollisionStateImpl::initCollisionState()
 
         // map sphere state -> sphere model
         // map sphere state -> spheres state
-        spheres_state.spheres.resize(spheres_model.spheres.size());
-        for (size_t j = 0; j < spheres_model.spheres.size(); ++j) {
-            spheres_state.spheres[j].model = &spheres_model.spheres[j];
-            spheres_state.spheres[j].parent_state = &spheres_state;
-            ++offset;
-        }
+        spheres_state.spheres.buildFrom(&spheres_state);
+        offset += spheres_model.spheres.size();
     }
-
 
     // initialize voxels states
     m_dirty_voxels_states.assign(m_model->voxelsModelCount(), true);

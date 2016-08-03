@@ -46,6 +46,52 @@ std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css)
     return o;
 }
 
+void CollisionSphereStateTree::buildFrom(CollisionSpheresState* parent_state)
+{
+    m_tree.resize(parent_state->model->spheres.size());
+    for (size_t i = 0; i < m_tree.size(); ++i) {
+        const CollisionSphereModel& model = parent_state->model->spheres[i];
+        CollisionSphereState& state = m_tree[i];
+        state.model = &model;
+        state.parent_state = parent_state;
+        state.left = &m_tree[0] + std::distance(parent_state->model->spheres.root(), model.left);
+        state.right = &m_tree[0] + std::distance(parent_state->model->spheres.root(), model.right);
+    }
+}
+
+CollisionSphereStateTree::CollisionSphereStateTree(
+    const CollisionSphereStateTree& o)
+{
+    m_tree = o.m_tree;
+    for (size_t i = 0; i < m_tree.size(); ++i) {
+        m_tree[i].left = &m_tree[0] + std::distance(
+                o.root(), (const CollisionSphereState*)o.m_tree[i].left);
+        m_tree[i].right = &m_tree[0] + std::distance(
+                o.root(), (const CollisionSphereState*)o.m_tree[i].right);
+    }
+}
+
+CollisionSphereStateTree& CollisionSphereStateTree::operator=(
+    const CollisionSphereStateTree& rhs)
+{
+    if (this != &rhs) {
+        m_tree = rhs.m_tree;
+        for (size_t i = 0; i < m_tree.size(); ++i) {
+            m_tree[i].left = &m_tree[0] + std::distance(
+                    rhs.root(), (const CollisionSphereState*)rhs.m_tree[i].left);
+            m_tree[i].right = &m_tree[0] + std::distance(
+                    rhs.root(), (const CollisionSphereState*)rhs.m_tree[i].right);
+        }
+    }
+    return *this;
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionSphereStateTree& tree)
+{
+    o << tree.m_tree;
+    return o;
+}
+
 std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css)
 {
     o << "{ model: " << css.model << ", spheres: " << css.spheres << " }";

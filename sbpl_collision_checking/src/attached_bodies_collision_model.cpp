@@ -554,14 +554,7 @@ void AttachedBodiesCollisionModelImpl::createSpheresModel(
     // attach to the attached body
     spheres_model->link_index = abidx;
 
-    for (const CollisionSphereConfig& sphere_config : spheres_config.spheres) {
-        CollisionSphereModel sphere_model;
-        sphere_model.name = sphere_config.name;
-        sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
-        sphere_model.radius = sphere_config.radius;
-        sphere_model.priority = sphere_config.priority;
-        spheres_model->spheres.push_back(std::move(sphere_model));
-    }
+    spheres_model->spheres.buildFrom(spheres_config.spheres);
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Model: %p", spheres_model);
 
     // map attached body -> collision spheres model

@@ -146,12 +146,7 @@ std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm)
     return o;
 }
 
-CollisionSphereTree::CollisionSphereTree() :
-    m_tree()
-{
-}
-
-void CollisionSphereTree::buildFrom(
+void CollisionSphereModelTree::buildFrom(
     const std::vector<CollisionSphereConfig>& spheres)
 {
     // create array of points
@@ -247,7 +242,7 @@ void CollisionSphereTree::buildFrom(
 /// \brief Compute the bounding sphere tree for a subset of model spheres
 /// \return The index into \p m_tree where the top-most bounding sphere was stored
 template <typename Sphere>
-size_t CollisionSphereTree::buildRecursive(
+size_t CollisionSphereModelTree::buildRecursive(
     typename std::vector<const Sphere*>::iterator msfirst,
     typename std::vector<const Sphere*>::iterator mslast)
 {
@@ -349,7 +344,7 @@ size_t CollisionSphereTree::buildRecursive(
 }
 
 template <typename Sphere>
-int CollisionSphereTree::computeLargestBoundingBoxAxis(
+int CollisionSphereModelTree::computeLargestBoundingBoxAxis(
     typename std::vector<const Sphere*>::iterator first,
     typename std::vector<const Sphere*>::iterator last)
 {
@@ -395,6 +390,12 @@ int CollisionSphereTree::computeLargestBoundingBoxAxis(
         return 2;
     }
     return 0; // all the same
+}
+
+std::ostream& operator<<(std::ostream& o, const CollisionSphereModelTree& tree)
+{
+    o << tree.m_tree;
+    return o;
 }
 
 std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm)

@@ -442,12 +442,8 @@ void AttachedBodiesCollisionStateImpl::reinitCollisionState()
 
         spheres_state.model = &spheres_model;
 
-        spheres_state.spheres.resize(spheres_model.spheres.size());
-        for (size_t j = 0; j < spheres_model.spheres.size(); ++j) {
-            spheres_state.spheres[j].model = &spheres_model.spheres[j];
-            spheres_state.spheres[j].parent_state = &spheres_state;
-            ++offset;
-        }
+        spheres_state.spheres.buildFrom(&spheres_state);
+        offset += spheres_model.spheres.size();
     }
 
     // initialize voxels states

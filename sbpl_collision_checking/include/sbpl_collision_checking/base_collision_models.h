@@ -58,20 +58,25 @@ struct CollisionSphereModel
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);
 
-class CollisionSphereTree
+class CollisionSphereModelTree
 {
 public:
-
-    CollisionSphereTree();
 
     void buildFrom(const std::vector<CollisionSphereConfig>& spheres);
 //    void buildFrom(const std::vector<CollisionSphereModel>& spheres);
 //    void buildFrom(const std::vector<const CollisionSphereModel*>& spheres);
 
     const CollisionSphereModel* root() const { return m_tree.data(); }
+
     size_t size() const { return m_tree.size(); }
 
+    const CollisionSphereModel& operator[](size_t idx) const {
+        return m_tree[idx];
+    }
+
 private:
+
+    friend std::ostream& operator<<(std::ostream& o, const CollisionSphereModelTree& tree);
 
     template <typename Sphere>
     size_t buildRecursive(
@@ -86,12 +91,13 @@ private:
     std::vector<CollisionSphereModel> m_tree;
 };
 
+std::ostream& operator<<(std::ostream& o, const CollisionSphereModelTree& tree);
+
 /// \brief Collision Spheres Model Specification
 struct CollisionSpheresModel
 {
     int link_index;
-//    CollisionSphereTree spheres;
-    std::vector<CollisionSphereModel> spheres;
+    CollisionSphereModelTree spheres;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm);

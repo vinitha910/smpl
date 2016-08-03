@@ -58,11 +58,86 @@ struct CollisionSphereState
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css);
 
+class CollisionSpheresState;
+
+class CollisionSphereStateTree
+{
+public:
+
+    typedef std::vector<CollisionSphereState>       container_type;
+
+    typedef container_type::value_type              value_type;
+    typedef container_type::allocator_type          allocator_type;
+
+    typedef container_type::size_type               size_type;
+    typedef container_type::difference_type         difference_type;
+
+    typedef container_type::reference               reference;
+    typedef container_type::const_reference         const_reference;
+
+    typedef container_type::iterator                iterator;
+    typedef container_type::const_iterator          const_iterator;
+    typedef container_type::reverse_iterator        reverse_iterator;
+    typedef container_type::const_reverse_iterator  const_reverse_iterator;
+
+    void buildFrom(CollisionSpheresState* parent_state);
+
+    CollisionSphereStateTree() : m_tree() { }
+    CollisionSphereStateTree(const CollisionSphereStateTree&);
+    CollisionSphereStateTree& operator=(const CollisionSphereStateTree&);
+
+    CollisionSphereState* root() { return m_tree.data(); }
+    const CollisionSphereState* root() const { return m_tree.data(); }
+
+    /// \name Vector-like Element Access
+    ///@{
+    reference at(size_type pos) { return m_tree.at(pos); }
+    const_reference at(size_type pos) const { return m_tree.at(pos); }
+    reference operator[](size_type pos) { return m_tree[pos]; }
+    const_reference operator[](size_type pos) const { return m_tree[pos]; }
+    reference front() { return m_tree.front(); }
+    const_reference front() const { return m_tree.front(); }
+    reference back() { return m_tree.back(); }
+    const_reference back() const { return m_tree.back(); }
+    CollisionSphereState* data() { return m_tree.data(); }
+    const CollisionSphereState* data() const { return m_tree.data(); }
+    ///@}
+
+    /// \name Vector-like Iterators
+    ///@{
+    iterator begin() { return m_tree.begin(); }
+    const_iterator begin() const { return m_tree.begin(); }
+    const_iterator cbegin() const { return m_tree.cbegin(); }
+    iterator end() { return m_tree.end(); }
+    const_iterator end() const { return m_tree.end(); }
+    const_iterator cend() const { return m_tree.cend(); }
+    reverse_iterator rbegin() { return m_tree.rbegin(); }
+    const_reverse_iterator rbegin() const { return m_tree.rbegin(); }
+    const_reverse_iterator crbegin() const { return m_tree.crbegin(); }
+    reverse_iterator rend() { return m_tree.rend(); }
+    const_reverse_iterator rend() const { return m_tree.rend(); }
+    const_reverse_iterator crend() const { return m_tree.crend(); }
+    ///@}
+
+    bool empty() const { return m_tree.empty(); }
+    size_t size() const { return m_tree.size(); }
+
+    // TODO: swap?
+
+private:
+
+    friend std::ostream& operator<<(std::ostream& o, const CollisionSphereStateTree& tree);
+
+    container_type m_tree;
+};
+
+std::ostream& operator<<(std::ostream& o, const CollisionSphereStateTree& tree);
+
 /// \brief Collision Spheres State Specification
 struct CollisionSpheresState
 {
     const CollisionSpheresModel* model;
-    std::vector<CollisionSphereState> spheres;
+    CollisionSphereStateTree spheres;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css);
