@@ -124,6 +124,7 @@ public:
 
     /// \brief Get the resolution of the world, in meters
     double getResolution() const;
+    double getHalfResolution() const;
 
     /// \brief Get the maximum distance to which the distance field is computed
     double getMaxDistance() const;
@@ -239,6 +240,7 @@ private:
     int m_x_stride;
     int m_y_stride;
     std::vector<int> m_counts;
+    double m_half_res;
 
     void initRefCounts();
 
@@ -269,6 +271,12 @@ inline
 double OccupancyGrid::getResolution() const
 {
     return grid_->getResolution();
+}
+
+inline
+double OccupancyGrid::getHalfResolution() const
+{
+    return m_half_res;
 }
 
 inline
@@ -333,9 +341,7 @@ double OccupancyGrid::getDistance(int x, int y, int z) const
 inline
 double OccupancyGrid::getDistanceFromPoint(double x, double y, double z) const
 {
-    int gx, gy, gz;
-    worldToGrid(x, y, z, gx, gy, gz);
-    return grid_->getDistance(gx, gy, gz);
+    return grid_->getDistance(x, y, z);
 }
 
 inline

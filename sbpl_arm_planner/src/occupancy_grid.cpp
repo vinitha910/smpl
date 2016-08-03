@@ -61,6 +61,7 @@ OccupancyGrid::OccupancyGrid(
     if (m_ref_counted) {
         m_counts.assign(getCellCount(), 0);
     }
+    m_half_res = 0.5 * getResolution();
 }
 
 OccupancyGrid::OccupancyGrid(
@@ -80,6 +81,7 @@ OccupancyGrid::OccupancyGrid(
     m_counts()
 {
     initRefCounts();
+    m_half_res = 0.5 * getResolution();
 }
 
 OccupancyGrid::OccupancyGrid(
@@ -97,6 +99,7 @@ OccupancyGrid::OccupancyGrid(
     m_counts()
 {
     initRefCounts();
+    m_half_res = 0.5 * getResolution();
 }
 
 OccupancyGrid::OccupancyGrid(
@@ -111,6 +114,7 @@ OccupancyGrid::OccupancyGrid(
     m_counts()
 {
     initRefCounts();
+    m_half_res = 0.5 * getResolution();
 }
 
 OccupancyGrid::~OccupancyGrid()
