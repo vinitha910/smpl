@@ -437,6 +437,34 @@ CollisionSpace::getOccupiedVoxelsVisualization() const
 }
 
 bool CollisionSpace::isStateValid(
+    const std::vector<double>& vars,
+    const AllowedCollisionsInterface& aci,
+    bool verbose,
+    bool visualize,
+    double& dist)
+{
+    // allow subroutines to update minimum distance
+    dist = std::numeric_limits<double>::max();
+
+    updateState(vars);
+
+    // NOTE: see comment in isStateValid
+
+    bool robot_robot_valid = m_scm->checkCollision(*m_rcs, aci, m_gidx, dist);
+    if (!visualize && !robot_robot_valid) {
+        return false;
+    }
+
+    bool attached_object_world_valid = checkAttachedObjectCollision(
+            verbose, visualize, dist);
+    if (!visualize && !attached_object_world_valid) {
+        return false;
+    }
+
+    return attached_object_world_valid && robot_robot_valid;
+}
+
+bool CollisionSpace::isStateValid(
     const std::vector<double>& angles,
     bool verbose,
     bool visualize,
@@ -449,12 +477,12 @@ bool CollisionSpace::isStateValid(
 
     // world collisions are implicitly checked via the self collision model
     // since the two models share the same occupancy grid
-//    bool robot_world_valid = checkRobotCollision(verbose, visualize, dist);
+//    bool robot_world_vlaid = return m_wcm->checkCollision(*m_rcs, m_gidx, dist);
 //    if (!visualize && !robot_world_valid) {
 //        return false;
 //    }
 
-    bool robot_robot_valid = checkSelfCollision(verbose, visualize, dist);
+    bool robot_robot_valid = m_scm->checkCollision(*m_rcs, m_gidx, dist);
     if (!visualize && !robot_robot_valid) {
         return false;
     }
@@ -797,26 +825,6 @@ bool CollisionSpace::withinJointPositionLimits(
         }
     }
     return inside;
-}
-
-/// \brief Check whether the robot is in collision with the world
-/// \return true if robot is free of collisions with the world; false otherwise
-bool CollisionSpace::checkRobotCollision(
-    bool verbose,
-    bool visualize,
-    double& dist)
-{
-    return m_wcm->checkCollision(*m_rcs, m_gidx, dist);
-}
-
-/// \brief Check whether the robot is in self collision
-/// \return true if robot is free of self collisions; false otherwise
-bool CollisionSpace::checkSelfCollision(
-    bool verbose,
-    bool visualize,
-    double& dist)
-{
-    return m_scm->checkCollision(*m_rcs, m_gidx, dist);
 }
 
 /// \brief TODO

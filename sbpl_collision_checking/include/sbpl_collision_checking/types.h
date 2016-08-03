@@ -62,6 +62,10 @@ typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
 
 typedef collision_detection::AllowedCollisionMatrix AllowedCollisionMatrix;
 
+namespace AllowedCollision {
+typedef collision_detection::AllowedCollision::Type Type;
+} // namespace Allowed Collision
+
 typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
 typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
 

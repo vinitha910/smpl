@@ -40,6 +40,7 @@
 #include <sbpl_arm_planner/occupancy_grid.h>
 
 // project includes
+#include <sbpl_collision_checking/allowed_collisions_interface.h>
 #include <sbpl_collision_checking/attached_bodies_collision_model.h>
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
@@ -70,18 +71,7 @@ public:
 
     bool checkCollision(
         RobotCollisionState& state,
-        const std::string& group_name,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
         const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const std::string& group_name,
         double& dist);
 
     bool checkCollision(
@@ -90,18 +80,22 @@ public:
         const int gidx,
         double& dist);
 
-    double collisionDistance(
+    bool checkCollision(
         RobotCollisionState& state,
-        const std::string& group_name);
+        const AllowedCollisionsInterface& aci,
+        const int gidx,
+        double& dist);
+
+    bool checkCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const int gidx,
+        double& dist);
 
     double collisionDistance(
         RobotCollisionState& state,
         const int gidx);
-
-    double collisionDistance(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const std::string& group_name);
 
     double collisionDistance(
         RobotCollisionState& state,

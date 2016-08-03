@@ -51,6 +51,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
+#include <sbpl_collision_checking/allowed_collisions_interface.h>
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
@@ -138,6 +139,13 @@ public:
     visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
     ///@}
+
+    bool isStateValid(
+        const std::vector<double>& vars,
+        const AllowedCollisionsInterface& aci,
+        bool verbose,
+        bool visualize,
+        double& dist);
 
     /// \name Reimplemented Public Functions
     ///@{
@@ -227,8 +235,6 @@ private:
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
 
-    bool checkRobotCollision(bool verbose, bool visualize, double& dist);
-    bool checkSelfCollision(bool verbose, bool visualize, double& dist);
     bool checkAttachedObjectCollision(
         bool verbose, bool visualize, double& dist);
 
