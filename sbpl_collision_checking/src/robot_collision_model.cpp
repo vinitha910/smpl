@@ -193,6 +193,17 @@ private:
     bool initCollisionModel(
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
+    void buildSphereTree(
+        std::vector<CollisionSphereModel>& spheres,
+        const CollisionSpheresModelConfig& config);
+    CollisionSphereModel* buildSphereTreeRec(
+        std::vector<const CollisionSphereConfig*> spheres,
+        size_t first,
+        size_t last);
+    int computeLargestBoundingBoxAxis(
+        std::vector<const CollisionSphereConfig*>::const_iterator first,
+        std::vector<const CollisionSphereConfig*>::const_iterator last);
+
     bool checkCollisionModelConfig(const CollisionModelConfig& config);
 
     bool checkCollisionModelReferences() const;
@@ -871,14 +882,7 @@ bool RobotCollisionModelImpl::initCollisionModel(
         const CollisionSpheresModelConfig& spheres_config = config.spheres_models[i];
         CollisionSpheresModel& spheres_model = m_spheres_models[i];
         spheres_model.link_index = linkIndex(spheres_config.link_name);
-        for (const auto& sphere_config : spheres_config.spheres) {
-            CollisionSphereModel sphere_model;
-            sphere_model.name = sphere_config.name;
-            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
-            sphere_model.radius = sphere_config.radius;
-            sphere_model.priority = sphere_config.priority;
-            spheres_model.spheres.push_back(sphere_model);
-        }
+        buildSphereTree(spheres_model.spheres, spheres_config);
     }
 
     // initialize voxels models
@@ -939,6 +943,238 @@ bool RobotCollisionModelImpl::initCollisionModel(
     }
 
     return true;
+}
+
+void RobotCollisionModelImpl::buildSphereTree(
+    std::vector<CollisionSphereModel>& ospheres,
+    const CollisionSpheresModelConfig& config)
+{
+    std::vector<const CollisionSphereConfig*> sptrs(config.spheres.size());
+    for (size_t i = 0; i < config.spheres.size(); ++i) {
+        sptrs[i] = &config.spheres[i];
+    }
+
+    const size_t first = 0;
+    const size_t last = config.spheres.size();
+    CollisionSphereModel* root = buildSphereTreeRec(sptrs, first, last);
+
+    // queue of (sphere, parent, right?) tuples
+    std::queue<std::tuple<CollisionSphereModel*, CollisionSphereModel*, bool>> q;
+
+    // compute total sphere count
+    size_t count = 0;
+    q.push(std::make_tuple(root, nullptr, false));
+    while (!q.empty()) {
+        CollisionSphereModel* s;
+        CollisionSphereModel* p;
+        bool right;
+        std::tie(s, p, right) = q.front();
+        q.pop();
+        ++count;
+
+        if (s->left) {
+            q.push(std::make_tuple(s->left, s, false));
+        }
+        if (s->right) {
+            q.push(std::make_tuple(s->right, s, true));
+        }
+    }
+
+    ROS_WARN("Created %zu total spheres", count);
+
+    // slerp tree into contiguous array
+    std::vector<CollisionSphereModel> spheres(count);
+    q.push(std::make_tuple(root, nullptr, false));
+    size_t sidx = 0;
+    while (!q.empty()) {
+        CollisionSphereModel* sphere;
+        CollisionSphereModel* parent;
+        bool right;
+        std::tie(sphere, parent, right) = q.front();
+
+        q.pop();
+
+        spheres[sidx] = *sphere;
+        if (parent) {
+            if (right) {
+                parent->right = &spheres[sidx];
+            }
+            else {
+                parent->left = &spheres[sidx];
+            }
+        }
+
+        if (sphere->left) {
+            q.push(std::make_tuple(sphere->left, &spheres[sidx], false));
+        }
+        if (sphere->right) {
+            q.push(std::make_tuple(sphere->right, &spheres[sidx], true));
+        }
+    }
+
+    struct SphereTreeDeleter
+    {
+        void del(CollisionSphereModel* s)
+        {
+            ROS_INFO("Delete %p", s);
+            if (s->left) {
+                del(s->left);
+            }
+            if (s->right) {
+                del(s->right);
+            }
+            delete s;
+        }
+    };
+
+    // delete the temporary sphere tree
+    SphereTreeDeleter().del(root);
+
+    ospheres = std::move(spheres);
+}
+
+CollisionSphereModel* RobotCollisionModelImpl::buildSphereTreeRec(
+    std::vector<const CollisionSphereConfig*> model_spheres,
+    size_t first, size_t last)
+{
+    if (last == first) {
+        ROS_INFO("Zero spheres base case");
+        return nullptr;
+    }
+
+    if (last - first == 1) {
+        CollisionSphereModel* cs = new CollisionSphereModel;
+        const CollisionSphereConfig& config = *model_spheres[first];
+        cs->name = config.name;
+        cs->center = Eigen::Vector3d(config.x, config.y, config.z);
+        cs->radius = config.radius;
+        cs->priority = config.priority;
+        cs->left = nullptr;
+        cs->right = nullptr;
+        ROS_INFO("Leaf sphere '%s' %p", cs->name.c_str(), cs);
+        return cs;
+    }
+
+    ROS_INFO("Building hierarchy from %zu spheres", last - first);
+
+    auto msfirst = model_spheres.begin() + first;
+    auto mslast = model_spheres.begin() + last;
+
+    // compute the largest axis of the bounding box along which to split
+    const int split_axis = computeLargestBoundingBoxAxis(msfirst, mslast);
+    ROS_INFO("Splitting along axis %d", split_axis);
+
+    // compute the average centroid of all spheres at this level
+    Eigen::Vector3d model_bounding_sphere_center = Eigen::Vector3d::Zero();
+    for (auto it = msfirst; it != mslast; ++it) {
+        const CollisionSphereConfig* s = (*it);
+        model_bounding_sphere_center += Eigen::Vector3d(s->x, s->y, s->z);
+    }
+    model_bounding_sphere_center /= (last - first);
+
+    // compute the radius required to encompass all model spheres at this level
+    double model_bounding_sphere_radius = 0.0;
+    for (auto it = msfirst; it != mslast; ++it) {
+        Eigen::Vector3d c((*it)->x, (*it)->y, (*it)->z);
+        if (c.squaredNorm() > model_bounding_sphere_radius) {
+            model_bounding_sphere_radius = c.squaredNorm();
+        }
+    }
+    model_bounding_sphere_radius = sqrt(model_bounding_sphere_radius);
+
+    // split the tree along the largest axis by the centroid
+    auto pred = [&](const CollisionSphereConfig* s)
+    {
+        switch (split_axis) {
+        case 0:
+            return s->x < model_bounding_sphere_center.x();
+        case 1:
+            return s->y < model_bounding_sphere_center.y();
+        case 2:
+            return s->z < model_bounding_sphere_center.z();
+        }
+    };
+    auto msmid = std::partition(msfirst, mslast, pred);
+
+    // recurse on both subtrees
+    const int mid = first + std::distance(msfirst, msmid);
+    ROS_INFO("first: %zu, mid: %d, last: %zu", first, mid, last);
+    CollisionSphereModel* left = buildSphereTreeRec(model_spheres, first, mid);
+    CollisionSphereModel* right = buildSphereTreeRec(model_spheres, mid, last);
+
+    // compute the optimal sphere to contain both child spheres
+    const Eigen::Vector3d& p = left->center;
+    const Eigen::Vector3d& q = right->center;
+    Eigen::Vector3d v = q - p;
+    Eigen::Vector3d a = p + v + v.normalized() * right->radius;
+    Eigen::Vector3d b = q - v - v.normalized() * left->radius;
+    Eigen::Vector3d c = 0.5 * (a + b);
+    double child_bounding_sphere_radius = 0.5 * (a - b).norm();
+
+    CollisionSphereModel* sphere = new CollisionSphereModel;
+    if (child_bounding_sphere_radius < model_bounding_sphere_radius) {
+        sphere->center = c;
+        sphere->radius = child_bounding_sphere_radius;
+        ROS_INFO("Using child bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", sphere->center.x(), sphere->center.y(), sphere->center.z(), sphere->radius);
+    }
+    else {
+        sphere->center = model_bounding_sphere_center;
+        sphere->radius = model_bounding_sphere_radius;
+        ROS_INFO("Using model bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", sphere->center.x(), sphere->center.y(), sphere->center.z(), sphere->radius);
+    }
+    sphere->priority = 0;
+    sphere->left = left;
+    sphere->right = right;
+    ROS_INFO("sptr: %p", sphere);
+    return sphere;
+}
+
+int RobotCollisionModelImpl::computeLargestBoundingBoxAxis(
+    std::vector<const CollisionSphereConfig*>::const_iterator first,
+    std::vector<const CollisionSphereConfig*>::const_iterator last)
+{
+    if (std::distance(first, last) == 0) {
+        return 0;
+    }
+
+    Eigen::Vector3d min = Eigen::Vector3d((*first)->x, (*first)->y, (*first)->z);
+    Eigen::Vector3d max = Eigen::Vector3d((*first)->x, (*first)->y, (*first)->z);
+    for (auto it = first; it != last; ++it) {
+        const CollisionSphereConfig& sphere = **it;
+        // update bounding box
+        if (sphere.x < min.x()) {
+            min.x() = sphere.x;
+        }
+        if (sphere.y < min.y()) {
+            min.y() = sphere.y;
+        }
+        if (sphere.z < min.z()) {
+            min.z() = sphere.z;
+        }
+        if (sphere.x > max.x()) {
+            max.x() = sphere.x;
+        }
+        if (sphere.y > max.y()) {
+            max.y() = sphere.y;
+        }
+        if (sphere.z > max.z()) {
+            max.z() = sphere.z;
+        }
+    }
+
+    const double spanx = max.x() - min.x();
+    const double spany = max.y() - min.y();
+    const double spanz = max.z() - min.z();
+    if (spanx > spany && spanx > spanz) {
+        return 0;
+    }
+    else if (spany > spanz) {
+        return 1;
+    }
+    else {
+        return 2;
+    }
+    return 0; // all the same
 }
 
 bool RobotCollisionModelImpl::checkCollisionModelConfig(

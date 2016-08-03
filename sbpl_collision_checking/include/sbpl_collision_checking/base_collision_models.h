@@ -50,6 +50,7 @@ struct CollisionSphereModel
     Eigen::Vector3d center; ///< offset from link center
     double radius;
     int priority;
+    CollisionSphereModel *left, *right;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);

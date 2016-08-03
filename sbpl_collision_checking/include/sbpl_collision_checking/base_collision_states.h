@@ -53,6 +53,7 @@ struct CollisionSphereState
     const CollisionSphereModel* model;
     const CollisionSpheresState* parent_state;
     Eigen::Vector3d pos;
+    CollisionSphereState *left, *right;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css);
