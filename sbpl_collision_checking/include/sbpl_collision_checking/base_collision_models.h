@@ -40,6 +40,9 @@
 // system includes
 #include <Eigen/Dense>
 
+// project includes
+#include <sbpl_collision_checking/collision_model_config.h>
+
 namespace sbpl {
 namespace collision {
 
@@ -50,15 +53,44 @@ struct CollisionSphereModel
     Eigen::Vector3d center; ///< offset from link center
     double radius;
     int priority;
-    CollisionSphereModel *left, *right;
+    const CollisionSphereModel *left, *right;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);
+
+class CollisionSphereTree
+{
+public:
+
+    CollisionSphereTree();
+
+    void buildFrom(const std::vector<CollisionSphereConfig>& spheres);
+//    void buildFrom(const std::vector<CollisionSphereModel>& spheres);
+//    void buildFrom(const std::vector<const CollisionSphereModel*>& spheres);
+
+    const CollisionSphereModel* root() const { return m_tree.data(); }
+    size_t size() const { return m_tree.size(); }
+
+private:
+
+    template <typename Sphere>
+    size_t buildRecursive(
+        typename std::vector<const Sphere*>::iterator msfirst,
+        typename std::vector<const Sphere*>::iterator mslast);
+
+    template <typename Sphere>
+    int computeLargestBoundingBoxAxis(
+        typename std::vector<const Sphere*>::iterator msfirst,
+        typename std::vector<const Sphere*>::iterator mslast);
+
+    std::vector<CollisionSphereModel> m_tree;
+};
 
 /// \brief Collision Spheres Model Specification
 struct CollisionSpheresModel
 {
     int link_index;
+//    CollisionSphereTree spheres;
     std::vector<CollisionSphereModel> spheres;
 };
 
