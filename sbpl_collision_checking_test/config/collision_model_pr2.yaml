@@ -1,4 +1,5 @@
 world_collision_model:
+  frame: odom_combined
   size_x: 2.0
   size_y: 2.0
   size_z: 2.0
