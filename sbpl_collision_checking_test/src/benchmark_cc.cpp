@@ -99,6 +99,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh)
             origin_x, origin_y, origin_z,
             propagate_negative_distances,
             ref_counted);
+    grid->setReferenceFrame(world_frame);
     return grid;
 }
 
@@ -192,10 +193,13 @@ int main(int argc, char *argv[])
 
     ROS_INFO("Begin collision check benchmarking");
 
+    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_markers", 100);
+
     int check_count = 0;
     double elapsed = 0.0;
     while (elapsed < time_limit) {
-        std::vector<double> variables = CreateRandomVariables(*rcm, planning_joints, rng);
+        auto variables = CreateRandomVariables(*rcm, planning_joints, rng);
+        ma_pub.publish(cspace->getCollisionRobotVisualization(variables));
         double dist;
         auto start = std::chrono::high_resolution_clock::now();
         bool res = cspace->isStateValid(variables, false, false, dist);
@@ -205,8 +209,8 @@ int main(int argc, char *argv[])
     }
 
     ROS_INFO("check count: %d", check_count);
-    ROS_INFO("checks / second: %0.3f", check_count / elapsed);
-    ROS_INFO("seconds / check: %0.3f", elapsed / check_count);
+    ROS_INFO("checks / second: %g", check_count / elapsed);
+    ROS_INFO("seconds / check: %g", elapsed / check_count);
 
     return 0;
 }
