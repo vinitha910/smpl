@@ -141,6 +141,8 @@ int main(int argc, char *argv[])
         ROS_WARN("Did you make a mistake?");
     }
 
+    ROS_INFO("Evaluating %0.3f seconds of collision checks", time_limit);
+
     auto grid = CreateGrid(nh);
 
     std::string robot_description_key;
@@ -197,7 +199,7 @@ int main(int argc, char *argv[])
 
     int check_count = 0;
     double elapsed = 0.0;
-    while (elapsed < time_limit) {
+    while (ros::ok() && elapsed < time_limit) {
         auto variables = CreateRandomVariables(*rcm, planning_joints, rng);
         ma_pub.publish(cspace->getCollisionRobotVisualization(variables));
         double dist;
@@ -214,4 +216,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
