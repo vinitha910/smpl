@@ -921,7 +921,7 @@ bool RobotCollisionModelImpl::initCollisionModel(
     ROS_DEBUG_NAMED(RCM_LOGGER, "Collision Model:");
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Models: [%p, %p]", m_spheres_models.data(), m_spheres_models.data() + m_spheres_models.size());
     for (const auto& spheres_model : m_spheres_models) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    link_index: %d, spheres: %s", spheres_model.link_index, to_string(spheres_model.spheres).c_str());
+        ROS_DEBUG_STREAM_NAMED(RCM_LOGGER, "    link_index: " << spheres_model.link_index << ", spheres: " << spheres_model.spheres);
     }
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels Models: [%p, %p]", m_voxels_models.data(), m_voxels_models.data() + m_voxels_models.size());
     for (const auto& voxels_model : m_voxels_models) {

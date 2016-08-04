@@ -808,7 +808,7 @@ void RobotCollisionStateImpl::initCollisionState()
     ROS_DEBUG_NAMED(RCS_LOGGER, "  Dirty Sphere States: %zu", m_dirty_sphere_states.size());
     ROS_DEBUG_NAMED(RCS_LOGGER, "  Spheres States: [%p, %p]", m_spheres_states.data(), m_spheres_states.data() + m_spheres_states.size());
     for (const auto& spheres_state : m_spheres_states) {
-        ROS_DEBUG_NAMED(RCS_LOGGER, "    model: %p, spheres: %s", spheres_state.model, to_string(spheres_state.spheres).c_str());
+        ROS_DEBUG_STREAM_NAMED(RCS_LOGGER, "    model: " << spheres_state.model << ", spheres: " << spheres_state.spheres);
     }
     ROS_DEBUG_NAMED(RCS_LOGGER, "  Dirty Voxels States: %zu", m_dirty_voxels_states.size());
     ROS_DEBUG_NAMED(RCS_LOGGER, "  Voxels States: [%p, %p]", m_voxels_states.data(), m_voxels_states.data() + m_voxels_states.size());

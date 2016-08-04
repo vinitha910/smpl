@@ -84,7 +84,7 @@ public:
     ///         will be up to date in all cases afterwards
     bool   updateLinkTransforms();
 
-    /// \brief Update the transform of a link in the kinematic  tree
+    /// \brief Update the transform of a link in the kinematic tree
     /// \return Whether the transform required updating; the link transform will
     ///         be up to date in all cases afterwards
     bool   updateLinkTransform(int lidx);
