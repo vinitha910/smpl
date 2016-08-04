@@ -90,6 +90,11 @@ private:
         typename std::vector<const Sphere*>::iterator msfirst,
         typename std::vector<const Sphere*>::iterator mslast);
 
+    void computeOptimalBoundingSphere(
+        const CollisionSphereModel& s1,
+        const CollisionSphereModel& s2,
+        Eigen::Vector3d& c, double& r);
+
     template <typename Sphere>
     int computeLargestBoundingBoxAxis(
         typename std::vector<const Sphere*>::iterator msfirst,
