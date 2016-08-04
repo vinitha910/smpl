@@ -158,11 +158,26 @@ void CollisionSphereModelTree::buildFrom(
     std::vector<int> parent_indices(sptrs.size());
     buildRecursive<CollisionSphereConfig>(sptrs.begin(), sptrs.end());
     const CollisionSphereModel* root = &m_tree[0];
+    size_t leaf_count = 0;
     for (size_t i = 0; i < m_tree.size(); ++i) {
         CollisionSphereModel& sphere = m_tree[i];
-        sphere.left = &m_tree[reinterpret_cast<size_t>(sphere.left)];
-        sphere.right = &m_tree[reinterpret_cast<size_t>(sphere.right)];
+        const size_t li = reinterpret_cast<size_t>(sphere.left);
+        const size_t ri = reinterpret_cast<size_t>(sphere.right);
+        if (li) {
+            sphere.left = &m_tree[li];
+        }
+        else {
+            sphere.left = nullptr;
+            ++leaf_count;
+        }
+        if (ri) {
+            sphere.right = &m_tree[ri];
+        }
+        else {
+            sphere.right = nullptr;
+        }
     }
+    ROS_INFO("%zu leaves", leaf_count);
 
 //    // queue of (sphere, parent, right?) tuples
 //    std::queue<std::tuple<CollisionSphereModel*, CollisionSphereModel*, bool>> q;

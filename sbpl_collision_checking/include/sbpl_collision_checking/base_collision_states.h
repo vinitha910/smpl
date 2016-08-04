@@ -59,7 +59,8 @@ struct CollisionSphereState
         model(nullptr), parent_state(nullptr), pos(), left(nullptr), right(nullptr)
     { }
 
-    bool isLeaf() const { return left || right; }
+    // see note in CollisionSphereModel
+    bool isLeaf() const { return !left; }
     int index() const;
 };
 

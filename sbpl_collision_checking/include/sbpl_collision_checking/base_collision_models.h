@@ -59,7 +59,8 @@ struct CollisionSphereModel
         name(), center(), radius(), priority(), left(nullptr), right(nullptr)
     { }
 
-    bool isLeaf() const { return left || right; }
+    // nodes can either have 0 or 2 children
+    bool isLeaf() const { return !left; }
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);

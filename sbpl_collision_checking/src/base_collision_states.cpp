@@ -54,8 +54,18 @@ void CollisionSphereStateTree::buildFrom(CollisionSpheresState* parent_state)
         CollisionSphereState& state = m_tree[i];
         state.model = &model;
         state.parent_state = parent_state;
-        state.left = &m_tree[0] + std::distance(parent_state->model->spheres.root(), model.left);
-        state.right = &m_tree[0] + std::distance(parent_state->model->spheres.root(), model.right);
+        if (model.left) {
+            state.left = &m_tree[0] + std::distance(parent_state->model->spheres.root(), model.left);
+        }
+        else {
+            state.left = nullptr;
+        }
+        if (model.right) {
+            state.right = &m_tree[0] + std::distance(parent_state->model->spheres.root(), model.right);
+        }
+        else {
+            state.right = nullptr;
+        }
     }
 }
 
@@ -64,10 +74,20 @@ CollisionSphereStateTree::CollisionSphereStateTree(
 {
     m_tree = o.m_tree;
     for (size_t i = 0; i < m_tree.size(); ++i) {
-        m_tree[i].left = &m_tree[0] + std::distance(
-                o.root(), (const CollisionSphereState*)o.m_tree[i].left);
-        m_tree[i].right = &m_tree[0] + std::distance(
-                o.root(), (const CollisionSphereState*)o.m_tree[i].right);
+        if (o.m_tree[i].left) {
+            m_tree[i].left = &m_tree[0] + std::distance(
+                    o.root(), (const CollisionSphereState*)o.m_tree[i].left);
+        }
+        else {
+            m_tree[i].left = nullptr;
+        }
+        if (o.m_tree[i].right) {
+            m_tree[i].right = &m_tree[0] + std::distance(
+                    o.root(), (const CollisionSphereState*)o.m_tree[i].right);
+        }
+        else {
+            m_tree[i].right = nullptr;
+        }
     }
 }
 
@@ -77,10 +97,20 @@ CollisionSphereStateTree& CollisionSphereStateTree::operator=(
     if (this != &rhs) {
         m_tree = rhs.m_tree;
         for (size_t i = 0; i < m_tree.size(); ++i) {
-            m_tree[i].left = &m_tree[0] + std::distance(
-                    rhs.root(), (const CollisionSphereState*)rhs.m_tree[i].left);
-            m_tree[i].right = &m_tree[0] + std::distance(
-                    rhs.root(), (const CollisionSphereState*)rhs.m_tree[i].right);
+            if (rhs.m_tree[i].left) {
+                m_tree[i].left = &m_tree[0] + std::distance(
+                        rhs.root(), (const CollisionSphereState*)rhs.m_tree[i].left);
+            }
+            else {
+                m_tree[i].left = nullptr;
+            }
+            if (rhs.m_tree[i].right) {
+                m_tree[i].right = &m_tree[0] + std::distance(
+                        rhs.root(), (const CollisionSphereState*)rhs.m_tree[i].right);
+            }
+            else {
+                m_tree[i].right = nullptr;
+            }
         }
     }
     return *this;
