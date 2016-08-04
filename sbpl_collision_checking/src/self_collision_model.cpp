@@ -117,6 +117,10 @@ private:
     AllowedCollisionMatrix                  m_acm;
     double                                  m_padding;
 
+    typedef std::pair<const CollisionSphereState*, const CollisionSphereState*>
+    SpherePair;
+    std::vector<SpherePair> m_q;
+
     void initAllowedCollisionMatrix();
 
     // switch to checking for a new collision group; removes voxels from groups
@@ -595,39 +599,127 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
     const CollisionSpheresState& ss2,
     double& dist)
 {
-    for (size_t s1idx = 0; s1idx < ss1.spheres.size(); ++s1idx) {
-        for (size_t s2idx = 0; s2idx < ss2.spheres.size(); ++s2idx) {
-            // lazily update the state of the queried spheres
-            const SphereIndex si1(ss1i, s1idx);
-            const SphereIndex si2(ss2i, s2idx);
-            m_rcs.updateSphereState(si1);
-            m_rcs.updateSphereState(si2);
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking spheres state collision");
+    auto sqrd = [](double d) { return d * d; };
 
-            const CollisionSphereState& sphere_state_1 = m_rcs.sphereState(si1);
-            const CollisionSphereModel& sphere_model_1 = *sphere_state_1.model;
+    double d2 = std::numeric_limits<double>::infinity();
 
-            const CollisionSphereState& sphere_state_2 = m_rcs.sphereState(si2);
-            const CollisionSphereModel& sphere_model_2 = *sphere_state_2.model;
+    // assertion: both collision spheres are updated when they are removed from the stack
+    m_rcs.updateSphereState(SphereIndex(ss1i, ss1.spheres.root()->index()));
+    m_rcs.updateSphereState(SphereIndex(ss2i, ss2.spheres.root()->index()));
 
-            Eigen::Vector3d dx = sphere_state_2.pos - sphere_state_1.pos;
-            const double radius_combined = sphere_model_1.radius + sphere_model_2.radius;
-            if (dx.squaredNorm() < radius_combined * radius_combined) {
-                // check for an entry for these particular spheres
-                collision_detection::AllowedCollision::Type type;
-                if (m_acm.getEntry(sphere_model_1.name, sphere_model_2.name, type)) {
-                    if (type != collision_detection::AllowedCollision::ALWAYS) {
-                        ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
-                        return false;
-                    }
-                }
-                else {
-                    ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", sphere_model_1.name.c_str(), sphere_model_2.name.c_str());
+    auto& q = m_q;
+    q.clear();
+    q.push_back(std::make_pair(ss1.spheres.root(), ss2.spheres.root()));
+    while (!q.empty()) {
+        // get the next pair of spheres to check
+        const CollisionSphereState *s1s, *s2s;
+        std::tie(s1s, s2s) = q.back();
+        q.pop_back();
+
+        const CollisionSphereModel* s1m = s1s->model;
+        const CollisionSphereModel* s2m = s2s->model;
+
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking '%s' x '%s' collision", s1m->name.c_str(), s2m->name.c_str());
+
+        Eigen::Vector3d dx = s2s->pos - s1s->pos;
+        const double cd2 = dx.squaredNorm(); // center distance squared
+        const double cr2 = sqrd(s1m->radius + s2m->radius); // combined radius squared
+
+        if (cd2 > cr2) {
+            // no collision between spheres -> back out
+            continue;
+        }
+
+        if (s1s->isLeaf() && s2s->isLeaf()) {
+            // collision found! check acm
+            collision_detection::AllowedCollision::Type type;
+            if (m_acm.getEntry(s1m->name, s2m->name, type)) {
+                if (type != collision_detection::AllowedCollision::ALWAYS) {
+                    ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
                     return false;
                 }
             }
+            else {
+                ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                return false;
+            }
+            // collision between leaves is ok
+            continue;
+        }
+
+        // choose a sphere node to split
+        bool split1;
+        if (s1s->isLeaf()) { // split sphere 2
+            split1 = false;
+        }
+        else if (s2s->isLeaf()) { // split sphere 1
+            split1 = true;
+        }
+        else { // choose a node to split
+            // heuristic -> split the larger sphere to obtain more
+            // information about the underlying surface, assuming the leaf
+            // spheres are often about the same size
+            if (s1m->radius > s2m->radius) {
+                split1 = true;
+            }
+            else {
+                split1 = false;
+            }
+        }
+
+        if (split1) {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s1m->name.c_str());
+            const CollisionSphereState* sl = s1s->left;
+            const CollisionSphereState* sr = s1s->right;
+            // update children positions
+            m_rcs.updateSphereState(SphereIndex(ss1i, sl->index()));
+            m_rcs.updateSphereState(SphereIndex(ss1i, sr->index()));
+
+            // heuristic -> examine the pair of spheres that are closer together
+            // first for a better chance at detecting collision
+
+            // dist from split sphere's left child to other sphere
+            const double cd2l2 = (s2s->pos - sl->pos).squaredNorm();
+            // dist from split sphere's right child to other sphere
+            const double cd2r2 = (s2s->pos - sr->pos).squaredNorm();
+
+            if (cd2l2 < cd2r2) {
+                // examine right child after the left child
+                q.push_back(std::make_pair(sr, s2s));
+                q.push_back(std::make_pair(sl, s2s));
+            }
+            else {
+                // examine the left child after the right child
+                q.push_back(std::make_pair(sl, s2s));
+                q.push_back(std::make_pair(sr, s2s));
+            }
+        }
+        else {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s2m->name.c_str());
+            // equivalent comments from above
+            const CollisionSphereState* sl = s2s->left;
+            const CollisionSphereState* sr = s2s->right;
+
+            m_rcs.updateSphereState(SphereIndex(ss2i, sl->index()));
+            m_rcs.updateSphereState(SphereIndex(ss2i, sr->index()));
+
+            double cd1l2 = (s1s->pos - sl->pos).squaredNorm();
+            double cd1r2 = (s1s->pos - sr->pos).squaredNorm();
+
+            if (cd1l2 < cd1r2) {
+                q.push_back(std::make_pair(s1s, sr));
+                q.push_back(std::make_pair(s1s, sl));
+            }
+            else {
+                q.push_back(std::make_pair(s1s, sl));
+                q.push_back(std::make_pair(s1s, sr));
+            }
         }
     }
+    ROS_DEBUG_NAMED(SCM_LOGGER, "queue exhaused");
 
+    // queue exhaused = no collision found
     return true;
 }
 
