@@ -54,6 +54,12 @@ struct CollisionSphereModel
     double radius;
     int priority;
     const CollisionSphereModel *left, *right;
+
+    CollisionSphereModel() :
+        name(), center(), radius(), priority(), left(nullptr), right(nullptr)
+    { }
+
+    bool isLeaf() const { return left || right; }
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);

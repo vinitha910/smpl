@@ -54,6 +54,13 @@ struct CollisionSphereState
     const CollisionSpheresState* parent_state;
     Eigen::Vector3d pos;
     CollisionSphereState *left, *right;
+
+    CollisionSphereState() :
+        model(nullptr), parent_state(nullptr), pos(), left(nullptr), right(nullptr)
+    { }
+
+    bool isLeaf() const { return left || right; }
+    int index() const;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css);
@@ -160,6 +167,12 @@ struct CollisionGroupState
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionGroupState& cgs);
+
+inline
+int CollisionSphereState::index() const
+{
+    return std::distance(parent_state->spheres.root(), this);
+}
 
 } // namespace collision
 } // namespace sbpl
