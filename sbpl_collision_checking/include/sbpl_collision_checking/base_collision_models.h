@@ -70,7 +70,7 @@ class CollisionSphereModelTree
 public:
 
     void buildFrom(const std::vector<CollisionSphereConfig>& spheres);
-//    void buildFrom(const std::vector<CollisionSphereModel>& spheres);
+    void buildFrom(const std::vector<CollisionSphereModel>& spheres);
 //    void buildFrom(const std::vector<const CollisionSphereModel*>& spheres);
 
     const CollisionSphereModel* root() const { return m_tree.data(); }

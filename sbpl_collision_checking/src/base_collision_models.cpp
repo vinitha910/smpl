@@ -258,6 +258,41 @@ void CollisionSphereModelTree::buildFrom(
 //    ospheres = std::move(spheres);
 }
 
+void CollisionSphereModelTree::buildFrom(
+    const std::vector<CollisionSphereModel>& spheres)
+{
+    m_tree.clear();
+
+    // duplicate vector to allow partitioning
+    std::vector<const CollisionSphereModel*> sptrs(spheres.size());
+    for (size_t i = 0; i < spheres.size(); ++i) {
+        sptrs[i] = &spheres[i];
+    }
+
+    buildRecursive<CollisionSphereModel>(sptrs.begin(), sptrs.end());
+    const CollisionSphereModel* root = &m_tree[0];
+    size_t leaf_count = 0;
+    for (size_t i = 0; i < m_tree.size(); ++i) {
+        CollisionSphereModel& sphere = m_tree[i];
+        const size_t li = reinterpret_cast<size_t>(sphere.left);
+        const size_t ri = reinterpret_cast<size_t>(sphere.right);
+        if (li != std::numeric_limits<size_t>::max()) {
+            sphere.left = &m_tree[li];
+        }
+        else {
+            sphere.left = nullptr;
+            ++leaf_count;
+        }
+        if (ri != std::numeric_limits<size_t>::max()) {
+            sphere.right = &m_tree[ri];
+        }
+        else {
+            sphere.right = nullptr;
+        }
+    }
+    ROS_INFO("%zu leaves", leaf_count);
+}
+
 /// \brief Compute the bounding sphere tree for a subset of model spheres
 /// \return The index into \p m_tree where the top-most bounding sphere was stored
 template <typename Sphere>
