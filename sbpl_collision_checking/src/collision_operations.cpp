@@ -49,11 +49,10 @@ std::vector<SphereIndex> GatherSphereIndices(
     std::vector<int> ss_indices = state.groupSpheresStateIndices(gidx);
     for (int ssidx : ss_indices) {
         const CollisionSpheresState& spheres_state = state.spheresState(ssidx);
-        std::vector<int> s_indices(spheres_state.spheres.size());
-        int n = 0;
-        std::generate(s_indices.begin(), s_indices.end(), [&]() { return n++; });
-        for (int sidx : s_indices) {
-            sphere_indices.emplace_back(ssidx, sidx);
+        for (size_t i = 0; i < spheres_state.spheres.size(); ++i) {
+            if (spheres_state.spheres[i].isLeaf()) {
+                sphere_indices.emplace_back(ssidx, i);
+            }
         }
     }
 

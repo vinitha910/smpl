@@ -439,6 +439,7 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     // prepare sphere indices
 
     m_sphere_indices = GatherSphereIndices(m_rcs, gidx);
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Sphere Indices: %s", to_string(m_sphere_indices).c_str());
 
     // activate the group
     m_gidx = gidx;
