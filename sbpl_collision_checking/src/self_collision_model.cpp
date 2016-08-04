@@ -559,7 +559,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(
         }
 
         const std::string& l1_name = m_rcm->linkName(lidx1);
-        for (int l2 = l1 + 1; l1 < group_link_indices.size(); ++l1) {
+        for (int l2 = l1 + 1; l2 < group_link_indices.size(); ++l2) {
             const int lidx2 = group_link_indices[l2];
             if (!m_rcm->hasSpheresModel(lidx2)) {
                 continue;
