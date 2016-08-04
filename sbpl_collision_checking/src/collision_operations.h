@@ -68,6 +68,22 @@ bool CheckSphereCollision(
     return obs_dist > effective_radius;
 }
 
+inline
+bool CheckSphereCollision(
+    const OccupancyGrid& grid,
+    const CollisionSphereState& s,
+    double padding,
+    double& dist)
+{
+    // check for collision with world
+    double obs_dist = grid.getDistanceFromPoint(s.pos.x(), s.pos.y(), s.pos.z());
+    const double effective_radius =
+            s.model->radius + grid.getHalfResolution() + padding;
+
+    dist = obs_dist;
+    return obs_dist > effective_radius;
+}
+
 std::vector<SphereIndex> GatherSphereIndices(
     const RobotCollisionState& state, int gidx);
 
