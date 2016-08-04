@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find pr2_description)/robots/upload_pr2.launch"/>
+    <rosparam command="load" file="$(find sbpl_collision_checking_test)/config/collision_model_pr2.yaml"/>
+    <node name="benchmark" pkg="sbpl_collision_checking_test" type="benchmark"/>
+</launch>
