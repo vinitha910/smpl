@@ -149,28 +149,31 @@ std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm)
 void CollisionSphereModelTree::buildFrom(
     const std::vector<CollisionSphereConfig>& spheres)
 {
-    // create array of points
+    m_tree.clear();
+
+    // create array of pointers to configuration structures, to allow efficient
+    // partitioning of the set
     std::vector<const CollisionSphereConfig*> sptrs(spheres.size());
     for (size_t i = 0; i < spheres.size(); ++i) {
         sptrs[i] = &spheres[i];
     }
 
-    std::vector<int> parent_indices(sptrs.size());
     buildRecursive<CollisionSphereConfig>(sptrs.begin(), sptrs.end());
-    const CollisionSphereModel* root = &m_tree[0];
+
+    // rewire the child pointers
     size_t leaf_count = 0;
     for (size_t i = 0; i < m_tree.size(); ++i) {
         CollisionSphereModel& sphere = m_tree[i];
         const size_t li = reinterpret_cast<size_t>(sphere.left);
         const size_t ri = reinterpret_cast<size_t>(sphere.right);
-        if (li) {
+        if (li != std::numeric_limits<size_t>::max()) {
             sphere.left = &m_tree[li];
         }
         else {
             sphere.left = nullptr;
             ++leaf_count;
         }
-        if (ri) {
+        if (ri != std::numeric_limits<size_t>::max()) {
             sphere.right = &m_tree[ri];
         }
         else {
@@ -179,6 +182,7 @@ void CollisionSphereModelTree::buildFrom(
     }
     ROS_INFO("%zu leaves", leaf_count);
 
+    const CollisionSphereModel* root = &m_tree[0];
 //    // queue of (sphere, parent, right?) tuples
 //    std::queue<std::tuple<CollisionSphereModel*, CollisionSphereModel*, bool>> q;
 //
@@ -275,9 +279,9 @@ size_t CollisionSphereModelTree::buildRecursive(
         cs.center = Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
         cs.radius = get_radius(s);
         cs.priority = s.priority; // ...or this
-        reinterpret_cast<size_t&>(cs.left) = 0;
-        reinterpret_cast<size_t&>(cs.right) = 0;
-        ROS_INFO("Leaf sphere '%s' %p", cs.name.c_str(), &cs);
+        reinterpret_cast<size_t&>(cs.left) = std::numeric_limits<size_t>::max();
+        reinterpret_cast<size_t&>(cs.right) = std::numeric_limits<size_t>::max();
+        ROS_INFO("Leaf sphere '%s'", cs.name.c_str());
         const size_t this_idx = m_tree.size() - 1;
         return this_idx;
     }
