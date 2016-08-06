@@ -60,12 +60,11 @@ bool CheckSphereCollision(
     // value for invalid cells
 
     // check for collision with world
-    double obs_dist = grid.getDistanceFromPoint(ss.pos.x(), ss.pos.y(), ss.pos.z());
+    dist = grid.getDistanceFromPoint(ss.pos.x(), ss.pos.y(), ss.pos.z());
     const double effective_radius =
             ss.model->radius + grid.getHalfResolution() + padding;
 
-    dist = obs_dist;
-    return obs_dist > effective_radius;
+    return dist > effective_radius;
 }
 
 inline
@@ -76,12 +75,11 @@ bool CheckSphereCollision(
     double& dist)
 {
     // check for collision with world
-    double obs_dist = grid.getDistanceFromPoint(s.pos.x(), s.pos.y(), s.pos.z());
+    dist = grid.getDistanceFromPoint(s.pos.x(), s.pos.y(), s.pos.z());
     const double effective_radius =
             s.model->radius + grid.getHalfResolution() + padding;
 
-    dist = obs_dist;
-    return obs_dist > effective_radius;
+    return dist > effective_radius;
 }
 
 std::vector<SphereIndex> GatherSphereIndices(

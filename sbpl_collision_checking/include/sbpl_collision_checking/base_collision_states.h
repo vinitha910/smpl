@@ -53,7 +53,7 @@ struct CollisionSphereState
     const CollisionSphereModel* model;
     const CollisionSpheresState* parent_state;
     Eigen::Vector3d pos;
-    CollisionSphereState *left, *right;
+    const CollisionSphereState *left, *right;
 
     CollisionSphereState() :
         model(nullptr), parent_state(nullptr), pos(), left(nullptr), right(nullptr)
@@ -94,8 +94,8 @@ public:
     CollisionSphereStateTree(const CollisionSphereStateTree&);
     CollisionSphereStateTree& operator=(const CollisionSphereStateTree&);
 
-    CollisionSphereState* root() { return m_tree.data(); }
-    const CollisionSphereState* root() const { return m_tree.data(); }
+    CollisionSphereState* root() { return &m_tree.back(); }
+    const CollisionSphereState* root() const { return &m_tree.back(); }
 
     /// \name Vector-like Element Access
     ///@{
@@ -146,6 +146,7 @@ struct CollisionSpheresState
 {
     const CollisionSpheresModel* model;
     CollisionSphereStateTree spheres;
+    int index;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css);
@@ -172,7 +173,7 @@ std::ostream& operator<<(std::ostream& o, const CollisionGroupState& cgs);
 inline
 int CollisionSphereState::index() const
 {
-    return std::distance(parent_state->spheres.root(), this);
+    return std::distance(&parent_state->spheres[0], this);
 }
 
 } // namespace collision

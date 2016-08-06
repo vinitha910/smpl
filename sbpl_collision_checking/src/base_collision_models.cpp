@@ -293,6 +293,35 @@ void CollisionSphereModelTree::buildFrom(
     ROS_INFO("%zu leaves", leaf_count);
 }
 
+void CollisionSphereModelTree::buildFrom(
+    const std::vector<const CollisionSphereModel*>& spheres)
+{
+    ROS_INFO("Buliding Collision Sphere Model Tree with %zu model spheres", spheres.size());
+    m_tree.clear();
+
+    std::vector<const CollisionSphereModel*> sptrs = spheres;
+    buildMetaRecursive(sptrs.begin(), sptrs.end());
+
+    size_t leaf_count = 0;
+    for (size_t i = 0; i < m_tree.size(); ++i) {
+        CollisionSphereModel& sphere = m_tree[i];
+        const size_t li = reinterpret_cast<size_t>(sphere.left);
+        const size_t ri = reinterpret_cast<size_t>(sphere.right);
+        ROS_INFO("Sphere [(%0.3f, %0.3f, %0.3f), %0.3f, %zu, %zu]",
+                sphere.center.x(), sphere.center.y(), sphere.center.z(),
+                sphere.radius, li, ri);
+        if (li != ri) {
+            sphere.left = &m_tree[li];
+            sphere.right = &m_tree[ri];
+        }
+        else {
+            // left/right point to the derived sphere model
+            ++leaf_count;
+        }
+    }
+    ROS_INFO("%zu leaves", leaf_count);
+}
+
 /// \brief Compute the bounding sphere tree for a subset of model spheres
 /// \return The index into \p m_tree where the top-most bounding sphere was stored
 template <typename Sphere>
@@ -328,21 +357,21 @@ size_t CollisionSphereModelTree::buildRecursive(
     ROS_INFO("Splitting along axis %d", split_axis);
 
     // compute the average centroid of all spheres at this level
-    Eigen::Vector3d model_bounding_sphere_center = Eigen::Vector3d::Zero();
+    Eigen::Vector3d compact_bounding_sphere_center = Eigen::Vector3d::Zero();
     for (auto it = msfirst; it != mslast; ++it) {
         const Sphere& s = **it;
-        model_bounding_sphere_center += Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+        compact_bounding_sphere_center += Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
     }
-    model_bounding_sphere_center /= count;
+    compact_bounding_sphere_center /= count;
 
     // compute the radius required to encompass all model spheres at this level
     // with a sphere rooted at the model spheres centroid
-    double model_bounding_sphere_radius = 0.0;
+    double compact_bounding_sphere_radius = 0.0;
     for (auto it = msfirst; it != mslast; ++it) {
         Eigen::Vector3d c(get_x(**it), get_y(**it), get_z(**it));
-        double radius = (c - model_bounding_sphere_center).norm() + get_radius(**it);
-        if (radius > model_bounding_sphere_radius) {
-            model_bounding_sphere_radius = radius;
+        double radius = (c - compact_bounding_sphere_center).norm() + get_radius(**it);
+        if (radius > compact_bounding_sphere_radius) {
+            compact_bounding_sphere_radius = radius;
         }
     }
 
@@ -351,11 +380,11 @@ size_t CollisionSphereModelTree::buildRecursive(
     {
         switch (split_axis) {
         case 0:
-            return get_x(*s) < model_bounding_sphere_center.x();
+            return get_x(*s) < compact_bounding_sphere_center.x();
         case 1:
-            return get_y(*s) < model_bounding_sphere_center.y();
+            return get_y(*s) < compact_bounding_sphere_center.y();
         case 2:
-            return get_z(*s) < model_bounding_sphere_center.z();
+            return get_z(*s) < compact_bounding_sphere_center.z();
         }
     };
     auto msmid = std::partition(msfirst, mslast, pred);
@@ -368,26 +397,130 @@ size_t CollisionSphereModelTree::buildRecursive(
     const CollisionSphereModel& sr = m_tree[right_idx];
 
     // compute the optimal sphere to contain both child spheres; mathematical!
-    Eigen::Vector3d child_bounding_sphere_center;
-    double child_bounding_sphere_radius;
+    Eigen::Vector3d greedy_bounding_sphere_center;
+    double greedy_bounding_sphere_radius;
     computeOptimalBoundingSphere(
-            sl, sr, child_bounding_sphere_center, child_bounding_sphere_radius);
+            sl, sr, greedy_bounding_sphere_center, greedy_bounding_sphere_radius);
 
     // create the collision sphere model
     m_tree.emplace_back();
     size_t this_idx = m_tree.size() - 1;
 
-    ROS_INFO("child bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", child_bounding_sphere_center.x(), child_bounding_sphere_center.y(), child_bounding_sphere_center.z(), child_bounding_sphere_radius);
-    ROS_INFO("model bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", model_bounding_sphere_center.x(), model_bounding_sphere_center.y(), model_bounding_sphere_center.z(), model_bounding_sphere_radius);
+    ROS_INFO("child bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", greedy_bounding_sphere_center.x(), greedy_bounding_sphere_center.y(), greedy_bounding_sphere_center.z(), greedy_bounding_sphere_radius);
+    ROS_INFO("model bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", compact_bounding_sphere_center.x(), compact_bounding_sphere_center.y(), compact_bounding_sphere_center.z(), compact_bounding_sphere_radius);
 
     CollisionSphereModel& sphere = m_tree[this_idx];
-    if (child_bounding_sphere_radius < model_bounding_sphere_radius) {
-        sphere.center = child_bounding_sphere_center;
-        sphere.radius = child_bounding_sphere_radius;
+    if (greedy_bounding_sphere_radius < compact_bounding_sphere_radius) {
+        sphere.center = greedy_bounding_sphere_center;
+        sphere.radius = greedy_bounding_sphere_radius;
     }
     else {
-        sphere.center = model_bounding_sphere_center;
-        sphere.radius = model_bounding_sphere_radius;
+        sphere.center = compact_bounding_sphere_center;
+        sphere.radius = compact_bounding_sphere_radius;
+    }
+    sphere.name;
+    sphere.priority = 0;
+    reinterpret_cast<size_t&>(sphere.left) = left_idx;
+    reinterpret_cast<size_t&>(sphere.right) = right_idx;
+    ROS_INFO("sptr: %p", &sphere);
+    return this_idx;
+}
+
+size_t CollisionSphereModelTree::buildMetaRecursive(
+    std::vector<const CollisionSphereModel*>::iterator msfirst,
+    std::vector<const CollisionSphereModel*>::iterator mslast)
+{
+    if (mslast == msfirst) {
+        ROS_INFO("Zero spheres base case");
+        return -1;
+    }
+
+    const auto count = std::distance(msfirst, mslast);
+    if (count == 1) {
+        m_tree.emplace_back();
+        CollisionSphereModel& cs = m_tree.back();
+        const CollisionSphereModel& s = **msfirst;
+        cs.name = s.name; // ok, no i'm not making traits for these
+        cs.center = Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+        cs.radius = get_radius(s);
+        cs.priority = s.priority; // ...or this
+        cs.left = *msfirst;
+        cs.right = *msfirst;
+        ROS_INFO("Leaf sphere '%s'", cs.name.c_str());
+        const size_t this_idx = m_tree.size() - 1;
+        return this_idx;
+    }
+
+    ROS_INFO("Building hierarchy from %zu spheres", count);
+
+    // compute the largest axis of the bounding box along which to split
+    const int split_axis = computeLargestBoundingBoxAxis<CollisionSphereModel>(msfirst, mslast);
+    ROS_INFO("Splitting along axis %d", split_axis);
+
+    // compute the average centroid of all spheres at this level
+    Eigen::Vector3d compact_bounding_sphere_center = Eigen::Vector3d::Zero();
+    for (auto it = msfirst; it != mslast; ++it) {
+        const CollisionSphereModel& s = **it;
+        compact_bounding_sphere_center += Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+    }
+    compact_bounding_sphere_center /= count;
+
+    // compute the radius required to encompass all model spheres at this level
+    // with a sphere rooted at the model spheres centroid
+    double compact_bounding_sphere_radius = 0.0;
+    for (auto it = msfirst; it != mslast; ++it) {
+        Eigen::Vector3d c(get_x(**it), get_y(**it), get_z(**it));
+        double radius = (c - compact_bounding_sphere_center).norm() + get_radius(**it);
+        if (radius > compact_bounding_sphere_radius) {
+            compact_bounding_sphere_radius = radius;
+        }
+    }
+
+    // split the tree along the largest axis by the centroid
+    auto pred = [&](const CollisionSphereModel* s)
+    {
+        switch (split_axis) {
+        case 0:
+            return get_x(*s) < compact_bounding_sphere_center.x();
+        case 1:
+            return get_y(*s) < compact_bounding_sphere_center.y();
+        case 2:
+            return get_z(*s) < compact_bounding_sphere_center.z();
+        }
+    };
+    auto msmid = std::partition(msfirst, mslast, pred);
+    if (msfirst == msmid || msmid == mslast) {
+        msmid = msfirst + (std::distance(msfirst, mslast) >> 1);
+    }
+
+    // recurse on both subtrees
+    const size_t left_idx = buildMetaRecursive(msfirst, msmid);
+    const size_t right_idx = buildMetaRecursive(msmid, mslast);
+
+    const CollisionSphereModel& sl = m_tree[left_idx];
+    const CollisionSphereModel& sr = m_tree[right_idx];
+
+    // compute the optimal sphere to contain both child spheres; mathematical!
+    Eigen::Vector3d greedy_bounding_sphere_center;
+    double greedy_bounding_sphere_radius;
+    computeOptimalBoundingSphere(
+            sl, sr, greedy_bounding_sphere_center, greedy_bounding_sphere_radius);
+
+    // create the collision sphere model
+    m_tree.emplace_back();
+    size_t this_idx = m_tree.size() - 1;
+
+    ROS_INFO("child bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", greedy_bounding_sphere_center.x(), greedy_bounding_sphere_center.y(), greedy_bounding_sphere_center.z(), greedy_bounding_sphere_radius);
+    ROS_INFO("model bounding sphere: (%0.3f, %0.3f, %0.3f), %0.3f", compact_bounding_sphere_center.x(), compact_bounding_sphere_center.y(), compact_bounding_sphere_center.z(), compact_bounding_sphere_radius);
+
+    CollisionSphereModel& sphere = m_tree[this_idx];
+    if (greedy_bounding_sphere_radius < compact_bounding_sphere_radius) {
+        sphere.center = greedy_bounding_sphere_center;
+        sphere.radius = greedy_bounding_sphere_radius;
+    }
+    else {
+        sphere.center = compact_bounding_sphere_center;
+        sphere.radius = compact_bounding_sphere_radius;
     }
     sphere.name;
     sphere.priority = 0;

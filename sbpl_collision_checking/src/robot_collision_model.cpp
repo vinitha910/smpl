@@ -873,6 +873,9 @@ bool RobotCollisionModelImpl::initCollisionModel(
         CollisionSpheresModel& spheres_model = m_spheres_models[i];
         spheres_model.link_index = linkIndex(spheres_config.link_name);
         spheres_model.spheres.buildFrom(spheres_config.spheres);
+        for (auto& sphere : spheres_model.spheres.m_tree) {
+            sphere.parent = &spheres_model;
+        }
     }
 
     // initialize voxels models

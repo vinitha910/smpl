@@ -46,6 +46,8 @@
 namespace sbpl {
 namespace collision {
 
+class CollisionSpheresModel;
+
 /// \brief Collision Sphere Model Specification
 struct CollisionSphereModel
 {
@@ -53,6 +55,7 @@ struct CollisionSphereModel
     Eigen::Vector3d center; ///< offset from link center
     double radius;
     int priority;
+    const CollisionSpheresModel* parent;
     const CollisionSphereModel *left, *right;
 
     CollisionSphereModel() :
@@ -60,7 +63,8 @@ struct CollisionSphereModel
     { }
 
     // nodes can either have 0 or 2 children
-    bool isLeaf() const { return !left; }
+    bool isLeaf() const { return left == right; }
+    int index() const;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm);
@@ -71,9 +75,10 @@ public:
 
     void buildFrom(const std::vector<CollisionSphereConfig>& spheres);
     void buildFrom(const std::vector<CollisionSphereModel>& spheres);
-//    void buildFrom(const std::vector<const CollisionSphereModel*>& spheres);
 
-    const CollisionSphereModel* root() const { return m_tree.data(); }
+    void buildFrom(const std::vector<const CollisionSphereModel*>& spheres);
+
+    const CollisionSphereModel* root() const { return &m_tree.back(); }
 
     size_t size() const { return m_tree.size(); }
 
@@ -90,6 +95,10 @@ private:
         typename std::vector<const Sphere*>::iterator msfirst,
         typename std::vector<const Sphere*>::iterator mslast);
 
+    size_t buildMetaRecursive(
+        std::vector<const CollisionSphereModel*>::iterator msfirst,
+        std::vector<const CollisionSphereModel*>::iterator mslast);
+
     void computeOptimalBoundingSphere(
         const CollisionSphereModel& s1,
         const CollisionSphereModel& s2,
@@ -100,6 +109,7 @@ private:
         typename std::vector<const Sphere*>::iterator msfirst,
         typename std::vector<const Sphere*>::iterator mslast);
 
+public: // TODO: mimic iterators from CollisionSphereTree
     std::vector<CollisionSphereModel> m_tree;
 };
 
@@ -144,6 +154,12 @@ struct SphereIndex
 
 std::ostream& operator<<(std::ostream& o, const SphereIndex& i);
 std::string to_string(const SphereIndex& i);
+
+inline
+int CollisionSphereModel::index() const
+{
+    return std::distance(&parent->spheres[0], this);
+}
 
 } // namespace collision
 } // namespace sbpl

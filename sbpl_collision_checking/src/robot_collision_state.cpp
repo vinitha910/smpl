@@ -721,9 +721,10 @@ void RobotCollisionStateImpl::initCollisionState()
         // map spheres state -> spheres model
         spheres_state.model = &spheres_model;
 
-        // map sphere state -> sphere model
-        // map sphere state -> spheres state
         spheres_state.spheres.buildFrom(&spheres_state);
+
+        spheres_state.index = i;
+
         offset += spheres_model.spheres.size();
     }
 

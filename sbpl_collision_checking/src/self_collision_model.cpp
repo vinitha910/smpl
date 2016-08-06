@@ -510,17 +510,119 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 {
     updateVoxelsStates();
 
-    for (const auto& sidx : m_sphere_indices) {
-        double obs_dist;
-        if (!CheckSphereCollision(*m_grid, m_rcs, m_padding, sidx, obs_dist)) {
-            const CollisionSphereModel* sm = m_rcs.sphereState(sidx).model;
-            ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* idx: %s, name: %s, radius: %0.3fm, dist: %0.3fm", to_string(sidx).c_str(), sm->name.c_str(), sm->radius, obs_dist);
-            dist = obs_dist;
-            return false;
+    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
+
+    // map from meta sphere leaf model to its corresponding collision sphere root state
+    std::unordered_map<const CollisionSphereModel*, const CollisionSphereState*> model_state_map;
+
+    // gather the root collision sphere models for each link in the group;
+    auto group_spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
+    std::vector<CollisionSphereModel> roots(group_spheres_state_indices.size());
+    std::vector<const CollisionSphereModel*> rps(roots.size());
+    for (size_t i = 0; i < roots.size(); ++i) {
+        rps[i] = &roots[i];
+        const int ssidx = group_spheres_state_indices[i];
+        // update the model with the position of the root spheres state
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        m_rcs.updateSphereState(SphereIndex(ssidx, s->index()));
+        CollisionSphereModel& sm = roots[i];
+        sm.center = s->pos;
+        sm.radius = s->model->radius;
+        sm.priority = s->model->priority;
+        model_state_map[rps[i]] = s;
+    }
+
+    CollisionSpheresModel meta_model;
+    meta_model.link_index = -1; // not attached to any link
+    meta_model.spheres.buildFrom(rps);
+    for (auto& sphere : meta_model.spheres.m_tree) {
+        sphere.parent = &meta_model;
+    }
+
+    // create a state for the model
+    CollisionSpheresState meta_state;
+    meta_state.model = &meta_model;
+    meta_state.index = -1; // no position in the robot state
+    meta_state.spheres.buildFrom(&meta_state);
+
+    // meta-leaf spheres will have null children at this point
+    // -> update meta-leaf sphere states' children to be the root states of
+    //    other subtrees
+    for (auto& ss : meta_state.spheres) {
+        if (ss.isLeaf()) {
+            ROS_INFO("Mapping s.left (%p) to (%p)", ss.left, model_state_map[ss.model->left]);
+            ROS_INFO("Mapping s.right (%p) to (%p)", ss.right, model_state_map[ss.model->right]);
+            // model.leaf points to the correct child
+            ss.left = model_state_map[ss.model->left];
+            ss.right = model_state_map[ss.model->right];
+        }
+    }
+
+    std::vector<const CollisionSphereState*> q;
+    q.push_back(meta_state.spheres.root());
+    while (!q.empty()) {
+        const CollisionSphereState* s = q.back();
+        q.pop_back();
+
+        // update non-meta states
+        if (s->parent_state->index != -1) {
+            m_rcs.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
         }
 
-        if (obs_dist < dist) {
-            dist = obs_dist;
+        ROS_INFO_NAMED(SCM_LOGGER, "Checking sphere with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+
+        double obs_dist;
+        if (CheckSphereCollision(*m_grid, *s, m_padding, obs_dist)) {
+            ROS_INFO_NAMED(SCM_LOGGER, "Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
+            continue; // no collision -> ok!
+        }
+
+        // collision -> not ok or recurse!
+
+        if (s->isLeaf()) {
+            if (s->parent_state->index == -1) {
+                // meta-leaf -> recurse on existing children of referenced
+                // sphere tree root state
+
+                // node connecting meta tree to kinematic tree
+                assert(s->left == s->right);
+                const CollisionSphereState* sl = s->left->left;
+                const CollisionSphereState* sr = s->right->right;
+
+                if (sl && sr) {
+                    if (sl->model->radius > sr->model->radius) {
+                        q.push_back(sr);
+                        q.push_back(sl);
+                    }
+                    else {
+                        q.push_back(sl);
+                        q.push_back(sr);
+                    }
+                }
+                else if (sl) {
+                    q.push_back(sl);
+                }
+                else if (sr) {
+                    q.push_back(sr);
+                }
+            }
+            else { // normal leaf
+                const CollisionSphereModel* sm = s->model;
+                ROS_INFO_NAMED(SCM_LOGGER, "    *collision* name: %s, radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), sm->radius, obs_dist);
+                dist = obs_dist;
+                return false; // collision -> not ok!
+            }
+        }
+        else { // recurse on both the children
+            if (s->left->model->radius > s->right->model->radius) {
+                q.push_back(s->right);
+                q.push_back(s->left);
+            }
+            else {
+                q.push_back(s->left);
+                q.push_back(s->right);
+            }
         }
     }
 
