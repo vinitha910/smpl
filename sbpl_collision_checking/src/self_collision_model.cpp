@@ -551,8 +551,8 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
     //    other subtrees
     for (auto& ss : meta_state.spheres) {
         if (ss.isLeaf()) {
-            ROS_INFO("Mapping s.left (%p) to (%p)", ss.left, model_state_map[ss.model->left]);
-            ROS_INFO("Mapping s.right (%p) to (%p)", ss.right, model_state_map[ss.model->right]);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.left (%p) to (%p)", ss.left, model_state_map[ss.model->left]);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.right (%p) to (%p)", ss.right, model_state_map[ss.model->right]);
             // model.leaf points to the correct child
             ss.left = model_state_map[ss.model->left];
             ss.right = model_state_map[ss.model->right];
@@ -570,11 +570,11 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
             m_rcs.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
         }
 
-        ROS_INFO_NAMED(SCM_LOGGER, "Checking sphere with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
 
         double obs_dist;
         if (CheckSphereCollision(*m_grid, *s, m_padding, obs_dist)) {
-            ROS_INFO_NAMED(SCM_LOGGER, "Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
             continue; // no collision -> ok!
         }
 
@@ -609,7 +609,7 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
             }
             else { // normal leaf
                 const CollisionSphereModel* sm = s->model;
-                ROS_INFO_NAMED(SCM_LOGGER, "    *collision* name: %s, radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), sm->radius, obs_dist);
+                ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* name: %s, radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), sm->radius, obs_dist);
                 dist = obs_dist;
                 return false; // collision -> not ok!
             }

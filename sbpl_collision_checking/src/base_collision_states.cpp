@@ -62,7 +62,6 @@ void CollisionSphereStateTree::buildFrom(CollisionSpheresState* parent_state)
         else {
             state.left = &m_tree[0] + sm.left->index();
             state.right = &m_tree[0] + sm.right->index();
-            ROS_INFO("left: %p, right: %p, li: %d, ri: %d", state.left, state.right, sm.left->index(), sm.right->index());
         }
     }
 }
