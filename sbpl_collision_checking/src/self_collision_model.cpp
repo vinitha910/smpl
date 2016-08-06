@@ -117,6 +117,17 @@ private:
     AllowedCollisionMatrix                  m_acm;
     double                                  m_padding;
 
+    // cached group information for voxels checks
+    typedef std::unordered_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
+    ModelStateMap                               m_model_state_map;
+    std::vector<CollisionSphereModel>           m_root_models;
+    std::vector<const CollisionSphereModel*>    m_root_model_pointers;
+
+    CollisionSpheresModel                       m_meta_model;
+    CollisionSpheresState                       m_meta_state;
+    std::vector<const CollisionSphereState*>    m_vq;
+
+    // cached information for spheres checks
     typedef std::pair<const CollisionSphereState*, const CollisionSphereState*>
     SpherePair;
     std::vector<SpherePair> m_q;
@@ -441,6 +452,41 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     m_sphere_indices = GatherSphereIndices(m_rcs, gidx);
     ROS_DEBUG_NAMED(SCM_LOGGER, "Sphere Indices: %s", to_string(m_sphere_indices).c_str());
 
+    /////////////////////////////////////////////////////////
+    // update group information for building the meta tree //
+    /////////////////////////////////////////////////////////
+
+    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
+
+    // map from meta sphere leaf model to its corresponding collision sphere root state
+    m_model_state_map.clear();
+
+    // gather the root collision sphere models for each link in the group;
+    const auto& spheres_state_indices = m_rcs.groupSpheresStateIndices(gidx);
+    m_root_models.resize(spheres_state_indices.size());
+    m_root_model_pointers.resize(spheres_state_indices.size());
+    for (size_t i = 0; i < m_root_models.size(); ++i) {
+        m_root_model_pointers[i] = &m_root_models[i];
+        const int ssidx = spheres_state_indices[i];
+        // update the model with the position of the root spheres state
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        CollisionSphereModel& sm = m_root_models[i];
+        sm.radius = s->model->radius;
+        sm.priority = s->model->priority;
+        m_model_state_map[m_root_model_pointers[i]] = s;
+    }
+
+    m_meta_model.link_index = -1; // not attached to any link
+
+    // create a state for the model
+    m_meta_state.model = &m_meta_model;
+    m_meta_state.index = -1; // no position in the robot state
+
+    ////////////////////
+    // end that stuff //
+    ////////////////////
+
     // activate the group
     m_gidx = gidx;
 
@@ -510,57 +556,43 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 {
     updateVoxelsStates();
 
-    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
-
-    // map from meta sphere leaf model to its corresponding collision sphere root state
-    std::unordered_map<const CollisionSphereModel*, const CollisionSphereState*> model_state_map;
-
-    // gather the root collision sphere models for each link in the group;
-    auto group_spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
-    std::vector<CollisionSphereModel> roots(group_spheres_state_indices.size());
-    std::vector<const CollisionSphereModel*> rps(roots.size());
-    for (size_t i = 0; i < roots.size(); ++i) {
-        rps[i] = &roots[i];
-        const int ssidx = group_spheres_state_indices[i];
+    // update the root collision sphere models
+    const auto& spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
+    for (size_t i = 0; i < spheres_state_indices.size(); ++i) {
+        const int ssidx = spheres_state_indices[i];
         // update the model with the position of the root spheres state
         const auto& ss = m_rcs.spheresState(ssidx);
         const CollisionSphereState* s = ss.spheres.root();
         m_rcs.updateSphereState(SphereIndex(ssidx, s->index()));
-        CollisionSphereModel& sm = roots[i];
+        CollisionSphereModel& sm = m_root_models[i];
         sm.center = s->pos;
-        sm.radius = s->model->radius;
-        sm.priority = s->model->priority;
-        model_state_map[rps[i]] = s;
     }
 
-    CollisionSpheresModel meta_model;
-    meta_model.link_index = -1; // not attached to any link
-    meta_model.spheres.buildFrom(rps);
-    for (auto& sphere : meta_model.spheres.m_tree) {
-        sphere.parent = &meta_model;
+    // rebuild the meta tree model
+    m_meta_model.spheres.buildFrom(m_root_model_pointers);
+    for (auto& sphere : m_meta_model.spheres.m_tree) {
+        sphere.parent = &m_meta_model;
     }
 
-    // create a state for the model
-    CollisionSpheresState meta_state;
-    meta_state.model = &meta_model;
-    meta_state.index = -1; // no position in the robot state
-    meta_state.spheres.buildFrom(&meta_state);
+    // recreate the meta tree state
+    m_meta_state.spheres.buildFrom(&m_meta_state);
 
     // meta-leaf spheres will have null children at this point
     // -> update meta-leaf sphere states' children to be the root states of
     //    other subtrees
-    for (auto& ss : meta_state.spheres) {
+    for (auto& ss : m_meta_state.spheres) {
         if (ss.isLeaf()) {
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.left (%p) to (%p)", ss.left, model_state_map[ss.model->left]);
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.right (%p) to (%p)", ss.right, model_state_map[ss.model->right]);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.left (%p) to (%p)", ss.left, m_model_state_map[ss.model->left]);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.right (%p) to (%p)", ss.right, m_model_state_map[ss.model->right]);
             // model.leaf points to the correct child
-            ss.left = model_state_map[ss.model->left];
-            ss.right = model_state_map[ss.model->right];
+            ss.left = m_model_state_map[ss.model->left];
+            ss.right = m_model_state_map[ss.model->right];
         }
     }
 
-    std::vector<const CollisionSphereState*> q;
-    q.push_back(meta_state.spheres.root());
+    auto& q = m_vq;
+    q.clear();
+    q.push_back(m_meta_state.spheres.root());
     while (!q.empty()) {
         const CollisionSphereState* s = q.back();
         q.pop_back();
