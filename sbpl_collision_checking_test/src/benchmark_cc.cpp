@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
     double elapsed = 0.0;
     while (ros::ok() && elapsed < time_limit) {
         auto variables = CreateRandomVariables(*rcm, planning_joints, rng);
-        ma_pub.publish(cspace->getCollisionRobotVisualization(variables));
+//        ma_pub.publish(cspace->getCollisionRobotVisualization(variables));
         double dist;
         auto start = std::chrono::high_resolution_clock::now();
         bool res = cspace->isStateValid(variables, false, false, dist);
