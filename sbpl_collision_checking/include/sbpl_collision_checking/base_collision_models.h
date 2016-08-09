@@ -86,6 +86,8 @@ public:
         return m_tree[idx];
     }
 
+    double maxRadius() const;
+
 private:
 
     friend std::ostream& operator<<(std::ostream& o, const CollisionSphereModelTree& tree);

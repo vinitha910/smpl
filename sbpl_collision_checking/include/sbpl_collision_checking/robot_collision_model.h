@@ -151,6 +151,8 @@ public:
             const std::vector<int>&;
     auto   groupLinkIndices(int gidx) const ->
             const std::vector<int>&;
+
+    double maxSphereRadius() const;
     ///@}
 
 private:

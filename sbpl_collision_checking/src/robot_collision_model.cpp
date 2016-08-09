@@ -142,6 +142,8 @@ public:
     auto   groupLinkIndices(int gidx) const ->
             const std::vector<int>&;
 
+    double maxSphereRadius() const;
+
 private:
 
     // cached after initialization to allow regeneration of references
@@ -577,6 +579,16 @@ const std::vector<int>& RobotCollisionModelImpl::groupLinkIndices(int gidx) cons
 {
     ASSERT_VECTOR_RANGE(m_group_models, gidx);
     return m_group_models[gidx].link_indices;
+}
+
+inline
+double RobotCollisionModelImpl::maxSphereRadius() const
+{
+    double d = 0.0;
+    for (const auto& spheres : m_spheres_models) {
+        d = std::max(d, spheres.spheres.maxRadius());
+    }
+    return d;
 }
 
 bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
@@ -1400,6 +1412,11 @@ const std::vector<int>& RobotCollisionModel::groupLinkIndices(
 const std::vector<int>& RobotCollisionModel::groupLinkIndices(int gidx) const
 {
     return m_impl->groupLinkIndices(gidx);
+}
+
+double RobotCollisionModel::maxSphereRadius() const
+{
+    return m_impl->maxSphereRadius();
 }
 
 RobotCollisionModel::RobotCollisionModel() :

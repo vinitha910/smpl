@@ -280,6 +280,24 @@ void CollisionSphereModelTree::buildFrom(
     ROS_DEBUG("%zu leaves", leaf_count);
 }
 
+double CollisionSphereModelTree::maxRadius() const
+{
+    auto radius_comp = [](
+        const CollisionSphereModel& s1,
+        const CollisionSphereModel& s2)
+    {
+        return s1.radius < s2.radius;
+    };
+
+    auto it = std::max_element(m_tree.begin(), m_tree.end(), radius_comp);
+    if (it == m_tree.end()) {
+        return 0.0;
+    }
+    else {
+        return it->radius;
+    }
+}
+
 /// \brief Compute the bounding sphere tree for a subset of model spheres
 /// \return The index into \p m_tree where the top-most bounding sphere was stored
 template <typename Sphere>
