@@ -552,10 +552,13 @@ void SelfCollisionModelImpl::updateVoxelsStates()
     }
 }
 
+#define USE_META_TREE 0
+
 bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 {
     updateVoxelsStates();
 
+#if USE_META_TREE
     // update the root collision sphere models
     const auto& spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
     for (size_t i = 0; i < spheres_state_indices.size(); ++i) {
@@ -589,10 +592,21 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
             ss.right = m_model_state_map[ss.model->right];
         }
     }
+#endif
 
     auto& q = m_vq;
     q.clear();
+
+#if USE_META_TREE
     q.push_back(m_meta_state.spheres.root());
+#else
+    for (const int ssidx : m_rcs.groupSpheresStateIndices(m_gidx)) {
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+    }
+#endif
+
     while (!q.empty()) {
         const CollisionSphereState* s = q.back();
         q.pop_back();
