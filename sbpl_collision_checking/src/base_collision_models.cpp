@@ -138,6 +138,36 @@ inline double get_z(const Sphere& sphere)
     return sphere_traits::center_z<Sphere>::get(sphere);
 }
 
+template <typename Sphere>
+struct SpherePartitionerX
+{
+    double x;
+    SpherePartitionerX(double x) : x(x) { }
+    bool operator()(const Sphere* s) const {
+        return get_x(*s) < x;
+    }
+};
+
+template <typename Sphere>
+struct SpherePartitionerY
+{
+    double y;
+    SpherePartitionerY(double y) : y(y) { }
+    bool operator()(const Sphere* s) const {
+        return get_y(*s) < y;
+    }
+};
+
+template <typename Sphere>
+struct SpherePartitionerZ
+{
+    double z;
+    SpherePartitionerZ(double z) : z(z) { }
+    bool operator()(const Sphere* s) const {
+        return get_z(*s) < z;
+    }
+};
+
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm)
 {
     o << "{ name: " << csm.name << ", center: (" << csm.center.x() << ", " <<
@@ -182,80 +212,8 @@ void CollisionSphereModelTree::buildFrom(
     }
     ROS_DEBUG("%zu leaves", leaf_count);
 
-    const CollisionSphereModel* root = &m_tree[0];
-//    // queue of (sphere, parent, right?) tuples
-//    std::queue<std::tuple<CollisionSphereModel*, CollisionSphereModel*, bool>> q;
-//
-//    // compute total sphere count
-//    size_t count = 0;
-//    q.push(std::make_tuple(root, nullptr, false));
-//    while (!q.empty()) {
-//        CollisionSphereModel* s;
-//        CollisionSphereModel* p;
-//        bool right;
-//        std::tie(s, p, right) = q.front();
-//        q.pop();
-//        ++count;
-//
-//        if (s->left) {
-//            q.push(std::make_tuple(s->left, s, false));
-//        }
-//        if (s->right) {
-//            q.push(std::make_tuple(s->right, s, true));
-//        }
-//    }
-//
-//    ROS_WARN("Created %zu total spheres", count);
-//
-//    // slerp tree into contiguous array
-//    std::vector<CollisionSphereModel> spheres(count);
-//    q.push(std::make_tuple(root, nullptr, false));
-//    size_t sidx = 0;
-//    while (!q.empty()) {
-//        CollisionSphereModel* sphere;
-//        CollisionSphereModel* parent;
-//        bool right;
-//        std::tie(sphere, parent, right) = q.front();
-//
-//        q.pop();
-//
-//        spheres[sidx] = *sphere;
-//        if (parent) {
-//            if (right) {
-//                parent->right = &spheres[sidx];
-//            }
-//            else {
-//                parent->left = &spheres[sidx];
-//            }
-//        }
-//
-//        if (sphere->left) {
-//            q.push(std::make_tuple(sphere->left, &spheres[sidx], false));
-//        }
-//        if (sphere->right) {
-//            q.push(std::make_tuple(sphere->right, &spheres[sidx], true));
-//        }
-//    }
-//
-//    struct SphereTreeDeleter
-//    {
-//        void del(CollisionSphereModel* s)
-//        {
-//            ROS_DEBUG("Delete %p", s);
-//            if (s->left) {
-//                del(s->left);
-//            }
-//            if (s->right) {
-//                del(s->right);
-//            }
-//            delete s;
-//        }
-//    };
-//
-//    // delete the temporary sphere tree
-//    SphereTreeDeleter().del(root);
-//
-//    ospheres = std::move(spheres);
+    // TODO: play around with the layout (ordering) of nodes in the compact
+    // array to see if efficiency is affected
 }
 
 void CollisionSphereModelTree::buildFrom(
@@ -375,19 +333,23 @@ size_t CollisionSphereModelTree::buildRecursive(
         }
     }
 
-    // split the tree along the largest axis by the centroid
-    auto pred = [&](const Sphere* s)
+    auto part = [&compact_bounding_sphere_center](
+        int split_axis,
+        typename std::vector<const Sphere*>::iterator first,
+        typename std::vector<const Sphere*>::iterator last)
     {
-        switch (split_axis) {
-        case 0:
-            return get_x(*s) < compact_bounding_sphere_center.x();
-        case 1:
-            return get_y(*s) < compact_bounding_sphere_center.y();
-        case 2:
-            return get_z(*s) < compact_bounding_sphere_center.z();
+        if (split_axis == 0) {
+            return std::partition(first, last, SpherePartitionerX<Sphere>(compact_bounding_sphere_center.x()));
+        }
+        else if (split_axis == 1) {
+            return std::partition(first, last, SpherePartitionerY<Sphere>(compact_bounding_sphere_center.y()));
+        }
+        else {
+            return std::partition(first, last, SpherePartitionerZ<Sphere>(compact_bounding_sphere_center.z()));
         }
     };
-    auto msmid = std::partition(msfirst, mslast, pred);
+    // split the tree along the largest axis by the centroid
+    auto msmid = part(split_axis, msfirst, mslast);
 
     // recurse on both subtrees
     const size_t left_idx = buildRecursive<Sphere>(msfirst, msmid);
@@ -488,7 +450,24 @@ size_t CollisionSphereModelTree::buildMetaRecursive(
             return get_z(*s) < compact_bounding_sphere_center.z();
         }
     };
-    auto msmid = std::partition(msfirst, mslast, pred);
+
+    auto part = [&compact_bounding_sphere_center](
+        int split_axis,
+        typename std::vector<const CollisionSphereModel*>::iterator first,
+        typename std::vector<const CollisionSphereModel*>::iterator last)
+    {
+        if (split_axis == 0) {
+            return std::partition(first, last, SpherePartitionerX<CollisionSphereModel>(compact_bounding_sphere_center.x()));
+        }
+        else if (split_axis == 1) {
+            return std::partition(first, last, SpherePartitionerY<CollisionSphereModel>(compact_bounding_sphere_center.y()));
+        }
+        else {
+            return std::partition(first, last, SpherePartitionerZ<CollisionSphereModel>(compact_bounding_sphere_center.z()));
+        }
+    };
+    // split the tree along the largest axis by the centroid
+    auto msmid = part(split_axis, msfirst, mslast);
     if (msfirst == msmid || msmid == mslast) {
         msmid = msfirst + (std::distance(msfirst, mslast) >> 1);
     }
