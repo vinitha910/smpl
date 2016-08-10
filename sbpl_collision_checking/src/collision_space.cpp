@@ -436,7 +436,7 @@ CollisionSpace::getOccupiedVoxelsVisualization() const
     return m_grid->getOccupiedVoxelsVisualization();
 }
 
-bool CollisionSpace::isStateValid(
+bool CollisionSpace::checkCollision(
     const std::vector<double>& vars,
     const AllowedCollisionsInterface& aci,
     bool verbose,
@@ -462,6 +462,20 @@ bool CollisionSpace::isStateValid(
     }
 
     return attached_object_world_valid && robot_robot_valid;
+}
+
+bool CollisionSpace::checkCollision(
+    const std::vector<double>& vars,
+    double& dist)
+{
+    updateState(vars);
+    return m_scm->checkCollision(*m_rcs, m_gidx, dist);
+}
+
+double CollisionSpace::collisionDistance(const std::vector<double>& vars)
+{
+    updateState(vars);
+    return m_scm->collisionDistance(*m_rcs, m_gidx);
 }
 
 bool CollisionSpace::isStateValid(

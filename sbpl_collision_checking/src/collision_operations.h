@@ -45,6 +45,17 @@ bool CheckSphereCollision(
     const SphereIndex& sidx,
     double& dist);
 
+bool CheckSphereCollision(
+    const OccupancyGrid& grid,
+    const CollisionSphereState& s,
+    double padding,
+    double& dist);
+
+double SphereCollisionDistance(
+    const OccupancyGrid& grid,
+    const CollisionSphereState& s,
+    double padding);
+
 inline
 bool CheckSphereCollision(
     const OccupancyGrid& grid,
@@ -80,6 +91,18 @@ bool CheckSphereCollision(
             s.model->radius + grid.getHalfResolution() + padding;
 
     return dist > effective_radius;
+}
+
+inline
+double SphereCollisionDistance(
+    const OccupancyGrid& grid,
+    const CollisionSphereState& s,
+    double padding)
+{
+    double dist = grid.getDistanceFromPoint(s.pos.x(), s.pos.y(), s.pos.z());
+    const double effective_radius =
+            s.model->radius + grid.getHalfResolution() + padding;
+    return dist - effective_radius;
 }
 
 std::vector<SphereIndex> GatherSphereIndices(

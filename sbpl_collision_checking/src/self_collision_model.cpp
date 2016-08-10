@@ -40,6 +40,8 @@
 namespace sbpl {
 namespace collision {
 
+#define USE_META_TREE 0
+
 static const char* SCM_LOGGER = "self";
 
 class SelfCollisionModelImpl
@@ -162,6 +164,11 @@ private:
     bool checkAttachedBodySpheresStateCollisions(double& dist);
 
     void updateCheckedSpheresIndices();
+
+    void updateMetaSphereTrees();
+
+    double voxelsCollisionDistance();
+    double spheresCollisionDistance();
 };
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
@@ -369,8 +376,20 @@ double SelfCollisionModelImpl::collisionDistance(
     RobotCollisionState& state,
     const int gidx)
 {
-    // TODO: implement me
-    return 0.0;
+    if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    updateGroup(gidx);
+    copyState(state);
+
+    return std::min(voxelsCollisionDistance(), spheresCollisionDistance());
 }
 
 double SelfCollisionModelImpl::collisionDistance(
@@ -552,46 +571,12 @@ void SelfCollisionModelImpl::updateVoxelsStates()
     }
 }
 
-#define USE_META_TREE 0
-
 bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 {
     updateVoxelsStates();
 
 #if USE_META_TREE
-    // update the root collision sphere models
-    const auto& spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
-    for (size_t i = 0; i < spheres_state_indices.size(); ++i) {
-        const int ssidx = spheres_state_indices[i];
-        // update the model with the position of the root spheres state
-        const auto& ss = m_rcs.spheresState(ssidx);
-        const CollisionSphereState* s = ss.spheres.root();
-        m_rcs.updateSphereState(SphereIndex(ssidx, s->index()));
-        CollisionSphereModel& sm = m_root_models[i];
-        sm.center = s->pos;
-    }
-
-    // rebuild the meta tree model
-    m_meta_model.spheres.buildFrom(m_root_model_pointers);
-    for (auto& sphere : m_meta_model.spheres.m_tree) {
-        sphere.parent = &m_meta_model;
-    }
-
-    // recreate the meta tree state
-    m_meta_state.spheres.buildFrom(&m_meta_state);
-
-    // meta-leaf spheres will have null children at this point
-    // -> update meta-leaf sphere states' children to be the root states of
-    //    other subtrees
-    for (auto& ss : m_meta_state.spheres) {
-        if (ss.isLeaf()) {
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.left (%p) to (%p)", ss.left, m_model_state_map[ss.model->left]);
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.right (%p) to (%p)", ss.right, m_model_state_map[ss.model->right]);
-            // model.leaf points to the correct child
-            ss.left = m_model_state_map[ss.model->left];
-            ss.right = m_model_state_map[ss.model->right];
-        }
-    }
+    updateMetaSphereTrees();
 #endif
 
     auto& q = m_vq;
@@ -924,6 +909,128 @@ void SelfCollisionModelImpl::updateCheckedSpheresIndices()
             }
         }
     }
+}
+
+void SelfCollisionModelImpl::updateMetaSphereTrees()
+{
+    // update the root collision sphere models
+    const auto& spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
+    for (size_t i = 0; i < spheres_state_indices.size(); ++i) {
+        const int ssidx = spheres_state_indices[i];
+        // update the model with the position of the root spheres state
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        m_rcs.updateSphereState(SphereIndex(ssidx, s->index()));
+        CollisionSphereModel& sm = m_root_models[i];
+        sm.center = s->pos;
+    }
+
+    // rebuild the meta tree model
+    m_meta_model.spheres.buildFrom(m_root_model_pointers);
+    for (auto& sphere : m_meta_model.spheres.m_tree) {
+        sphere.parent = &m_meta_model;
+    }
+
+    // recreate the meta tree state
+    m_meta_state.spheres.buildFrom(&m_meta_state);
+
+    // meta-leaf spheres will have null children at this point
+    // -> update meta-leaf sphere states' children to be the root states of
+    //    other subtrees
+    for (auto& ss : m_meta_state.spheres) {
+        if (ss.isLeaf()) {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.left (%p) to (%p)", ss.left, m_model_state_map[ss.model->left]);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Mapping s.right (%p) to (%p)", ss.right, m_model_state_map[ss.model->right]);
+            // model.leaf points to the correct child
+            ss.left = m_model_state_map[ss.model->left];
+            ss.right = m_model_state_map[ss.model->right];
+        }
+    }
+}
+
+double SelfCollisionModelImpl::voxelsCollisionDistance()
+{
+    updateVoxelsStates();
+
+    auto& q = m_vq;
+    q.clear();
+
+    for (const int ssidx : m_rcs.groupSpheresStateIndices(m_gidx)) {
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+    }
+
+    double d = std::numeric_limits<double>::infinity();
+
+    while (!q.empty()) {
+        const CollisionSphereState* s = q.back();
+        q.pop_back();
+
+        // update non-meta states
+        if (s->parent_state->index != -1) {
+            m_rcs.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
+        }
+
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+
+        double obs_dist = SphereCollisionDistance(*m_grid, *s, m_padding);
+        if (obs_dist >= d) {
+            continue; // further -> ok!
+        }
+
+        d = obs_dist;
+
+        // collision -> not ok or recurse!
+
+        if (s->isLeaf()) {
+            if (s->parent_state->index == -1) {
+                // meta-leaf -> recurse on existing children of referenced
+                // sphere tree root state
+
+                // node connecting meta tree to kinematic tree
+                assert(s->left == s->right);
+                const CollisionSphereState* sl = s->left->left;
+                const CollisionSphereState* sr = s->right->right;
+
+                if (sl && sr) {
+                    if (sl->model->radius > sr->model->radius) {
+                        q.push_back(sr);
+                        q.push_back(sl);
+                    }
+                    else {
+                        q.push_back(sl);
+                        q.push_back(sr);
+                    }
+                }
+                else if (sl) {
+                    q.push_back(sl);
+                }
+                else if (sr) {
+                    q.push_back(sr);
+                }
+            }
+            // else continue checking other subtrees
+        }
+        else { // recurse on both the children
+            if (s->left->model->radius > s->right->model->radius) {
+                q.push_back(s->right);
+                q.push_back(s->left);
+            }
+            else {
+                q.push_back(s->left);
+                q.push_back(s->right);
+            }
+        }
+    }
+
+    ROS_DEBUG_NAMED(SCM_LOGGER, "voxels distance = %0.3f", d);
+    return d;
+}
+
+double SelfCollisionModelImpl::spheresCollisionDistance()
+{
+    return std::numeric_limits<double>::infinity();
 }
 
 ///////////////////////////////////////

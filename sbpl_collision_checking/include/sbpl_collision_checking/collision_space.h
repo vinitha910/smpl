@@ -140,12 +140,16 @@ public:
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
     ///@}
 
-    bool isStateValid(
+    bool checkCollision(
         const std::vector<double>& vars,
         const AllowedCollisionsInterface& aci,
         bool verbose,
         bool visualize,
         double& dist);
+
+    bool checkCollision(const std::vector<double>& vars, double& dist);
+
+    double collisionDistance(const std::vector<double>& vars);
 
     /// \name Reimplemented Public Functions
     ///@{
