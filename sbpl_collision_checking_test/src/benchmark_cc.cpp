@@ -103,29 +103,155 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh)
     return grid;
 }
 
-template <typename RNG>
-std::vector<double> CreateRandomVariables(
-    const sbpl::collision::RobotCollisionModel& rcm,
-    const std::vector<std::string>& var_names,
-    RNG& rng)
+class CollisionSpaceProfiler
+{
+public:
+
+    bool init();
+
+    struct ProfileResults
+    {
+        int check_count;
+    };
+
+    ProfileResults profileCollisionChecks(double time_limit);
+    ProfileResults profileDistanceChecks(double time_limit);
+
+private:
+
+    ros::NodeHandle m_nh;
+    sbpl::OccupancyGridPtr m_grid;
+    std::vector<std::string> m_planning_joints;
+    sbpl::collision::RobotCollisionModelPtr m_rcm;
+    sbpl::collision::CollisionSpacePtr m_cspace;
+    std::default_random_engine m_rng;
+
+    std::vector<double> createRandomState();
+};
+
+bool CollisionSpaceProfiler::init()
+{
+    m_grid = CreateGrid(m_nh);
+
+    std::string robot_description_key;
+    if (!m_nh.searchParam("robot_description", robot_description_key)) {
+        ROS_ERROR("Failed to find 'robot_description' key on the param server");
+        return false;
+    }
+
+    urdf::Model urdf;
+    if (!urdf.initParam(robot_description_key)) {
+        ROS_ERROR("Failed to initialize URDF from parameter '%s'", robot_description_key.c_str());
+        return false;
+    }
+
+    if (urdf.getName() != "pr2") {
+        ROS_ERROR("This benchmark is intended for the PR2 robot");
+        return false;
+    }
+
+    sbpl::collision::CollisionModelConfig config;
+    if (!sbpl::collision::CollisionModelConfig::Load(m_nh, config)) {
+        ROS_ERROR("Failed to load collision model config");
+        return false;
+    }
+
+    m_rcm = sbpl::collision::RobotCollisionModel::Load(urdf, config);
+
+    const std::string group_name = "right_arm";
+
+    // hardcoded joint names corresponding to 'right_arm' joint group from SRDF
+    m_planning_joints =
+    {
+        "r_shoulder_pan_joint",
+        "r_shoulder_lift_joint",
+        "r_upper_arm_roll_joint",
+        "r_elbow_flex_joint",
+        "r_forearm_roll_joint",
+        "r_wrist_flex_joint",
+        "r_wrist_roll_joint",
+    };
+
+    sbpl::collision::CollisionSpaceBuilder builder;
+    m_cspace = builder.build(m_grid.get(), m_rcm, group_name, m_planning_joints);
+
+    if (!m_cspace) {
+        ROS_ERROR("Failed to build Collision Space");
+        return false;
+    }
+
+    ros::Publisher ma_pub = m_nh.advertise<visualization_msgs::MarkerArray>(
+            "visualization_markers", 100);
+
+    return true;
+}
+
+CollisionSpaceProfiler::ProfileResults
+CollisionSpaceProfiler::profileCollisionChecks(double time_limit)
+{
+    ROS_INFO("Evaluating %0.3f seconds of collision checks", time_limit);
+
+    ROS_INFO("Begin collision check benchmarking");
+
+    int check_count = 0;
+    double elapsed = 0.0;
+    while (ros::ok() && elapsed < time_limit) {
+        auto variables = createRandomState();
+        auto start = std::chrono::high_resolution_clock::now();
+        double dist;
+        bool res = m_cspace->checkCollision(variables, dist);
+        auto finish = std::chrono::high_resolution_clock::now();
+        elapsed += std::chrono::duration<double>(finish - start).count();
+        ++check_count;
+    }
+
+    ProfileResults res;
+    res.check_count = check_count;
+    return res;
+}
+
+CollisionSpaceProfiler::ProfileResults
+CollisionSpaceProfiler::profileDistanceChecks(double time_limit)
+{
+    ROS_INFO("Evaluating %0.3f seconds of distance checks", time_limit);
+
+    ROS_INFO("Begin distance check benchmarking");
+
+    int check_count = 0;
+    double elapsed = 0.0;
+    while (ros::ok() && elapsed < time_limit) {
+        auto variables = createRandomState();
+        auto start = std::chrono::high_resolution_clock::now();
+        double dist = m_cspace->collisionDistance(variables);
+        auto finish = std::chrono::high_resolution_clock::now();
+        elapsed += std::chrono::duration<double>(finish - start).count();
+        ++check_count;
+    }
+
+    ProfileResults res;
+    res.check_count = check_count;
+    return res;
+}
+
+std::vector<double> CollisionSpaceProfiler::createRandomState()
 {
     std::vector<double> out;
-    out.reserve(var_names.size());
-    for (const std::string& var_name : var_names) {
-        if (rcm.jointVarIsContinuous(var_name)) {
+    out.reserve(m_planning_joints.size());
+    for (const std::string& var_name : m_planning_joints) {
+        if (m_rcm->jointVarIsContinuous(var_name)) {
             std::uniform_real_distribution<double> dist(-M_PI, M_PI);
-            out.push_back(dist(rng));
+            out.push_back(dist(m_rng));
 
         }
-        else if (!rcm.jointVarHasPositionBounds(var_name)) {
+        else if (!m_rcm->jointVarHasPositionBounds(var_name)) {
             std::uniform_real_distribution<double> dist;
-            out.push_back(dist(rng));
+            out.push_back(dist(m_rng));
         }
         else {
             std::uniform_real_distribution<double> dist(
-                    rcm.jointVarMinPosition(var_name),
-                    rcm.jointVarMaxPosition(var_name));
-            out.push_back(dist(rng));
+                    m_rcm->jointVarMinPosition(var_name),
+                    m_rcm->jointVarMaxPosition(var_name));
+            out.push_back(dist(m_rng));
         }
     }
     return out;
@@ -141,78 +267,24 @@ int main(int argc, char *argv[])
         ROS_WARN("Did you make a mistake?");
     }
 
-    ROS_INFO("Evaluating %0.3f seconds of collision checks", time_limit);
-
-    auto grid = CreateGrid(nh);
-
-    std::string robot_description_key;
-    if (!nh.searchParam("robot_description", robot_description_key)) {
-        ROS_ERROR("Failed to find 'robot_description' key on the param server");
+    CollisionSpaceProfiler prof;
+    if (!prof.init()) {
+        ROS_ERROR("Failed to initialize profiler");
         return 1;
     }
 
-    urdf::Model urdf;
-    if (!urdf.initParam(robot_description_key)) {
-        ROS_ERROR("Failed to initialize URDF from parameter '%s'", robot_description_key.c_str());
-        return 1;
+    {
+        auto res = prof.profileCollisionChecks(time_limit);
+        ROS_INFO("check count: %d", res.check_count);
+        ROS_INFO("checks / second: %g", res.check_count / time_limit);
+        ROS_INFO("seconds / check: %g", time_limit / res.check_count);
     }
-
-    if (urdf.getName() != "pr2") {
-        ROS_ERROR("This benchmark is intended for the PR2 robot");
-        return 1;
+    {
+        auto res = prof.profileDistanceChecks(time_limit);
+        ROS_INFO("check count: %d", res.check_count);
+        ROS_INFO("checks / second: %g", res.check_count / time_limit);
+        ROS_INFO("seconds / check: %g", time_limit / res.check_count);
     }
-
-    sbpl::collision::CollisionModelConfig config;
-    if (!sbpl::collision::CollisionModelConfig::Load(nh, config)) {
-        ROS_ERROR("Failed to load collision model config");
-        return 1;
-    }
-
-    auto rcm = sbpl::collision::RobotCollisionModel::Load(urdf, config);
-
-    const std::string group_name = "right_arm";
-
-    // hardcoded joint names corresponding to 'right_arm' joint group from SRDF
-    const std::vector<std::string> planning_joints = {
-        "r_shoulder_pan_joint",
-        "r_shoulder_lift_joint",
-        "r_upper_arm_roll_joint",
-        "r_elbow_flex_joint",
-        "r_forearm_roll_joint",
-        "r_wrist_flex_joint",
-        "r_wrist_roll_joint",
-    };
-
-    sbpl::collision::CollisionSpaceBuilder builder;
-    auto cspace = builder.build(grid.get(), rcm, group_name, planning_joints);
-
-    if (!cspace) {
-        ROS_ERROR("Failed to build Collision Space");
-        return 1;
-    }
-
-    std::default_random_engine rng;
-
-    ROS_INFO("Begin collision check benchmarking");
-
-    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_markers", 100);
-
-    int check_count = 0;
-    double elapsed = 0.0;
-    while (ros::ok() && elapsed < time_limit) {
-        auto variables = CreateRandomVariables(*rcm, planning_joints, rng);
-//        ma_pub.publish(cspace->getCollisionRobotVisualization(variables));
-        double dist;
-        auto start = std::chrono::high_resolution_clock::now();
-        bool res = cspace->isStateValid(variables, false, false, dist);
-        auto finish = std::chrono::high_resolution_clock::now();
-        elapsed += std::chrono::duration<double>(finish - start).count();
-        ++check_count;
-    }
-
-    ROS_INFO("check count: %d", check_count);
-    ROS_INFO("checks / second: %g", check_count / elapsed);
-    ROS_INFO("seconds / check: %g", elapsed / check_count);
 
     return 0;
 }
