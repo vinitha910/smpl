@@ -72,7 +72,8 @@ struct EnvROBARM3DHashEntry_t
     RobotState state;           // corresponding continuous coordinate
 };
 
-/// \class Environment to be used when planning for a Robotic Arm using the SBPL
+/// \class Discrete state lattice representation representing a robot as the
+///     set of all its joint variables
 class ManipLattice : public DiscreteSpaceInformation
 {
 public:
@@ -88,103 +89,63 @@ public:
 
     bool initEnvironment(ManipHeuristic* heur);
 
-    void insertStartObserver(ManipLatticeStartObserver* observer);
-    void removeStartObserver(ManipLatticeStartObserver* observer);
-    void insertGoalObserver(ManipLatticeGoalObserver* observer);
-    void removeGoalObserver(ManipLatticeGoalObserver* observer);
+    RobotModel* getRobotModel() { return rmodel_; }
+    CollisionChecker* getCollisionChecker() { return cc_; }
+    ros::Publisher& visualizationPublisher() { return m_vpub; }
 
+    const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
+
+    bool computePlanningFrameFK(
+        const std::vector<double>& state,
+        std::vector<double>& pose) const;
+
+    /// \name Start and Goal States
+    ///@{
     virtual bool setStartConfiguration(const RobotState& angles);
 
-    /// \brief Set a 6-dof goal pose for the tip link.
-    ///
-    /// \param goals A list of goal poses/positions for offsets from the tip
-    ///      link. The format of each element is { x_i, y_i, z_i, R_i, P_i, Y_i,
-    ///      6dof? } where the first 6 elements specify the goal pose of the end
-    ///      effector and the 7th element is a flag indicating whether
-    ///      orientation constraints are required.
-    ///
-    /// \param offsets A list of offsets from the tip link corresponding to
-    ///     \p goals. The goal condition and the heuristic values will be
-    ///     computed relative to these offsets.
-    ///
-    /// \param tolerances A list of goal pose/position tolerances corresponding
-    ///     to the \p goals. The format of each element is { dx_i, dy_i, dz_i,
-    ///     dR_i, dP_i, dY_i } in meters/radians.
     virtual bool setGoalPosition(
         const std::vector<std::vector<double>>& goals,
         const std::vector<std::vector<double>>& offsets,
         const std::vector<std::vector<double>>& tolerances);
 
-    /// \brief Set a full joint configuration goal.
     virtual bool setGoalConfiguration(
         const std::vector<double>& angles,
         const std::vector<double>& angle_tolerances);
 
-    virtual void getExpandedStates(
-        std::vector<std::vector<double>>& ara_states) const;
-
-    virtual bool extractPath(
-        const std::vector<int>& idpath,
-        std::vector<std::vector<double>>& path);
-
-    virtual void convertStateIDPathToShortenedJointAnglesPath(
-        const std::vector<int>& idpath,
-        std::vector<std::vector<double>>& path,
-        std::vector<int>& idpath_short);
-
-    RobotModel* getRobotModel() { return rmodel_; }
-    CollisionChecker* getCollisionChecker() { return cc_; }
-    ros::Publisher& visualizationPublisher() { return m_vpub; }
-
-    /// \brief Return the ID of the goal state or -1 if no goal has been set.
-    int getGoalStateID() const;
-
-    /// \brief Return the ID of the start state or -1 if no start has been set.
-    ///
-    /// This returns the reserved id corresponding to all states which are goal
-    /// states and not the state id of any particular unique state.
-    int getStartStateID() const;
-
-    /// \brief Return the 6-dof goal pose for the tip link.
-    ///
-    /// Return the 6-dof goal pose for the tip link, as last set by
-    /// setGoalPosition(). If no goal has been set, the returned vector is
-    /// empty.
     const std::vector<double>& getGoal() const;
 
-    /// \brief Return the 6-dof goal pose for the offset from the tip link.
     std::vector<double> getTargetOffsetPose(
         const std::vector<double>& tip_pose) const;
 
     const GoalConstraint& getGoalConstraints() const;
 
-    /// \brief Return the full joint configuration goal.
-    ///
-    /// Return the full joint configuration goal, as last set by
-    /// setGoalConfiguration().
+    std::vector<double> getStartConfiguration() const;
     std::vector<double> getGoalConfiguration() const;
 
-    std::vector<double> getStartConfiguration() const;
-
-    /// \brief Get the (heuristic) distance from the planning frame position to the start
     double getStartDistance(double x, double y, double z);
-
-    /// \brief Get the (heuristic) distance from the planning link pose to the start
     double getStartDistance(const std::vector<double>& pose);
 
-    /// \brief Get the (heuristic) distance from the planning frame position to the goal
     double getGoalDistance(double x, double y, double z);
-
-    // \brief Get the (heuristic) distance from the planning link pose to the goal
     double getGoalDistance(const std::vector<double>& pose);
 
-    const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
+    int getStartStateID() const;
+    int getGoalStateID() const;
 
-    // NOTE: const although RobotModel::computePlanningLinkFK used underneath
-    // may not be
-    bool computePlanningFrameFK(
-        const std::vector<double>& state,
-        std::vector<double>& pose) const;
+    void insertStartObserver(ManipLatticeStartObserver* observer);
+    void removeStartObserver(ManipLatticeStartObserver* observer);
+    void insertGoalObserver(ManipLatticeGoalObserver* observer);
+    void removeGoalObserver(ManipLatticeGoalObserver* observer);
+    ///@}
+
+    virtual void getExpandedStates(
+        std::vector<std::vector<double>>& ara_states) const;
+
+    /// \name Path Extraction
+    ///@{
+    virtual bool extractPath(
+        const std::vector<int>& idpath,
+        std::vector<std::vector<double>>& path);
+    ///@}
 
     /// \name Reimplemented Public Functions
     ///@{

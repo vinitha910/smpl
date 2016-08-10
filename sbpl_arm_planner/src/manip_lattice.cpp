@@ -552,6 +552,8 @@ EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
     return NULL;
 }
 
+/// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
+/// not be
 bool ManipLattice::computePlanningFrameFK(
     const std::vector<double>& state,
     std::vector<double>& pose) const
@@ -919,6 +921,7 @@ bool ManipLattice::setStartConfiguration(const RobotState& angles)
     return true;
 }
 
+/// \brief Set a full joint configuration goal.
 bool ManipLattice::setGoalConfiguration(
     const std::vector<double>& goal,
     const std::vector<double>& goal_tolerances)
@@ -958,6 +961,21 @@ bool ManipLattice::setGoalConfiguration(
     return true;
 }
 
+/// \brief Set a 6-dof goal pose for the tip link.
+///
+/// \param goals A list of goal poses/positions for offsets from the tip link.
+///     The format of each element is { x_i, y_i, z_i, R_i, P_i, Y_i, 6dof? }
+///     where the first 6 elements specify the goal pose of the end effector and
+///     the 7th element is a flag indicating whether orientation constraints are
+///     required.
+///
+/// \param offsets A list of offsets from the tip link corresponding to \p
+///     goals. The goal condition and the heuristic values will be computed
+///     relative to these offsets.
+///
+/// \param tolerances A list of goal pose/position tolerances corresponding to
+///     the \p goals. The format of each element is { dx_i, dy_i, dz_i, dR_i,
+///     dP_i, dY_i } in meters/radians.
 bool ManipLattice::setGoalPosition(
     const std::vector<std::vector<double>>& goals,
     const std::vector<std::vector<double>>& offsets,
@@ -1251,13 +1269,7 @@ bool ManipLattice::extractPath(
     return true;
 }
 
-void ManipLattice::convertStateIDPathToShortenedJointAnglesPath(
-    const std::vector<int>& idpath,
-    std::vector<std::vector<double>>& path,
-    std::vector<int>& idpath_short)
-{
-}
-
+/// \brief Get the (heuristic) distance from the planning link pose to the start
 double ManipLattice::getStartDistance(double x, double y, double z)
 {
     return m_heur->getMetricStartDistance(x, y, z);
@@ -1269,11 +1281,14 @@ double ManipLattice::getStartDistance(const std::vector<double>& pose)
     return getStartDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
+/// \brief Get the (heuristic) distance from the planning frame position to the
+///     goal
 double ManipLattice::getGoalDistance(double x, double y, double z)
 {
     return m_heur->getMetricGoalDistance(x, y, z);
 }
 
+// \brief Get the (heuristic) distance from the planning link pose to the goal
 double ManipLattice::getGoalDistance(const std::vector<double>& pose)
 {
     std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
@@ -1289,21 +1304,31 @@ const EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(int state_id) const
     return m_states[state_id];
 }
 
+/// \brief Return the ID of the goal state or -1 if no goal has been set.
 int ManipLattice::getGoalStateID() const
 {
     return m_goal_entry ? m_goal_entry->stateID : -1;
 }
 
+/// \brief Return the ID of the start state or -1 if no start has been set.
+///
+/// This returns the reserved id corresponding to all states which are goal
+/// states and not the state id of any particular unique state.
 int ManipLattice::getStartStateID() const
 {
     return m_start_entry ? m_start_entry->stateID : -1;
 }
 
+/// \brief Return the 6-dof goal pose for the tip link.
+///
+/// Return the 6-dof goal pose for the tip link, as last set by
+/// setGoalPosition(). If no goal has been set, the returned vector is empty.
 const std::vector<double>& ManipLattice::getGoal() const
 {
     return m_goal.pose;
 }
 
+/// \brief Return the 6-dof goal pose for the offset from the tip link.
 std::vector<double> ManipLattice::getTargetOffsetPose(
     const std::vector<double>& tip_pose) const
 {
@@ -1326,11 +1351,17 @@ const GoalConstraint& ManipLattice::getGoalConstraints() const
     return m_goal;
 }
 
+/// \brief Return the full joint configuration goal.
+///
+/// Return the full joint configuration goal, as last set by
+/// setGoalConfiguration().
 std::vector<double> ManipLattice::getGoalConfiguration() const
 {
     return m_goal.angles;
 }
 
+/// \brief Get the (heuristic) distance from the planning frame position to the
+///     start
 std::vector<double> ManipLattice::getStartConfiguration() const
 {
     if (m_start_entry) {
