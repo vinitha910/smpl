@@ -527,29 +527,13 @@ EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
 {
     int binid = getHashBin(coord);
 
-#if DEBUG
-    if ((int)m_Coord2StateIDHashTable[binid].size() > 500) {
-        ROS_WARN("WARNING: Hash table has a bin %d (coord0=%d) of size %d", binid, coord[0], int(m_Coord2StateIDHashTable[binid].size()));
-        printHashTableHist();
-    }
-#endif
-
     // iterate over the states in the bin and select the perfect match
-    for (int ind = 0; ind < (int)m_Coord2StateIDHashTable[binid].size(); ind++) {
-        int j = 0;
-
-        for (j = 0; j < int(coord.size()); j++) {
-            if (m_Coord2StateIDHashTable[binid][ind]->coord[j] != coord[j]) {
-                break;
-            }
-        }
-
-        if (j == int(coord.size())) {
-            return m_Coord2StateIDHashTable[binid][ind];
+    for (EnvROBARM3DHashEntry_t* entry : m_Coord2StateIDHashTable[binid]) {
+        if (entry->coord == coord) {
+            return entry;
         }
     }
-
-    return NULL;
+    return nullptr;
 }
 
 /// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
@@ -596,7 +580,6 @@ EnvROBARM3DHashEntry_t* ManipLattice::createHashEntry(
 
     // assign a stateID to HashEntry to be used
     HashEntry->stateID = m_states.size();
-
     // insert into the tables
     m_states.push_back(HashEntry);
 
@@ -644,6 +627,13 @@ bool ManipLattice::initEnvironment(ManipHeuristic* heur)
     m_states.clear();
 
     // create empty start & goal states
+
+    // TODO: need to be really careful about this...the search should "probably"
+    // never generate a unique state that has the same id as the reserved goal
+    // state and thus uses the same storage. This case should be rare at the
+    // moment since it requires all non-continuous joints to be at their minimum
+    // values and all continuous joints to be at their zero positions, but that
+    // case will likely produce a bug in the current state
     int endeff[3] = { 0 };
     std::vector<int> coord(prm_->num_joints_, 0);
     m_start_entry = nullptr;
@@ -863,16 +853,16 @@ bool ManipLattice::checkAction(
 
 bool ManipLattice::setStartConfiguration(const RobotState& angles)
 {
-    ROS_DEBUG_NAMED(prm_->graph_log_, "Setting the start state");
+    ROS_DEBUG_NAMED(prm_->graph_log_, "set the start state");
 
     if ((int)angles.size() < prm_->num_joints_) {
-        ROS_ERROR_NAMED(prm_->graph_log_, "Start state does not contain enough enough joint positions.");
+        ROS_ERROR_NAMED(prm_->graph_log_, "start state does not contain enough joint positions");
         return false;
     }
 
     ROS_DEBUG_NAMED(prm_->graph_log_, "  angles: %s", to_string(angles).c_str());
 
-    //get joint positions of starting configuration
+    // get joint positions of starting configuration
     std::vector<double> pose(6, 0.0);
     if (!computePlanningFrameFK(angles, pose)) {
         ROS_WARN(" -> unable to compute forward kinematics");
@@ -895,7 +885,7 @@ bool ManipLattice::setStartConfiguration(const RobotState& angles)
 
     visualizeState(angles, "start_config");
 
-    //get arm position in environment
+    // get arm position in environment
     std::vector<int> start_coord(prm_->num_joints_);
     anglesToCoord(angles, start_coord);
     ROS_DEBUG_NAMED(prm_->graph_log_, "  coord: %s", to_string(start_coord).c_str());

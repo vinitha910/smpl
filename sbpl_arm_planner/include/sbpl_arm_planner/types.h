@@ -53,14 +53,19 @@ enum GoalType
 
 struct GoalConstraint
 {
+    // Relevant for joint state goals
     std::vector<double> angles;
     std::vector<double> angle_tolerances;
-    std::vector<double> pose;           // goal pose of the planning link
+
+    // Relevant for workspace goals
+    std::vector<double> pose;           // goal pose of the planning link as (x, y, z, R, P, Y)
     std::vector<double> tgt_off_pose;   // goal pose offset from planning link
     double xyz_offset[3];               // offset from the planning link
     double xyz_tolerance[3];            // (x, y, z) tolerance
     double rpy_tolerance[3];            // (R, P, Y) tolerance
+
     int xyz[3];                         // planning frame cell (x, y, z)
+
     GoalType type;                      // type of goal constraint
 };
 
