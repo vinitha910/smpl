@@ -986,7 +986,13 @@ double SelfCollisionModelImpl::voxelsCollisionDistance()
             continue; // further -> ok!
         }
 
-        d = obs_dist;
+        const double alpha = 0.5;
+        d = std::max(0.0, (1.0 - alpha) * obs_dist);
+        if (d == 0.0) {
+            // can't lower separation distance further -> done!
+            q.clear();
+            continue;
+        }
 
         // collision -> not ok or recurse!
 
