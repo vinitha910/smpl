@@ -169,6 +169,15 @@ private:
 
     double voxelsCollisionDistance();
     double spheresCollisionDistance();
+
+    double spheresStateCollisionDistance(
+        const int ss1i, const int ss2i,
+        const CollisionSpheresState& ss1,
+        const CollisionSpheresState& ss2);
+
+    double sphereDistance(
+        const CollisionSphereState& s1,
+        const CollisionSphereState& s2) const;
 };
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
@@ -671,12 +680,12 @@ bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
 bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
 {
     for (const auto& ss_pair : m_checked_spheres_states) {
-        int ss1idx = ss_pair.first;
-        int ss2idx = ss_pair.second;
-        const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1idx);
-        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2idx);
+        int ss1i = ss_pair.first;
+        int ss2i = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
+        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
 
-        if (!checkSpheresStateCollision(ss1idx, ss2idx, ss1, ss2, dist)) {
+        if (!checkSpheresStateCollision(ss1i, ss2i, ss1, ss2, dist)) {
             return false;
         }
     }
@@ -735,8 +744,6 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Checking spheres state collision");
     auto sqrd = [](double d) { return d * d; };
-
-    double d2 = std::numeric_limits<double>::infinity();
 
     // assertion: both collision spheres are updated when they are removed from the stack
     m_rcs.updateSphereState(SphereIndex(ss1i, ss1.spheres.root()->index()));
@@ -1030,7 +1037,157 @@ double SelfCollisionModelImpl::voxelsCollisionDistance()
 
 double SelfCollisionModelImpl::spheresCollisionDistance()
 {
-    return std::numeric_limits<double>::infinity();
+    double dmin = std::numeric_limits<double>::infinity();
+    for (const auto& ss_pair: m_checked_spheres_states) {
+        int ss1i = ss_pair.first;
+        int ss2i = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
+        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
+
+        double d = spheresStateCollisionDistance(ss1i, ss2i, ss1, ss2);
+        if (d < dmin) {
+            dmin = d;
+        }
+    }
+    return dmin;
+}
+
+double SelfCollisionModelImpl::spheresStateCollisionDistance(
+    const int ss1i, const int ss2i,
+    const CollisionSpheresState& ss1,
+    const CollisionSpheresState& ss2)
+{
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking spheres state collision");
+
+    double dp = std::numeric_limits<double>::infinity();
+
+    // assertion: both collision spheres are updated when they are removed from the stack
+    m_rcs.updateSphereState(SphereIndex(ss1i, ss1.spheres.root()->index()));
+    m_rcs.updateSphereState(SphereIndex(ss2i, ss2.spheres.root()->index()));
+
+    auto& q = m_q;
+    q.clear();
+    q.push_back(std::make_pair(ss1.spheres.root(), ss2.spheres.root()));
+    while (!q.empty()) {
+        // get the next pair of spheres to check
+        const CollisionSphereState *s1s, *s2s;
+        std::tie(s1s, s2s) = q.back();
+        q.pop_back();
+
+        const CollisionSphereModel* s1m = s1s->model;
+        const CollisionSphereModel* s2m = s2s->model;
+
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking '%s' x '%s' collision", s1m->name.c_str(), s2m->name.c_str());
+
+        // NOTE: this algorithm doesn't play nicely with the concept of allowed
+        // collisions between individual spheres. The assumption is that the
+        // current estimate is an upper bound on the minimum separate distance
+        // but, in the case of an allowed collision matrix, we may find out
+        // further down the tree that the upper bound can be much greater when
+        // ignoring checks between individual spheres. (which return inf as the
+        // bound on their separation distance)
+
+        double ds = sphereDistance(*s1s, *s2s);
+        if (ds >= dp) {
+            continue; // collision is greater -> back out
+        }
+
+        // TODO: does it make sense to keep negative distances around to serve
+        // as a penetration distance metric?
+        const double alpha = 0.5; // technically, (1 - alpha) from the paper
+        dp = std::max(0.0, (1.0 - alpha) * ds);
+
+        if (dp == 0) {
+            // can't possibly lower the separate distance further -> done!
+            q.clear();
+            continue;
+        }
+
+        if (s1s->isLeaf() && s2s->isLeaf()) {
+            // done recursing
+            continue;
+        }
+
+        // choose a sphere node to split
+        bool split1;
+        if (s1s->isLeaf()) { // split sphere 2
+            split1 = false;
+        }
+        else if (s2s->isLeaf()) { // split sphere 1
+            split1 = true;
+        }
+        else { // choose a node to split
+            // heuristic -> split the larger sphere to obtain more
+            // information about the underlying surface, assuming the leaf
+            // spheres are often about the same size
+            if (s1m->radius > s2m->radius) {
+                split1 = true;
+            }
+            else {
+                split1 = false;
+            }
+        }
+
+        if (split1) {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s1m->name.c_str());
+            const CollisionSphereState* sl = s1s->left;
+            const CollisionSphereState* sr = s1s->right;
+            // update children positions
+            m_rcs.updateSphereState(SphereIndex(ss1i, sl->index()));
+            m_rcs.updateSphereState(SphereIndex(ss1i, sr->index()));
+
+            // heuristic -> examine the pair of spheres that are closer together
+            // first for a better chance at detecting collision
+
+            // dist from split sphere's left child to other sphere
+            const double cd2l2 = (s2s->pos - sl->pos).squaredNorm();
+            // dist from split sphere's right child to other sphere
+            const double cd2r2 = (s2s->pos - sr->pos).squaredNorm();
+
+            if (cd2l2 < cd2r2) {
+                // examine right child after the left child
+                q.push_back(std::make_pair(sr, s2s));
+                q.push_back(std::make_pair(sl, s2s));
+            }
+            else {
+                // examine the left child after the right child
+                q.push_back(std::make_pair(sl, s2s));
+                q.push_back(std::make_pair(sr, s2s));
+            }
+        }
+        else {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s2m->name.c_str());
+            // equivalent comments from above
+            const CollisionSphereState* sl = s2s->left;
+            const CollisionSphereState* sr = s2s->right;
+
+            m_rcs.updateSphereState(SphereIndex(ss2i, sl->index()));
+            m_rcs.updateSphereState(SphereIndex(ss2i, sr->index()));
+
+            double cd1l2 = (s1s->pos - sl->pos).squaredNorm();
+            double cd1r2 = (s1s->pos - sr->pos).squaredNorm();
+
+            if (cd1l2 < cd1r2) {
+                q.push_back(std::make_pair(s1s, sr));
+                q.push_back(std::make_pair(s1s, sl));
+            }
+            else {
+                q.push_back(std::make_pair(s1s, sl));
+                q.push_back(std::make_pair(s1s, sr));
+            }
+        }
+    }
+    ROS_DEBUG_NAMED(SCM_LOGGER, "queue exhaused");
+
+    // queue exhaused = no collision found
+    return true;
+}
+
+double SelfCollisionModelImpl::sphereDistance(
+    const CollisionSphereState& s1,
+    const CollisionSphereState& s2) const
+{
+    return (s2.pos - s1.pos).norm() - s1.model->radius - s2.model->radius;
 }
 
 ///////////////////////////////////////
