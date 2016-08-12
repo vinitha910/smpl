@@ -49,10 +49,16 @@
 namespace sbpl {
 namespace manip {
 
+#define BROKEN 1
+
+typedef std::vector<double> WorkspaceState;
+typedef std::vector<int> WorkspaceCoord;
+typedef std::vector<double> SixPose;
+
 struct WorkspaceLatticeState
 {
     // discrete coordinate ( x, y, z, R, P, Y, j1, ..., jn )
-    std::vector<int> coord;
+    WorkspaceCoord coord;
 
     // real-valued state
     RobotState state;
@@ -145,13 +151,6 @@ public:
     // TODO: add variant that returns the path in the workspace representation
     ///@}
 
-    void computeGradient(
-        const MotionPrimitive &mp,
-        unsigned char &d,
-        bool collision);
-
-    int getXYZRPYHeuristic(int FromStateID, int ToStateID);
-
     /// \name Reimplemented Public Functions
     ///@{
     virtual int GetFromToHeuristic(int from_state_id, int to_state_id) override;
@@ -180,10 +179,6 @@ public:
     virtual void PrintEnv_Config(FILE* fOut) override;
     ///@}
 
-protected:
-
-    virtual void GetSuccs(int SourceStateID, vector<int>* SuccIDV, vector<int>* CostV, vector<int>* ActionV=NULL );
-
 private:
 
     struct StateHash
@@ -206,6 +201,8 @@ private:
         }
     };
 
+    ros::Publisher m_vpub;
+
     // Context Interfaces
     OccupancyGrid* m_grid;
     RobotModel* m_robot;
@@ -218,6 +215,7 @@ private:
     GoalConstraint m_goal;
 
     WorkspaceLatticeState* m_goal_entry;
+    int m_goal_state_id;
     WorkspaceLatticeState* m_start_entry;
 
     // maps state -> id
@@ -226,96 +224,88 @@ private:
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;
 
-    // ( res_x, res_y, res_z, res_R, res_P, res_Y, res_j1, ..., res_j2 )
-
     std::vector<double> mp_gradient_;
     std::vector<double> mp_dist_;
 
-    // state space information
+    /// \name State Space Configuration
+    ///@{
+
+    // ( res_x, res_y, res_z, res_R, res_P, res_Y, res_j1, ..., res_j2 )
     std::vector<double> m_res;
     std::vector<double> m_val_count;
     int m_dof_count;
     int m_free_angle_count;
     int m_free_angle_idx;
 
-    // action space
-    std::vector<MotionPrimitive> m_mprims;
+    ///@}
 
-    int createState(const std::vector<int>& coord);
+    /// \name Action Space Configuration
+    ///@{
+
+    std::vector<MotionPrimitive> m_prims;
+
+    ///@}
+
+    int createState(const WorkspaceCoord& coord);
     WorkspaceLatticeState* getState(int state_id);
 
-    void StateID2Angles(int stateID, std::vector<double>& angles);
+    // conversions between robot states and workspace states discrete and continuous
+    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate);
+    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord);
+    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate);
+    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord);
+    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state);
+    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state);
 
-    /* discretization */
-    void coordToPose(
-        const std::vector<int>& coord,
-        int* xyz,
-        int* rpy,
-        int* fangle);
-    void coordToWorldPose(
-        const std::vector<int>& coord,
-        double* xyz,
-        double* rpy,
-        double* fangle);
-    void coordToWorldPose(
-        const std::vector<int>& coord,
-        std::vector<double>& wcoord);
-    void robotStateToCoord(
+    // conversions from discrete coordinates to continuous states
+    void posWorkspaceToCoord(double* cp, int* dp);
+    void posCoordToWorkspace(int* dp, double* cp);
+    void rotWorkspaceToCoord(double* cr, int* dr);
+    void rotCoordToWorkspace(int* dr, double* cr);
+    void poseWorkspaceToCoord(double* cp, int* dp);
+    void poseCoordToWorkspace(int* dp, double* cp);
+    void favWorkspaceToCoord(double* ca, int* da);
+    void favCoordToWorkspace(int* da, double* ca);
+
+    void getActions(const RobotState& state, std::vector<Action>& actions);
+
+    bool checkAction(
         const RobotState& state,
-        std::vector<int>& coord);
-    void stateIDToPose(
-        int stateID,
-        int* xyz,
-        int* rpy,
-        int* fangle);
-    void stateIDToWorldPose(
-        int stateID,
-        double* wxyz,
-        double* wrpy,
-        double* wfangle);
-    void worldPoseToCoord(
-        double* wxyz,
-        double* wrpy,
-        double wfangle,
-        std::vector<int>& coord);
-    void coordToAngles(
-        const std::vector<int>& coord,
-        std::vector<double>& angles);
+        const Action& action,
+        double& dist);
+
+    // TODO: remove these in favor of above conventions
+    void robotStateToCoord(const RobotState& state, WorkspaceCoord& coord);
+    void stateIDToPose(int stateID, int* xyz, int* rpy, int* fangle);
+    void worldPoseToCoord(double* wxyz, double* wrpy, double wfangle, WorkspaceCoord& coord);
     void discToWorldXYZ(const int* xyz, double* wxyz);
     void discToWorldRPY(int* rpy, double* wrpy);
     void discToWorldFAngle(int fangle, double* wfangle);
     void worldToDiscXYZ(const double* wxyz, int* xyz);
     void worldToDiscRPY(double* wrpy, int* rpy);
     void worldToDiscFAngle(double wfangle, int* fangle);
-    bool convertCoordToAngles(
-        const std::vector<int>* coord,
-        std::vector<double>* angles);
-    bool convertWorldPoseToAngles(
-        const std::vector<double>& wpose,
-        std::vector<double>& angles);
-    bool convertWorldPoseToAngles(
-        const std::vector<double>& wpose,
-        std::vector<double> seed,
-        std::vector<double>& angles);
+    bool convertWorldPoseToAngles(const std::vector<double>& wpose, std::vector<double>& angles);
+    bool convertWorldPoseToAngles(const std::vector<double>& wpose, std::vector<double> seed, std::vector<double>& angles);
 
-    bool isGoalPosition(double* xyz, double* rpy, double fangle);
+    bool isGoal(const WorkspaceState& state);
+
+    int getJointAnglesForMotionPrimWaypoint(
+        const std::vector<double>& mp_point,
+        const WorkspaceState& wcoord,
+        const RobotState& pangles,
+        WorkspaceState& final_wcoord,
+        std::vector<RobotState>& angles);
+
+    int computeMotionCost(const RobotState& a, const RobotState& b);
+
+    void visualizeState(const RobotState& state, const std::string& ns);
+
+#if !BROKEN
+    bool getMotionPrimitive(WorkspaceLatticeState* parent, MotionPrimitive& mp);
     void getAdaptiveMotionPrim(
         int type,
         WorkspaceLatticeState* parent,
         MotionPrimitive& mp);
-    int getJointAnglesForMotionPrimWaypoint(
-        const std::vector<double>& mp_point,
-        const std::vector<double>& wcoord,
-        const std::vector<double>& pangles,
-        std::vector<double>& final_wcoord,
-        std::vector<std::vector<double>>& angles);
-    bool getMotionPrimitive(WorkspaceLatticeState* parent, MotionPrimitive& mp);
-    int isMotionValid(
-        const std::vector<double>& start,
-        const std::vector<double>& end,
-        int& path_length,
-        int& nchecks,
-        unsigned char& dist);
     void getVector(
         int x1, int y1, int z1,
         int x2, int y2, int z2,
@@ -323,121 +313,8 @@ private:
         int multiplier,
         bool snap = true);
     bool getDistanceGradient(int& x, int& y, int& z);
-    void computeCostPerCell();
-    int computeMotionCost(
-        const std::vector<double>& a,
-        const std::vector<double>& b);
+#endif
 };
-
-inline
-void WorkspaceLattice::discToWorldXYZ(const int* gp, double* wp)
-{
-    m_grid->gridToWorld(gp[0], gp[1], gp[2], wp[0], wp[1], wp[2]);
-}
-
-inline
-void WorkspaceLattice::worldToDiscXYZ(const double* wp, int* gp)
-{
-    m_grid->worldToGrid(wp[0], wp[1], wp[2], gp[0], gp[0], gp[0]);
-}
-
-inline
-void WorkspaceLattice::discToWorldRPY(int* rpy, double* wrpy)
-{
-    wrpy[0] = angles::normalize_angle((double)rpy[0] * EnvROBARMCfg.coord_delta[3]);
-    wrpy[1] = angles::normalize_angle((double)rpy[1] * EnvROBARMCfg.coord_delta[4]);
-    wrpy[2] = angles::normalize_angle((double)rpy[2] * EnvROBARMCfg.coord_delta[5]);
-
-    ROS_DEBUG("[discToWorldRPY] rpy: %d %d %d --> %2.3f %2.3f %2.3f", rpy[0], rpy[1], rpy[2], wrpy[0], wrpy[1], wrpy[2]);
-}
-
-inline
-void WorkspaceLattice::worldToDiscRPY(double* wrpy, int* rpy)
-{
-    rpy[0] = (int)((angles::normalize_angle_positive(wrpy[0]) + EnvROBARMCfg.coord_delta[3] * 0.5) / EnvROBARMCfg.coord_delta[3]) % EnvROBARMCfg.coord_vals[3];
-    rpy[1] = (int)((angles::normalize_angle_positive(wrpy[1]) + EnvROBARMCfg.coord_delta[4] * 0.5) / EnvROBARMCfg.coord_delta[4]) % EnvROBARMCfg.coord_vals[4];
-    rpy[2] = (int)((angles::normalize_angle_positive(wrpy[2]) + EnvROBARMCfg.coord_delta[5] * 0.5) / EnvROBARMCfg.coord_delta[5]) % EnvROBARMCfg.coord_vals[5];
-
-    ROS_DEBUG("[worldToDiscRPY] rpy: %2.3f %2.3f %2.3f --> %d %d %d", wrpy[0], wrpy[1], wrpy[2], rpy[0], rpy[1], rpy[2]);
-
-    if (rpy[0] >= EnvROBARMCfg.coord_vals[3] || rpy[1] >= EnvROBARMCfg.coord_vals[4] || rpy[2] >= EnvROBARMCfg.coord_vals[5]) {
-        ROS_ERROR("[worldToDiscRPY] wrpy: %0.3f %0.3f %0.3f discretized to %d %d %d", wrpy[0], wrpy[1], wrpy[2], rpy[0], rpy[1], rpy[2]);
-    }
-}
-
-inline
-void WorkspaceLattice::discToWorldFAngle(int fangle, double* wfangle)
-{
-    *wfangle = angles::normalize_angle((double)fangle * EnvROBARMCfg.coord_delta[6]);
-
-    ROS_DEBUG("[discToWorldFAngle] fangle: %d --> %2.3f", fangle, *wfangle);
-}
-
-inline
-void WorkspaceLattice::worldToDiscFAngle(double wfangle, int* fangle)
-{
-    *fangle = (int)((angles::normalize_angle_positive(wfangle) + EnvROBARMCfg.coord_delta[6] * 0.5) / EnvROBARMCfg.coord_delta[6]) % EnvROBARMCfg.coord_vals[6];
-
-    ROS_DEBUG("[worldToDiscFAngle] fangle: %2.3f --> %d", wfangle, *fangle);
-
-    if (*fangle >= EnvROBARMCfg.coord_vals[6]) {
-        ROS_ERROR("[worldToDiscFAngle] fangle: %0.3f discretized to: %d", wfangle, *fangle);
-    }
-}
-
-inline
-void WorkspaceLattice::coordToPose(
-    const std::vector<int>& coord,
-    int* xyz,
-    int* rpy,
-    int* fangle)
-{
-    xyz[0] = coord[0];
-    xyz[1] = coord[1];
-    xyz[2] = coord[2];
-    rpy[0] = coord[3];
-    rpy[1] = coord[4];
-    rpy[2] = coord[5];
-    *fangle = coord[6];
-
-    ROS_DEBUG("[coordToPose] xyz: %u %u %u  rpy: %d %d %d fangle: %u", xyz[0], xyz[1], xyz[2], rpy[0], rpy[1], rpy[2], *fangle);
-}
-
-inline
-void WorkspaceLattice::coordToWorldPose(
-    const std::vector<int>& coord,
-    double* wxyz,
-    double* wrpy,
-    double* wfangle)
-{
-    int xyz[3] = {0}, rpy[3] = {0}, fangle = 0;
-
-    coordToPose(coord,xyz,rpy,&fangle);
-
-    discToWorldXYZ(xyz,wxyz);
-    discToWorldRPY(rpy,wrpy);
-    discToWorldFAngle(fangle,wfangle);
-}
-
-inline
-void WorkspaceLattice::coordToWorldPose(
-    const std::vector<int>& coord,
-    std::vector<double>& wcoord)
-{
-    double xyz[3] = { 0 };
-    double rpy[3] = { 0 };
-    double fangle = 0;
-
-    coordToWorldPose(coord, xyz, rpy, &fangle);
-
-    wcoord[0] = xyz[0];
-    wcoord[1] = xyz[1];
-    wcoord[2] = xyz[2];
-    wcoord[3] = rpy[0];
-    wcoord[4] = rpy[1];
-    wcoord[5] = rpy[2];
-    wcoord[6] = fangle;
-}
 
 } // namespace manip
 } // namespace sbpl
