@@ -38,11 +38,14 @@
 #include <vector>
 
 // system includes
+#include <ros/ros.h>
 #include <sbpl/headers.h>
 
 // project includes
 #include <sbpl_arm_planner/collision_checker.h>
+#include <sbpl_arm_planner/motion_primitive.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
+#include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_arm_planner/types.h>
 
@@ -51,17 +54,26 @@ namespace manip {
 
 #define BROKEN 1
 
+/// continuous state ( x, y, z, R, P, Y, j1, ..., jn )
 typedef std::vector<double> WorkspaceState;
+
+/// discrete coordinate ( x, y, z, R, P, Y, j1, ..., jn )
 typedef std::vector<int> WorkspaceCoord;
+
+/// 6-dof pose ( x, y, z, R, P, Y )
 typedef std::vector<double> SixPose;
+
+/// 6-dof pose ( x, y, z, qw, qx, qy, qz )
+typedef std::vector<double> SevenPose;
+
+/// 3-dof position ( x, y, z )
+typedef std::vector<double> Position;
 
 struct WorkspaceLatticeState
 {
-    // discrete coordinate ( x, y, z, R, P, Y, j1, ..., jn )
     WorkspaceCoord coord;
-
-    // real-valued state
     RobotState state;
+    int h;
 };
 
 bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)
@@ -101,13 +113,24 @@ class WorkspaceLattice : public DiscreteSpaceInformation
 {
 public:
 
+    /// WorkspaceLattice-specific parameters
     struct Params
     {
+        // NOTE: (x, y, z) resolutions defined by the input occupancy grid
+
         int R_count;
         int P_count;
         int Y_count;
-        int free_angle_index;
-        std::vector<double> res_joints;
+
+        std::vector<size_t> free_angle_indices;
+        std::vector<double> free_angle_res;
+    };
+
+    struct PoseGoal
+    {
+        SixPose pose;
+        Position offset;
+        SixPose tolerance;
     };
 
     WorkspaceLattice(
@@ -127,13 +150,6 @@ public:
     /// \name Start and Goal States
     ///@{
     bool setStartState(const RobotState& state);
-
-    struct PoseGoal
-    {
-        std::vector<double> pose;
-        std::vector<double> offset;
-        std::vector<double> tolerance;
-    };
 
     bool setGoalPose(const PoseGoal& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
@@ -173,10 +189,10 @@ public:
     virtual void GetPreds(
         int TargetStateID,
         std::vector<int>* PredIDV,
-        std::vector<int>* CostV) override;
-    virtual void SetAllActionsandAllOutcomes(CMDPSTATE* state) override;
-    virtual void SetAllPreds(CMDPSTATE* state) override;
-    virtual void PrintEnv_Config(FILE* fOut) override;
+        std::vector<int>* CostV) override { }
+    virtual void SetAllActionsandAllOutcomes(CMDPSTATE* state) override { }
+    virtual void SetAllPreds(CMDPSTATE* state) override { }
+    virtual void PrintEnv_Config(FILE* fOut) override { }
     ///@}
 
 private:
@@ -210,13 +226,13 @@ private:
 
     PlanningParams* m_params;
 
-    ManipHeuristic* m_heur;
-
     GoalConstraint m_goal;
 
     WorkspaceLatticeState* m_goal_entry;
     int m_goal_state_id;
+
     WorkspaceLatticeState* m_start_entry;
+    int m_start_state_id;
 
     // maps state -> id
     hash_map<const WorkspaceLatticeState*, int, StateHash, StateEqual> m_state_to_id;
@@ -224,18 +240,17 @@ private:
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;
 
-    std::vector<double> mp_gradient_;
-    std::vector<double> mp_dist_;
+    clock_t m_t_start;
+    bool m_near_goal;
 
     /// \name State Space Configuration
     ///@{
 
     // ( res_x, res_y, res_z, res_R, res_P, res_Y, res_j1, ..., res_j2 )
     std::vector<double> m_res;
-    std::vector<double> m_val_count;
+    std::vector<int> m_val_count;
     int m_dof_count;
-    int m_free_angle_count;
-    int m_free_angle_idx;
+    std::vector<size_t> m_fangle_indices;
 
     ///@}
 
@@ -246,10 +261,12 @@ private:
 
     ///@}
 
+    size_t freeAngleCount() const { return m_fangle_indices.size(); }
+
     int createState(const WorkspaceCoord& coord);
     WorkspaceLatticeState* getState(int state_id);
 
-    // conversions between robot states and workspace states discrete and continuous
+    // conversions between robot states, workspace states, and workspacce coords
     void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate);
     void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord);
     bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate);
@@ -257,37 +274,35 @@ private:
     bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state);
     void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state);
 
-    // conversions from discrete coordinates to continuous states
-    void posWorkspaceToCoord(double* cp, int* dp);
-    void posCoordToWorkspace(int* dp, double* cp);
-    void rotWorkspaceToCoord(double* cr, int* dr);
-    void rotCoordToWorkspace(int* dr, double* cr);
-    void poseWorkspaceToCoord(double* cp, int* dp);
-    void poseCoordToWorkspace(int* dp, double* cp);
-    void favWorkspaceToCoord(double* ca, int* da);
-    void favCoordToWorkspace(int* da, double* ca);
+    // TODO: variants of workspace -> robot that don't restrict redundant angles
+    // TODO: variants of workspace -> robot that take in a full seed state
 
-    void getActions(const RobotState& state, std::vector<Action>& actions);
+    // conversions from discrete coordinates to continuous states
+    void posWorkspaceToCoord(const double* gp, int* wp);
+    void posCoordToWorkspace(const int* wp, double* gp);
+    void rotWorkspaceToCoord(const double* gr, int* wr);
+    void rotCoordToWorkspace(const int* wr, double* gr);
+    void poseWorkspaceToCoord(const double* gp, int* wp);
+    void poseCoordToWorkspace(const int* wp, double* gp);
+    void favWorkspaceToCoord(const double* wa, int* ga);
+    void favCoordToWorkspace(const int* ga, double* wa);
+
+    void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
 
     bool checkAction(
         const RobotState& state,
         const Action& action,
         double& dist);
 
-    // TODO: remove these in favor of above conventions
-    void robotStateToCoord(const RobotState& state, WorkspaceCoord& coord);
-    void stateIDToPose(int stateID, int* xyz, int* rpy, int* fangle);
-    void worldPoseToCoord(double* wxyz, double* wrpy, double wfangle, WorkspaceCoord& coord);
-    void discToWorldXYZ(const int* xyz, double* wxyz);
-    void discToWorldRPY(int* rpy, double* wrpy);
-    void discToWorldFAngle(int fangle, double* wfangle);
-    void worldToDiscXYZ(const double* wxyz, int* xyz);
-    void worldToDiscRPY(double* wrpy, int* rpy);
-    void worldToDiscFAngle(double wfangle, int* fangle);
-    bool convertWorldPoseToAngles(const std::vector<double>& wpose, std::vector<double>& angles);
-    bool convertWorldPoseToAngles(const std::vector<double>& wpose, std::vector<double> seed, std::vector<double>& angles);
-
     bool isGoal(const WorkspaceState& state);
+
+    void visualizeState(const RobotState& state, const std::string& ns);
+
+#if !BROKEN
+    std::vector<double> mp_gradient_;
+    std::vector<double> mp_dist_;
+
+    int computeMotionCost(const RobotState& a, const RobotState& b);
 
     int getJointAnglesForMotionPrimWaypoint(
         const std::vector<double>& mp_point,
@@ -296,11 +311,6 @@ private:
         WorkspaceState& final_wcoord,
         std::vector<RobotState>& angles);
 
-    int computeMotionCost(const RobotState& a, const RobotState& b);
-
-    void visualizeState(const RobotState& state, const std::string& ns);
-
-#if !BROKEN
     bool getMotionPrimitive(WorkspaceLatticeState* parent, MotionPrimitive& mp);
     void getAdaptiveMotionPrim(
         int type,

@@ -66,7 +66,8 @@ add_library(
     src/occupancy_grid.cpp
     src/planning_params.cpp
     src/post_processing.cpp
-    src/robot_model.cpp)
+    src/robot_model.cpp
+    src/workspace_lattice.cpp)
 
 target_link_libraries(
     sbpl_arm_planner
