@@ -87,7 +87,7 @@ double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double
 {
     // TODO: shamefully copied from BfsHeuristic
     int start_id = m_manip_env->getStartStateID();
-    const EnvROBARM3DHashEntry_t* start_state = m_manip_env->getHashEntry(start_id);
+    const ManipLatticeState* start_state = m_manip_env->getHashEntry(start_id);
     if (start_state) {
         // compute the manhattan distance to the start cell
         std::vector<double> pose;
@@ -287,7 +287,7 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
 
 int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 {
-    const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
+    const ManipLatticeState* state = m_manip_env->getHashEntry(state_id);
     if (state) {
         if (state->stateID == m_manip_env->getGoalStateID()) {
             return 0;

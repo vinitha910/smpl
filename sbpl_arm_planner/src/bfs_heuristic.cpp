@@ -77,7 +77,7 @@ bool BfsHeuristic::setGoal(const GoalConstraint& goal)
 double BfsHeuristic::getMetricStartDistance(double x, double y, double z)
 {
     int start_id = m_manip_env->getStartStateID();
-    const EnvROBARM3DHashEntry_t* start_state = m_manip_env->getHashEntry(start_id);
+    const ManipLatticeState* start_state = m_manip_env->getHashEntry(start_id);
     if (start_state) {
         // compute the manhattan distance to the start cell
         std::vector<double> pose;
@@ -116,7 +116,7 @@ double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 
 int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    const EnvROBARM3DHashEntry_t* state = m_manip_env->getHashEntry(state_id);
+    const ManipLatticeState* state = m_manip_env->getHashEntry(state_id);
     if (state) {
         return getBfsCostToGoal(
                 *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);

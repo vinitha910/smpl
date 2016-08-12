@@ -66,7 +66,6 @@ ManipLattice::ManipLattice(
     m_continuous(),
     m_near_goal(false),
     m_t_start(),
-    m_time_to_goal_region(),
     m_goal(),
     m_goal_entry(nullptr),
     m_start_entry(nullptr),
@@ -126,7 +125,7 @@ int ManipLattice::GetFromToHeuristic(int FromStateID, int ToStateID)
 int ManipLattice::GetGoalHeuristic(int state_id)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
-    EnvROBARM3DHashEntry_t* state = m_states[state_id];
+    ManipLatticeState* state = m_states[state_id];
     state->heur = m_heur->GetGoalHeuristic(state_id);
     return state->heur;
 }
@@ -134,7 +133,7 @@ int ManipLattice::GetGoalHeuristic(int state_id)
 int ManipLattice::GetStartHeuristic(int state_id)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
-    EnvROBARM3DHashEntry_t* state = m_states[state_id];
+    ManipLatticeState* state = m_states[state_id];
     state->heur = m_heur->GetStartHeuristic(state_id);
     return state->heur;
 }
@@ -152,7 +151,7 @@ void ManipLattice::PrintState(int stateID, bool bVerbose, FILE* fOut)
         fOut = stdout;
     }
 
-    EnvROBARM3DHashEntry_t* HashEntry = m_states[stateID];
+    ManipLatticeState* HashEntry = m_states[stateID];
 
     printJointArray(fOut, HashEntry, bVerbose);
 }
@@ -163,23 +162,23 @@ void ManipLattice::PrintEnv_Config(FILE* fOut)
 }
 
 void ManipLattice::GetSuccs(
-    int SourceStateID,
-    std::vector<int>* SuccIDV,
-    std::vector<int>* CostV)
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
 {
-    assert(SourceStateID >= 0 && SourceStateID < m_states.size());
+    assert(state_id >= 0 && state_id < m_states.size());
 
-    SuccIDV->clear();
-    CostV->clear();
+    succs->clear();
+    costs->clear();
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "expanding state %d", SourceStateID);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "expanding state %d", state_id);
 
     // goal state should be absorbing
-    if (SourceStateID == m_goal_entry->stateID) {
+    if (state_id == m_goal_entry->stateID) {
         return;
     }
 
-    EnvROBARM3DHashEntry_t* parent_entry = m_states[SourceStateID];
+    ManipLatticeState* parent_entry = m_states[state_id];
 
     assert(parent_entry);
     assert(parent_entry->coord.size() >= prm_->num_joints_);
@@ -188,17 +187,16 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(prm_->expands_log_, "  coord: %s", to_string(parent_entry->coord).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  angles: %s", to_string(parent_entry->state).c_str());
     ROS_DEBUG_NAMED(prm_->expands_log_, "  ee: (%3d, %3d, %3d)", parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
-    ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(SourceStateID));
+    ROS_DEBUG_NAMED(prm_->expands_log_, "  heur: %d", GetGoalHeuristic(state_id));
     ROS_DEBUG_NAMED(prm_->expands_log_, "  gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - parent_entry->xyz[0]), abs(m_goal.xyz[1] - parent_entry->xyz[1]), abs(m_goal.xyz[2] - parent_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(prm_->expands_log_, "  goal dist: %0.3f", grid_->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
-    const std::vector<double>& source_angles = parent_entry->state;
-    visualizeState(source_angles, "expansion");
+    visualizeState(parent_entry->state, "expansion");
 
-    int n_goal_succs = 0;
+    int goal_succ_count = 0;
 
     std::vector<Action> actions;
-    if (!as_->getActionSet(source_angles, actions)) {
+    if (!as_->getActionSet(parent_entry->state, actions)) {
         ROS_WARN("Failed to get actions");
         return;
     }
@@ -214,7 +212,7 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints: %zu", action.size());
 
         double dist;
-        if (!checkAction(source_angles, action, dist)) {
+        if (!checkAction(parent_entry->state, action, dist)) {
             continue;
         }
 
@@ -236,29 +234,29 @@ void ManipLattice::GetSuccs(
                 tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2],
                 endeff[0], endeff[1], endeff[2]);
 
-        // check if this state meets the goal criteria
-        const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
-        if (succ_is_goal_state) {
-            // update goal state
-            ++n_goal_succs;
-        }
-
         // check if hash entry already exists, if not then create one
-        EnvROBARM3DHashEntry_t* succ_entry;
+        ManipLatticeState* succ_entry;
         if (!(succ_entry = getHashEntry(succ_coord))) {
             succ_entry = createHashEntry(succ_coord, endeff);
             succ_entry->state = action.back();
             succ_entry->dist = dist;
         }
 
+        // check if this state meets the goal criteria
+        const bool is_goal_succ = isGoal(action.back(), tgt_off_pose);
+        if (is_goal_succ) {
+            // update goal state
+            ++goal_succ_count;
+        }
+
         // put successor on successor list with the proper cost
-        if (succ_is_goal_state) {
-            SuccIDV->push_back(m_goal_entry->stateID);
+        if (is_goal_succ) {
+            succs->push_back(m_goal_entry->stateID);
         }
         else {
-            SuccIDV->push_back(succ_entry->stateID);
+            succs->push_back(succ_entry->stateID);
         }
-        CostV->push_back(cost(parent_entry, succ_entry, succ_is_goal_state));
+        costs->push_back(cost(parent_entry, succ_entry, is_goal_succ));
 
         // log successor details
         ROS_DEBUG_NAMED(prm_->expands_log_, "      succ: %zu", i);
@@ -270,14 +268,14 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "        gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - endeff[0]), abs(m_goal.xyz[1] - endeff[1]), abs(m_goal.xyz[2] - endeff[2]));
         ROS_DEBUG_NAMED(prm_->expands_log_, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
         ROS_DEBUG_NAMED(prm_->expands_log_, "        dist: %2d", (int)succ_entry->dist);
-        ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, succ_is_goal_state));
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
 
-    if (n_goal_succs > 0) {
-        ROS_DEBUG_NAMED(prm_->expands_log_, "Got %d goal successors!", n_goal_succs);
+    if (goal_succ_count > 0) {
+        ROS_DEBUG_NAMED(prm_->expands_log_, "Got %d goal successors!", goal_succ_count);
     }
 
-    m_expanded_states.push_back(SourceStateID);
+    m_expanded_states.push_back(state_id);
 }
 
 Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
@@ -304,7 +302,7 @@ void ManipLattice::GetLazySuccs(
         return;
     }
 
-    EnvROBARM3DHashEntry_t* state_entry = m_states[SourceStateID];
+    ManipLatticeState* state_entry = m_states[SourceStateID];
 
     assert(state_entry);
     assert(state_entry->coord.size() >= prm_->num_joints_);
@@ -328,7 +326,7 @@ void ManipLattice::GetLazySuccs(
 
     ROS_DEBUG_NAMED(prm_->expands_log_, "  actions: %zu", actions.size());
 
-    int n_goal_succs = 0;
+    int goal_succ_count = 0;
     std::vector<int> succ_coord(prm_->num_joints_);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
@@ -349,11 +347,11 @@ void ManipLattice::GetLazySuccs(
 
         const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
         if (succ_is_goal_state) {
-            ++n_goal_succs;
+            ++goal_succ_count;
         }
 
         // check if hash entry already exists, if not then create one
-        EnvROBARM3DHashEntry_t* succ_entry;
+        ManipLatticeState* succ_entry;
         if (!(succ_entry = getHashEntry(succ_coord))) {
             succ_entry = createHashEntry(succ_coord, endeff);
             succ_entry->state = action.back();
@@ -382,8 +380,8 @@ void ManipLattice::GetLazySuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
 
-    if (n_goal_succs > 0) {
-        ROS_DEBUG_NAMED(prm_->expands_log_, "Got %d goal successors!", n_goal_succs);
+    if (goal_succ_count > 0) {
+        ROS_DEBUG_NAMED(prm_->expands_log_, "Got %d goal successors!", goal_succ_count);
     }
 
     m_expanded_states.push_back(SourceStateID);
@@ -401,8 +399,8 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     assert(parentID >= 0 && parentID < (int)m_states.size());
     assert(childID >= 0 && childID < (int)m_states.size());
 
-    EnvROBARM3DHashEntry_t* parent_entry = m_states[parentID];
-    EnvROBARM3DHashEntry_t* child_entry = m_states[childID];
+    ManipLatticeState* parent_entry = m_states[parentID];
+    ManipLatticeState* child_entry = m_states[childID];
     assert(parent_entry && parent_entry->coord.size() >= prm_->num_joints_);
     assert(child_entry && child_entry->coord.size() >= prm_->num_joints_);
 
@@ -456,7 +454,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         }
 
         // get the unique state
-        EnvROBARM3DHashEntry_t* succ_entry = goal_edge ?
+        ManipLatticeState* succ_entry = goal_edge ?
                 getHashEntry(succ_coord) : child_entry;
         assert(succ_entry);
 
@@ -523,13 +521,13 @@ void ManipLattice::printHashTableHist()
     ROS_DEBUG_NAMED(prm_->graph_log_, "hash table histogram: 0:%d, <50:%d, <100:%d, <200:%d, <300:%d, <400:%d >400:%d", s0,s1, s50, s100, s200,s300,slarge);
 }
 
-EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(
+ManipLatticeState* ManipLattice::getHashEntry(
     const std::vector<int>& coord)
 {
     int binid = getHashBin(coord);
 
     // iterate over the states in the bin and select the perfect match
-    for (EnvROBARM3DHashEntry_t* entry : m_Coord2StateIDHashTable[binid]) {
+    for (ManipLatticeState* entry : m_Coord2StateIDHashTable[binid]) {
         if (entry->coord == coord) {
             return entry;
         }
@@ -568,12 +566,12 @@ bool ManipLattice::computePlanningFrameFK(
     return true;
 }
 
-EnvROBARM3DHashEntry_t* ManipLattice::createHashEntry(
+ManipLatticeState* ManipLattice::createHashEntry(
     const std::vector<int>& coord,
     int endeff[3])
 {
     int i;
-    EnvROBARM3DHashEntry_t* HashEntry = new EnvROBARM3DHashEntry_t;
+    ManipLatticeState* HashEntry = new ManipLatticeState;
 
     HashEntry->coord = coord;
 
@@ -605,8 +603,8 @@ EnvROBARM3DHashEntry_t* ManipLattice::createHashEntry(
 }
 
 int ManipLattice::cost(
-    EnvROBARM3DHashEntry_t* HashEntry1,
-    EnvROBARM3DHashEntry_t* HashEntry2,
+    ManipLatticeState* HashEntry1,
+    ManipLatticeState* HashEntry2,
     bool bState2IsGoal)
 {
     return prm_->cost_multiplier_;
@@ -624,7 +622,7 @@ bool ManipLattice::initEnvironment(ManipHeuristic* heur)
     ROS_DEBUG_NAMED(prm_->graph_log_, "Initializing environment");
 
     // initialize environment data
-    m_Coord2StateIDHashTable = new std::vector<EnvROBARM3DHashEntry_t*>[m_HashTableSize];
+    m_Coord2StateIDHashTable = new std::vector<ManipLatticeState*>[m_HashTableSize];
     m_states.clear();
 
     // create empty start & goal states
@@ -708,10 +706,14 @@ bool ManipLattice::isGoal(
         {
             // log the amount of time required for the search to get close to the goal
             if (!m_near_goal) {
-                m_time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
+                double time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
                 m_near_goal = true;
                 ROS_INFO_NAMED(prm_->expands_log_, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
-                        pose[0], pose[1], pose[2], m_goal.xyz_tolerance[0], m_goal.tgt_off_pose[0], m_goal.tgt_off_pose[1], m_goal.tgt_off_pose[2], m_time_to_goal_region, m_expanded_states.size());
+                        pose[0], pose[1], pose[2],
+                        m_goal.xyz_tolerance[0],
+                        m_goal.tgt_off_pose[0], m_goal.tgt_off_pose[1], m_goal.tgt_off_pose[2],
+                        time_to_goal_region,
+                        m_expanded_states.size());
             }
             const double droll = angles::ShortestAngleDist(pose[3], m_goal.tgt_off_pose[3]);
             const double dpitch = angles::ShortestAngleDist(pose[4], m_goal.tgt_off_pose[4]);
@@ -895,7 +897,7 @@ bool ManipLattice::setStartConfiguration(const RobotState& state)
     ROS_DEBUG_NAMED(prm_->graph_log_, "  pose: (%d, %d, %d)", endeff[0], endeff[1], endeff[2]);
     // TODO: check for within grid bounds?
 
-    EnvROBARM3DHashEntry_t* start_entry;
+    ManipLatticeState* start_entry;
     if (!(start_entry = getHashEntry(start_coord))) {
         start_entry = createHashEntry(start_coord, endeff);
         start_entry->state = state;
@@ -1014,24 +1016,12 @@ bool ManipLattice::setGoalPosition(
         }
     }
 
-    m_goal.pose.resize(6, 0.0);
-    m_goal.pose[0] = goals[0][0];
-    m_goal.pose[1] = goals[0][1];
-    m_goal.pose[2] = goals[0][2];
-    m_goal.pose[3] = goals[0][3];
-    m_goal.pose[4] = goals[0][4];
-    m_goal.pose[5] = goals[0][5];
+    m_goal.pose = goals[0];
 
-    m_goal.xyz_offset[0] = offsets[0][0];
-    m_goal.xyz_offset[1] = offsets[0][1];
-    m_goal.xyz_offset[2] = offsets[0][2];
+    std::copy(offsets[0].begin(), offsets[0].end(), m_goal.xyz_offset);
+    std::copy(tolerances[0].begin(), tolerances[0].begin() + 3, m_goal.xyz_tolerance);
+    std::copy(tolerances[0].begin() + 3, tolerances[0].begin() + 6, m_goal.rpy_tolerance);
 
-    m_goal.xyz_tolerance[0] = tolerances[0][0];
-    m_goal.xyz_tolerance[1] = tolerances[0][1];
-    m_goal.xyz_tolerance[2] = tolerances[0][2];
-    m_goal.rpy_tolerance[0] = tolerances[0][3];
-    m_goal.rpy_tolerance[1] = tolerances[0][4];
-    m_goal.rpy_tolerance[2] = tolerances[0][5];
     m_goal.type = (GoalType)((int)goals[0][6]);
 
     std::vector<double> tgt_off_pose = getTargetOffsetPose(m_goal.pose);
@@ -1073,7 +1063,7 @@ bool ManipLattice::setGoalPosition(
 
 void ManipLattice::printJointArray(
     FILE* fOut,
-    EnvROBARM3DHashEntry_t* HashEntry,
+    ManipLatticeState* HashEntry,
     bool bVerbose)
 {
     std::vector<double> angles(prm_->num_joints_, 0.0);
@@ -1134,9 +1124,9 @@ void ManipLattice::computeCostPerCell()
 
 bool ManipLattice::extractPath(
     const std::vector<int>& idpath,
-    std::vector<std::vector<double>>& path)
+    std::vector<RobotState>& path)
 {
-    std::vector<std::vector<double>> opath;
+    std::vector<RobotState> opath;
 
     // attempt to handle paths of length 1...do any of the sbpl planners still
     // return a single-point path in some cases?
@@ -1144,7 +1134,7 @@ bool ManipLattice::extractPath(
         const int state_id = idpath[0];
 
         if (state_id == getGoalStateID()) {
-            std::vector<double> angles;
+            RobotState angles;
             if (!StateID2Angles(getStartStateID(), angles)) {
                 ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", getStartStateID());
                 return false;
@@ -1153,7 +1143,7 @@ bool ManipLattice::extractPath(
             opath.push_back(std::move(angles));
         }
         else {
-            std::vector<double> angles;
+            RobotState angles;
             if (!StateID2Angles(state_id, angles)) {
                 ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", state_id);
                 return false;
@@ -1172,7 +1162,7 @@ bool ManipLattice::extractPath(
 
     // grab the first point
     {
-        std::vector<double> angles;
+        RobotState angles;
         if (!StateID2Angles(idpath[0], angles)) {
             ROS_ERROR_NAMED(prm_->graph_log_, "Failed to get robot state from state id %d", idpath[0]);
             return false;
@@ -1193,7 +1183,7 @@ bool ManipLattice::extractPath(
         if (curr_id == getGoalStateID()) {
             // find the goal state corresponding to the cheapest valid action
 
-            EnvROBARM3DHashEntry_t* prev_entry = m_states[prev_id];
+            ManipLatticeState* prev_entry = m_states[prev_id];
             const RobotState& prev_state = prev_entry->state;
 
             std::vector<Action> actions;
@@ -1202,7 +1192,7 @@ bool ManipLattice::extractPath(
                 return false;
             }
 
-            EnvROBARM3DHashEntry_t* best_goal_state = nullptr;
+            ManipLatticeState* best_goal_state = nullptr;
             std::vector<int> succ_coord(prm_->num_joints_);
             int best_cost = std::numeric_limits<int>::max();
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
@@ -1226,7 +1216,7 @@ bool ManipLattice::extractPath(
                 }
 
                 anglesToCoord(action.back(), succ_coord);
-                EnvROBARM3DHashEntry_t* succ_entry = getHashEntry(succ_coord);
+                ManipLatticeState* succ_entry = getHashEntry(succ_coord);
                 assert(succ_entry);
 
                 const int edge_cost = cost(prev_entry, succ_entry, true);
@@ -1285,7 +1275,7 @@ double ManipLattice::getGoalDistance(const std::vector<double>& pose)
     return getGoalDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
-const EnvROBARM3DHashEntry_t* ManipLattice::getHashEntry(int state_id) const
+const ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
 {
     if (state_id < 0 || state_id >= m_states.size()) {
         return nullptr;
@@ -1381,7 +1371,7 @@ bool ManipLattice::StateID2Angles(
         return false;
     }
 
-    EnvROBARM3DHashEntry_t* HashEntry = m_states[stateID];
+    ManipLatticeState* HashEntry = m_states[stateID];
     if (!HashEntry) {
         return false;
     }

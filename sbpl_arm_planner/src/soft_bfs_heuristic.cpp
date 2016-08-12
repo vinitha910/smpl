@@ -71,7 +71,7 @@ bool SoftBfsHeuristic::setGoal(double x, double y, double z)
 
 int SoftBfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    const EnvROBARM3DHashEntry_t* state = m_robarm_env->getHashEntry(state_id);
+    const ManipLatticeState* state = m_robarm_env->getHashEntry(state_id);
     if (state) {
         const int x = state->xyz[0];
         const int y = state->xyz[1];

@@ -62,7 +62,7 @@ namespace manip {
 
 class ManipHeuristic;
 
-struct EnvROBARM3DHashEntry_t
+struct ManipLatticeState
 {
     int stateID;                // hash entry ID number
     int heur;                   // cached heuristic value (why, I don't know; it's only used in getExpandedStates and another print)
@@ -93,7 +93,7 @@ public:
     CollisionChecker* getCollisionChecker() { return cc_; }
     ros::Publisher& visualizationPublisher() { return m_vpub; }
 
-    const EnvROBARM3DHashEntry_t* getHashEntry(int state_id) const;
+    const ManipLatticeState* getHashEntry(int state_id) const;
 
     bool computePlanningFrameFK(
         const std::vector<double>& state,
@@ -144,7 +144,7 @@ public:
     ///@{
     virtual bool extractPath(
         const std::vector<int>& idpath,
-        std::vector<std::vector<double>>& path);
+        std::vector<RobotState>& path);
     ///@}
 
     /// \name Reimplemented Public Functions
@@ -202,19 +202,18 @@ protected:
 
     bool m_near_goal;
     clock_t m_t_start;
-    double m_time_to_goal_region;
 
     GoalConstraint m_goal;
 
-    EnvROBARM3DHashEntry_t* m_goal_entry;
-    EnvROBARM3DHashEntry_t* m_start_entry;
+    ManipLatticeState* m_goal_entry;
+    ManipLatticeState* m_start_entry;
 
     // maps from coords to stateID
     int m_HashTableSize;
-    std::vector<EnvROBARM3DHashEntry_t*>* m_Coord2StateIDHashTable;
+    std::vector<ManipLatticeState*>* m_Coord2StateIDHashTable;
 
     // maps from stateID to coords
-    std::vector<EnvROBARM3DHashEntry_t*> m_states;
+    std::vector<ManipLatticeState*> m_states;
 
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
@@ -229,8 +228,8 @@ protected:
     /** hash table */
     unsigned int intHash(unsigned int key);
     unsigned int getHashBin(const std::vector<int>& coord);
-    virtual EnvROBARM3DHashEntry_t* getHashEntry(const std::vector<int>& coord);
-    virtual EnvROBARM3DHashEntry_t* createHashEntry(
+    virtual ManipLatticeState* getHashEntry(const std::vector<int>& coord);
+    virtual ManipLatticeState* createHashEntry(
         const std::vector<int>& coord,
         int endeff[3]);
 
@@ -254,8 +253,8 @@ protected:
     /// \name costs
     ///@{
     int cost(
-        EnvROBARM3DHashEntry_t* HashEntry1,
-        EnvROBARM3DHashEntry_t* HashEntry2,
+        ManipLatticeState* HashEntry1,
+        ManipLatticeState* HashEntry2,
         bool bState2IsGoal);
     virtual void computeCostPerCell();
     int getActionCost(
@@ -275,7 +274,7 @@ protected:
     void printHashTableHist();
     void printJointArray(
         FILE* fOut,
-        EnvROBARM3DHashEntry_t* HashEntry,
+        ManipLatticeState* HashEntry,
         bool bVerbose);
     ///@}
 

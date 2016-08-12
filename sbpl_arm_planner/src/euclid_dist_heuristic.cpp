@@ -49,7 +49,7 @@ double EuclideanDistance(
 }
 
 EuclidDistHeuristic::EuclidDistHeuristic(
-    EnvironmentROBARM3D* manip_env,
+    ManipLattice* manip_env,
     const OccupancyGridConstPtr& grid,
     const PlanningParams* params)
 :
@@ -70,7 +70,7 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
     }
 
     const std::vector<double>& goal_pose = m_manip_env->getGoal();
-    EnvROBARM3DDHashEntry_t* state = m_manip_env->getHashEntry(from_id);
+    ManipLatticeState* state = m_manip_env->getHashEntry(from_id);
     double x, y, z;
     m_grid->gridToWorld(state->xyz[0], state->xyz[1], state->xyz[2], x, y, z);
     state->heur = 500 * m_params->cost_per_meter_ * EuclideanDistance(
@@ -85,8 +85,8 @@ int EuclidDistHeuristic::GetStartHeuristic(int state_id)
 
 int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    EnvROBARM3DHashEntry_t* from_entry = m_manip_env->getHashEntry(from_id);
-    EnvROBARM3DHashEntry_t* to_entry = m_manip_env->getHashEntry(to_id);
+    ManipLatticeState* from_entry = m_manip_env->getHashEntry(from_id);
+    ManipLatticeState* to_entry = m_manip_env->getHashEntry(to_id);
 
     double fx, fy, fz, tx, ty, tz;
     m_grid->gridToWorld(
