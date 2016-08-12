@@ -214,7 +214,7 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints: %zu", action.size());
 
         double dist;
-        if (!checkAction(source_angles, action, true, dist)) {
+        if (!checkAction(source_angles, action, dist)) {
             continue;
         }
 
@@ -232,8 +232,9 @@ void ManipLattice::GetSuccs(
 
         // discretize planning link pose
         int endeff[3];
-        grid_->worldToGrid(tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2], endeff[0], endeff[1], endeff[2]);
-
+        grid_->worldToGrid(
+                tgt_off_pose[0], tgt_off_pose[1], tgt_off_pose[2],
+                endeff[0], endeff[1], endeff[2]);
 
         // check if this state meets the goal criteria
         const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
@@ -296,7 +297,7 @@ void ManipLattice::GetLazySuccs(
     CostV->clear();
     isTrueCost->clear();
 
-    ROS_DEBUG_NAMED(prm_->expands_log_, "expanding state %d", SourceStateID);
+    ROS_DEBUG_NAMED(prm_->expands_log_, "expand state %d", SourceStateID);
 
     // goal state should be absorbing
     if (SourceStateID == m_goal_entry->stateID) {
@@ -450,7 +451,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         ROS_DEBUG_NAMED(prm_->expands_log_, "      waypoints %zu:", action.size());
 
         double dist;
-        if (!checkAction(parent_angles, action, true, dist)) {
+        if (!checkAction(parent_angles, action, dist)) {
             continue;
         }
 
@@ -781,7 +782,6 @@ int ManipLattice::getActionCost(
 bool ManipLattice::checkAction(
     const RobotState& state,
     const Action& action,
-    bool debug,
     double& dist) const
 {
     std::uint32_t violation_mask = 0x00000000;
@@ -792,11 +792,11 @@ bool ManipLattice::checkAction(
     // check intermediate states for collisions
     for (size_t iidx = 0; iidx < action.size(); ++iidx) {
         const RobotState& istate = action[iidx];
-        ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        %zu: %s", iidx, to_string(istate).c_str());
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        %zu: %s", iidx, to_string(istate).c_str());
 
         // check joint limits
         if (!rmodel_->checkJointLimits(istate)) {
-            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> violates joint limits");
+            ROS_DEBUG_NAMED(prm_->expands_log_, "        -> violates joint limits");
             violation_mask |= 0x00000001;
             break;
         }
@@ -811,7 +811,7 @@ bool ManipLattice::checkAction(
 //        // check for collisions
 //        if (!cc_->isStateValid(istate, prm_->verbose_collisions_, false, dist))
 //        {
-//            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+//            ROS_DEBUG_NAMED(prm_->expands_log_, "        -> in collision (dist: %0.3f)", dist);
 //            violation_mask |= 0x00000002;
 //            break;
 //        }
@@ -823,7 +823,7 @@ bool ManipLattice::checkAction(
 
     // check for collisions along path from parent to first waypoint
     if (!cc_->isStateToStateValid(state, action[0], plen, nchecks, dist)) {
-        ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
+        ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
         violation_mask |= 0x00000004;
     }
 
@@ -838,7 +838,7 @@ bool ManipLattice::checkAction(
         if (!cc_->isStateToStateValid(
                 prev_istate, curr_istate, plen, nchecks, dist))
         {
-            ROS_DEBUG_COND_NAMED(debug, prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
+            ROS_DEBUG_NAMED(prm_->expands_log_, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
             violation_mask |= 0x00000008;
             break;
         }
@@ -851,43 +851,43 @@ bool ManipLattice::checkAction(
     return true;
 }
 
-bool ManipLattice::setStartConfiguration(const RobotState& angles)
+bool ManipLattice::setStartConfiguration(const RobotState& state)
 {
     ROS_DEBUG_NAMED(prm_->graph_log_, "set the start state");
 
-    if ((int)angles.size() < prm_->num_joints_) {
+    if ((int)state.size() < prm_->num_joints_) {
         ROS_ERROR_NAMED(prm_->graph_log_, "start state does not contain enough joint positions");
         return false;
     }
 
-    ROS_DEBUG_NAMED(prm_->graph_log_, "  angles: %s", to_string(angles).c_str());
+    ROS_DEBUG_NAMED(prm_->graph_log_, "  state: %s", to_string(state).c_str());
 
     // get joint positions of starting configuration
     std::vector<double> pose(6, 0.0);
-    if (!computePlanningFrameFK(angles, pose)) {
+    if (!computePlanningFrameFK(state, pose)) {
         ROS_WARN(" -> unable to compute forward kinematics");
         return false;
     }
     ROS_DEBUG_NAMED(prm_->graph_log_, "  planning link pose: { x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f }", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
     // check joint limits of starting configuration
-    if (!rmodel_->checkJointLimits(angles, true)) {
+    if (!rmodel_->checkJointLimits(state, true)) {
         ROS_WARN(" -> violates the joint limits");
         return false;
     }
 
     // check if the start configuration is in collision
-    double dist = 0;
-    if (!cc_->isStateValid(angles, true, false, dist)) {
+    double dist = 0.0;
+    if (!cc_->isStateValid(state, true, false, dist)) {
         ROS_WARN(" -> in collision (distance to nearest obstacle %0.3fm)", dist * grid_->getResolution());
         return false;
     }
 
-    visualizeState(angles, "start_config");
+    visualizeState(state, "start_config");
 
     // get arm position in environment
     std::vector<int> start_coord(prm_->num_joints_);
-    anglesToCoord(angles, start_coord);
+    anglesToCoord(state, start_coord);
     ROS_DEBUG_NAMED(prm_->graph_log_, "  coord: %s", to_string(start_coord).c_str());
 
     int endeff[3];
@@ -898,14 +898,14 @@ bool ManipLattice::setStartConfiguration(const RobotState& angles)
     EnvROBARM3DHashEntry_t* start_entry;
     if (!(start_entry = getHashEntry(start_coord))) {
         start_entry = createHashEntry(start_coord, endeff);
-        start_entry->state = angles;
+        start_entry->state = state;
         start_entry->dist = dist;
     }
 
     m_start_entry = start_entry;
 
     for (auto obs : m_start_observers) {
-        obs->updateStart(angles);
+        obs->updateStart(state);
     }
 
     return true;
@@ -1221,7 +1221,7 @@ bool ManipLattice::extractPath(
 
                 // check the validity of this transition
                 double dist;
-                if (!checkAction(prev_state, action, false, dist)) {
+                if (!checkAction(prev_state, action, dist)) {
                     continue;
                 }
 
@@ -1366,8 +1366,7 @@ void ManipLattice::visualizeState(
     const std::vector<double>& jvals,
     const std::string& ns) const
 {
-    visualization_msgs::MarkerArray ma =
-            cc_->getCollisionModelVisualization(jvals);
+    auto ma = cc_->getCollisionModelVisualization(jvals);
     for (auto& marker : ma.markers) {
         marker.ns = ns;
     }

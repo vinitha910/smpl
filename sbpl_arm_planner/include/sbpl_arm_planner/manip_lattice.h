@@ -267,7 +267,6 @@ protected:
     bool checkAction(
         const RobotState& state,
         const Action& action,
-        bool debug,
         double& dist) const;
     ///@}
 
