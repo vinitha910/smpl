@@ -43,6 +43,7 @@
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_arm_planner/planning_params.h>
+#include <sbpl_arm_planner/types.h>
 
 namespace sbpl {
 namespace manip {
@@ -50,8 +51,8 @@ namespace manip {
 void ShortcutPath(
     RobotModel* rm,
     CollisionChecker* cc,
-    std::vector<std::vector<double>>& pin,
-    std::vector<std::vector<double>>& pout,
+    std::vector<RobotState>& pin,
+    std::vector<RobotState>& pout,
     ShortcutType type);
 
 void ShortcutTrajectory(

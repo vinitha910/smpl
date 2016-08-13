@@ -34,7 +34,6 @@
 #define sbpl_manip_workspace_lattice_h
 
 // standard includes
-#include <unordered_map>
 #include <vector>
 
 // system includes
@@ -76,6 +75,7 @@ struct WorkspaceLatticeState
     int h;
 };
 
+inline
 bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)
 {
     return a.coord == b.coord;
@@ -98,14 +98,6 @@ struct hash<sbpl::manip::WorkspaceLatticeState>
 
 namespace sbpl {
 namespace manip {
-
-template <
-    class Key,
-    class T,
-    class Hash = std::hash<Key>,
-    class KeyEqual = std::equal_to<Key>,
-    class Allocator = std::allocator<std::pair<const Key, T>>>
-using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables

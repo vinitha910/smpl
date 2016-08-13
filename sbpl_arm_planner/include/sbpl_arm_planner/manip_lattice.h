@@ -72,6 +72,30 @@ struct ManipLatticeState
     RobotState state;           // corresponding continuous coordinate
 };
 
+inline
+bool operator==(const ManipLatticeState& a, const ManipLatticeState& b)
+{
+    return a.coord == b.coord;
+}
+
+} // namespace manip
+} // namespace sbpl
+
+namespace std {
+
+template <>
+struct hash<sbpl::manip::ManipLatticeState>
+{
+    typedef sbpl::manip::ManipLatticeState argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(const argument_type& s) const;
+};
+
+} // namespace std
+
+namespace sbpl {
+namespace manip {
+
 /// \class Discrete state lattice representation representing a robot as the
 ///     set of all its joint variables
 class ManipLattice : public DiscreteSpaceInformation
@@ -89,8 +113,8 @@ public:
 
     bool initEnvironment(ManipHeuristic* heur);
 
-    RobotModel* getRobotModel() { return rmodel_; }
-    CollisionChecker* getCollisionChecker() { return cc_; }
+    RobotModel* getRobotModel() { return m_robot; }
+    CollisionChecker* getCollisionChecker() { return m_cc; }
     ros::Publisher& visualizationPublisher() { return m_vpub; }
 
     const ManipLatticeState* getHashEntry(int state_id) const;
@@ -180,18 +204,38 @@ public:
     virtual void PrintEnv_Config(FILE* fOut) override;
     ///@}
 
-protected:
+private:
+
+    struct StateHash
+    {
+        typedef const ManipLatticeState* argument_type;
+        typedef std::size_t result_type;
+
+        result_type operator()(argument_type s) const
+        {
+            return std::hash<ManipLatticeState>()(*s);
+        }
+    };
+
+    struct StateEqual
+    {
+        typedef const ManipLatticeState* argument_type;
+        bool operator()(argument_type a, argument_type b) const
+        {
+            return *a == *b;
+        }
+    };
 
     std::vector<ManipLatticeStartObserver*> m_start_observers;
     std::vector<ManipLatticeGoalObserver*> m_goal_observers;
 
     // Context Interfaces
-    OccupancyGrid* grid_;
-    RobotModel* rmodel_;
-    CollisionChecker* cc_;
-    ActionSet* as_;
+    OccupancyGrid* m_grid;
+    RobotModel* m_robot;
+    CollisionChecker* m_cc;
+    ActionSet* m_as;
 
-    PlanningParams* prm_;
+    PlanningParams* m_params;
 
     ManipHeuristic* m_heur;
 

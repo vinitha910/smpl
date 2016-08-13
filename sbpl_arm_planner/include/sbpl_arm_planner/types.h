@@ -33,10 +33,19 @@
 #define sbpl_manip_types_h
 
 // standard includes
+#include <unordered_map>
 #include <vector>
 
 namespace sbpl {
 namespace manip {
+
+template <
+    class Key,
+    class T,
+    class Hash = std::hash<Key>,
+    class KeyEqual = std::equal_to<Key>,
+    class Allocator = std::allocator<std::pair<const Key, T>>>
+using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
 typedef std::vector<double> RobotState;
 

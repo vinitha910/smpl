@@ -57,7 +57,7 @@ public:
 
     template <typename OutputIt>
     bool operator()(
-        const std::vector<double>& start, const std::vector<double>& end,
+        const RobotState& start, const RobotState& end,
         OutputIt ofirst, int& cost) const
     {
         int path_length;
@@ -92,7 +92,7 @@ public:
 
     template <typename OutputIt>
     bool operator()(
-        const std::vector<double>& start, const std::vector<double>& end,
+        const RobotState& start, const RobotState& end,
         OutputIt ofirst, int& cost) const
     {
         // compute forward kinematics for the start an end configurations
@@ -126,7 +126,7 @@ public:
         num_points = std::max(num_points, (int)ceil(posdiff / interp_pres));
         num_points = std::max(num_points, (int)ceil(rotdiff / interp_rres));
 
-        std::vector<std::vector<double>> cpath;
+        std::vector<RobotState> cpath;
 
         cpath.push_back(start);
         for (int i = 1; i < num_points; ++i) {
@@ -154,8 +154,8 @@ public:
             ipose[5] = Y;
 
             // run inverse kinematics with the previous pose as the seed state
-            const std::vector<double>& prev_wp = cpath.back();
-            std::vector<double> wp(m_rm->getPlanningJoints().size(), 0.0);
+            const RobotState& prev_wp = cpath.back();
+            RobotState wp(m_rm->getPlanningJoints().size(), 0.0);
             if (!m_rm->computeIK(ipose, prev_wp, wp)) {
                 return false;
             }
@@ -188,8 +188,8 @@ private:
 void ShortcutPath(
     RobotModel* rm,
     CollisionChecker* cc,
-    std::vector<std::vector<double>>& pin,
-    std::vector<std::vector<double>>& pout,
+    std::vector<RobotState>& pin,
+    std::vector<RobotState>& pout,
     ShortcutType type)
 {
     if (pin.size() < 2) {
@@ -238,8 +238,8 @@ void ShortcutTrajectory(
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out,
     ShortcutType type)
 {
-    std::vector<std::vector<double>> pin(traj_in.size());
-    std::vector<std::vector<double>> pout;
+    std::vector<RobotState> pin(traj_in.size());
+    std::vector<RobotState> pout;
 
     // convert JointTrajectoryPoint vector to vector<vector<double>> repr
     for (size_t j = 0; j < traj_in.size(); ++j) {
@@ -283,9 +283,9 @@ bool InterpolateTrajectory(
         }
     }
 
-    std::vector<std::vector<double>> path;
-    std::vector<double> start(num_joints, 0);
-    std::vector<double> end(num_joints, 0);
+    std::vector<RobotState> path;
+    RobotState start(num_joints, 0);
+    RobotState end(num_joints, 0);
 
     // tack on the first point of the trajectory
     path.push_back(traj.front().positions);
@@ -297,7 +297,7 @@ bool InterpolateTrajectory(
 
         ROS_DEBUG_STREAM("Interpolating between " << start << " and " << end);
 
-        std::vector<std::vector<double>> ipath;
+        std::vector<RobotState> ipath;
         if (!cc->interpolatePath(start, end, ipath)) {
             ROS_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
