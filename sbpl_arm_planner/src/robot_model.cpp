@@ -63,9 +63,12 @@ std::string to_string(IkOption option)
 
 } // namespace ik_option
 
-RobotModel::RobotModel()
+RobotModel::RobotModel(const ExtensionDatabasePtr& db)
 {
-    logger_ = "kinematic_model";
+    m_database = db;
+    if (!m_database) {
+        m_database = std::make_shared<ExtensionDatabase>();
+    }
 }
 
 void RobotModel::setPlanningJoints(const std::vector<std::string>& joints)
@@ -78,72 +81,12 @@ const std::vector<std::string>& RobotModel::getPlanningJoints() const
     return planning_joints_;
 }
 
-bool RobotModel::setPlanningLink(const std::string& name)
+ForwardKinematicsInterface::~ForwardKinematicsInterface()
 {
-    planning_link_ = name;
-    return true;
 }
 
-const std::string& RobotModel::getPlanningLink() const
+InverseKinematicsInterface::~InverseKinematicsInterface()
 {
-    return planning_link_;
-}
-
-void RobotModel::setPlanningFrame(const std::string& name)
-{
-    planning_frame_ = name;
-}
-
-const std::string& RobotModel::getPlanningFrame() const
-{
-    return planning_frame_;
-}
-
-bool RobotModel::computeIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double> &solution,
-    ik_option::IkOption option)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
-}
-
-bool RobotModel::computeIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector< std::vector<double> >& solutions,
-    ik_option::IkOption option)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
-}
-
-bool RobotModel::computeFastIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double>& solution)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
-}
-
-void RobotModel::printRobotModelInformation()
-{
-    ROS_ERROR("Function not filled in.");
-}
-
-void RobotModel::setLoggerName(const std::string& name)
-{
-    logger_ = name;
-}
-
-bool RobotModel::checkJointLimits(
-    const std::vector<double>& angles,
-    bool verbose)
-{
-    ROS_ERROR("Function not filled in.");
-    return false;
 }
 
 } // namespace manip

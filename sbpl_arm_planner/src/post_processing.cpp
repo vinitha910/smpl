@@ -87,18 +87,27 @@ public:
 
     EuclidShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
         m_rm(rm),
-        m_cc(cc)
-    { }
+        m_cc(cc),
+        m_fk_iface(nullptr),
+        m_ik_iface(nullptr)
+    {
+        m_fk_iface = rm->getExtension<ForwardKinematicsInterface>();
+        m_ik_iface = rm->getExtension<InverseKinematicsInterface>();
+    }
 
     template <typename OutputIt>
     bool operator()(
         const RobotState& start, const RobotState& end,
         OutputIt ofirst, int& cost) const
     {
+        if (!m_fk_iface || !m_ik_iface) {
+            return false;
+        }
+
         // compute forward kinematics for the start an end configurations
         std::vector<double> from_pose, to_pose;
-        if (!m_rm->computePlanningLinkFK(start, from_pose) ||
-            !m_rm->computePlanningLinkFK(end, to_pose))
+        if (!m_fk_iface->computePlanningLinkFK(start, from_pose) ||
+            !m_fk_iface->computePlanningLinkFK(end, to_pose))
         {
             return false;
         }
@@ -156,7 +165,7 @@ public:
             // run inverse kinematics with the previous pose as the seed state
             const RobotState& prev_wp = cpath.back();
             RobotState wp(m_rm->getPlanningJoints().size(), 0.0);
-            if (!m_rm->computeIK(ipose, prev_wp, wp)) {
+            if (!m_ik_iface->computeIK(ipose, prev_wp, wp)) {
                 return false;
             }
 
@@ -183,6 +192,9 @@ private:
 
     RobotModel* m_rm;
     CollisionChecker* m_cc;
+
+    ForwardKinematicsInterface* m_fk_iface;
+    InverseKinematicsInterface* m_ik_iface;
 };
 
 void ShortcutPath(

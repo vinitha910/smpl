@@ -29,66 +29,78 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_multi_frame_bfs_heuristic_h
-#define sbpl_manip_multi_frame_bfs_heuristic_h
+#ifndef sbpl_manip_detail_robot_model_h
+#define sbpl_manip_detail_robot_model_h
 
-// standard includes
-#include <memory>
+#include <sbpl_arm_planner/robot_model.h>
 
-// system includes
-#include <visualization_msgs/MarkerArray.h>
-
-// project includes
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <ros/console.h>
 
 namespace sbpl {
 namespace manip {
 
-class BFS_3D;
-
-class MultiFrameBfsHeuristic : public ManipHeuristic
+template <typename T>
+bool RobotModel::registerExtension(T* e)
 {
-public:
+    return m_database->registerExtension<T>(e);
+}
 
-    MultiFrameBfsHeuristic(
-        ManipLattice* env,
-        const OccupancyGrid* grid,
-        const PlanningParams* params);
+template <typename T>
+bool RobotModel::unregisterExtension(T* e)
+{
+    return m_database->unregisterExtension<T>(e);
+}
 
-    virtual ~MultiFrameBfsHeuristic();
+template <typename Extension>
+Extension* RobotModel::getExtension()
+{
+    return m_database->getExtension<Extension>();
+}
 
-    bool setGoal(const GoalConstraint& goal);
+template <typename T>
+bool ExtensionDatabase::registerExtension(T* e)
+{
+    size_t id = typeid(T).hash_code();
+    auto it = m_extensions.find(id);
+    if (it != m_extensions.end()) {
+        ROS_DEBUG_NAMED("robot", "extension for %s already exists", typeid(T).name());
+        return false;
+    }
 
-    visualization_msgs::MarkerArray getWallsVisualization() const;
-    visualization_msgs::MarkerArray getValuesVisualization() const;
+    RobotModel* iface = dynamic_cast<RobotModel*>(e);
+    if (!iface) {
+        ROS_ERROR_NAMED("robot", "extension %s is not a robot model", typeid(T).name());
+        return false;
+    }
 
-    /// \sa ManipHeuristic::getMetricStartDistance
-    double getMetricStartDistance(double x, double y, double z);
+    ROS_DEBUG_NAMED("robot", "register extension %s", typeid(T).name());
+    m_extensions[id] = iface;
+    return true;
+}
 
-    /// \brief Return the metric distance of the planning link.
-    double getMetricGoalDistance(double x, double y, double z);
+template <typename T>
+bool ExtensionDatabase::unregisterExtension(T* e)
+{
+    ROS_DEBUG_NAMED("robot", "unregister extension %s", typeid(T).name());
+    size_t id = typeid(T).hash_code();
+    return m_extensions.erase(id) == 1;
+}
 
-    int GetGoalHeuristic(int state_id);
-    int GetStartHeuristic(int state_id);
-    int GetFromToHeuristic(int from_id, int to_id);
-
-private:
-
-    ForwardKinematicsInterface* m_fk_iface;
-
-    std::unique_ptr<BFS_3D> m_bfs;
-    std::unique_ptr<BFS_3D> m_ee_bfs;
-
-    int getGoalHeuristic(int state_id, bool use_ee) const;
-
-    void syncGridAndBfs();
-    int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
-
-    inline
-    int combine_costs(int c1, int c2) const;
-};
+template <typename Extension>
+Extension* ExtensionDatabase::getExtension()
+{
+    size_t id = typeid(Extension).hash_code();
+    auto it = m_extensions.find(id);
+    if (it == m_extensions.end()) {
+        ROS_DEBUG_NAMED("robot", "extension %s was not found", typeid(Extension).name());
+        return nullptr;
+    }
+    Extension* e = dynamic_cast<Extension*>(it->second);
+    return e;
+}
 
 } // namespace manip
 } // namespace sbpl
 
 #endif
+

@@ -127,13 +127,12 @@ public:
 
     WorkspaceLattice(
         OccupancyGrid *grid,
-        RobotModel* robot,
         CollisionChecker* cc,
         PlanningParams* params);
 
     ~WorkspaceLattice();
 
-    bool init(const Params& params);
+    bool init(RobotModel* robot, const Params& params);
     bool initialized() const;
 
     RobotModel* getRobotModel() { return m_robot; }
@@ -215,6 +214,9 @@ private:
     OccupancyGrid* m_grid;
     RobotModel* m_robot;
     CollisionChecker* m_cc;
+
+    ForwardKinematicsInterface* m_fk_iface;
+    InverseKinematicsInterface* m_ik_iface;
 
     PlanningParams* m_params;
 

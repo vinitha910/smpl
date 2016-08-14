@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2010, Benjamin Cohen, Andrew Dornbush
 // All rights reserved.
 //
@@ -59,13 +59,12 @@ bool all_equal(InputIt first, InputIt last, typename std::iterator_traits<InputI
 
 WorkspaceLattice::WorkspaceLattice(
     OccupancyGrid* grid,
-    RobotModel* robot,
     CollisionChecker* cc,
     PlanningParams* params)
 :
     m_vpub(),
     m_grid(grid),
-    m_robot(robot),
+    m_robot(nullptr),
     m_cc(cc),
     m_params(params),
     m_goal(),
@@ -91,8 +90,23 @@ WorkspaceLattice::~WorkspaceLattice()
     // NOTE: StateID2IndexMapping cleared by DiscreteSpaceInformation
 }
 
-bool WorkspaceLattice::init(const Params& params)
+bool WorkspaceLattice::init(RobotModel* robot, const Params& params)
 {
+    assert(robot);
+    m_robot = robot;
+
+    m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
+    if (!m_fk_iface) {
+        ROS_WARN("Workspace Lattice requires Forward Kinematics Interface extension");
+        return false;
+    }
+
+    m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
+    if (!m_ik_iface) {
+        ROS_WARN("Workspace Lattice requires Inverse Kinematics Interface extension");
+        return false;
+    }
+
     m_fangle_indices = params.free_angle_indices;
     m_dof_count = 6 + m_fangle_indices.size();
 
@@ -255,7 +269,7 @@ bool WorkspaceLattice::setGoalPose(const PoseGoal& goal)
     // the search we plan even if there is no solution
     RobotState seed(m_params->num_joints_, 0);
     RobotState ik_solution;
-    if (!m_robot->computeIK(goal.pose, seed, ik_solution)) {
+    if (!m_ik_iface->computeIK(goal.pose, seed, ik_solution)) {
         ROS_WARN("No valid IK solution for the goal pose.");
     }
 
@@ -541,7 +555,7 @@ void WorkspaceLattice::stateRobotToWorkspace(
     WorkspaceState& ostate)
 {
     SixPose pose;
-    bool res = m_robot->computePlanningLinkFK(state, pose);
+    bool res = m_fk_iface->computePlanningLinkFK(state, pose);
     assert(res); // forward kinematics shouldn't fail
 
     ostate.resize(m_dof_count);
@@ -572,7 +586,7 @@ bool WorkspaceLattice::stateWorkspaceToRobot(
     }
 
     // TODO: unrestricted variant?
-    return m_robot->computeFastIK(pose, seed, ostate);
+    return m_ik_iface->computeFastIK(pose, seed, ostate);
 }
 
 void WorkspaceLattice::stateWorkspaceToCoord(
@@ -862,7 +876,7 @@ int WorkspaceLattice::getJointAnglesForMotionPrimWaypoint(
         status = -solver_types::IK;
 
         // IK search
-        if (!m_robot->computeIK(pose, seed, angles[0]))
+        if (!m_ik_iface->computeIK(pose, seed, angles[0]))
             status = -solver_types::IK_SEARCH;
         else {
             final_wcoord[6] = angles[0][m_free_angle_idx];

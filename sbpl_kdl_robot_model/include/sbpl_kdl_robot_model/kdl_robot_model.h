@@ -102,6 +102,9 @@ public:
 
     /* Forward Kinematics */
 
+    bool setPlanningLink(const std::string& name);
+    const std::string& getPlanningLink() const;
+
     /// \brief Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
         const std::vector<double>& angles,
@@ -142,9 +145,11 @@ public:
         double timeout);
 
     /* Debug Output */
-    virtual void printRobotModelInformation();
+    void printRobotModelInformation();
 
 protected:
+
+    std::string planning_link_;
 
     /** \brief frame that the kinematics is computed in (i.e. robot base) */
     std::string kinematics_frame_;

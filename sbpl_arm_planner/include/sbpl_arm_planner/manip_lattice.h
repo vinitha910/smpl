@@ -235,6 +235,8 @@ private:
     CollisionChecker* m_cc;
     ActionSet* m_as;
 
+    ForwardKinematicsInterface* m_fk_iface;
+
     PlanningParams* m_params;
 
     ManipHeuristic* m_heur;

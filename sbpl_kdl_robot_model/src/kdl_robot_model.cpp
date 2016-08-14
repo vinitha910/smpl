@@ -174,7 +174,6 @@ void KDLRobotModel::setKinematicsToPlanningTransform(
 {
     T_kinematics_to_planning_ = f;
     T_planning_to_kinematics_ = f.Inverse();
-    planning_frame_ = name;
 }
 
 void KDLRobotModel::normalizeAngles(KDL::JntArray& angles) const
@@ -287,6 +286,17 @@ bool KDLRobotModel::checkJointLimits(
     }
 
     return true;
+}
+
+bool KDLRobotModel::setPlanningLink(const std::string& name)
+{
+    planning_link_ = name;
+    return true;
+}
+
+const std::string& KDLRobotModel::getPlanningLink() const
+{
+    return planning_link_;
 }
 
 bool KDLRobotModel::computeFK(

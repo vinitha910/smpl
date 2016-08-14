@@ -164,7 +164,16 @@ ActionSet::ActionSet() :
 
 bool ActionSet::init(ManipLattice* env, bool use_multiple_ik_solutions)
 {
-    if (!env) {
+    assert(env);
+
+    RobotModel* rm = env->getRobotModel();
+    assert(rm);
+
+    m_fk_iface = rm->getExtension<ForwardKinematicsInterface>();
+    m_ik_iface = rm->getExtension<InverseKinematicsInterface>();
+
+    if (!m_fk_iface || !m_ik_iface) {
+        ROS_WARN("Action Set requires Forward and Inverse Kinematics Interfaces");
         return false;
     }
 
@@ -334,7 +343,7 @@ bool ActionSet::getActionSet(
     std::vector<Action>& actions)
 {
     std::vector<double> pose;
-    if (!env_->getRobotModel()->computePlanningLinkFK(parent, pose)) {
+    if (!m_fk_iface->computePlanningLinkFK(parent, pose)) {
         ROS_ERROR("Failed to compute forward kinematics for planning link");
         return false;
     }
@@ -452,7 +461,7 @@ bool ActionSet::computeIkAction(
     if (use_multiple_ik_solutions_) {
         //get actions for multiple ik solutions
         std::vector<std::vector<double>> solutions;
-        if (!env_->getRobotModel()->computeIK(goal, state, solutions, option)) {
+        if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
             ROS_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
                     to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
@@ -466,7 +475,7 @@ bool ActionSet::computeIkAction(
     else {
         //get single action for single ik solution
         std::vector<double> ik_sol;
-        if (!env_->getRobotModel()->computeIK(goal, state, ik_sol)) {
+        if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
             ROS_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }

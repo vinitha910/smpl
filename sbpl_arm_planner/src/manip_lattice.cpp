@@ -67,6 +67,7 @@ ManipLattice::ManipLattice(
     m_robot(rmodel),
     m_cc(cc),
     m_as(as),
+    m_fk_iface(nullptr),
     m_params(params),
     m_heur(nullptr),
     m_min_limits(),
@@ -85,6 +86,8 @@ ManipLattice::ManipLattice(
     m_vpub(),
     m_initialized(false)
 {
+    m_fk_iface = m_robot->getExtension<ForwardKinematicsInterface>();
+
     m_vpub = nh_.advertise<visualization_msgs::MarkerArray>("visualization_markers", 1);
 
     m_min_limits.resize(m_params->num_joints_);
@@ -284,7 +287,6 @@ void ManipLattice::GetSuccs(
     }
 
     m_expanded_states.push_back(state_id);
-    std::cin.get();
 }
 
 Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
@@ -552,7 +554,7 @@ bool ManipLattice::computePlanningFrameFK(
 {
     assert(state.size() == m_params->num_joints_);
 
-    if (!m_robot->computePlanningLinkFK(state, pose)) {
+    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
         return false;
     }
 

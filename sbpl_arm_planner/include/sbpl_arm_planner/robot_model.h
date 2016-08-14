@@ -35,39 +35,26 @@
 
 // standard includes
 #include <ostream>
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace sbpl {
 namespace manip {
 
-namespace ik_option {
+class ExtensionDatabase;
 
-enum IkOption
-{
-    UNRESTRICTED = 0,
-    RESTRICT_XYZ = 1,
-    RESTRICT_RPY = 2
-};
+typedef std::shared_ptr<ExtensionDatabase> ExtensionDatabasePtr;
 
-std::ostream& operator<<(std::ostream& o, IkOption option);
-std::string to_string(IkOption option);
-
-} // namespace ik_option
-
+/// \brief The root interface defining the basic requirements for a robot model
 class RobotModel
 {
 public:
 
-    RobotModel();
+    RobotModel(const ExtensionDatabasePtr& db = ExtensionDatabasePtr());
 
     virtual ~RobotModel() { };
-
-    /// \name Configuration
-    /// @{
-
-    void setPlanningJoints(const std::vector<std::string>& joints);
-    const std::vector<std::string>& getPlanningJoints() const;
 
     /// \brief Return the lower position limit for a joint.
     virtual double minPosLimit(int jidx) const = 0;
@@ -76,7 +63,7 @@ public:
     virtual double maxPosLimit(int jidx) const = 0;
 
     /// \brief Return whether a joint has position limits
-    virtual bool   hasPosLimit(int jidx) const = 0;
+    virtual bool hasPosLimit(int jidx) const = 0;
 
     /// \brief Return the velocity limit for a joint with 0 = unlimited
     virtual double velLimit(int jidx) const = 0;
@@ -84,21 +71,52 @@ public:
     /// \brief Return the acceleration limit for a joint with 0 = unlimited
     virtual double accLimit(int jidx) const = 0;
 
-    virtual bool setPlanningLink(const std::string& name);
-    const std::string& getPlanningLink() const;
+    /// \brief Check a state for joint limit violations.
+    virtual bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) = 0;
 
-    void setPlanningFrame(const std::string& name);
-    const std::string& getPlanningFrame() const;
+    void setPlanningJoints(const std::vector<std::string>& joints);
+    const std::vector<std::string>& getPlanningJoints() const;
 
-    ///@}
+    template <typename T>
+    bool registerExtension(T* e);
 
-    /// \brief Joint Limits
-    virtual bool checkJointLimits(
-        const std::vector<double>& angles,
-        bool verbose = false) = 0;
+    template <typename T>
+    bool unregisterExtension(T* e);
 
-    /// \name Forward Kinematics
-    ///@{
+    template <typename Extension>
+    Extension* getExtension();
+
+    ExtensionDatabasePtr database() { return m_database; }
+
+protected:
+
+    std::vector<std::string> planning_joints_;
+
+private:
+
+    ExtensionDatabasePtr m_database;
+};
+
+/// \brief Container for storage and retrieval of extension interfaces by type
+class ExtensionDatabase
+{
+public:
+
+    template <typename T> bool registerExtension(T* e);
+    template <typename T> bool unregisterExtension(T* e);
+    template <typename Extension> Extension* getExtension();
+
+private:
+
+    std::unordered_map<size_t, RobotModel*> m_extensions;
+};
+
+/// \brief RobotModel extension for providing forward kinematics
+class ForwardKinematicsInterface : public virtual RobotModel
+{
+public:
+
+    virtual ~ForwardKinematicsInterface();
 
     /// \brief Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
@@ -115,61 +133,76 @@ public:
     virtual bool computePlanningLinkFK(
         const std::vector<double>& angles,
         std::vector<double>& pose) = 0;
+};
 
-    ///@}
+namespace ik_option {
 
-    /// \name Inverse Kinematics
-    ///@{
+enum IkOption
+{
+    UNRESTRICTED = 0,
+    RESTRICT_XYZ = 1,
+    RESTRICT_RPY = 2
+};
+
+std::ostream& operator<<(std::ostream& o, IkOption option);
+std::string to_string(IkOption option);
+
+} // namespace ik_option
+
+/// \brief RobotModel extension for providing inverse kinematics
+class InverseKinematicsInterface : public virtual RobotModel
+{
+public:
+
+    virtual ~InverseKinematicsInterface();
 
     /// \brief Compute an inverse kinematics solution.
     virtual bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<double>& solution,
-        ik_option::IkOption option = ik_option::UNRESTRICTED);
+        ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 
     /// \brief Compute multiple inverse kinematic solutions.
     virtual bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<std::vector<double>>& solutions,
-        ik_option::IkOption option = ik_option::UNRESTRICTED);
+        ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 
     /// \brief Compute an inverse kinematics solution while restricting any
     ///     redundant joint variables.
     virtual bool computeFastIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
-        std::vector<double>& solution);
+        std::vector<double>& solution) = 0;
+};
 
-    /// @}
+/// \brief Convenience class allowing a component to implement all root
+///     interface methods via an existing extension
+class RobotModelChild : public virtual RobotModel
+{
+public:
 
-    /// \name Debug Output
-    /// @{
+    RobotModelChild(RobotModel* parent) : m_parent(parent) { }
 
-    virtual void printRobotModelInformation();
+    RobotModel* parent() const { return m_parent; }
 
-    void setLoggerName(const std::string& name);
+    double minPosLimit(int jidx) const { return m_parent->minPosLimit(jidx); }
+    double maxPosLimit(int jidx) const { return m_parent->maxPosLimit(jidx); }
+    bool hasPosLimit(int jidx) const { return m_parent->hasPosLimit(jidx); }
+    double velLimit(int jidx) const { return m_parent->velLimit(jidx); }
+    double accLimit(int jidx) const { return m_parent->accLimit(jidx); }
+    bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) { return m_parent->checkJointLimits(angles, verbose); }
 
-    ///@}
+private:
 
-protected:
-
-    /** \brief frame that the planning is done in (i.e. map) */
-    std::string planning_frame_;
-
-    std::string kinematics_frame_;
-
-    /** \brief the link that is being planned for (i.e. wrist) */
-    std::string planning_link_;
-
-    std::vector<std::string> planning_joints_;
-
-    /** \brief ROS logger stream name */
-    std::string logger_;
+    RobotModel* m_parent;
 };
 
 } // namespace manip
 } // namespace sbpl
+
+#include "detail/robot_model.h"
 
 #endif

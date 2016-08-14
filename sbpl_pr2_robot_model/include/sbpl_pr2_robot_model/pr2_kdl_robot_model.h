@@ -83,7 +83,7 @@ public:
         std::vector<double>& solution);
 
     /* Debug Output */
-    virtual void printRobotModelInformation();
+    void printRobotModelInformation();
 
 private:
 

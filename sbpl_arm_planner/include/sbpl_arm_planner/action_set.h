@@ -125,6 +125,9 @@ protected:
 
     std::vector<MotionPrimitive> mp_;
 
+    ForwardKinematicsInterface* m_fk_iface;
+    InverseKinematicsInterface* m_ik_iface;
+
     // NOTE: these arrays will NOT include entries for LONG_DISTANCE motion
     // primitives
     bool m_mprim_enabled[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];

@@ -49,6 +49,7 @@ MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
     m_bfs(),
     m_ee_bfs()
 {
+    m_fk_iface = env->getRobotModel()->getExtension<ForwardKinematicsInterface>();
     syncGridAndBfs();
 }
 
@@ -287,6 +288,10 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
 
 int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 {
+    if (!m_fk_iface) {
+        return 0;
+    }
+
     const ManipLatticeState* state = m_manip_env->getHashEntry(state_id);
     if (state) {
         if (state->stateID == m_manip_env->getGoalStateID()) {
@@ -295,7 +300,7 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 
         std::vector<double> pose;
         RobotModel* robot_model = m_manip_env->getRobotModel();
-        if (!robot_model->computePlanningLinkFK(state->state, pose)) {
+        if (!m_fk_iface->computePlanningLinkFK(state->state, pose)) {
             ROS_ERROR_NAMED(m_params->heuristic_log_, "Failed to compute FK for planning link (state = %d)", state->stateID);
             return Infinity;
         }
