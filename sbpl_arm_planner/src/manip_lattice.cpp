@@ -892,7 +892,7 @@ bool ManipLattice::setStartConfiguration(const RobotState& state)
     // check if the start configuration is in collision
     double dist = 0.0;
     if (!m_cc->isStateValid(state, true, false, dist)) {
-        ROS_WARN(" -> in collision (distance to nearest obstacle %0.3fm)", dist * m_grid->getResolution());
+        ROS_WARN(" -> in collision (distance to nearest obstacle %0.3fm)", dist);
         return false;
     }
 
@@ -1043,9 +1043,6 @@ bool ManipLattice::setGoalPosition(
             m_grid->getReferenceFrame(),
             "target_goal");
     m_vpub.publish(goal_markers);
-
-    int eexyz[3];
-    m_grid->worldToGrid(m_goal.pose.data(), eexyz);
 
     // set goal hash entry
     m_grid->worldToGrid(tgt_off_pose.data(), m_goal.xyz);
@@ -1381,25 +1378,15 @@ bool ManipLattice::StateID2Angles(
     if (stateID < 0 || stateID >= m_states.size()) {
         return false;
     }
-
-    ManipLatticeState* HashEntry = m_states[stateID];
-    if (!HashEntry) {
+    if (stateID == m_goal_entry->stateID) {
+        ROS_ERROR("You should stop caring about the values within the goal state");
         return false;
     }
 
-    if (stateID == m_goal_entry->stateID) {
-        angles = m_goal_entry->state;
-    }
-    else {
-        angles = HashEntry->state;
-    }
+    ManipLatticeState* entry = m_states[stateID];
+    assert(entry);
 
-    for (size_t i = 0; i < angles.size(); i++) {
-        if (angles[i] >= M_PI) {
-            angles[i] = -2.0 * M_PI + angles[i];
-        }
-    }
-
+    angles = entry->state;
     return true;
 }
 
