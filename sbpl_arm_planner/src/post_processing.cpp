@@ -47,18 +47,33 @@
 namespace sbpl {
 namespace manip {
 
+double distance(const RobotModel& robot, const RobotState& from, const RobotState& to)
+{
+    double dist = 0.0;
+    for (size_t vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
+        if (!robot.hasPosLimit(vidx)) {
+            dist += sbpl::angles::ShortestAngleDist(to[vidx], from[vidx]);
+        }
+        else {
+            dist += fabs(to[vidx] - from[vidx]);
+        }
+    }
+    return dist;
+}
+
 class ShortcutPathGenerator
 {
 public:
 
-    ShortcutPathGenerator(CollisionChecker* cc) :
+    ShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
+        m_robot(rm),
         m_cc(cc)
     { }
 
     template <typename OutputIt>
     bool operator()(
         const RobotState& start, const RobotState& end,
-        OutputIt ofirst, int& cost) const
+        OutputIt ofirst, double& cost) const
     {
         int path_length;
         int num_checks;
@@ -68,7 +83,7 @@ public:
         {
             *ofirst++ = start;
             *ofirst++ = end;
-            cost = 0;
+            cost = distance(*m_robot, start, end);
             return true;
         }
         else {
@@ -78,6 +93,7 @@ public:
 
 private:
 
+    RobotModel* m_robot;
     CollisionChecker* m_cc;
 };
 
@@ -98,7 +114,7 @@ public:
     template <typename OutputIt>
     bool operator()(
         const RobotState& start, const RobotState& end,
-        OutputIt ofirst, int& cost) const
+        OutputIt ofirst, double& cost) const
     {
         if (!m_fk_iface || !m_ik_iface) {
             return false;
@@ -138,6 +154,7 @@ public:
         std::vector<RobotState> cpath;
 
         cpath.push_back(start);
+        double dist = 0.0;
         for (int i = 1; i < num_points; ++i) {
             // compute the intermediate pose
             double alpha = (double)i / (double)(num_points - 1);
@@ -178,13 +195,15 @@ public:
                 return false;
             }
 
+            dist += distance(*m_rm, prev_wp, wp);
+
             cpath.push_back(wp);
         }
 
         for (auto& point : cpath) {
             *ofirst++ = std::move(point);
         }
-        cost = 0;
+        cost = dist;
         return true;
     }
 
@@ -209,12 +228,15 @@ void ShortcutPath(
         return;
     }
 
-    std::vector<int> costs(pin.size() - 1, 1);
+    std::vector<double> costs(pin.size() - 1);
+    for (size_t i = 1; i < pin.size(); ++i) {
+        costs[i - 1] = distance(*rm, pin[i], pin[i - 1]);
+    }
 
     switch (type) {
     case ShortcutType::JOINT_SPACE:
     {
-        ShortcutPathGenerator generators[] = { ShortcutPathGenerator(cc) };
+        ShortcutPathGenerator generators[] = { ShortcutPathGenerator(rm, cc) };
         shortcut::ShortcutPath(
                 pin.begin(), pin.end(),
                 costs.begin(), costs.end(),
