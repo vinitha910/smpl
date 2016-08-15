@@ -113,7 +113,10 @@ bool WorkspaceLattice::init(RobotModel* robot, const Params& params)
         return false;
     }
 
-    m_fangle_indices = params.free_angle_indices;
+    m_fangle_indices.resize(m_rm_iface->redundantVariableCount());
+    for (size_t i = 0; i < m_fangle_indices.size(); ++i) {
+        m_fangle_indices[i] = m_rm_iface->redundantVariableIndex(i);
+    }
     m_dof_count = 6 + m_fangle_indices.size();
 
     m_res.resize(m_dof_count);

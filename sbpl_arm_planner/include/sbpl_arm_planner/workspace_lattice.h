@@ -114,7 +114,6 @@ public:
         int P_count;
         int Y_count;
 
-        std::vector<size_t> free_angle_indices;
         std::vector<double> free_angle_res;
     };
 
