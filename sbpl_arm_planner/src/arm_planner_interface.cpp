@@ -353,7 +353,7 @@ bool ArmPlannerInterface::checkParams(
 bool ArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
 {
     ROS_INFO("Setting start configuration");
-    std::vector<double> initial_positions;
+    RobotState initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(
             state, prm_.planning_joints_, initial_positions, missing))
@@ -532,7 +532,7 @@ bool ArmPlannerInterface::setGoalPosition(
     return true;
 }
 
-bool ArmPlannerInterface::plan(std::vector<std::vector<double>>& path)
+bool ArmPlannerInterface::plan(std::vector<RobotState>& path)
 {
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
@@ -609,7 +609,7 @@ bool ArmPlannerInterface::planToPosition(
         return false;
     }
 
-    std::vector<std::vector<double>> path;
+    std::vector<RobotState> path;
     if (!plan(path)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
@@ -653,7 +653,7 @@ bool ArmPlannerInterface::planToConfiguration(
         return false;
     }
 
-    std::vector<std::vector<double>> path;
+    std::vector<RobotState> path;
     if (!plan(path)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", prm_.allowed_time_, planner_->get_n_expands());
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
@@ -741,7 +741,7 @@ ArmPlannerInterface::getCollisionModelTrajectoryVisualization(
     const moveit_msgs::RobotTrajectory& res_traj) const
 {
     visualization_msgs::MarkerArray ma, ma1;
-    std::vector<std::vector<double>> traj;
+    std::vector<RobotState> traj;
 
     if (res_traj.joint_trajectory.points.empty()) {
         ROS_ERROR("No trajectory found to visualize yet. Plan a path first.");
@@ -1219,11 +1219,13 @@ void ArmPlannerInterface::profilePath(
 }
 
 bool ArmPlannerInterface::isPathValid(
-    const std::vector<std::vector<double>>& path) const
+    const std::vector<RobotState>& path) const
 {
-    for (const auto& point : path) {
+    for (size_t i = 1; i < path.size(); ++i) {
         double dist;
-        if (!cc_->isStateValid(point, true, true, dist)) {
+        int plen, nchecks;
+        if (!cc_->isStateToStateValid(path[i - 1], path[i], plen, nchecks, dist)) {
+            ROS_ERROR("path between %s and %s is invalid (%zu -> %zu)", to_string(path[i - 1]).c_str(), to_string(path[i]).c_str(), i - 1, i);
             return false;
         }
     }
@@ -1231,7 +1233,7 @@ bool ArmPlannerInterface::isPathValid(
 }
 
 void ArmPlannerInterface::postProcessPath(
-    const std::vector<std::vector<double>>& path,
+    const std::vector<RobotState>& path,
     trajectory_msgs::JointTrajectory& traj) const
 {
     const bool check_planned_path = true;
@@ -1240,9 +1242,6 @@ void ArmPlannerInterface::postProcessPath(
     }
 
     convertJointVariablePathToJointTrajectory(path, traj);
-
-//    ROS_INFO("Planner Trajectory:");
-//    leatherman::printJointTrajectory(traj, "planner_path");
 
     traj.header.seq = 0;
     traj.header.stamp = ros::Time::now();
@@ -1278,7 +1277,7 @@ void ArmPlannerInterface::postProcessPath(
 }
 
 void ArmPlannerInterface::convertJointVariablePathToJointTrajectory(
-    const std::vector<std::vector<double>>& path,
+    const std::vector<RobotState>& path,
     trajectory_msgs::JointTrajectory& traj) const
 {
     traj.header.frame_id = prm_.planning_frame_;
