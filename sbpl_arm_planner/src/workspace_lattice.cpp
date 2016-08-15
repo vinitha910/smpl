@@ -107,6 +107,12 @@ bool WorkspaceLattice::init(RobotModel* robot, const Params& params)
         return false;
     }
 
+    m_rm_iface = robot->getExtension<RedundantManipulatorInterface>();
+    if (!m_rm_iface) {
+        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
+        return false;
+    }
+
     m_fangle_indices = params.free_angle_indices;
     m_dof_count = 6 + m_fangle_indices.size();
 
@@ -586,7 +592,7 @@ bool WorkspaceLattice::stateWorkspaceToRobot(
     }
 
     // TODO: unrestricted variant?
-    return m_ik_iface->computeFastIK(pose, seed, ostate);
+    return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
 
 void WorkspaceLattice::stateWorkspaceToCoord(

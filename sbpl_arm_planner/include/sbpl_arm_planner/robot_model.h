@@ -169,9 +169,21 @@ public:
         const std::vector<double>& start,
         std::vector<std::vector<double>>& solutions,
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
+};
 
-    /// \brief Compute an inverse kinematics solution while restricting any
-    ///     redundant joint variables.
+class RedundantManipulatorInterface : public virtual RobotModel
+{
+public:
+
+    /// \brief Return the number of redundant joint variables.
+    virtual const int redundantVariableCount() const = 0;
+
+    /// \brief Return the index (within planning joints) of the n'th redundant
+    ///     variable.
+    virtual const int redundantVariableIndex(int rvidx) const = 0;
+
+    /// \brief Compute an inverse kinematics solution while restricting all
+    ///     redundant joint variables to the seed state.
     virtual bool computeFastIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,

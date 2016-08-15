@@ -126,7 +126,7 @@ public:
     };
 
     WorkspaceLattice(
-        OccupancyGrid *grid,
+        OccupancyGrid* grid,
         CollisionChecker* cc,
         PlanningParams* params);
 
@@ -217,6 +217,7 @@ private:
 
     ForwardKinematicsInterface* m_fk_iface;
     InverseKinematicsInterface* m_ik_iface;
+    RedundantManipulatorInterface* m_rm_iface;
 
     PlanningParams* m_params;
 
