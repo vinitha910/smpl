@@ -59,6 +59,7 @@ add_library(
     src/action_set.cpp
     src/arm_planner_interface.cpp
     src/bfs_heuristic.cpp
+    src/euclid_dist_heuristic.cpp
     src/collision_checker.cpp
     src/manip_heuristic.cpp
     src/manip_lattice.cpp

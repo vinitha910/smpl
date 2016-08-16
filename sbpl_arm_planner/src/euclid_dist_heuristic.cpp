@@ -40,7 +40,7 @@ namespace manip {
 static inline
 double EuclideanDistance(
     double x1, double y1, double z1,
-    double x2, double y2, double z2) const
+    double x2, double y2, double z2)
 {
     const double dx = x2 - x1;
     const double dy = y2 - y1;
@@ -50,7 +50,7 @@ double EuclideanDistance(
 
 EuclidDistHeuristic::EuclidDistHeuristic(
     ManipLattice* manip_env,
-    const OccupancyGridConstPtr& grid,
+    const OccupancyGrid* grid,
     const PlanningParams* params)
 :
     ManipHeuristic(manip_env, grid, params)
@@ -65,17 +65,16 @@ double EuclidDistHeuristic::getMetricGoalDistance(double x, double y, double z)
 
 int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
 {
-    if (m_manip_env->isGoal(state_id)) {
+    if (state_id == m_manip_env->getGoalStateID()) {
         return 0;
     }
 
     const std::vector<double>& goal_pose = m_manip_env->getGoal();
-    ManipLatticeState* state = m_manip_env->getHashEntry(from_id);
+    const ManipLatticeState* state = m_manip_env->getHashEntry(state_id);
     double x, y, z;
     m_grid->gridToWorld(state->xyz[0], state->xyz[1], state->xyz[2], x, y, z);
-    state->heur = 500 * m_params->cost_per_meter_ * EuclideanDistance(
+    return 500 * m_params->cost_per_meter_ * EuclideanDistance(
             x, y, z, goal_pose[0], goal_pose[1], goal_pose[2]);
-    return state->heur;
 }
 
 int EuclidDistHeuristic::GetStartHeuristic(int state_id)
@@ -85,8 +84,8 @@ int EuclidDistHeuristic::GetStartHeuristic(int state_id)
 
 int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    ManipLatticeState* from_entry = m_manip_env->getHashEntry(from_id);
-    ManipLatticeState* to_entry = m_manip_env->getHashEntry(to_id);
+    const ManipLatticeState* from_entry = m_manip_env->getHashEntry(from_id);
+    const ManipLatticeState* to_entry = m_manip_env->getHashEntry(to_id);
 
     double fx, fy, fz, tx, ty, tz;
     m_grid->gridToWorld(
@@ -95,9 +94,9 @@ int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
     m_grid->gridToWorld(
             to_entry->xyz[0], to_entry->xyz[1], to_entry->xyz[2],
             tx, ty, tz);
-    from_entry->heur =
-            500 * m_params->cost_per_meter_ * EuclideanDistance(fx, fy, fz, tx, ty, tz) / m_grid->getResolution();
-    return from_entry->heur;
+    return 500 * m_params->cost_per_meter_ *
+         EuclideanDistance(fx, fy, fz, tx, ty, tz) /
+         m_grid->getResolution();
 }
 
 } // namespace manip

@@ -42,8 +42,8 @@ class EuclidDistHeuristic : public ManipHeuristic
 public:
 
     EuclidDistHeuristic(
-        ManipHeuristic* manip_env
-        const OccupancyGridConstPtr& grid,
+        ManipLattice* manip_env,
+        const OccupancyGrid* grid,
         const PlanningParams* params);
 
     virtual ~EuclidDistHeuristic() { }
