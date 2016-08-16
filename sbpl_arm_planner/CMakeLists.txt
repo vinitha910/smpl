@@ -68,6 +68,7 @@ add_library(
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
+    src/robot_state_lattice.cpp
     src/workspace_lattice.cpp)
 
 target_link_libraries(

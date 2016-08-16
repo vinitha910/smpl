@@ -41,7 +41,6 @@
 
 // system includes
 #include <angles/angles.h>
-#include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/planners/planner.h>
 #include <sbpl/sbpl_exception.h>
 #include <sbpl/utils/mdpconfig.h>
@@ -55,6 +54,7 @@
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
+#include <sbpl_arm_planner/robot_state_lattice.h>
 #include <sbpl_arm_planner/types.h>
 
 namespace sbpl {
@@ -98,7 +98,7 @@ namespace manip {
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     set of all its joint variables
-class ManipLattice : public DiscreteSpaceInformation
+class ManipLattice : public RobotStateLattice
 {
 public:
 
@@ -125,7 +125,7 @@ public:
 
     /// \name Start and Goal States
     ///@{
-    virtual bool setStartConfiguration(const RobotState& angles);
+    virtual bool setStartState(const RobotState& angles);
 
     virtual bool setGoalPosition(
         const std::vector<std::vector<double>>& goals,
@@ -173,7 +173,6 @@ public:
 
     /// \name Reimplemented Public Functions
     ///@{
-    virtual bool InitializeMDPCfg(MDPConfig* MDPCfg) override;
     virtual int GetFromToHeuristic(int FromStateID, int ToStateID) override;
     virtual int GetGoalHeuristic(int stateID) override;
     virtual int GetStartHeuristic(int stateID) override;
@@ -187,21 +186,12 @@ public:
         std::vector<int>* CostV,
         std::vector<bool>* isTrueCost) override;
     virtual int GetTrueCost(int parentID, int childID) override;
-    virtual int SizeofCreatedEnv() override;
     virtual void PrintState(
         int stateID, bool bVerbose, FILE* fOut = NULL) override;
-    ///@}
-
-    /// \name Reimplemented Public Functions (Unused)
-    ///@{
-    virtual bool InitializeEnv(const char* sEnvFile) override { return false; }
     virtual void GetPreds(
         int TargetStateID,
         std::vector<int>* PredIDV,
         std::vector<int>* CostV) override;
-    virtual void SetAllActionsandAllOutcomes(CMDPSTATE* state) override;
-    virtual void SetAllPreds(CMDPSTATE* state) override;
-    virtual void PrintEnv_Config(FILE* fOut) override;
     ///@}
 
 private:

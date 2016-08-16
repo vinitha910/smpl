@@ -365,7 +365,7 @@ bool ArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
     ROS_INFO("New Start Configuration");
     ROS_INFO("  Joint Variables: %s", to_string(initial_positions).c_str());
 
-    if (sbpl_arm_env_->setStartConfiguration(initial_positions) == 0) {
+    if (sbpl_arm_env_->setStartState(initial_positions) == 0) {
         ROS_ERROR("Environment failed to set start state. Not Planning.");
         return false;
     }

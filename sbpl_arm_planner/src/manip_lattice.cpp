@@ -62,7 +62,7 @@ ManipLattice::ManipLattice(
     ActionSet* as,
     PlanningParams* params)
 :
-    DiscreteSpaceInformation(),
+    RobotStateLattice(),
     m_grid(grid),
     m_robot(rmodel),
     m_cc(cc),
@@ -114,18 +114,6 @@ ManipLattice::~ManipLattice()
     }
 }
 
-bool ManipLattice::InitializeMDPCfg(MDPConfig* MDPCfg)
-{
-    if (!m_goal_entry || !m_start_entry) {
-        return false;
-    }
-    else {
-        MDPCfg->goalstateid = m_goal_entry->stateID;
-        MDPCfg->startstateid = m_start_entry->stateID;
-        return true;
-    }
-}
-
 int ManipLattice::GetFromToHeuristic(int FromStateID, int ToStateID)
 {
     assert(FromStateID >= 0 && FromStateID < (int)m_states.size());
@@ -149,11 +137,6 @@ int ManipLattice::GetStartHeuristic(int state_id)
     return state->heur;
 }
 
-int ManipLattice::SizeofCreatedEnv()
-{
-    return (int)m_states.size();
-}
-
 void ManipLattice::PrintState(int stateID, bool bVerbose, FILE* fOut)
 {
     assert(stateID >= 0 && stateID < (int)m_states.size());
@@ -165,11 +148,6 @@ void ManipLattice::PrintState(int stateID, bool bVerbose, FILE* fOut)
     ManipLatticeState* HashEntry = m_states[stateID];
 
     printJointArray(fOut, HashEntry, bVerbose);
-}
-
-void ManipLattice::PrintEnv_Config(FILE* fOut)
-{
-    ROS_WARN("PrintEnv_Config unimplemented");
 }
 
 void ManipLattice::GetSuccs(
@@ -490,16 +468,6 @@ void ManipLattice::GetPreds(
     std::vector<int>* CostV)
 {
     ROS_WARN("GetPreds unimplemented");
-}
-
-void ManipLattice::SetAllActionsandAllOutcomes(CMDPSTATE* state)
-{
-    ROS_ERROR_NAMED(m_params->graph_log_, "SetAllActionsandAllOutcomes unimplemented");
-}
-
-void ManipLattice::SetAllPreds(CMDPSTATE* state)
-{
-    ROS_ERROR_NAMED(m_params->graph_log_, "SetAllPreds unimplemented");
 }
 
 void ManipLattice::printHashTableHist()
@@ -864,7 +832,7 @@ bool ManipLattice::checkAction(
     return true;
 }
 
-bool ManipLattice::setStartConfiguration(const RobotState& state)
+bool ManipLattice::setStartState(const RobotState& state)
 {
     ROS_DEBUG_NAMED(m_params->graph_log_, "set the start state");
 
