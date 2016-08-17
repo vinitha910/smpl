@@ -44,7 +44,6 @@
 #include <Eigen/Geometry>
 #include <moveit/distance_field/voxel_grid.h>
 #include <moveit/distance_field/propagation_distance_field.h>
-#include <moveit_msgs/CollisionObject.h>
 #include <ros/console.h>
 #include <sys/stat.h>
 #include <visualization_msgs/MarkerArray.h>
