@@ -694,16 +694,29 @@ bool ManipLattice::isGoal(
                         time_to_goal_region,
                         m_expanded_states.size());
             }
-            const double droll = angles::ShortestAngleDist(pose[3], m_goal.tgt_off_pose[3]);
-            const double dpitch = angles::ShortestAngleDist(pose[4], m_goal.tgt_off_pose[4]);
-            const double dyaw = angles::ShortestAngleDist(pose[5], m_goal.tgt_off_pose[5]);
-            ROS_DEBUG_NAMED(m_params->expands_log_, "Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
-            if (droll < m_goal.rpy_tolerance[0] &&
-                dpitch < m_goal.rpy_tolerance[1] &&
-                dyaw < m_goal.rpy_tolerance[2])
-            {
+            const Eigen::Quaterniond qg(
+                    Eigen::AngleAxisd(m_goal.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(m_goal.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(m_goal.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+            const Eigen::Quaterniond q(
+                    Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()));
+            const Eigen::Quaterniond dq(qg.inverse() * q);
+            if (Eigen::AngleAxisd(dq).angle() < m_goal.rpy_tolerance[0]) {
                 return true;
             }
+
+//            const double droll = angles::shortest_angle_dist(pose[3], m_goal.tgt_off_pose[3]);
+//            const double dpitch = angles::shortest_angle_dist(pose[4], m_goal.tgt_off_pose[4]);
+//            const double dyaw = angles::shortest_angle_dist(pose[5], m_goal.tgt_off_pose[5]);
+//            ROS_DEBUG_NAMED(m_params->expands_log_, "Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
+//            if (droll < m_goal.rpy_tolerance[0] &&
+//                dpitch < m_goal.rpy_tolerance[1] &&
+//                dyaw < m_goal.rpy_tolerance[2])
+//            {
+//                return true;
+//            }
         }
     }   break;
     case GoalType::XYZ_GOAL:
