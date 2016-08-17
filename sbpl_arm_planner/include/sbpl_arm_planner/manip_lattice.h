@@ -40,7 +40,6 @@
 #include <vector>
 
 // system includes
-#include <angles/angles.h>
 #include <sbpl/planners/planner.h>
 #include <sbpl/sbpl_exception.h>
 #include <sbpl/utils/mdpconfig.h>

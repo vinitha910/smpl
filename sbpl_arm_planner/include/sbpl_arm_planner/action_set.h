@@ -42,7 +42,6 @@
 #include <vector>
 
 // system includes
-#include <angles/angles.h>
 #include <boost/algorithm/string.hpp>
 #include <ros/ros.h>
 
