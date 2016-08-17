@@ -40,6 +40,7 @@
 
 // project includes
 #include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/angles.h>
 
 #define VERIFY_KINEMATICS 0
 
@@ -123,7 +124,7 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
                 ROS_WARN("Parsed string has length < 1.");
             }
             if (!feof(fCfg) && strlen(sTemp) != 0) {
-                mprim[j] = angles::from_degrees(atof(sTemp));
+                mprim[j] = angles::to_radians(atof(sTemp));
                 ROS_DEBUG("Got %s deg -> %.3f rad", sTemp, mprim[j]);
             }
             else {

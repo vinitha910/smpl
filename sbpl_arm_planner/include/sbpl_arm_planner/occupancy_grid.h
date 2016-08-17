@@ -47,7 +47,6 @@
 #include <moveit_msgs/CollisionObject.h>
 #include <ros/console.h>
 #include <sys/stat.h>
-#include <tf/LinearMath/Vector3.h>
 #include <visualization_msgs/MarkerArray.h>
 
 namespace sbpl {
@@ -172,7 +171,7 @@ public:
     size_t getOccupiedVoxelCount() const;
 
     /// \brief Get all occupied voxels in the grid
-    void getOccupiedVoxels(std::vector<geometry_msgs::Point>& voxels) const;
+    void getOccupiedVoxels(std::vector<Eigen::Vector3d>& voxels) const;
 
     /// \brief Get all occupied voxels within a cubic region of the grid
     void getOccupiedVoxels(
@@ -186,7 +185,7 @@ public:
         double y_center,
         double z_center,
         double radius,
-        std::vector<geometry_msgs::Point>& voxels) const;
+        std::vector<Eigen::Vector3d>& voxels) const;
 
     ///@}
 

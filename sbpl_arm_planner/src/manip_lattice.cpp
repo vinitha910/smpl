@@ -39,8 +39,8 @@
 #include <Eigen/Dense>
 #include <leatherman/viz.h>
 #include <leatherman/print.h>
-#include <sbpl_geometry_utils/utils.h>
 
+#include <sbpl_arm_planner/angles.h>
 #include <sbpl_arm_planner/manip_heuristic.h>
 #include "profiling.h"
 
@@ -743,7 +743,7 @@ int ManipLattice::getActionCost(
             continue;
         }
 
-        diff = angles::ShortestAngleDist(from_config[i], to_config[i]);
+        diff = angles::shortest_angle_dist(from_config[i], to_config[i]);
         if (max_diff < diff) {
             max_diff = diff;
         }
@@ -754,7 +754,7 @@ int ManipLattice::getActionCost(
 
     std::vector<double> from_config_norm(from_config.size());
     for (size_t i = 0; i < from_config.size(); ++i) {
-        from_config_norm[i] = angles::NormalizeAngle(from_config[i]);
+        from_config_norm[i] = angles::normalize_angle(from_config[i]);
     }
 
     return cost;
@@ -1413,7 +1413,7 @@ void ManipLattice::anglesToCoord(
 
     for (size_t i = 0; i < angle.size(); ++i) {
         if (m_continuous[i]) {
-            double pos_angle = angles::NormalizeAnglePositive(angle[i]);
+            double pos_angle = angles::normalize_angle_positive(angle[i]);
 
             coord[i] = (int)((pos_angle + m_params->coord_delta_[i] * 0.5) / m_params->coord_delta_[i]);
 

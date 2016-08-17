@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 
     auto getOccupiedVoxelCount = [&]()
     {
-        std::vector<geometry_msgs::Point> occupied_voxels;
+        std::vector<Eigen::Vector3d> occupied_voxels;
         grid.getOccupiedVoxels(occupied_voxels);
         return occupied_voxels.size();
     };

@@ -39,15 +39,15 @@
 #include <map>
 
 // system includes
-#include <angles/angles.h>
-#include <geometry_msgs/Pose.h>
+#include <Eigen/Geometry>
+#include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>
-#include <tf/transform_datatypes.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
 // project includes
+#include <sbpl_arm_planner/angles.h>
 #include <sbpl_arm_planner/bfs_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
@@ -442,8 +442,8 @@ bool ArmPlannerInterface::setGoalPosition(
 {
     ROS_INFO("Setting goal position");
 
-    geometry_msgs::Pose goal_pose;
-    geometry_msgs::Vector3 offset;
+    Eigen::Affine3d goal_pose;
+    Eigen::Vector3d offset;
     if (!extractGoalPoseFromGoalConstraints(
             goal_constraints, goal_pose, offset))
     {
@@ -454,20 +454,29 @@ bool ArmPlannerInterface::setGoalPosition(
     std::vector<double> sbpl_goal(7, 0.0);
 
     // currently only supports one goal
-    sbpl_goal[0] = goal_pose.position.x;
-    sbpl_goal[1] = goal_pose.position.y;
-    sbpl_goal[2] = goal_pose.position.z;
+    sbpl_goal[0] = goal_pose.translation()[0];
+    sbpl_goal[1] = goal_pose.translation()[1];
+    sbpl_goal[2] = goal_pose.translation()[2];
 
     // TODO: do we need to handle gimbal lock in any special way here?
-    leatherman::getRPY(goal_pose.orientation, sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
+    Eigen::Quaterniond q1(goal_pose.rotation());
+    // note right-multiply conventions in eigen and the returned ranges:
+    // yaw: [0, pi]
+    // pitch: [-pi, pi]
+    // roll: [-pi, pi]
+    Eigen::Vector3d rpy = goal_pose.rotation().eulerAngles(2, 1, 0);
+
+    sbpl_goal[3] = rpy[2];
+    sbpl_goal[4] = rpy[1];
+    sbpl_goal[5] = rpy[0];
 
     // true => 6-dof goal, false => 3-dof
     sbpl_goal[6] = (double)((int)GoalType::XYZ_RPY_GOAL);
 
     std::vector<double> sbpl_goal_offset(3, 0.0);
-    sbpl_goal_offset[0] = offset.x;
-    sbpl_goal_offset[1] = offset.y;
-    sbpl_goal_offset[2] = offset.z;
+    sbpl_goal_offset[0] = offset.x();
+    sbpl_goal_offset[1] = offset.y();
+    sbpl_goal_offset[2] = offset.z();
 
     // allowable tolerance from goal
     std::vector<double> sbpl_tolerance(6, 0.0);
@@ -479,7 +488,6 @@ bool ArmPlannerInterface::setGoalPosition(
     ROS_INFO("New Goal");
     ROS_INFO("    frame: %s", prm_.planning_frame_.c_str());
     ROS_INFO("    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", sbpl_goal[0], sbpl_goal[1], sbpl_goal[2], sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
-    ROS_INFO("    quaternion: (%0.3f, %0.3f, %0.3f, %0.3f)", goal_pose.orientation.w, goal_pose.orientation.x, goal_pose.orientation.y, goal_pose.orientation.z);
     ROS_INFO("    offset: (%0.3f, %0.3f, %0.3f)", sbpl_goal_offset[0], sbpl_goal_offset[1], sbpl_goal_offset[2]);
     ROS_INFO("    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
 
@@ -939,8 +947,8 @@ visualization_msgs::MarkerArray ArmPlannerInterface::getVisualization(
 
 bool ArmPlannerInterface::extractGoalPoseFromGoalConstraints(
     const moveit_msgs::Constraints& constraints,
-    geometry_msgs::Pose& goal_pose,
-    geometry_msgs::Vector3& offset) const
+    Eigen::Affine3d& goal_pose,
+    Eigen::Vector3d& offset) const
 {
     if (constraints.position_constraints.empty() ||
         constraints.orientation_constraints.empty())
@@ -975,14 +983,12 @@ bool ArmPlannerInterface::extractGoalPoseFromGoalConstraints(
                     primitive_pose.orientation.z);
     Eigen::Vector3d eef_pos(T_planning_eef.translation());
 
-    goal_pose.position.x = eef_pos.x();
-    goal_pose.position.y = eef_pos.y();
-    goal_pose.position.z = eef_pos.z();
+    Eigen::Quaterniond eef_orientation;
+    tf::quaternionMsgToEigen(orientation_constraint.orientation, eef_orientation);
 
-//    goal_pose.position = primitive_pose.position;
-    goal_pose.orientation = orientation_constraint.orientation;
+    goal_pose = Eigen::Translation3d(eef_pos) * eef_orientation;
 
-    offset = position_constraint.target_point_offset;
+    tf::vectorMsgToEigen(position_constraint.target_point_offset, offset);
     return true;
 }
 
@@ -1188,7 +1194,7 @@ void ArmPlannerInterface::profilePath(
             }
             else {
                 // use the shortest angular distance
-                const double dist = fabs(angles::shortest_angular_distance(
+                const double dist = fabs(angles::shortest_angle_diff(
                         from_pos, to_pos));
                 t = dist / vel;
             }

@@ -39,10 +39,9 @@
 #include <Eigen/Dense>
 #include <leatherman/print.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/interpolation.h>
-#include <sbpl_geometry_utils/utils.h>
 #include <sbpl_geometry_utils/shortcut.h>
-#include <tf/LinearMath/Matrix3x3.h>
+
+#include <sbpl_arm_planner/angles.h>
 
 namespace sbpl {
 namespace manip {
@@ -52,7 +51,7 @@ double distance(const RobotModel& robot, const RobotState& from, const RobotStat
     double dist = 0.0;
     for (size_t vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
         if (!robot.hasPosLimit(vidx)) {
-            dist += sbpl::angles::ShortestAngleDist(to[vidx], from[vidx]);
+            dist += angles::shortest_angle_dist(to[vidx], from[vidx]);
         }
         else {
             dist += fabs(to[vidx] - from[vidx]);
@@ -145,7 +144,7 @@ public:
         double rotdiff = Eigen::AngleAxisd(qstart.inverse() * qend).angle();
 
         const double interp_pres = 0.01;
-        const double interp_rres = sbpl::utils::ToRadians(5.0);
+        const double interp_rres = angles::to_radians(5.0);
 
         int num_points = 2;
         num_points = std::max(num_points, (int)ceil(posdiff / interp_pres));
@@ -162,22 +161,15 @@ public:
             Eigen::Quaterniond prot = qstart.slerp(alpha, qend);
 
             const Eigen::Affine3d ptrans = prot * Eigen::Translation3d(ppos);
-
-            tf::Matrix3x3 mat;
-            mat.setValue(
-                ptrans(0, 0), ptrans(0, 1), ptrans(0, 2),
-                ptrans(1, 0), ptrans(1, 1), ptrans(1, 2),
-                ptrans(2, 0), ptrans(2, 1), ptrans(2, 2));
-            double R, P, Y;
-            mat.getEulerYPR(Y, P, R);
+            Eigen::Vector3d rpy = ptrans.rotation().eulerAngles(2, 1, 0);
 
             std::vector<double> ipose(6, 0.0);
             ipose[0] = ppos.x();
             ipose[1] = ppos.y();
             ipose[2] = ppos.z();
-            ipose[3] = R;
-            ipose[4] = P;
-            ipose[5] = Y;
+            ipose[3] = rpy[2];
+            ipose[4] = rpy[1];
+            ipose[5] = rpy[0];
 
             // run inverse kinematics with the previous pose as the seed state
             const RobotState& prev_wp = cpath.back();

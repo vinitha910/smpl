@@ -32,8 +32,12 @@
 
 #include <sbpl_arm_planner/workspace_lattice.h>
 
+// system includes
 #include <boost/functional/hash.hpp>
 #include <leatherman/print.h>
+
+// project includes
+#include <sbpl_arm_planner/angles.h>
 
 auto std::hash<sbpl::manip::WorkspaceLatticeState>::operator()(
     const argument_type& s) const -> result_type
@@ -694,9 +698,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state)
             ROS_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
         }
         // check orientation
-        if (fabs(angles::shortest_angular_distance(state[3], m_goal.pose[3])) <= m_goal.rpy_tolerance[0] &&
-            fabs(angles::shortest_angular_distance(state[4], m_goal.pose[4])) <= m_goal.rpy_tolerance[1] &&
-            fabs(angles::shortest_angular_distance(state[5], m_goal.pose[5])) <= m_goal.rpy_tolerance[2])
+        if (angles::shortest_angle_dist(state[3], m_goal.pose[3]) <= m_goal.rpy_tolerance[0] &&
+            angles::shortest_angle_dist(state[4], m_goal.pose[4]) <= m_goal.rpy_tolerance[1] &&
+            angles::shortest_angle_dist(state[5], m_goal.pose[5]) <= m_goal.rpy_tolerance[2])
         {
             return true;
         }
@@ -855,7 +859,7 @@ int WorkspaceLattice::getJointAnglesForMotionPrimWaypoint(
     const WorkspaceState& init_wcoord,
     const RobotState& pangles,
     WorkspaceState& final_wcoord,
-    std::vector<RobotState>& angles)
+    std::vector<RobotState>& states)
 {
     int status = 0;
     SixPose pose(6, 0);
@@ -871,7 +875,7 @@ int WorkspaceLattice::getJointAnglesForMotionPrimWaypoint(
 
     // orientation solver - for rpy motion
     if (mp_point[0] == 0 && mp_point[1] == 0 && mp_point[2] == 0 && mp_point[6] == 0) {
-        if (!rpysolver_->isOrientationFeasible(m_goal.rpy, seed, angles)) {
+        if (!rpysolver_->isOrientationFeasible(m_goal.rpy, seed, states)) {
             status = -solver_types::ORIENTATION_SOLVER;
         }
         else {
@@ -880,15 +884,15 @@ int WorkspaceLattice::getJointAnglesForMotionPrimWaypoint(
     }
 
     // analytical IK
-    angles.resize(1, std::vector<double>(m_dof_count, 0));
-    if (!m_robot->computeFastIK(pose, seed, angles[0])) {
+    states.resize(1, std::vector<double>(m_dof_count, 0));
+    if (!m_robot->computeFastIK(pose, seed, states[0])) {
         status = -solver_types::IK;
 
         // IK search
-        if (!m_ik_iface->computeIK(pose, seed, angles[0]))
+        if (!m_ik_iface->computeIK(pose, seed, states[0]))
             status = -solver_types::IK_SEARCH;
         else {
-            final_wcoord[6] = angles[0][m_free_angle_idx];
+            final_wcoord[6] = states[0][m_free_angle_idx];
             return solver_types::IK_SEARCH;
         }
     }

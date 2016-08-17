@@ -9,7 +9,6 @@ find_package(Boost REQUIRED)
 find_package(catkin
     REQUIRED
     COMPONENTS
-        angles
         cmake_modules
         geometry_msgs
         leatherman
@@ -17,7 +16,6 @@ find_package(catkin
         moveit_msgs
         roscpp
         sbpl_geometry_utils
-        tf
         trajectory_msgs
         visualization_msgs)
 
@@ -32,14 +30,12 @@ catkin_package(
     LIBRARIES
         sbpl_arm_planner
     CATKIN_DEPENDS
-        angles
         geometry_msgs
         leatherman
         moveit_core
         moveit_msgs
         roscpp
         sbpl_geometry_utils
-        tf
         trajectory_msgs
         visualization_msgs
     DEPENDS

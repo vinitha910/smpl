@@ -175,13 +175,13 @@ void OccupancyGrid::getOccupiedVoxels(
     double y_center,
     double z_center,
     double radius,
-    std::vector<geometry_msgs::Point>& voxels) const
+    std::vector<Eigen::Vector3d>& voxels) const
 {
     int x_c, y_c, z_c;
     worldToGrid(x_center, y_center, z_center, x_c, y_c, z_c);
     int radius_c = radius / getResolution() + 0.5;
 
-    geometry_msgs::Point v;
+    Eigen::Vector3d v;
 
     iterateCells(
             x_c - radius_c, y_c - radius_c, z_c - radius_c,
@@ -189,7 +189,7 @@ void OccupancyGrid::getOccupiedVoxels(
             [&](int x, int y, int z)
             {
                 if (getCell(x, y, z) == 0) {
-                    gridToWorld(x, y, z, v.x, v.y, v.z);
+                    gridToWorld(x, y, z, v.x(), v.y(), v.z());
                     voxels.push_back(v);
                 }
             });
@@ -208,18 +208,14 @@ size_t OccupancyGrid::getOccupiedVoxelCount() const
 }
 
 void OccupancyGrid::getOccupiedVoxels(
-    std::vector<geometry_msgs::Point>& voxels) const
+    std::vector<Eigen::Vector3d>& voxels) const
 {
     iterateCells([&](int x, int y, int z)
     {
         if (grid_->getDistance(x, y, z) == 0.0) {
             double wx, wy, wz;
             grid_->gridToWorld(x, y, z, wx, wy, wz);
-            geometry_msgs::Point v;
-            v.x = wx;
-            v.y = wy;
-            v.z = wz;
-            voxels.push_back(v);
+            voxels.emplace_back(wx, wy, wz);
         }
     });
 }
@@ -314,9 +310,15 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
     marker.color.b = 0.5f;
     marker.color.a = 1.0f;
 
-    std::vector<geometry_msgs::Point> voxels;
+    std::vector<Eigen::Vector3d> voxels;
     getOccupiedVoxels(voxels);
-    marker.points = voxels;
+
+    marker.points.resize(voxels.size());
+    for (size_t i = 0; i < voxels.size(); ++i) {
+        marker.points[i].x = voxels[i].x();
+        marker.points[i].y = voxels[i].y();
+        marker.points[i].z = voxels[i].z();
+    }
 
     ma.markers.push_back(marker);
     return ma;
