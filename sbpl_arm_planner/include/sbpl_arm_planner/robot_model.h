@@ -40,19 +40,17 @@
 #include <unordered_map>
 #include <vector>
 
+#include <sbpl_arm_planner/extension.h>
+
 namespace sbpl {
 namespace manip {
 
-class ExtensionDatabase;
-
-typedef std::shared_ptr<ExtensionDatabase> ExtensionDatabasePtr;
-
 /// \brief The root interface defining the basic requirements for a robot model
-class RobotModel
+class RobotModel : public Extension
 {
 public:
 
-    RobotModel(const ExtensionDatabasePtr& db = ExtensionDatabasePtr());
+    RobotModel();
 
     virtual ~RobotModel() { };
 
@@ -77,38 +75,9 @@ public:
     void setPlanningJoints(const std::vector<std::string>& joints);
     const std::vector<std::string>& getPlanningJoints() const;
 
-    template <typename T>
-    bool registerExtension(T* e);
-
-    template <typename T>
-    bool unregisterExtension(T* e);
-
-    template <typename Extension>
-    Extension* getExtension();
-
-    ExtensionDatabasePtr database() { return m_database; }
-
 protected:
 
     std::vector<std::string> planning_joints_;
-
-private:
-
-    ExtensionDatabasePtr m_database;
-};
-
-/// \brief Container for storage and retrieval of extension interfaces by type
-class ExtensionDatabase
-{
-public:
-
-    template <typename T> bool registerExtension(T* e);
-    template <typename T> bool unregisterExtension(T* e);
-    template <typename Extension> Extension* getExtension();
-
-private:
-
-    std::unordered_map<size_t, RobotModel*> m_extensions;
 };
 
 /// \brief RobotModel extension for providing forward kinematics
@@ -205,7 +174,9 @@ public:
     bool hasPosLimit(int jidx) const { return m_parent->hasPosLimit(jidx); }
     double velLimit(int jidx) const { return m_parent->velLimit(jidx); }
     double accLimit(int jidx) const { return m_parent->accLimit(jidx); }
-    bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) { return m_parent->checkJointLimits(angles, verbose); }
+    bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) {
+        return m_parent->checkJointLimits(angles, verbose);
+    }
 
 private:
 
@@ -214,7 +185,5 @@ private:
 
 } // namespace manip
 } // namespace sbpl
-
-#include "detail/robot_model.h"
 
 #endif

@@ -89,6 +89,8 @@ public:
         const KDL::Frame& f,
         const std::string& name);
 
+    Extension* getExtension(size_t class_code);
+
     virtual double minPosLimit(int jidx) const { return min_limits_[jidx]; }
     virtual double maxPosLimit(int jidx) const { return max_limits_[jidx]; }
     virtual bool   hasPosLimit(int jidx) const { return continuous_[jidx]; }

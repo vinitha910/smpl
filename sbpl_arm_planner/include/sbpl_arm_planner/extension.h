@@ -29,78 +29,35 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_detail_robot_model_h
-#define sbpl_manip_detail_robot_model_h
+#ifndef sbpl_manip_extension_h
+#define sbpl_manip_extension_h
 
-#include <sbpl_arm_planner/robot_model.h>
-
-#include <ros/console.h>
+#include <typeinfo>
 
 namespace sbpl {
 namespace manip {
 
 template <typename T>
-bool RobotModel::registerExtension(T* e)
+size_t GetClassCode()
 {
-    return m_database->registerExtension<T>(e);
+    return typeid(T).hash_code();
 }
 
-template <typename T>
-bool RobotModel::unregisterExtension(T* e)
+class Extension
 {
-    return m_database->unregisterExtension<T>(e);
-}
+public:
 
-template <typename Extension>
-Extension* RobotModel::getExtension()
-{
-    return m_database->getExtension<Extension>();
-}
-
-template <typename T>
-bool ExtensionDatabase::registerExtension(T* e)
-{
-    size_t id = typeid(T).hash_code();
-    auto it = m_extensions.find(id);
-    if (it != m_extensions.end()) {
-        ROS_DEBUG_NAMED("robot", "extension for %s already exists", typeid(T).name());
-        return false;
+    template <typename T>
+    T* getExtension()
+    {
+        Extension* e = getExtension(GetClassCode<T>());
+        return dynamic_cast<T*>(e);
     }
 
-    RobotModel* iface = dynamic_cast<RobotModel*>(e);
-    if (!iface) {
-        ROS_ERROR_NAMED("robot", "extension %s is not a robot model", typeid(T).name());
-        return false;
-    }
-
-    ROS_DEBUG_NAMED("robot", "register extension %s", typeid(T).name());
-    m_extensions[id] = iface;
-    return true;
-}
-
-template <typename T>
-bool ExtensionDatabase::unregisterExtension(T* e)
-{
-    ROS_DEBUG_NAMED("robot", "unregister extension %s", typeid(T).name());
-    size_t id = typeid(T).hash_code();
-    return m_extensions.erase(id) == 1;
-}
-
-template <typename Extension>
-Extension* ExtensionDatabase::getExtension()
-{
-    size_t id = typeid(Extension).hash_code();
-    auto it = m_extensions.find(id);
-    if (it == m_extensions.end()) {
-        ROS_DEBUG_NAMED("robot", "extension %s was not found", typeid(Extension).name());
-        return nullptr;
-    }
-    Extension* e = dynamic_cast<Extension*>(it->second);
-    return e;
-}
+    virtual Extension* getExtension(size_t class_code) = 0;
+};
 
 } // namespace manip
 } // namespace sbpl
 
 #endif
-

@@ -275,6 +275,16 @@ bool KDLRobotModel::getJointLimits(
     return found_joint;
 }
 
+Extension* KDLRobotModel::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<RobotModel>()) {
+        return this;
+    }
+    else {
+        return nullptr;
+    }
+}
+
 bool KDLRobotModel::checkJointLimits(
     const std::vector<double>& angles,
     bool verbose)

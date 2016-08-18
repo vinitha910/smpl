@@ -63,12 +63,8 @@ std::string to_string(IkOption option)
 
 } // namespace ik_option
 
-RobotModel::RobotModel(const ExtensionDatabasePtr& db)
+RobotModel::RobotModel()
 {
-    m_database = db;
-    if (!m_database) {
-        m_database = std::make_shared<ExtensionDatabase>();
-    }
 }
 
 void RobotModel::setPlanningJoints(const std::vector<std::string>& joints)
