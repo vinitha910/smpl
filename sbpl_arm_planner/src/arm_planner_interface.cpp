@@ -625,6 +625,8 @@ bool ArmPlannerInterface::planToPosition(
         return false;
     }
 
+    ROS_INFO("Planning succeeded in %d expansions", planner_->get_n_expands());
+
     postProcessPath(path, res.trajectory.joint_trajectory);
 
     visualizePath(res.trajectory_start, res.trajectory);
