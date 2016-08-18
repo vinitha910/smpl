@@ -196,6 +196,23 @@ private:
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
+    // this hierarchy is almost identical to the voxelization workflow and is
+    // begging to be templated?...or maybe its not that important
+    bool generateSpheresModel(
+        const urdf::ModelInterface& urdf,
+        const std::string& link_name,
+        double radius,
+        std::vector<CollisionSphereConfig>& spheres) const;
+    bool generateBoundingSpheres(
+        const urdf::Collision& collision,
+        double radius,
+        std::vector<CollisionSphereConfig>& spheres) const;
+    bool generateBoundingSpheres(
+        const urdf::Geometry& geom,
+        const Eigen::Affine3d& pose,
+        double res,
+        std::vector<CollisionSphereConfig>& spheres) const;
+
     bool checkCollisionModelConfig(const CollisionModelConfig& config);
 
     bool checkCollisionModelReferences() const;
@@ -884,7 +901,17 @@ bool RobotCollisionModelImpl::initCollisionModel(
         const CollisionSpheresModelConfig& spheres_config = config.spheres_models[i];
         CollisionSpheresModel& spheres_model = m_spheres_models[i];
         spheres_model.link_index = linkIndex(spheres_config.link_name);
-        spheres_model.spheres.buildFrom(spheres_config.spheres);
+
+        if (spheres_config.autogenerate) {
+            std::vector<CollisionSphereConfig> auto_spheres;
+            // TODO: ok if this returns false?
+            generateSpheresModel(urdf, spheres_config.link_name, spheres_config.radius, auto_spheres);
+            spheres_model.spheres.buildFrom(auto_spheres);
+        }
+        else {
+            spheres_model.spheres.buildFrom(spheres_config.spheres);
+        }
+
         for (auto& sphere : spheres_model.spheres.m_tree) {
             sphere.parent = &spheres_model;
         }
@@ -946,6 +973,123 @@ bool RobotCollisionModelImpl::initCollisionModel(
     for (const auto& group_model : m_group_models) {
         ROS_DEBUG_NAMED(RCM_LOGGER, "    name: %s, link_indices: %s", group_model.name.c_str(), to_string(group_model.link_indices).c_str());
     }
+
+    return true;
+}
+
+bool RobotCollisionModelImpl::generateSpheresModel(
+    const urdf::ModelInterface& urdf,
+    const std::string& link_name,
+    double radius,
+    std::vector<CollisionSphereConfig>& spheres) const
+{
+    auto link = urdf.getLink(link_name);
+
+    if (!link) {
+        ROS_ERROR_NAMED(RCM_LOGGER, "Failed to find link '%s' in the URDF", link_name.c_str());
+        return false;
+    }
+
+    if (!link->collision && link->collision_array.empty()) {
+        ROS_WARN_NAMED(RCM_LOGGER, "Failed to find collision elements of link '%s'", link->name.c_str());
+        return true;
+    }
+
+    if (link->collision) {
+        if (!generateBoundingSpheres(*link->collision, radius, spheres)) {
+            ROS_ERROR_NAMED(RCM_LOGGER, "Failed to sphere bound collision element for link '%s'", link_name.c_str());
+            return false;
+        }
+    }
+    else if (!link->collision_array.empty()) {
+        for (auto collision : link->collision_array) {
+            if (!generateBoundingSpheres(*collision, radius, spheres)) {
+                ROS_ERROR_NAMED(RCM_LOGGER, "Failed to sphere bound collision element for link '%s'", link_name.c_str());
+                return false;
+            }
+        }
+    }
+    else {
+        ROS_ERROR_NAMED(RCM_LOGGER, "Hmm");
+        return false;
+    }
+
+    if (spheres.empty()) {
+        ROS_WARN_NAMED(RCM_LOGGER, "Voxelizing collision elements for link '%s' produced 0 voxels", link_name.c_str());
+    }
+
+    return true;
+}
+
+bool RobotCollisionModelImpl::generateBoundingSpheres(
+    const urdf::Collision& collision,
+    double radius,
+    std::vector<CollisionSphereConfig>& spheres) const
+{
+    auto geom = collision.geometry;
+
+    if (!geom) {
+        ROS_ERROR_NAMED(RCM_LOGGER, "Failed to find geometry for collision element");
+        return false;
+    }
+
+    Eigen::Affine3d pose;
+
+    geometry_msgs::Pose p;
+    p.position.x = collision.origin.position.x;
+    p.position.y = collision.origin.position.y;
+    p.position.z = collision.origin.position.z;
+    collision.origin.rotation.getQuaternion(
+            p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+    tf::poseMsgToEigen(p, pose);
+
+    return generateBoundingSpheres(*geom, pose, radius, spheres);
+}
+
+bool RobotCollisionModelImpl::generateBoundingSpheres(
+    const urdf::Geometry& geom,
+    const Eigen::Affine3d& pose,
+    double res,
+    std::vector<CollisionSphereConfig>& spheres) const
+{
+//    if (geom.type == urdf::Geometry::MESH) {
+//        std::vector<Eigen::Vector3d> vertices;
+//        std::vector<int> triangles;
+//        urdf::Mesh* mesh = (urdf::Mesh*)&geom;
+//        if (!leatherman::getMeshComponentsFromResource(
+//                mesh->filename, Eigen::Vector3d::Ones(), triangles, vertices))
+//        {
+//            ROS_ERROR_NAMED(RCM_LOGGER, "Failed to get mesh from file. (%s)", mesh->filename.c_str());
+//            return false;
+//        }
+//
+//        ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
+//
+//        sbpl::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
+//        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+//    }
+//    else if (geom.type == urdf::Geometry::BOX) {
+//        urdf::Box* box = (urdf::Box*)&geom;
+//        ROS_DEBUG_NAMED(RCM_LOGGER, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
+//        sbpl::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, voxels, false);
+//        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+//    }
+//    else if (geom.type == urdf::Geometry::CYLINDER) {
+//        urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
+//        ROS_DEBUG_NAMED(RCM_LOGGER, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
+//        sbpl::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, voxels, false);
+//        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+//    }
+//    else if (geom.type == urdf::Geometry::SPHERE) {
+//        urdf::Sphere* sph = (urdf::Sphere*)&geom;
+//        ROS_DEBUG_NAMED(RCM_LOGGER, "sphere: { radius: %0.3f }", sph->radius);
+//        sbpl::VoxelizeSphere(sph->radius, pose, res, voxels, false);
+//        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+//    }
+//    else {
+//        ROS_ERROR_NAMED(RCM_LOGGER, "Unrecognized geometry type for voxelization");
+//        return false;
+//    }
 
     return true;
 }
@@ -1117,25 +1261,17 @@ bool RobotCollisionModelImpl::voxelizeGeometry(
     std::vector<Eigen::Vector3d>& voxels) const
 {
     if (geom.type == urdf::Geometry::MESH) {
-        geometry_msgs::Vector3 scale;
-        scale.x = 1.0f; scale.y = 1.0f; scale.z = 1.0f;
-        std::vector<geometry_msgs::Point> mesh_vertices;
+        std::vector<Eigen::Vector3d> vertices;
         std::vector<int> triangles;
         urdf::Mesh* mesh = (urdf::Mesh*)&geom;
         if (!leatherman::getMeshComponentsFromResource(
-                mesh->filename, scale, triangles, mesh_vertices))
+                mesh->filename, Eigen::Vector3d::Ones(), triangles, vertices))
         {
             ROS_ERROR_NAMED(RCM_LOGGER, "Failed to get mesh from file. (%s)", mesh->filename.c_str());
             return false;
         }
 
-        ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), mesh_vertices.size());
-
-        std::vector<Eigen::Vector3d> vertices(mesh_vertices.size());
-        for (size_t vidx = 0; vidx < mesh_vertices.size(); ++vidx) {
-            const geometry_msgs::Point& vertex = mesh_vertices[vidx];
-            vertices[vidx] = Eigen::Vector3d(vertex.x, vertex.y, vertex.z);
-        }
+        ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
 
         sbpl::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
