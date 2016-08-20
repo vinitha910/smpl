@@ -368,6 +368,9 @@ size_t CollisionSphereModelTree::buildRecursive(
     };
     // split the tree along the largest axis by the centroid
     auto msmid = part(split_axis, msfirst, mslast);
+    if (msfirst == msmid || msmid == mslast) {
+        msmid = msfirst + (std::distance(msfirst, mslast) >> 1);
+    }
 
     // recurse on both subtrees
     const size_t left_idx = buildRecursive<Sphere>(msfirst, msmid);
