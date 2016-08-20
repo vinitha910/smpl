@@ -47,7 +47,6 @@
 #include <kdl_parser/kdl_parser.hpp>
 #include <pr2_arm_kinematics/pr2_arm_ik_solver.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/interpolation.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <urdf/model.h>
 

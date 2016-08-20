@@ -32,7 +32,7 @@
 #include <ros/ros.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <sbpl_geometry_utils/Voxelizer.h>
+#include <sbpl_geometry_utils/voxelize.h>
 
 int main(int argc, char* argv[])
 {

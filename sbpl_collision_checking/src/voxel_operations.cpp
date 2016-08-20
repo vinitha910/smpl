@@ -7,7 +7,7 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <octomap/octomap.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/Voxelizer.h>
+#include <sbpl_geometry_utils/voxelize.h>
 
 namespace sbpl {
 namespace collision {

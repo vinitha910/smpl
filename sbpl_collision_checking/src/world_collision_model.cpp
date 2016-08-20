@@ -43,7 +43,7 @@
 #include <leatherman/utils.h>
 #include <moveit/collision_detection/world.h>
 #include <octomap_msgs/conversions.h>
-#include <sbpl_geometry_utils/Voxelizer.h>
+#include <sbpl_geometry_utils/voxelize.h>
 
 // project includes
 #include "voxel_operations.h"

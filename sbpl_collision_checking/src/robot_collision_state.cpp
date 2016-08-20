@@ -50,7 +50,7 @@
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/Voxelizer.h>
+#include <sbpl_geometry_utils/voxelize.h>
 #include <urdf/model.h>
 
 // project includes

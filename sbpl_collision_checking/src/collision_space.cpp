@@ -45,8 +45,6 @@
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <moveit_msgs/RobotState.h>
-#include <sbpl_geometry_utils/SphereEncloser.h>
-#include <sbpl_geometry_utils/interpolation.h>
 #include <sbpl_geometry_utils/utils.h>
 
 namespace sbpl {

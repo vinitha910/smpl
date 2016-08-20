@@ -46,7 +46,6 @@
 #include <kdl/jntarray.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/interpolation.h>
 #include <urdf/model.h>
 
 // project includes
