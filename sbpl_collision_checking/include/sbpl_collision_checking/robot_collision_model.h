@@ -111,6 +111,8 @@ public:
     auto   jointOrigin(int jidx) const -> const Eigen::Affine3d&;
     auto   jointAxis(int jidx) const -> const Eigen::Vector3d&;
     auto   jointTransformFn(int jidx) const -> JointTransformFunction;
+
+    bool   isDescendantJoint(int jidx, int pjidx) const;
     ///@}
 
     /// \name Robot Model - Link Information

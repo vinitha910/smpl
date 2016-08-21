@@ -111,6 +111,8 @@ public:
     auto   jointAxis(int jidx) const -> const Eigen::Vector3d&;
     auto   jointTransformFn(int jidx) const -> JointTransformFunction;
 
+    bool   isDescendantJoint(int jidx, int pjidx) const;
+
     size_t linkCount() const;
     auto   linkNames() const -> const std::vector<std::string>&;
     bool   hasLink(const std::string& link_name) const;
@@ -160,6 +162,8 @@ private:
     std::vector<double>                     m_jvar_min_positions;
     std::vector<double>                     m_jvar_max_positions;
     hash_map<std::string, int>              m_jvar_name_to_index;
+
+    std::vector<bool>                       m_desc_joint_matrix;
 
     Affine3dVector                          m_joint_origins;
     std::vector<Eigen::Vector3d>            m_joint_axes;
@@ -435,6 +439,12 @@ JointTransformFunction RobotCollisionModelImpl::jointTransformFn(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_joint_transforms, jidx);
     return m_joint_transforms[jidx];
+}
+
+inline
+bool RobotCollisionModelImpl::isDescendantJoint(int jidx, int pjidx) const
+{
+    return m_desc_joint_matrix[jidx * jointCount() + pjidx];
 }
 
 inline
@@ -836,6 +846,27 @@ bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
             // push the child link onto the queue
             auto child_link = urdf.getLink(joint->child_link_name);
             links.push(std::make_pair(child_link, m_joint_axes.size() - 1));
+        }
+    }
+
+    auto get_jidx = [&](const std::string& joint_name) {
+        auto it = std::find(joint_names.begin(), joint_names.end(), joint_name);
+        return std::distance(joint_names.begin(), it);
+    };
+
+    m_desc_joint_matrix.resize(joint_names.size() * joint_names.size(), false);
+    for (const std::string& joint_name : joint_names) {
+        int jidx = get_jidx(joint_name);
+        auto joint = urdf.getJoint(joint_name);
+        while (joint) {
+            // get the parent joint
+            auto plink = urdf.getLink(joint->parent_link_name);
+            joint = plink->parent_joint;
+            if (joint) {
+                // set an entry
+                int pjidx = get_jidx(joint->name);
+                m_desc_joint_matrix[jidx * joint_names.size() + pjidx] = true;
+            }
         }
     }
 
@@ -1458,6 +1489,11 @@ const Eigen::Vector3d& RobotCollisionModel::jointAxis(int jidx) const
 JointTransformFunction RobotCollisionModel::jointTransformFn(int jidx) const
 {
     return m_impl->jointTransformFn(jidx);
+}
+
+bool RobotCollisionModel::isDescendantJoint(int jidx, int pjidx) const
+{
+    return m_impl->isDescendantJoint(jidx, pjidx);
 }
 
 size_t RobotCollisionModel::linkCount() const
