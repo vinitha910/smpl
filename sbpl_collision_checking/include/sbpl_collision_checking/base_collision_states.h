@@ -54,9 +54,10 @@ struct CollisionSphereState
     const CollisionSpheresState* parent_state;
     Eigen::Vector3d pos;
     const CollisionSphereState *left, *right;
+    int version;
 
     CollisionSphereState() :
-        model(nullptr), parent_state(nullptr), pos(), left(nullptr), right(nullptr)
+        model(nullptr), parent_state(nullptr), pos(), left(nullptr), right(nullptr), version(-1)
     { }
 
     // see note in CollisionSphereModel
