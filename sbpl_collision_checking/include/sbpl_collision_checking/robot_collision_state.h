@@ -69,8 +69,12 @@ public:
     double jointVarPosition(const std::string& var_name) const;
     double jointVarPosition(int vidx) const;
 
+    const double* getJointVarPositions() const;
+
     bool   setJointVarPosition(const std::string& var_name, double position);
     bool   setJointVarPosition(int vidx, double position);
+
+    bool   setJointVarPositions(const double* positions);
 
     auto   linkTransform(const std::string& link_name) const ->
             const Eigen::Affine3d&;

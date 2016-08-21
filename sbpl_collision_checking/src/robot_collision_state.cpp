@@ -87,8 +87,12 @@ public:
     double jointVarPosition(const std::string& var_name) const;
     double jointVarPosition(int vidx) const;
 
+    const double* getJointVarPositions() const;
+
     bool   setJointVarPosition(const std::string& var_name, double position);
     bool   setJointVarPosition(int vidx, double position);
+
+    bool   setJointVarPositions(const double* positions);
 
     auto   linkTransform(const std::string& link_name) const ->
             const Eigen::Affine3d&;
@@ -167,6 +171,7 @@ private:
     std::vector<CollisionSpheresState*>     m_link_spheres_states;
 
     std::vector<int> m_q;
+    std::vector<int> m_ancestors;
     ///@}
 
     void initRobotState();
@@ -259,6 +264,12 @@ double RobotCollisionStateImpl::jointVarPosition(int vidx) const
 }
 
 inline
+const double* RobotCollisionStateImpl::getJointVarPositions() const
+{
+    return m_jvar_positions.data();
+}
+
+inline
 bool RobotCollisionStateImpl::setJointVarPosition(
     const std::string& var_name,
     double position)
@@ -311,6 +322,70 @@ bool RobotCollisionStateImpl::setJointVarPosition(int vidx, double position)
     else {
         return false;
     }
+}
+
+inline
+bool RobotCollisionStateImpl::setJointVarPositions(const double* positions)
+{
+    std::vector<int>& ancestors = m_ancestors;
+    ancestors.clear();
+    for (size_t vidx = 0; vidx < m_jvar_positions.size(); ++vidx) {
+        if (m_jvar_positions[vidx] != positions[vidx]) {
+            m_jvar_positions[vidx] = positions[vidx];
+            int jidx = m_jvar_joints[vidx];
+            m_dirty_joint_transforms[jidx] = true;
+            bool add = true;
+            for (int& ancestor : ancestors) {
+                if (m_model->isDescendantJoint(jidx, ancestor)) {
+                    // only keep most ancestral joints
+                    add = false;
+                    break;
+                }
+                else if (m_model->isDescendantJoint(ancestor, jidx)) {
+                    // replace the ancestor joint with this joint
+                    add = false;
+                    ancestor = jidx;
+                    break;
+                }
+            }
+            if (add) {
+                ancestors.push_back(jidx);
+            }
+        }
+    }
+
+    if (ancestors.empty()) {
+        return false;
+    }
+
+    std::vector<int>& q = m_q;
+    q.clear();
+    for (int ancestor : ancestors) {
+        q.push_back(m_model->jointChildLinkIndex(ancestor));
+    }
+    while (!q.empty()) {
+        int lidx = q.back();
+        q.pop_back();
+
+        ROS_DEBUG_NAMED(RCS_LOGGER, "Dirtying transform to link '%s'", m_model->linkName(lidx).c_str());
+
+        // dirty the transform of the affected link
+        m_dirty_link_transforms[lidx] = true;
+
+        // dirty the voxels states of any attached voxels model
+        CollisionVoxelsState* voxels_state = m_link_voxels_states[lidx];
+        if (voxels_state) {
+            int dvsidx = std::distance(m_voxels_states.data(), voxels_state);
+            m_dirty_voxels_states[dvsidx] = true;
+        }
+
+        // add child links to the queue
+        for (int cjidx : m_model->linkChildJointIndices(lidx)) {
+            q.push_back(m_model->jointChildLinkIndex(cjidx));
+        }
+    }
+
+    return true;
 }
 
 inline
@@ -906,6 +981,11 @@ double RobotCollisionState::jointVarPosition(int vidx) const
     return m_impl->jointVarPosition(vidx);
 }
 
+const double* RobotCollisionState::getJointVarPositions() const
+{
+    return m_impl->getJointVarPositions();
+}
+
 bool RobotCollisionState::setJointVarPosition(
     const std::string& name,
     double position)
@@ -916,6 +996,11 @@ bool RobotCollisionState::setJointVarPosition(
 bool RobotCollisionState::setJointVarPosition(int jidx, double position)
 {
     return m_impl->setJointVarPosition(jidx, position);
+}
+
+bool RobotCollisionState::setJointVarPositions(const double* positions)
+{
+    return m_impl->setJointVarPositions(positions);
 }
 
 const Eigen::Affine3d& RobotCollisionState::linkTransform(

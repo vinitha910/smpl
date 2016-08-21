@@ -529,10 +529,7 @@ void SelfCollisionModelImpl::switchAttachedBodyGroup(int ab_gidx)
 
 void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 {
-    for (size_t vidx = 0; vidx < m_rcs.model()->jointVarCount(); ++vidx) {
-        const double p = state.jointVarPosition(vidx);
-        m_rcs.setJointVarPosition(vidx, p);
-    }
+    m_rcs.setJointVarPositions(state.getJointVarPositions());
 }
 
 void SelfCollisionModelImpl::updateVoxelsStates()
