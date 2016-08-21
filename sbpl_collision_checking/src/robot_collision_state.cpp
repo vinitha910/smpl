@@ -149,9 +149,6 @@ private:
 
     /// \name Collision State
     ///@{
-    // per sphere state
-//    std::vector<bool>                       m_dirty_sphere_states;
-
     // per spheres state sphere indices offset
     std::vector<int>                        m_sphere_offsets;
 
