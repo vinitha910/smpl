@@ -534,7 +534,7 @@ void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 
 void SelfCollisionModelImpl::updateVoxelsStates()
 {
-    ROS_DEBUG("Update voxels states");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Update voxels states");
     // update voxel groups; gather voxels before updating so as to impose only
     // a single distance field update (TODO: does the distance field recompute
     // with every call to insert/remove/update points?)
@@ -646,7 +646,7 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
             }
             else { // normal leaf
                 const CollisionSphereModel* sm = s->model;
-                ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* name: %s, radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), sm->radius, obs_dist);
+                ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* name: %s, pos: (%0.3f, %0.3f, %0.3f), radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), s->pos.x(), s->pos.y(), s->pos.z(), sm->radius, obs_dist);
                 dist = obs_dist;
                 return false; // collision -> not ok!
             }
