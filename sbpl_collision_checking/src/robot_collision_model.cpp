@@ -1112,25 +1112,25 @@ bool RobotCollisionModelImpl::generateBoundingSpheres(
         ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
 
         sbpl::ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
-        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::BOX) {
         urdf::Box* box = (urdf::Box*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
         sbpl::ComputeBoxBoundingSpheres(box->dim.x, box->dim.y, box->dim.z, radius, centers);
-        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::CYLINDER) {
         urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
         sbpl::ComputeCylinderBoundingSpheres(cyl->radius, cyl->length, radius, centers);
-        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::SPHERE) {
         urdf::Sphere* sph = (urdf::Sphere*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "sphere: { radius: %0.3f }", sph->radius);
         sbpl::ComputeSphereBoundingSpheres(sph->radius, radius, centers);
-        ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else {
         ROS_ERROR_NAMED(RCM_LOGGER, "Unrecognized geometry type for voxelization");
