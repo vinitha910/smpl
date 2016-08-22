@@ -51,7 +51,7 @@ namespace manip {
 void ShortcutPath(
     RobotModel* rm,
     CollisionChecker* cc,
-    std::vector<RobotState>& pin,
+    const std::vector<RobotState>& pin,
     std::vector<RobotState>& pout,
     ShortcutType type);
 

@@ -46,7 +46,10 @@
 namespace sbpl {
 namespace manip {
 
-double distance(const RobotModel& robot, const RobotState& from, const RobotState& to)
+double distance(
+    const RobotModel& robot,
+    const RobotState& from,
+    const RobotState& to)
 {
     double dist = 0.0;
     for (size_t vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
@@ -211,7 +214,7 @@ private:
 void ShortcutPath(
     RobotModel* rm,
     CollisionChecker* cc,
-    std::vector<RobotState>& pin,
+    const std::vector<RobotState>& pin,
     std::vector<RobotState>& pout,
     ShortcutType type)
 {
