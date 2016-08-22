@@ -87,6 +87,7 @@ public:
     }
 
     double maxRadius() const;
+    double maxLeafRadius() const;
 
 private:
 

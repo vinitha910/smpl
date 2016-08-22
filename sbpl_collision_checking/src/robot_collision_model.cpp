@@ -146,6 +146,7 @@ public:
             const std::vector<int>&;
 
     double maxSphereRadius() const;
+    double maxLeafSphereRadius() const;
 
 private:
 
@@ -619,6 +620,17 @@ double RobotCollisionModelImpl::maxSphereRadius() const
     return d;
 }
 
+inline
+double RobotCollisionModelImpl::maxLeafSphereRadius() const
+{
+    double d = 0.0;
+    for (const auto& spheres : m_spheres_models) {
+        d = std::max(d, spheres.spheres.maxLeafRadius());
+    }
+    return d;
+}
+
+inline
 bool RobotCollisionModelImpl::initRobotModel(const urdf::ModelInterface& urdf)
 {
     m_name = urdf.getName();
@@ -1616,6 +1628,11 @@ const std::vector<int>& RobotCollisionModel::groupLinkIndices(int gidx) const
 double RobotCollisionModel::maxSphereRadius() const
 {
     return m_impl->maxSphereRadius();
+}
+
+double RobotCollisionModel::maxLeafSphereRadius() const
+{
+    return m_impl->maxLeafSphereRadius();
 }
 
 RobotCollisionModel::RobotCollisionModel() :

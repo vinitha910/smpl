@@ -154,6 +154,7 @@ public:
     auto   groupLinkIndices(int gidx) const ->
             const std::vector<int>&;
 
+    double maxLeafSphereRadius() const;
     double maxSphereRadius() const;
     ///@}
 

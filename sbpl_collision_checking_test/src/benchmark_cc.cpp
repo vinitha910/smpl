@@ -166,6 +166,8 @@ bool CollisionSpaceProfiler::init()
 
     m_rcm = sbpl::collision::RobotCollisionModel::Load(urdf, config);
 
+    ROS_INFO("max leaf sphere radius: %0.3f", m_rcm->maxLeafSphereRadius());
+
     m_grid = CreateGrid(m_nh, m_rcm->maxSphereRadius());
 
     const std::string group_name = "right_arm";

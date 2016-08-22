@@ -298,6 +298,35 @@ double CollisionSphereModelTree::maxRadius() const
     }
 }
 
+double CollisionSphereModelTree::maxLeafRadius() const
+{
+    auto radius_comp = [](
+        const CollisionSphereModel& s1,
+        const CollisionSphereModel& s2)
+    {
+        if (s1.isLeaf() && s2.isLeaf()) {
+            return s1.radius < s2.radius;
+        }
+        else if (s1.isLeaf()) {
+            return true;
+        }
+        else if (s2.isLeaf()) {
+            return false;
+        }
+        else {
+            return false;
+        }
+    };
+
+    auto it = std::max_element(m_tree.begin(), m_tree.end(), radius_comp);
+    if (it == m_tree.end()) {
+        return 0.0;
+    }
+    else {
+        return it->radius;
+    }
+}
+
 /// \brief Compute the bounding sphere tree for a subset of model spheres
 /// \return The index into \p m_tree where the top-most bounding sphere was stored
 template <typename Sphere>
