@@ -130,6 +130,7 @@ private:
     sbpl::collision::RobotCollisionModelPtr m_rcm;
     sbpl::collision::CollisionSpacePtr m_cspace;
     std::default_random_engine m_rng;
+    ros::Publisher m_pub;
 
     std::vector<double> createRandomState();
 };
@@ -185,7 +186,7 @@ bool CollisionSpaceProfiler::init()
         return false;
     }
 
-    ros::Publisher ma_pub = m_nh.advertise<visualization_msgs::MarkerArray>(
+    m_pub = m_nh.advertise<visualization_msgs::MarkerArray>(
             "visualization_markers", 100);
 
     return true;
