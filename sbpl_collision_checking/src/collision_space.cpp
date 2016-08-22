@@ -476,6 +476,14 @@ double CollisionSpace::collisionDistance(const std::vector<double>& vars)
     return m_scm->collisionDistance(*m_rcs, m_gidx);
 }
 
+bool CollisionSpace::collisionDetails(
+    const std::vector<double>& vars,
+    CollisionDetails& details)
+{
+    updateState(vars);
+    return m_scm->collisionDetails(*m_rcs, m_gidx, details);
+}
+
 bool CollisionSpace::isStateValid(
     const std::vector<double>& angles,
     bool verbose,

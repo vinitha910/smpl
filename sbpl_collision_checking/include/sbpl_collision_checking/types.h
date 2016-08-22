@@ -91,6 +91,19 @@ std::string AffineToString(const Eigen::Affine3d& t)
 ObjectConstPtr ConvertCollisionObjectToObject(
     const moveit_msgs::CollisionObject& co);
 
+struct CollisionDetails
+{
+    // TODO:
+    // * (body1 name, body2 name) "voxels" for voxels collisions; link names o/w
+    // * penetration distance
+    // * contact point
+    // * contact normals (for voxels, use local gradient)
+
+    // for now...this is interesting enough
+    int sphere_collision_count;
+    int voxels_collision_count;
+};
+
 } // namespace collision
 } // namespace sbpl
 

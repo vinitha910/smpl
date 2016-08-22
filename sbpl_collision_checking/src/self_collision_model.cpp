@@ -94,6 +94,30 @@ public:
         AttachedBodiesCollisionState& ab_state,
         const int gidx);
 
+    bool collisionDetails(
+        RobotCollisionState& state,
+        const int gidx,
+        CollisionDetails& details);
+
+    bool collisionDetails(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx,
+        CollisionDetails& details);
+
+    bool collisionDetails(
+        RobotCollisionState& state,
+        const AllowedCollisionsInterface& aci,
+        const int gidx,
+        CollisionDetails& details);
+
+    bool collisionDetails(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const int gidx,
+        CollisionDetails& details);
+
 private:
 
     OccupancyGrid*                          m_grid;
@@ -408,6 +432,67 @@ double SelfCollisionModelImpl::collisionDistance(
 {
     // TODO: implement me
     return 0.0;
+}
+
+bool SelfCollisionModelImpl::collisionDetails(
+    RobotCollisionState& state,
+    const int gidx,
+    CollisionDetails& details)
+{
+    if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        return false;
+    }
+
+    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
+        return false;
+    }
+
+    updateGroup(gidx);
+    copyState(state);
+
+    double dist;
+    details.voxels_collision_count = 0;
+    details.sphere_collision_count = 0;
+    if (!checkVoxelsStateCollisions(dist)) {
+        details.voxels_collision_count = 1;
+        return false;
+    }
+    if (!checkSpheresStateCollisions(dist)) {
+        details.sphere_collision_count = 1;
+        return false;
+    }
+
+    return true;
+}
+
+bool SelfCollisionModelImpl::collisionDetails(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return false; // TODO: implement me
+}
+
+bool SelfCollisionModelImpl::collisionDetails(
+    RobotCollisionState& state,
+    const AllowedCollisionsInterface& aci,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return false; // TODO: implement me
+}
+
+bool SelfCollisionModelImpl::collisionDetails(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return false; // TODO: implement me
 }
 
 void SelfCollisionModelImpl::updateGroup(int gidx)
@@ -1281,6 +1366,42 @@ double SelfCollisionModel::collisionDistance(
     const int gidx)
 {
     return m_impl->collisionDistance(state, ab_state, gidx);
+}
+
+bool SelfCollisionModel::collisionDetails(
+    RobotCollisionState& state,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return m_impl->collisionDetails(state, gidx, details);
+}
+
+bool SelfCollisionModel::collisionDetails(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return m_impl->collisionDetails(state, ab_state, gidx, details);
+}
+
+bool SelfCollisionModel::collisionDetails(
+    RobotCollisionState& state,
+    const AllowedCollisionsInterface& aci,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return m_impl->collisionDetails(state, aci, gidx, details);
+}
+
+bool SelfCollisionModel::collisionDetails(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
+    const int gidx,
+    CollisionDetails& details)
+{
+    return m_impl->collisionDetails(state, ab_state, aci, gidx, details);
 }
 
 } // namespace collision

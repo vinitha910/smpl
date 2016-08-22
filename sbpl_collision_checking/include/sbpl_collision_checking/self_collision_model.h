@@ -102,6 +102,30 @@ public:
         AttachedBodiesCollisionState& ab_state,
         const int gidx);
 
+    bool collisionDetails(
+        RobotCollisionState& state,
+        const int gidx,
+        CollisionDetails& details);
+
+    bool collisionDetails(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx,
+        CollisionDetails& details);
+
+    bool collisionDetails(
+        RobotCollisionState& state,
+        const AllowedCollisionsInterface& aci,
+        const int gidx,
+        CollisionDetails& details);
+
+    bool collisionDetails(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const int gidx,
+        CollisionDetails& details);
+
     // TODO: contacts checks
     // TODO: detailed checks
 

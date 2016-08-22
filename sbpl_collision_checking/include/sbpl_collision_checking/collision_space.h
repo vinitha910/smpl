@@ -151,6 +151,10 @@ public:
 
     double collisionDistance(const std::vector<double>& vars);
 
+    bool collisionDetails(
+        const std::vector<double>& vars,
+        CollisionDetails& details);
+
     /// \name Reimplemented Public Functions
     ///@{
     bool isStateValid(
