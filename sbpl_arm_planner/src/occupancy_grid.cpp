@@ -245,7 +245,7 @@ OccupancyGrid::getBoundingBoxVisualization() const
     double dimx, dimy, dimz, originx, originy, originz;
     std::vector<geometry_msgs::Point> pts(10);
     getOrigin(originx, originy, originz);
-    getWorldSize(dimx,dimy,dimz);
+    getWorldSize(dimx, dimy, dimz);
     pts[0].x = originx;      pts[0].y = originy;      pts[0].z = originz;
     pts[1].x = originx+dimx; pts[1].y = originy;      pts[1].z = originz;
     pts[2].x = originx+dimx; pts[2].y = originy+dimy; pts[2].z = originz;
