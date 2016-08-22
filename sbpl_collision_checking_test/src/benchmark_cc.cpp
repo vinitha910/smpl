@@ -43,7 +43,7 @@
 #include <sbpl_collision_checking/collision_space.h>
 #include <urdf/model.h>
 
-sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh)
+sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
 {
     const char* world_collision_model_param = "world_collision_model";
     std::string wcm_key;
@@ -66,8 +66,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh)
         !wcm_config.hasMember("origin_x") ||
         !wcm_config.hasMember("origin_y") ||
         !wcm_config.hasMember("origin_z") ||
-        !wcm_config.hasMember("res_m") ||
-        !wcm_config.hasMember("max_distance_m"))
+        !wcm_config.hasMember("res_m"))
     {
         ROS_ERROR("'%s' param is malformed", world_collision_model_param);
         ROS_ERROR_STREAM("has size_x member " << wcm_config.hasMember("size_x"));
@@ -77,7 +76,6 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh)
         ROS_ERROR_STREAM("has origin_y member " << wcm_config.hasMember("origin_y"));
         ROS_ERROR_STREAM("has origin_z member " << wcm_config.hasMember("origin_z"));
         ROS_ERROR_STREAM("has res_m member " << wcm_config.hasMember("res_m"));
-        ROS_ERROR_STREAM("has max_distance_m member " << wcm_config.hasMember("max_distance_m"));
         return sbpl::OccupancyGridPtr();
     }
 
@@ -89,14 +87,21 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh)
     const double origin_x = wcm_config["origin_x"];
     const double origin_y = wcm_config["origin_y"];
     const double origin_z = wcm_config["origin_z"];
-    const double max_distance_m = wcm_config["max_distance_m"];
+    const double max_distance_m = max_dist;
     const bool propagate_negative_distances = false;
     const bool ref_counted = true;
+
+    ROS_INFO("Occupancy Grid:");
+    ROS_INFO("  origin: (%0.3f, %0.3f, %0.3f)", origin_x, origin_y, origin_z);
+    ROS_INFO("  size: (%0.3f, %0.3f, %0.3f)", size_x, size_y, size_z);
+    ROS_INFO("  res: %0.3f", res_m);
+    ROS_INFO("  max_distance: %0.3f", max_distance_m);
 
     auto grid = std::make_shared<sbpl::OccupancyGrid>(
             size_x, size_y, size_z,
             res_m,
             origin_x, origin_y, origin_z,
+            max_distance_m,
             propagate_negative_distances,
             ref_counted);
     grid->setReferenceFrame(world_frame);
@@ -131,8 +136,6 @@ private:
 
 bool CollisionSpaceProfiler::init()
 {
-    m_grid = CreateGrid(m_nh);
-
     std::string robot_description_key;
     if (!m_nh.searchParam("robot_description", robot_description_key)) {
         ROS_ERROR("Failed to find 'robot_description' key on the param server");
@@ -157,6 +160,8 @@ bool CollisionSpaceProfiler::init()
     }
 
     m_rcm = sbpl::collision::RobotCollisionModel::Load(urdf, config);
+
+    m_grid = CreateGrid(m_nh, m_rcm->maxSphereRadius());
 
     const std::string group_name = "right_arm";
 
