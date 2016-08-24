@@ -1372,7 +1372,7 @@ int CollisionSpaceProfiler::exportCheckedStates(const char* filename, int count)
         bool res = m_cspace->checkCollision(variables, dist);
         m_pub.publish(m_cspace->getCollisionRobotVisualization(variables));
         for (auto v : variables) {
-            ofs << v << ' ';
+            ofs << std::setprecision(12) << v << ' ';
         }
         ofs << (int)res << '\n';
     }
