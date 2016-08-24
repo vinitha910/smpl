@@ -36,17 +36,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <functional>
-#include <memory>
-#include <mutex>
 #include <queue>
-#include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 // system includes
-#include <Eigen/Dense>
-#include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>
@@ -1090,15 +1084,14 @@ bool RobotCollisionModelImpl::generateBoundingSpheres(
         return false;
     }
 
-    Eigen::Affine3d pose;
-
-    geometry_msgs::Pose p;
-    p.position.x = collision.origin.position.x;
-    p.position.y = collision.origin.position.y;
-    p.position.z = collision.origin.position.z;
+    Eigen::Translation3d translation(
+            collision.origin.position.x,
+            collision.origin.position.y,
+            collision.origin.position.z);
+    Eigen::Quaterniond rotation;
     collision.origin.rotation.getQuaternion(
-            p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
-    tf::poseMsgToEigen(p, pose);
+            rotation.x(), rotation.y(), rotation.z(), rotation.w());
+    Eigen::Affine3d pose = translation * rotation;
 
     return generateBoundingSpheres(*geom, pose, radius, spheres);
 }
@@ -1308,15 +1301,14 @@ bool RobotCollisionModelImpl::voxelizeCollisionElement(
         return false;
     }
 
-    Eigen::Affine3d pose;
-
-    geometry_msgs::Pose p;
-    p.position.x = collision.origin.position.x;
-    p.position.y = collision.origin.position.y;
-    p.position.z = collision.origin.position.z;
+    Eigen::Translation3d translation(
+            collision.origin.position.x,
+            collision.origin.position.y,
+            collision.origin.position.z);
+    Eigen::Quaterniond rotation;
     collision.origin.rotation.getQuaternion(
-            p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
-    tf::poseMsgToEigen(p, pose);
+            rotation.x(), rotation.y(), rotation.z(), rotation.w());
+    Eigen::Affine3d pose = translation * rotation;
 
     return voxelizeGeometry(*geom, pose, res, voxels);
 }
