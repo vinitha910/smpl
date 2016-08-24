@@ -87,7 +87,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     const double origin_x = wcm_config["origin_x"];
     const double origin_y = wcm_config["origin_y"];
     const double origin_z = wcm_config["origin_z"];
-    const double max_distance_m = max_dist;
+    const double max_distance_m = max_dist + res_m;
     const bool propagate_negative_distances = false;
     const bool ref_counted = true;
 
