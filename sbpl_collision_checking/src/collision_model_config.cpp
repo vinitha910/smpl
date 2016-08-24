@@ -128,21 +128,18 @@ bool CollisionSphereConfig::Load(
         !config.hasMember("x") ||
         !config.hasMember("y") ||
         !config.hasMember("z") ||
-        !config.hasMember("priority") ||
         !config.hasMember("radius"))
     {
         ROS_ERROR("sphere config is malformed");
         return false;
     }
 
-    // type check sphere config elements
-
+    // type check required sphere config elements
     XmlRpc::XmlRpcValue& name_value = config["name"];
     XmlRpc::XmlRpcValue& x_value = config["x"];
     XmlRpc::XmlRpcValue& y_value = config["y"];
     XmlRpc::XmlRpcValue& z_value = config["z"];
     XmlRpc::XmlRpcValue& radius_value = config["radius"];
-    XmlRpc::XmlRpcValue& priority_value = config["priority"];
 
     if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
         ROS_ERROR("sphere config 'name' element must be a string");
@@ -164,7 +161,9 @@ bool CollisionSphereConfig::Load(
         ROS_ERROR("sphere config 'radius' element must be numeric");
         return false;
     }
-    if (priority_value.getType() != XmlRpc::XmlRpcValue::TypeInt) {
+
+    // type check optional sphere config elements, if they exist
+    if (config.hasMember("priority") && config["priority"].getType() != XmlRpc::XmlRpcValue::TypeInt) {
         ROS_ERROR("sphere config 'priority' element must be an integer");
         return false;
     }
@@ -176,7 +175,12 @@ bool CollisionSphereConfig::Load(
     cfg.y = ToDouble(y_value);
     cfg.z = ToDouble(z_value);
     cfg.radius = ToDouble(radius_value);
-    cfg.priority = (int)priority_value;
+    if (config.hasMember("priority")) {
+        cfg.priority = (int)config["priority"];
+    }
+    else {
+        cfg.priority = 0;
+    }
     return true;
 }
 

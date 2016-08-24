@@ -441,6 +441,8 @@ bool WorldCollisionModelImpl::checkSpheresStateCollisions(
     RobotCollisionState& state,
     double& dist)
 {
+    // TODO: fix to use hierarchical check...worth it to move all voxel checking
+    // into the world collision model to avoid duplication
     for (const auto& sidx : m_sphere_indices) {
         double obs_dist;
         if (!CheckSphereCollision(*m_grid, state, m_padding, sidx, obs_dist)) {
