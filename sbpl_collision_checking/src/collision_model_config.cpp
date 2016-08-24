@@ -269,10 +269,12 @@ bool CollisionVoxelModelConfig::Load(
     XmlRpc::XmlRpcValue& config,
     CollisionVoxelModelConfig& cfg)
 {
-    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        !config.hasMember("link_name"))
-    {
-        ROS_ERROR("voxel model config is malformed");
+    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
+        ROS_ERROR("voxel model config must be a struct");
+        return false;
+    }
+    if (!config.hasMember("link_name")) {
+        ROS_ERROR("voxel model config requires key 'link_name'");
         return false;
     }
 
