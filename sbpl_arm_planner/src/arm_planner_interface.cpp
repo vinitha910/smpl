@@ -350,34 +350,38 @@ bool ArmPlannerInterface::checkParams(
     return true;
 }
 
-bool ArmPlannerInterface::setStart(const sensor_msgs::JointState& state)
+bool ArmPlannerInterface::setStart(const moveit_msgs::RobotState& state)
 {
-    ROS_INFO("Setting start configuration");
+    ROS_INFO("set start configuration");
+
+    if (!state.multi_dof_joint_state.joint_names.empty()) {
+        ROS_WARN("planner does not currently support multi-dof joints");
+    }
+
     RobotState initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(
-            state, prm_.planning_joints_, initial_positions, missing))
+            state.joint_state, prm_.planning_joints_, initial_positions, missing))
     {
-        ROS_ERROR("Start state is missing planning joints: %s", to_string(missing).c_str());
+        ROS_ERROR("start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
     }
 
-    ROS_INFO("New Start Configuration");
-    ROS_INFO("  Joint Variables: %s", to_string(initial_positions).c_str());
+    ROS_INFO("  joint variables: %s", to_string(initial_positions).c_str());
 
     if (sbpl_arm_env_->setStartState(initial_positions) == 0) {
-        ROS_ERROR("Environment failed to set start state. Not Planning.");
+        ROS_ERROR("environment failed to set start state. not planning.");
         return false;
     }
 
     const int start_id = sbpl_arm_env_->getStartStateID();
     if (start_id == -1) {
-        ROS_ERROR("No start state has been set");
+        ROS_ERROR("no start state has been set");
         return false;
     }
 
     if (planner_->set_start(start_id) == 0) {
-        ROS_ERROR("Failed to set start state. Not Planning.");
+        ROS_ERROR("failed to set start state. not planning.");
         return false;
     }
 
@@ -610,7 +614,7 @@ bool ArmPlannerInterface::planToPosition(
         return false;
     }
 
-    if (!setStart(req.start_state.joint_state)) {
+    if (!setStart(req.start_state)) {
         ROS_ERROR("Failed to set initial configuration of robot.");
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
@@ -649,7 +653,7 @@ bool ArmPlannerInterface::planToConfiguration(
     // only acknowledge the first constraint
     const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front();
 
-    if (!setStart(req.start_state.joint_state)) {
+    if (!setStart(req.start_state)) {
         ROS_ERROR("Failed to set initial configuration of robot.");
         res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;

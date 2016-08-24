@@ -187,7 +187,7 @@ protected:
     bool checkParams(const PlanningParams& params) const;
 
     // Set start configuration
-    bool setStart(const sensor_msgs::JointState& state);
+    bool setStart(const moveit_msgs::RobotState& state);
 
     // Set goal(s)
     bool setGoalPosition(const moveit_msgs::Constraints& goals);
