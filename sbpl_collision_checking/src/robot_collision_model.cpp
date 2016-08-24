@@ -1277,7 +1277,8 @@ bool RobotCollisionModelImpl::voxelizeLink(
             return false;
         }
     }
-    else if (!link->collision_array.empty()) {
+
+    if (!link->collision_array.empty()) {
         for (auto collision : link->collision_array) {
             if (!voxelizeCollisionElement(
                     *collision, model.voxel_res, model.voxels))
@@ -1286,10 +1287,6 @@ bool RobotCollisionModelImpl::voxelizeLink(
                 return false;
             }
         }
-    }
-    else {
-        ROS_ERROR_NAMED(RCM_LOGGER, "Hmm");
-        return false;
     }
 
     if (model.voxels.empty()) {
