@@ -55,8 +55,8 @@
 
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
+#include <sbpl_collision_checking/debug.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
-#include "debug.h"
 #include "transform_functions.h"
 #include "voxel_operations.h"
 

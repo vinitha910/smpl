@@ -32,7 +32,7 @@
 #include <algorithm>
 
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
-#include "debug.h"
+#include <sbpl_collision_checking/debug.h>
 
 namespace sbpl {
 namespace collision {

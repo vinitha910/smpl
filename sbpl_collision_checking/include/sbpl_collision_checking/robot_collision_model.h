@@ -47,6 +47,7 @@
 // project includes
 #include <sbpl_collision_checking/base_collision_models.h>
 #include <sbpl_collision_checking/collision_model_config.h>
+#include <sbpl_collision_checking/debug.h>
 #include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
@@ -160,10 +161,447 @@ public:
 
 private:
 
+    // cached after initialization to allow regeneration of references
+    CollisionModelConfig m_config;
+
+    /// \name Robot Model
+    ///@{
+    std::string                             m_name;
+    std::string                             m_model_frame;
+    std::vector<std::string>                m_jvar_names;
+    std::vector<bool>                       m_jvar_continuous;
+    std::vector<bool>                       m_jvar_has_position_bounds;
+    std::vector<double>                     m_jvar_min_positions;
+    std::vector<double>                     m_jvar_max_positions;
+    hash_map<std::string, int>              m_jvar_name_to_index;
+
+    std::vector<bool>                       m_desc_joint_matrix;
+
+    Affine3dVector                          m_joint_origins;
+    std::vector<Eigen::Vector3d>            m_joint_axes;
+    std::vector<JointTransformFunction>     m_joint_transforms;
+    std::vector<int>                        m_joint_parent_links;
+    std::vector<int>                        m_joint_child_links;
+
+    std::vector<std::string>                m_link_names;
+    std::vector<int>                        m_link_parent_joints;
+    std::vector<std::vector<int>>           m_link_children_joints;
+    hash_map<std::string, int>              m_link_name_to_index;
+    ///@}
+
+    /// \name Collision Model
+    ///@{
+
+    // one entry for each link that has a spheres model
+    std::vector<CollisionSpheresModel>  m_spheres_models;
+
+    // one entry for each link that has a voxels model
+    std::vector<CollisionVoxelsModel>   m_voxels_models;
+
+    // one entry for each group specified through config
+    std::vector<CollisionGroupModel>    m_group_models;
+    hash_map<std::string, int>          m_group_name_to_index;
+
+    // per-link references to corresponding spheres and voxels models
+    std::vector<const CollisionSpheresModel*> m_link_spheres_models;
+    std::vector<const CollisionVoxelsModel*>  m_link_voxels_models;
+
+    ///@}
+
+// TODO:
+//    bool hasSpheresModelOverride(const std::string& link_name, const std::string& group_name) const;
+//    bool hasSpheresModelOverride(const std::string& link_name, int gidx) const;
+//    bool hasSpheresModelOverride(int lidx, const std::string& group_name) const;
+//    bool hasSpheresModelOverride(int lidx, int gidx) const;
+
     RobotCollisionModel();
 
-    std::unique_ptr<RobotCollisionModelImpl> m_impl;
+    bool init(
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config);
+
+    bool initRobotModel(const urdf::ModelInterface& urdf);
+    bool initCollisionModel(
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config);
+
+    // this hierarchy is almost identical to the voxelization workflow and is
+    // begging to be templated?...or maybe its not that important
+    bool generateSpheresModel(
+        const urdf::ModelInterface& urdf,
+        const std::string& link_name,
+        double radius,
+        std::vector<CollisionSphereConfig>& spheres) const;
+    bool generateBoundingSpheres(
+        const urdf::Collision& collision,
+        double radius,
+        std::vector<CollisionSphereConfig>& spheres) const;
+    bool generateBoundingSpheres(
+        const urdf::Geometry& geom,
+        const Eigen::Affine3d& pose,
+        double res,
+        std::vector<CollisionSphereConfig>& spheres) const;
+
+    bool checkCollisionModelConfig(const CollisionModelConfig& config);
+
+    bool checkCollisionModelReferences() const;
+
+    Eigen::Affine3d poseUrdfToEigen(const urdf::Pose& p) const;
+
+    bool voxelizeLink(
+        const urdf::ModelInterface& urdf,
+        const std::string& link_name,
+        CollisionVoxelsModel& model) const;
+
+    bool voxelizeCollisionElement(
+        const urdf::Collision& collision,
+        double res,
+        std::vector<Eigen::Vector3d>& voxels) const;
+
+    bool voxelizeGeometry(
+        const urdf::Geometry& geom,
+        const Eigen::Affine3d& pose,
+        double res,
+        std::vector<Eigen::Vector3d>& voxels) const;
 };
+
+inline
+const std::string& RobotCollisionModel::name() const
+{
+    return m_name;
+}
+
+inline
+const std::string& RobotCollisionModel::modelFrame() const
+{
+    return m_model_frame;
+}
+
+inline
+size_t RobotCollisionModel::jointVarCount() const
+{
+    return m_jvar_names.size();
+}
+
+inline
+const std::vector<std::string>& RobotCollisionModel::jointVarNames() const
+{
+    return m_jvar_names;
+}
+
+inline
+bool RobotCollisionModel::hasJointVar(const std::string& joint_name) const
+{
+    return m_jvar_name_to_index.find(joint_name) != m_jvar_name_to_index.end();
+}
+
+inline
+int RobotCollisionModel::jointVarIndex(const std::string& joint_name) const
+{
+    auto it = m_jvar_name_to_index.find(joint_name);
+    ASSERT_RANGE(it != m_jvar_name_to_index.end());
+    assert(it->second >= 0 && it->second < m_jvar_names.size());
+    return it->second;
+}
+
+inline
+const std::string& RobotCollisionModel::jointVarName(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_jvar_names, jidx);
+    return m_jvar_names[jidx];
+}
+
+inline
+bool RobotCollisionModel::jointVarIsContinuous(
+    const std::string& joint_name) const
+{
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_continuous[jidx];
+}
+
+inline
+bool RobotCollisionModel::jointVarHasPositionBounds(
+    const std::string& joint_name) const
+{
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_has_position_bounds[jidx];
+}
+
+inline
+double RobotCollisionModel::jointVarMinPosition(
+    const std::string& joint_name) const
+{
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_min_positions[jidx];
+}
+
+inline
+double RobotCollisionModel::jointVarMaxPosition(
+    const std::string& joint_name) const
+{
+    const int jidx = jointVarIndex(joint_name);
+    return m_jvar_max_positions[jidx];
+}
+
+inline
+bool RobotCollisionModel::jointVarIsContinuous(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_jvar_continuous, jidx);
+    return m_jvar_continuous[jidx];
+}
+
+inline
+bool RobotCollisionModel::jointVarHasPositionBounds(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_jvar_has_position_bounds, jidx);
+    return m_jvar_has_position_bounds[jidx];
+}
+
+inline
+double RobotCollisionModel::jointVarMinPosition(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_jvar_min_positions, jidx);
+    return m_jvar_min_positions[jidx];
+}
+
+inline
+double RobotCollisionModel::jointVarMaxPosition(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_jvar_max_positions, jidx);
+    return m_jvar_max_positions[jidx];
+}
+
+inline
+size_t RobotCollisionModel::jointCount() const
+{
+    return m_joint_transforms.size();
+}
+
+inline
+int RobotCollisionModel::jointParentLinkIndex(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_parent_links, jidx);
+    return m_joint_parent_links[jidx];
+}
+
+inline
+int RobotCollisionModel::jointChildLinkIndex(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_child_links, jidx);
+    return m_joint_child_links[jidx];
+}
+
+inline
+const Eigen::Affine3d& RobotCollisionModel::jointOrigin(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_origins, jidx);
+    return m_joint_origins[jidx];
+}
+
+inline
+const Eigen::Vector3d& RobotCollisionModel::jointAxis(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_axes, jidx);
+    return m_joint_axes[jidx];
+}
+
+inline
+JointTransformFunction RobotCollisionModel::jointTransformFn(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_transforms, jidx);
+    return m_joint_transforms[jidx];
+}
+
+inline
+bool RobotCollisionModel::isDescendantJoint(int jidx, int pjidx) const
+{
+    return m_desc_joint_matrix[jidx * jointCount() + pjidx];
+}
+
+inline
+size_t RobotCollisionModel::linkCount() const
+{
+    return m_link_names.size();
+}
+
+inline
+const std::vector<std::string>& RobotCollisionModel::linkNames() const
+{
+    return m_link_names;
+}
+
+inline
+bool RobotCollisionModel::hasLink(const std::string& link_name) const
+{
+    return m_link_name_to_index.find(link_name) != m_link_name_to_index.end();
+}
+
+inline
+int RobotCollisionModel::linkIndex(const std::string& link_name) const
+{
+    auto it = m_link_name_to_index.find(link_name);
+    ASSERT_RANGE(it != m_link_name_to_index.end());
+    assert(it->second >= 0 && it->second < m_link_names.size());
+    return it->second;
+}
+
+inline
+const std::string& RobotCollisionModel::linkName(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_names, lidx);
+    return m_link_names[lidx];
+}
+
+inline
+int RobotCollisionModel::linkParentJointIndex(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_parent_joints, lidx);
+    return m_link_parent_joints[lidx];
+}
+
+inline
+const std::vector<int>& RobotCollisionModel::linkChildJointIndices(
+    int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_children_joints, lidx);
+    return m_link_children_joints[lidx];
+}
+
+inline
+size_t RobotCollisionModel::sphereModelCount() const
+{
+    size_t sphere_count = 0;
+    for (const auto& spheres_model : m_spheres_models) {
+        sphere_count += spheres_model.spheres.size();
+    }
+    return sphere_count;
+}
+
+inline
+bool RobotCollisionModel::hasSpheresModel(const std::string& link_name) const
+{
+    const int lidx = linkIndex(link_name);
+    return m_link_spheres_models[lidx] != nullptr;
+}
+
+inline
+bool RobotCollisionModel::hasSpheresModel(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_spheres_models, lidx);
+    return m_link_spheres_models[lidx] != nullptr;
+}
+
+inline
+size_t RobotCollisionModel::spheresModelCount() const
+{
+    return m_spheres_models.size();
+}
+
+inline
+const CollisionSpheresModel& RobotCollisionModel::spheresModel(
+    int smidx) const
+{
+    ASSERT_VECTOR_RANGE(m_spheres_models, smidx);
+    return m_spheres_models[smidx];
+}
+
+inline
+bool RobotCollisionModel::hasVoxelsModel(const std::string& link_name) const
+{
+    const int lidx = linkIndex(link_name);
+    return m_link_voxels_models[lidx] != nullptr;
+}
+
+inline
+bool RobotCollisionModel::hasVoxelsModel(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_voxels_models, lidx);
+    return m_link_voxels_models[lidx];
+}
+
+inline
+size_t RobotCollisionModel::voxelsModelCount() const
+{
+    return m_voxels_models.size();
+}
+
+inline
+const CollisionVoxelsModel& RobotCollisionModel::voxelsModel(int vmidx) const
+{
+    ASSERT_RANGE(vmidx >= 0 && vmidx < m_voxels_models.size());
+    return m_voxels_models[vmidx];
+}
+
+inline
+size_t RobotCollisionModel::groupCount() const
+{
+    return m_group_models.size();
+}
+
+inline
+const CollisionGroupModel& RobotCollisionModel::group(int gidx) const
+{
+    ASSERT_VECTOR_RANGE(m_group_models, gidx);
+    return m_group_models[gidx];
+}
+
+inline
+bool RobotCollisionModel::hasGroup(const std::string& group_name) const
+{
+    return m_group_name_to_index.find(group_name) !=
+            m_group_name_to_index.end();
+}
+
+inline
+int RobotCollisionModel::groupIndex(const std::string& group_name) const
+{
+    auto it = m_group_name_to_index.find(group_name);
+    ASSERT_RANGE(it != m_group_name_to_index.end());
+    assert(it->second >= 0 && it->second < m_group_models.size());
+    return it->second;
+}
+
+inline
+const std::string& RobotCollisionModel::groupName(int gidx) const
+{
+    ASSERT_VECTOR_RANGE(m_group_models, gidx);
+    return m_group_models[gidx].name;
+}
+
+inline
+const std::vector<int>& RobotCollisionModel::groupLinkIndices(
+    const std::string& group_name) const
+{
+    const int gidx = groupIndex(group_name);
+    return m_group_models[gidx].link_indices;
+}
+
+inline
+const std::vector<int>& RobotCollisionModel::groupLinkIndices(int gidx) const
+{
+    ASSERT_VECTOR_RANGE(m_group_models, gidx);
+    return m_group_models[gidx].link_indices;
+}
+
+inline
+double RobotCollisionModel::maxSphereRadius() const
+{
+    double d = 0.0;
+    for (const auto& spheres : m_spheres_models) {
+        d = std::max(d, spheres.spheres.maxRadius());
+    }
+    return d;
+}
+
+inline
+double RobotCollisionModel::maxLeafSphereRadius() const
+{
+    double d = 0.0;
+    for (const auto& spheres : m_spheres_models) {
+        d = std::max(d, spheres.spheres.maxLeafRadius());
+    }
+    return d;
+}
 
 } // namespace collision
 } // namespace sbpl
