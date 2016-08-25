@@ -234,7 +234,10 @@ void RobotCollisionState::initRobotState()
         }
         else if (f == ComputeRevoluteJointTransform ||
                 f == ComputeContinuousJointTransform ||
-                f == ComputePrismaticJointTransform)
+                f == ComputePrismaticJointTransform ||
+                f == ComputeRevoluteJointTransformX ||
+                f == ComputeRevoluteJointTransformY ||
+                f == ComputeRevoluteJointTransformZ)
         {
             var_count = 1;
         }

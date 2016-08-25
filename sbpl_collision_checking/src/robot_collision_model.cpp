@@ -201,7 +201,18 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
 
                 m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
 
-                m_joint_transforms.push_back(ComputeRevoluteJointTransform);
+                if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
+                }
+                else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransformY);
+                }
+                else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransformZ);
+                }
+                else {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransform);
+                }
             }   break;
             case urdf::Joint::PRISMATIC:
             {
@@ -225,7 +236,18 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
 
                 m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
 
-                m_joint_transforms.push_back(ComputeContinuousJointTransform);
+                if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
+                }
+                else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransformY);
+                }
+                else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransformZ);
+                }
+                else {
+                    m_joint_transforms.push_back(ComputeRevoluteJointTransform);
+                }
             }   break;
             case urdf::Joint::PLANAR:
             {

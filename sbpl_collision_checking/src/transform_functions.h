@@ -34,6 +34,8 @@
 
 #include <Eigen/Dense>
 
+#define SBPL_COLLISION_SPECIALIZED_JOINT_TRANSFORMS 1
+
 namespace sbpl {
 namespace collision {
 
@@ -46,6 +48,21 @@ Eigen::Affine3d ComputeRevoluteJointTransform(
     const Eigen::Vector3d& axis,
     double* jvals);
 
+Eigen::Affine3d ComputeRevoluteJointTransformX(
+    const Eigen::Affine3d& origin,
+    const Eigen::Vector3d& axis,
+    double* jvals);
+
+Eigen::Affine3d ComputeRevoluteJointTransformY(
+    const Eigen::Affine3d& origin,
+    const Eigen::Vector3d& axis,
+    double* jvals);
+
+Eigen::Affine3d ComputeRevoluteJointTransformZ(
+    const Eigen::Affine3d& origin,
+    const Eigen::Vector3d& axis,
+    double* jvals);
+
 Eigen::Affine3d ComputeContinuousJointTransform(
     const Eigen::Affine3d& origin,
     const Eigen::Vector3d& axis,
@@ -77,62 +94,167 @@ Eigen::Affine3d ComputeFixedJointTransform(
 
 inline
 Eigen::Affine3d ComputeRevoluteJointTransform(
-    const Eigen::Affine3d& origin,
+    const Eigen::Affine3d& o,
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return origin * Eigen::AngleAxisd(jvals[0], axis);
+    return o * Eigen::AngleAxisd(jvals[0], axis);
+}
+
+inline
+Eigen::Affine3d ComputeRevoluteJointTransformX(
+    const Eigen::Affine3d& o,
+    const Eigen::Vector3d& axis,
+    double* jvals)
+{
+#if SBPL_COLLISION_SPECIALIZED_JOINT_TRANSFORMS
+    Eigen::Transform<double, 3, Eigen::Affine> t;
+    double cth = cos(jvals[0]);
+    double sth = sin(jvals[0]);
+    t(0,0) = o(0,0);
+    t(1,0) = o(1,0);
+    t(2,0) = o(2,0);
+    t(3,0) = 0.0;
+
+    t(0,1) = cth * o(0,1) + sth * o(0,2);
+    t(1,1) = cth * o(1,1) + sth * o(1,2);
+    t(2,1) = cth * o(2,1) + sth * o(2,2);
+    t(3,1) = 0.0;
+
+    t(0,2) = cth * o(0,2) - sth * o(0,1);
+    t(1,2) = cth * o(1,2) - sth * o(1,1);
+    t(2,2) = cth * o(2,2) - sth * o(2,1);
+    t(3,0) = 0.0;
+
+    t(0,3) = o(0,3);
+    t(1,3) = o(1,3);
+    t(2,3) = o(2,3);
+    t(3,3) = 1.0;
+    return t;
+#else
+    return ComputeRevoluteJointTransform(o, axis, jvals);
+#endif
+}
+
+inline
+Eigen::Affine3d ComputeRevoluteJointTransformY(
+    const Eigen::Affine3d& o,
+    const Eigen::Vector3d& axis,
+    double* jvals)
+{
+#if SBPL_COLLISION_SPECIALIZED_JOINT_TRANSFORMS
+    Eigen::Transform<double, 3, Eigen::Affine> t;
+    double cth = cos(jvals[0]);
+    double sth = sin(jvals[0]);
+    t(0,0) = cth * o(0,0) - sth * o(0,2);
+    t(1,0) = cth * o(1,0) - sth * o(1,2);
+    t(2,0) = cth * o(2,0) - sth * o(2,2);
+    t(3,0) = 0.0;
+
+    t(0,1) = o(0,1);
+    t(1,1) = o(1,1);
+    t(2,1) = o(2,1);
+    t(3,1) = 0.0;
+
+    t(0,2) = sth * o(0,0) + cth * o(0,2);
+    t(1,2) = sth * o(1,0) + cth * o(1,2);
+    t(2,2) = sth * o(2,0) + cth * o(2,2);
+    t(3,0) = 0.0;
+
+    t(0,3) = o(0,3);
+    t(1,3) = o(1,3);
+    t(2,3) = o(2,3);
+    t(3,3) = 1.0;
+    return t;
+#else
+    return ComputeRevoluteJointTransform(o, axis, jvals);
+#endif
+}
+
+inline
+Eigen::Affine3d ComputeRevoluteJointTransformZ(
+    const Eigen::Affine3d& o,
+    const Eigen::Vector3d& axis,
+    double* jvals)
+{
+#if SBPL_COLLISION_SPECIALIZED_JOINT_TRANSFORMS
+    Eigen::Transform<double, 3, Eigen::Affine> t;
+    double cth = cos(jvals[0]);
+    double sth = sin(jvals[0]);
+    t(0,0) = o(0, 0) * cth + o(0, 1) * sth;
+    t(1,0) = o(1, 0) * cth + o(1, 1) * sth;
+    t(2,0) = o(2, 0) * cth + o(2, 1) * sth;
+    t(3,0) = 0.0;
+
+    t(0,1) = o(0, 1) * cth - o(0, 0) * sth;
+    t(1,1) = o(1, 1) * cth - o(1, 0) * sth;
+    t(2,1) = o(2, 1) * cth - o(2, 0) * sth;
+    t(3,1) = 0.0;
+
+    t(0,2) = o(0, 2);
+    t(1,2) = o(1, 2);
+    t(2,2) = o(2, 2);
+    t(3,0) = 0.0;
+
+    t(0,3) = o(0, 3);
+    t(1,3) = o(1, 3);
+    t(2,3) = o(2, 3);
+    t(3,3) = 1.0;
+    return t;
+#else
+    return ComputeRevoluteJointTransform(o, axis, jvals);
+#endif
 }
 
 inline
 Eigen::Affine3d ComputeContinuousJointTransform(
-    const Eigen::Affine3d& origin,
+    const Eigen::Affine3d& o,
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return origin * Eigen::AngleAxisd(jvals[0], axis);
+    return o * Eigen::AngleAxisd(jvals[0], axis);
 }
 
 inline
 Eigen::Affine3d ComputePrismaticJointTransform(
-    const Eigen::Affine3d& origin,
+    const Eigen::Affine3d& o,
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return origin * Eigen::Translation3d(Eigen::Vector3d(
+    return o * Eigen::Translation3d(Eigen::Vector3d(
             0.0, 0.0, jvals[0]));
 }
 
 inline
 Eigen::Affine3d ComputeFloatingJointTransform(
-    const Eigen::Affine3d& origin,
+    const Eigen::Affine3d& o,
     const Eigen::Vector3d& axis,
     double* jvals)
 {
     // TODO: be mindful that quaternion values here may not be normalized
-    return origin *
+    return o *
             Eigen::Translation3d(Eigen::Vector3d(jvals[0], jvals[1], jvals[2])) *
             Eigen::Quaterniond(jvals[6], jvals[3], jvals[4], jvals[5]);
 }
 
 inline
 Eigen::Affine3d ComputePlanarJointTransform(
-    const Eigen::Affine3d& origin,
+    const Eigen::Affine3d& o,
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return origin *
+    return o *
             Eigen::Translation3d(Eigen::Vector3d(jvals[0], jvals[1], 0.0)) *
             Eigen::AngleAxisd(jvals[2], Eigen::Vector3d::UnitZ());
 }
 
 inline
 Eigen::Affine3d ComputeFixedJointTransform(
-    const Eigen::Affine3d& origin,
+    const Eigen::Affine3d& o,
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return origin;
+    return o;
 }
 
 } // namespace collision
