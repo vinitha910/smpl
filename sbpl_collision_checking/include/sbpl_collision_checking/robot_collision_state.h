@@ -220,6 +220,7 @@ bool RobotCollisionState::setWorldToModelTransform(
         m_link_transforms[0] = transform;
         std::fill(m_dirty_link_transforms.begin(), m_dirty_link_transforms.end(), true);
         m_dirty_link_transforms[0] = false;
+        ++m_link_transform_versions[0];
         std::fill(m_dirty_voxels_states.begin(), m_dirty_voxels_states.end(), true);
         return true;
     }
@@ -312,6 +313,9 @@ bool RobotCollisionState::updateLinkTransforms()
 inline
 bool RobotCollisionState::updateLinkTransform(int lidx)
 {
+    // this function should never be used to update the transform from the world
+    // to the model root
+    assert(lidx != 0);
     ASSERT_VECTOR_RANGE(m_dirty_link_transforms, lidx);
     if (!m_dirty_link_transforms[lidx]) {
         return false;
@@ -322,22 +326,22 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
 
     ROS_DEBUG_NAMED(RCS_LOGGER, "Updating transform for link '%s'. parent joint = %d, parent link = %d", m_model->linkName(lidx).c_str(), pjidx, plidx);
 
-    if (plidx >= 0) {
-        // TODO: optimize out this recursion
-        updateLinkTransform(plidx);
-        const Eigen::Affine3d& T_world_parent = m_link_transforms[plidx];
+    // do NOT optimize out this recursion...i don't know why, but attempts at
+    // the equivalent iteration were not faster than the recursive version by a
+    // noticeable margin
+    updateLinkTransform(plidx);
+    const Eigen::Affine3d& T_world_parent = m_link_transforms[plidx];
 
-        if (m_dirty_joint_transforms[pjidx]) {
-            JointTransformFunction fn = m_model->jointTransformFn(pjidx);
-            const Eigen::Affine3d& joint_origin = m_model->jointOrigin(pjidx);
-            const Eigen::Vector3d& joint_axis = m_model->jointAxis(pjidx);
-            double* variables = m_joint_var_offsets[pjidx];
-            m_joint_transforms[pjidx] = fn(joint_origin, joint_axis, variables);
-            m_dirty_joint_transforms[pjidx] = false;
-        }
-        const Eigen::Affine3d& T_parent_link = m_joint_transforms[pjidx];
-        m_link_transforms[lidx] = T_world_parent * T_parent_link;
+    if (m_dirty_joint_transforms[pjidx]) {
+        JointTransformFunction fn = m_model->jointTransformFn(pjidx);
+        const Eigen::Affine3d& joint_origin = m_model->jointOrigin(pjidx);
+        const Eigen::Vector3d& joint_axis = m_model->jointAxis(pjidx);
+        double* variables = m_joint_var_offsets[pjidx];
+        m_joint_transforms[pjidx] = fn(joint_origin, joint_axis, variables);
+        m_dirty_joint_transforms[pjidx] = false;
     }
+    const Eigen::Affine3d& T_parent_link = m_joint_transforms[pjidx];
+    m_link_transforms[lidx] = T_world_parent * T_parent_link;
 
     ROS_DEBUG_NAMED(RCS_LOGGER, " -> %s", AffineToString(m_link_transforms[lidx]).c_str());
 
