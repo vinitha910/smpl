@@ -53,9 +53,9 @@
 namespace sbpl {
 namespace collision {
 
-typedef Eigen::Affine3d (*JointTransformFunction)(
-    const Eigen::Affine3d& origin,
-    const Eigen::Vector3d& axis,
+typedef Affine3 (*JointTransformFunction)(
+    const Affine3& origin,
+    const Vector3& axis,
     double* jvals);
 
 class RobotCollisionModelImpl;
@@ -109,8 +109,8 @@ public:
     int    jointParentLinkIndex(int jidx) const;
     int    jointChildLinkIndex(int jidx) const;
 
-    auto   jointOrigin(int jidx) const -> const Eigen::Affine3d&;
-    auto   jointAxis(int jidx) const -> const Eigen::Vector3d&;
+    auto   jointOrigin(int jidx) const -> const Affine3&;
+    auto   jointAxis(int jidx) const -> const Vector3&;
     auto   jointTransformFn(int jidx) const -> JointTransformFunction;
 
     bool   isDescendantJoint(int jidx, int pjidx) const;
@@ -177,8 +177,8 @@ private:
 
     std::vector<bool>                       m_desc_joint_matrix;
 
-    Affine3dVector                          m_joint_origins;
-    std::vector<Eigen::Vector3d>            m_joint_axes;
+    Affine3Vector                           m_joint_origins;
+    std::vector<Vector3>                    m_joint_axes;
     std::vector<JointTransformFunction>     m_joint_transforms;
     std::vector<int>                        m_joint_parent_links;
     std::vector<int>                        m_joint_child_links;
@@ -238,7 +238,7 @@ private:
         std::vector<CollisionSphereConfig>& spheres) const;
     bool generateBoundingSpheres(
         const urdf::Geometry& geom,
-        const Eigen::Affine3d& pose,
+        const Affine3& pose,
         double res,
         std::vector<CollisionSphereConfig>& spheres) const;
 
@@ -246,7 +246,7 @@ private:
 
     bool checkCollisionModelReferences() const;
 
-    Eigen::Affine3d poseUrdfToEigen(const urdf::Pose& p) const;
+    Affine3 poseUrdfToEigen(const urdf::Pose& p) const;
 
     bool voxelizeLink(
         const urdf::ModelInterface& urdf,
@@ -256,13 +256,13 @@ private:
     bool voxelizeCollisionElement(
         const urdf::Collision& collision,
         double res,
-        std::vector<Eigen::Vector3d>& voxels) const;
+        std::vector<Vector3>& voxels) const;
 
     bool voxelizeGeometry(
         const urdf::Geometry& geom,
-        const Eigen::Affine3d& pose,
+        const Affine3& pose,
         double res,
-        std::vector<Eigen::Vector3d>& voxels) const;
+        std::vector<Vector3>& voxels) const;
 };
 
 inline
@@ -392,14 +392,14 @@ int RobotCollisionModel::jointChildLinkIndex(int jidx) const
 }
 
 inline
-const Eigen::Affine3d& RobotCollisionModel::jointOrigin(int jidx) const
+const Affine3& RobotCollisionModel::jointOrigin(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_joint_origins, jidx);
     return m_joint_origins[jidx];
 }
 
 inline
-const Eigen::Vector3d& RobotCollisionModel::jointAxis(int jidx) const
+const Vector3& RobotCollisionModel::jointAxis(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_joint_axes, jidx);
     return m_joint_axes[jidx];

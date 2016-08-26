@@ -75,7 +75,7 @@ public:
     /// \name Robot State
     ///@{
     bool setJointPosition(const std::string& name, double position);
-    void setWorldToModelTransform(const Eigen::Affine3d& transform);
+    void setWorldToModelTransform(const Affine3& transform);
     ///@}
 
     void setPadding(double padding);
@@ -104,7 +104,7 @@ public:
     bool attachObject(
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
+        const Affine3Vector& transforms,
         const std::string& link_name);
 
     bool detachObject(const std::string& id);

@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
     ////////////////////////////////////////////////////////
 
     std::vector<shapes::ShapeConstPtr> shapes;
-    sbpl::collision::Affine3dVector transforms;
+    sbpl::collision::Affine3Vector transforms;
 
     auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
 

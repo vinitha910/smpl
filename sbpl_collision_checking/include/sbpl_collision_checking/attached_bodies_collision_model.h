@@ -63,7 +63,7 @@ public:
     bool attachBody(
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
+        const Affine3Vector& transforms,
         const std::string& link_name,
         bool create_voxels_model = true,
         bool create_spheres_model = true);

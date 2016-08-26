@@ -51,9 +51,8 @@ public:
 
     ///\name Attached Bodies State
     ///@{
-    auto attachedBodyTransform(const std::string& id) const
-            -> const Eigen::Affine3d&;
-    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
+    auto attachedBodyTransform(const std::string& id) const -> const Affine3&;
+    auto attachedBodyTransform(int abidx) const -> const Affine3&;
 
     bool attachedBodyTransformDirty(const std::string& id) const;
     bool attachedBodyTransformDirty(int abidx) const;
@@ -151,7 +150,7 @@ RobotCollisionState* AttachedBodiesCollisionStateImpl::state()
 }
 
 inline
-const Eigen::Affine3d& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
+const Affine3& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
     const std::string& id) const
 {
     reinitCollisionState();
@@ -161,7 +160,7 @@ const Eigen::Affine3d& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
 }
 
 inline
-const Eigen::Affine3d& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
+const Affine3& AttachedBodiesCollisionStateImpl::attachedBodyTransform(
     int abidx) const
 {
     reinitCollisionState();
@@ -256,7 +255,7 @@ bool AttachedBodiesCollisionStateImpl::updateVoxelsState(int vsidx)
     const int bidx = state.model->link_index;
     updateAttachedBodyTransform(bidx);
 
-    const Eigen::Affine3d& T_model_body = attachedBodyTransform(bidx);
+    const Affine3& T_model_body = attachedBodyTransform(bidx);
 
     // transform voxels into the model frame
     std::vector<Eigen::Vector3d> new_voxels(state.model->voxels.size());
@@ -338,7 +337,7 @@ bool AttachedBodiesCollisionStateImpl::updateSphereState(
     const int abidx = sphere_state.parent_state->model->link_index;
     updateAttachedBodyTransform(abidx);
 
-    const Eigen::Affine3d& T_model_body = attachedBodyTransform(abidx);
+    const Affine3& T_model_body = attachedBodyTransform(abidx);
     sphere_state.pos = T_model_body * sphere_state.model->center;
 
     m_dirty_sphere_states[idx] = false;
@@ -537,13 +536,13 @@ RobotCollisionState* AttachedBodiesCollisionState::state()
     return m_impl->state();
 }
 
-const Eigen::Affine3d& AttachedBodiesCollisionState::attachedBodyTransform(
+const Affine3& AttachedBodiesCollisionState::attachedBodyTransform(
     const std::string& id) const
 {
     return m_impl->attachedBodyTransform(id);
 }
 
-const Eigen::Affine3d& AttachedBodiesCollisionState::attachedBodyTransform(
+const Affine3& AttachedBodiesCollisionState::attachedBodyTransform(
     int abidx) const
 {
     return m_impl->attachedBodyTransform(abidx);

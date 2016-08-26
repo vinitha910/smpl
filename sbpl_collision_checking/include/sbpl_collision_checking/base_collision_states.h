@@ -52,7 +52,7 @@ struct CollisionSphereState
 {
     const CollisionSphereModel* model;
     const CollisionSpheresState* parent_state;
-    Eigen::Vector3d pos;
+    Vector3 pos;
     const CollisionSphereState *left, *right;
     int version;
 
@@ -156,7 +156,7 @@ std::ostream& operator<<(std::ostream& o, const CollisionSpheresState& css);
 struct CollisionVoxelsState
 {
     const CollisionVoxelsModel* model;
-    std::vector<Eigen::Vector3d> voxels; // in the model frame
+    std::vector<Vector3> voxels; // in the model frame
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionVoxelsState& cvs);

@@ -50,24 +50,44 @@
 namespace sbpl {
 namespace collision {
 
+typedef double real;
+
+typedef Eigen::Matrix<real, 3, 1> Vector3;
+
+template <int Dim, int Mode, int _Options = Eigen::AutoAlign>
+using Transform = Eigen::Transform<real, Dim, Mode, _Options>;
+
+template <int Dim>
+using Translation = Eigen::Translation<real, Dim>;
+
+typedef Translation<3> Translation;
+
+typedef Eigen::AngleAxis<real> AngleAxis;
+
+typedef Eigen::Quaternion<real> Quaternion;
+
+typedef Transform<3, Eigen::Affine> Affine3;
+
 struct Sphere
 {
-    Eigen::Vector3d center;
-    double          radius;
+    Vector3 center;
+    real    radius;
 };
 
+/// Collision Object Types
 typedef collision_detection::World::Object Object;
 typedef collision_detection::World::ObjectPtr ObjectPtr;
 typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
 
+/// Allowed Collision Matrix type
 typedef collision_detection::AllowedCollisionMatrix AllowedCollisionMatrix;
 
 namespace AllowedCollision {
 typedef collision_detection::AllowedCollision::Type Type;
 } // namespace Allowed Collision
 
-typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
-typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
+typedef Eigen::aligned_allocator<Affine3> Affine3Allocator;
+typedef std::vector<Affine3, Affine3Allocator> Affine3Vector;
 
 template <
     class Key,
@@ -78,10 +98,10 @@ template <
 using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
 inline
-std::string AffineToString(const Eigen::Affine3d& t)
+std::string AffineToString(const Affine3& t)
 {
-    const Eigen::Vector3d pos(t.translation());
-    const Eigen::Quaterniond rot(t.rotation());
+    const Vector3 pos(t.translation());
+    const Quaternion rot(t.rotation());
     const int ENOUGH = 1024;
     char buff[ENOUGH] = { 0 };
     snprintf(buff, ENOUGH, "{ pos = (%0.3f, %0.3f, %0.3f), rot = (%0.3f, %0.3f, %0.3f, %0.3f) }", pos.x(), pos.y(), pos.z(), rot.w(), rot.x(), rot.y(), rot.z());

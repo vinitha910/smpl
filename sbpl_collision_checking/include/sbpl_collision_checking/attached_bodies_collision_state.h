@@ -68,8 +68,8 @@ public:
     ///\name Attached Bodies State
     ///@{
     auto attachedBodyTransform(const std::string& link_name) const
-            -> const Eigen::Affine3d&;
-    auto attachedBodyTransform(int abidx) const -> const Eigen::Affine3d&;
+            -> const Affine3&;
+    auto attachedBodyTransform(int abidx) const -> const Affine3&;
 
     bool attachedBodyTransformDirty(const std::string& id) const;
     bool attachedBodyTransformDirty(int abidx) const;

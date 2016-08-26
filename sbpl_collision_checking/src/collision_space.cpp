@@ -177,8 +177,7 @@ bool CollisionSpace::setJointPosition(
 
 /// \brief Set the transform from the reference frame to the robot model frame
 /// \param transform The transform from the reference frame to the robot frame
-void CollisionSpace::setWorldToModelTransform(
-    const Eigen::Affine3d& transform)
+void CollisionSpace::setWorldToModelTransform(const Affine3& transform)
 {
     m_rcs->setWorldToModelTransform(transform);
 }
@@ -288,7 +287,7 @@ bool CollisionSpace::processOctomapMsg(
 bool CollisionSpace::attachObject(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
+    const Affine3Vector& transforms,
     const std::string& link_name)
 {
     return m_abcm->attachBody(id, shapes, transforms, link_name);

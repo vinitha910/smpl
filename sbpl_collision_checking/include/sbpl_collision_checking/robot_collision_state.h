@@ -60,11 +60,11 @@ public:
 
     /// \name Robot State
     ///@{
-    auto   worldToModelTransform() const -> const Eigen::Affine3d&;
-    bool   setWorldToModelTransform(const Eigen::Affine3d& transform);
+    auto   worldToModelTransform() const -> const Affine3&;
+    bool   setWorldToModelTransform(const Affine3& transform);
 
     auto   jointVarPositions() const -> const std::vector<double>&;
-    auto   linkTransforms() const -> const Affine3dVector&;
+    auto   linkTransforms() const -> const Affine3Vector&;
 
     double jointVarPosition(const std::string& var_name) const;
     double jointVarPosition(int vidx) const;
@@ -76,9 +76,8 @@ public:
 
     bool   setJointVarPositions(const double* positions);
 
-    auto   linkTransform(const std::string& link_name) const ->
-            const Eigen::Affine3d&;
-    auto   linkTransform(int lidx) const -> const Eigen::Affine3d&;
+    auto   linkTransform(const std::string& link_name) const -> const Affine3&;
+    auto   linkTransform(int lidx) const -> const Affine3&;
 
     bool   linkTransformDirty(const std::string& link_name) const;
     bool   linkTransformDirty(int lidx) const;
@@ -141,9 +140,9 @@ private:
     std::vector<int>                        m_jvar_joints;
     std::vector<double*>                    m_joint_var_offsets;
     std::vector<bool>                       m_dirty_joint_transforms;
-    Affine3dVector                          m_joint_transforms;
+    Affine3Vector                           m_joint_transforms;
     std::vector<bool>                       m_dirty_link_transforms;
-    Affine3dVector                          m_link_transforms;
+    Affine3Vector                           m_link_transforms;
     std::vector<int>                        m_link_transform_versions;
     ///@}
 
@@ -207,14 +206,13 @@ const RobotCollisionModel* RobotCollisionState::model() const
 }
 
 inline
-const Eigen::Affine3d& RobotCollisionState::worldToModelTransform() const
+const Affine3& RobotCollisionState::worldToModelTransform() const
 {
     return m_link_transforms[0];
 }
 
 inline
-bool RobotCollisionState::setWorldToModelTransform(
-    const Eigen::Affine3d& transform)
+bool RobotCollisionState::setWorldToModelTransform(const Affine3& transform)
 {
     if (!transform.isApprox(m_link_transforms[0], 0.0)) {
         m_link_transforms[0] = transform;
@@ -236,7 +234,7 @@ const std::vector<double>& RobotCollisionState::jointVarPositions() const
 }
 
 inline
-const Affine3dVector& RobotCollisionState::linkTransforms() const
+const Affine3Vector& RobotCollisionState::linkTransforms() const
 {
     return m_link_transforms;
 }
@@ -271,7 +269,7 @@ bool RobotCollisionState::setJointVarPosition(
 }
 
 inline
-const Eigen::Affine3d& RobotCollisionState::linkTransform(
+const Affine3& RobotCollisionState::linkTransform(
     const std::string& link_name) const
 {
     const int lidx = m_model->linkIndex(link_name);
@@ -279,7 +277,7 @@ const Eigen::Affine3d& RobotCollisionState::linkTransform(
 }
 
 inline
-const Eigen::Affine3d& RobotCollisionState::linkTransform(int lidx) const
+const Affine3& RobotCollisionState::linkTransform(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_transforms, lidx);
     return m_link_transforms[lidx];
@@ -330,17 +328,17 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
     // the equivalent iteration were not faster than the recursive version by a
     // noticeable margin
     updateLinkTransform(plidx);
-    const Eigen::Affine3d& T_world_parent = m_link_transforms[plidx];
+    const Affine3& T_world_parent = m_link_transforms[plidx];
 
     if (m_dirty_joint_transforms[pjidx]) {
         JointTransformFunction fn = m_model->jointTransformFn(pjidx);
-        const Eigen::Affine3d& joint_origin = m_model->jointOrigin(pjidx);
-        const Eigen::Vector3d& joint_axis = m_model->jointAxis(pjidx);
+        const Affine3& joint_origin = m_model->jointOrigin(pjidx);
+        const Vector3& joint_axis = m_model->jointAxis(pjidx);
         double* variables = m_joint_var_offsets[pjidx];
         m_joint_transforms[pjidx] = fn(joint_origin, joint_axis, variables);
         m_dirty_joint_transforms[pjidx] = false;
     }
-    const Eigen::Affine3d& T_parent_link = m_joint_transforms[pjidx];
+    const Affine3& T_parent_link = m_joint_transforms[pjidx];
     m_link_transforms[lidx] = T_world_parent * T_parent_link;
 
     ROS_DEBUG_NAMED(RCS_LOGGER, " -> %s", AffineToString(m_link_transforms[lidx]).c_str());
@@ -396,10 +394,10 @@ bool RobotCollisionState::updateVoxelsState(int vsidx)
     const int lidx = state.model->link_index;
     updateLinkTransform(lidx);
 
-    const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
+    const Affine3& T_model_link = m_link_transforms[lidx];
 
     // transform voxels into the model frame
-    std::vector<Eigen::Vector3d> new_voxels(state.model->voxels.size());
+    std::vector<Vector3> new_voxels(state.model->voxels.size());
     for (size_t i = 0; i < state.model->voxels.size(); ++i) {
         new_voxels[i] = T_model_link * state.model->voxels[i];
     }
@@ -486,7 +484,7 @@ bool RobotCollisionState::updateSphereState(const SphereIndex& sidx)
     updateLinkTransform(lidx);
 
     ROS_DEBUG_NAMED(RCS_LOGGER, "Updating position of sphere '%s'", sphere_state.model->name.c_str());
-    const Eigen::Affine3d& T_model_link = m_link_transforms[lidx];
+    const Affine3& T_model_link = m_link_transforms[lidx];
     sphere_state.pos = T_model_link * sphere_state.model->center;
 
     // version may have updated since before

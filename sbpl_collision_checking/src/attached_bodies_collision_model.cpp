@@ -49,7 +49,7 @@ public:
     bool attachBody(
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
+        const Affine3Vector& transforms,
         const std::string& link_name,
         bool create_voxels_model,
         bool create_spheres_model);
@@ -129,29 +129,29 @@ private:
         int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms);
+        const Affine3Vector& transforms);
 
     void createVoxelsModel(
         int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms);
+        const Affine3Vector& transforms);
 
     void generateSpheresModel(
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
+        const Affine3Vector& transforms,
         CollisionSpheresModelConfig& spheres_model);
 
     void generateVoxelsModel(
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
+        const Affine3Vector& transforms,
         CollisionVoxelModelConfig& voxels_models);
 
     bool voxelizeAttachedBody(
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms,
+        const Affine3Vector& transforms,
         CollisionVoxelsModel& model) const;
 };
 
@@ -184,7 +184,7 @@ inline
 bool AttachedBodiesCollisionModelImpl::attachBody(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
+    const Affine3Vector& transforms,
     const std::string& link_name,
     bool create_voxels_model,
     bool create_spheres_model)
@@ -535,7 +535,7 @@ void AttachedBodiesCollisionModelImpl::createSpheresModel(
     int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms)
+    const Affine3Vector& transforms)
 {
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating spheres model");
 
@@ -569,7 +569,7 @@ void AttachedBodiesCollisionModelImpl::createVoxelsModel(
     int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms)
+    const Affine3Vector& transforms)
 {
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating voxels model");
     // create configuration voxels model for this body
@@ -606,7 +606,7 @@ inline
 void AttachedBodiesCollisionModelImpl::generateSpheresModel(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
+    const Affine3Vector& transforms,
     CollisionSpheresModelConfig& spheres_model)
 {
     assert(std::all_of(shapes.begin(), shapes.end(),
@@ -653,7 +653,7 @@ inline
 void AttachedBodiesCollisionModelImpl::generateVoxelsModel(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
+    const Affine3Vector& transforms,
     CollisionVoxelModelConfig& voxels_model)
 {
     voxels_model.link_name = id;
@@ -662,7 +662,7 @@ void AttachedBodiesCollisionModelImpl::generateVoxelsModel(
 inline
 bool AttachedBodiesCollisionModelImpl::voxelizeAttachedBody(
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
+    const Affine3Vector& transforms,
     CollisionVoxelsModel& model) const
 {
     if (shapes.size() != transforms.size()) {
@@ -704,7 +704,7 @@ AttachedBodiesCollisionModel::~AttachedBodiesCollisionModel()
 bool AttachedBodiesCollisionModel::attachBody(
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms,
+    const Affine3Vector& transforms,
     const std::string& link_name,
     bool create_voxels_model,
     bool create_spheres_model)

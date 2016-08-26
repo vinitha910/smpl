@@ -52,7 +52,7 @@ class CollisionSpheresModel;
 struct CollisionSphereModel
 {
     std::string name;
-    Eigen::Vector3d center; ///< offset from link center
+    Vector3 center; ///< offset from link center
     double radius;
     int priority;
     const CollisionSpheresModel* parent;
@@ -105,7 +105,7 @@ private:
     void computeOptimalBoundingSphere(
         const CollisionSphereModel& s1,
         const CollisionSphereModel& s2,
-        Eigen::Vector3d& c, double& r);
+        Vector3& c, double& r);
 
     template <typename Sphere>
     int computeLargestBoundingBoxAxis(
@@ -132,7 +132,7 @@ struct CollisionVoxelsModel
 {
     int link_index; // -1 if not attached to a link
     double voxel_res;
-    std::vector<Eigen::Vector3d> voxels; // in the link frame
+    std::vector<Vector3> voxels; // in the link frame
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionVoxelsModel& cvm);

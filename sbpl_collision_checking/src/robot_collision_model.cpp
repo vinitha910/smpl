@@ -130,7 +130,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
     // joints/links next to one another
 
     m_joint_transforms.push_back(ComputeFixedJointTransform);
-    m_joint_origins.push_back(Eigen::Affine3d::Identity());
+    m_joint_origins.push_back(Affine3::Identity());
     m_joint_axes.push_back(Eigen::Vector3d::Zero());
     m_joint_parent_links.push_back(-1);
 
@@ -602,14 +602,14 @@ bool RobotCollisionModel::generateBoundingSpheres(
     Eigen::Quaterniond rotation;
     collision.origin.rotation.getQuaternion(
             rotation.x(), rotation.y(), rotation.z(), rotation.w());
-    Eigen::Affine3d pose = translation * rotation;
+    Affine3 pose = translation * rotation;
 
     return generateBoundingSpheres(*geom, pose, radius, spheres);
 }
 
 bool RobotCollisionModel::generateBoundingSpheres(
     const urdf::Geometry& geom,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double radius,
     std::vector<CollisionSphereConfig>& spheres) const
 {
@@ -734,7 +734,7 @@ bool RobotCollisionModel::checkCollisionModelReferences() const
     return true;
 }
 
-Eigen::Affine3d RobotCollisionModel::poseUrdfToEigen(const urdf::Pose& p) const
+Affine3 RobotCollisionModel::poseUrdfToEigen(const urdf::Pose& p) const
 {
     return Eigen::Translation3d(p.position.x, p.position.y, p.position.z) *
             Eigen::Quaterniond(
@@ -804,14 +804,14 @@ bool RobotCollisionModel::voxelizeCollisionElement(
     Eigen::Quaterniond rotation;
     collision.origin.rotation.getQuaternion(
             rotation.x(), rotation.y(), rotation.z(), rotation.w());
-    Eigen::Affine3d pose = translation * rotation;
+    Affine3 pose = translation * rotation;
 
     return voxelizeGeometry(*geom, pose, res, voxels);
 }
 
 bool RobotCollisionModel::voxelizeGeometry(
     const urdf::Geometry& geom,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
     std::vector<Eigen::Vector3d>& voxels) const
 {
