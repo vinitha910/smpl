@@ -485,8 +485,7 @@ bool RobotCollisionModel::initCollisionModel(
         CollisionVoxelsModel& voxels_model = m_voxels_models[i];
         const std::string& link_name = config.voxel_models[i].link_name;
         voxels_model.link_index = linkIndex(link_name);
-        const double LINK_VOXEL_RESOLUTION = 0.01; // TODO:
-        voxels_model.voxel_res = LINK_VOXEL_RESOLUTION;
+        voxels_model.voxel_res = config.voxel_models[i].res;
         if (!voxelizeLink(urdf, link_name, voxels_model)) {
             ROS_ERROR_NAMED(RCM_LOGGER, "Failed to voxelize link '%s'", link_name.c_str());
         }

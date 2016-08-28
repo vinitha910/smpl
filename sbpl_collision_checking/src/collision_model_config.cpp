@@ -285,7 +285,20 @@ bool CollisionVoxelModelConfig::Load(
         return false;
     }
 
+    if (config.hasMember("res") && !IsNumeric(config["res"])) {
+        ROS_ERROR("voxels config 'res' member must be numeric");
+        return false;
+    }
+
     cfg.link_name = (std::string)link_name_value;
+    if (config.hasMember("res")) {
+        cfg.res = ToDouble(config["res"]);
+    }
+    else {
+        const double DEFAULT_LINK_VOXEL_RESOLUTION = 0.01;
+        ROS_WARN("no voxel resolution specified for link '%s'. defaulting to %0.3f", cfg.link_name.c_str(), DEFAULT_LINK_VOXEL_RESOLUTION);
+        cfg.res = DEFAULT_LINK_VOXEL_RESOLUTION;
+    }
 
     return true;
 }

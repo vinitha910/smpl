@@ -76,6 +76,7 @@ std::ostream& operator<<(std::ostream&, const CollisionSpheresModelConfig&);
 struct CollisionVoxelModelConfig
 {
     std::string link_name;
+    double res;
 
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionVoxelModelConfig& cfg);
 };
