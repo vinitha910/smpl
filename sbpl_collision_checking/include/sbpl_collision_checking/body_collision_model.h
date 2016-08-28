@@ -138,7 +138,7 @@ void BodyCollisionModel::insertCollisionSpheresModels(
             const CollisionSphereConfig& sphere_config = spheres_config.spheres[j];
             CollisionSphereModel& sphere_model = spheres_model.spheres[j];
             sphere_model.name = sphere_config.name;
-            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+            sphere_model.center = Vector3(sphere_config.x, sphere_config.y, sphere_config.z);
             sphere_model.radius = sphere_config.radius;
             sphere_model.priority = sphere_config.priority;
         }
@@ -168,7 +168,7 @@ void BodyCollisionModel::insertCollisionVoxelsModels(
             const CollisionSphereConfig& sphere_config = voxels_config.spheres[j];
             CollisionSphereModel& sphere_model = voxels_model.spheres[j];
             sphere_model.name = sphere_config.name;
-            sphere_model.center = Eigen::Vector3d(sphere_config.x, sphere_config.y, sphere_config.z);
+            sphere_model.center = Vector3(sphere_config.x, sphere_config.y, sphere_config.z);
             sphere_model.radius = sphere_config.radius;
             sphere_model.priority = sphere_config.priority;
         }

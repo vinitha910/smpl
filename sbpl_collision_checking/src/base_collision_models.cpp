@@ -51,7 +51,7 @@ template <typename Sphere> struct center_z { };
 template <>
 struct radius<CollisionSphereConfig>
 {
-    static double get(const CollisionSphereConfig& sphere) {
+    static real get(const CollisionSphereConfig& sphere) {
         return sphere.radius;
     }
 };
@@ -59,7 +59,7 @@ struct radius<CollisionSphereConfig>
 template <>
 struct radius<CollisionSphereModel>
 {
-    static double get(const CollisionSphereModel& sphere) {
+    static real get(const CollisionSphereModel& sphere) {
         return sphere.radius;
     }
 };
@@ -67,7 +67,7 @@ struct radius<CollisionSphereModel>
 template <>
 struct center_x<CollisionSphereConfig>
 {
-    static double get(const CollisionSphereConfig& sphere) {
+    static real get(const CollisionSphereConfig& sphere) {
         return sphere.x;
     }
 };
@@ -75,7 +75,7 @@ struct center_x<CollisionSphereConfig>
 template <>
 struct center_x<CollisionSphereModel>
 {
-    static double get(const CollisionSphereModel& sphere) {
+    static real get(const CollisionSphereModel& sphere) {
         return sphere.center.x();
     }
 };
@@ -83,7 +83,7 @@ struct center_x<CollisionSphereModel>
 template <>
 struct center_y<CollisionSphereConfig>
 {
-    static double get(const CollisionSphereConfig& sphere) {
+    static real get(const CollisionSphereConfig& sphere) {
         return sphere.y;
     }
 };
@@ -91,7 +91,7 @@ struct center_y<CollisionSphereConfig>
 template <>
 struct center_y<CollisionSphereModel>
 {
-    static double get(const CollisionSphereModel& sphere) {
+    static real get(const CollisionSphereModel& sphere) {
         return sphere.center.y();
     }
 };
@@ -99,7 +99,7 @@ struct center_y<CollisionSphereModel>
 template <>
 struct center_z<CollisionSphereConfig>
 {
-    static double get(const CollisionSphereConfig& sphere) {
+    static real get(const CollisionSphereConfig& sphere) {
         return sphere.z;
     }
 };
@@ -107,7 +107,7 @@ struct center_z<CollisionSphereConfig>
 template <>
 struct center_z<CollisionSphereModel>
 {
-    static double get(const CollisionSphereModel& sphere) {
+    static real get(const CollisionSphereModel& sphere) {
         return sphere.center.z();
     }
 };
@@ -115,25 +115,25 @@ struct center_z<CollisionSphereModel>
 } // namespace sphere_traits
 
 template <typename Sphere>
-inline double get_radius(const Sphere& sphere)
+inline real get_radius(const Sphere& sphere)
 {
     return sphere_traits::radius<Sphere>::get(sphere);
 }
 
 template <typename Sphere>
-inline double get_x(const Sphere& sphere)
+inline real get_x(const Sphere& sphere)
 {
     return sphere_traits::center_x<Sphere>::get(sphere);
 }
 
 template <typename Sphere>
-inline double get_y(const Sphere& sphere)
+inline real get_y(const Sphere& sphere)
 {
     return sphere_traits::center_y<Sphere>::get(sphere);
 }
 
 template <typename Sphere>
-inline double get_z(const Sphere& sphere)
+inline real get_z(const Sphere& sphere)
 {
     return sphere_traits::center_z<Sphere>::get(sphere);
 }
@@ -141,8 +141,8 @@ inline double get_z(const Sphere& sphere)
 template <typename Sphere>
 struct SpherePartitionerX
 {
-    double x;
-    SpherePartitionerX(double x) : x(x) { }
+    real x;
+    SpherePartitionerX(real x) : x(x) { }
     bool operator()(const Sphere* s) const {
         return get_x(*s) < x;
     }
@@ -151,8 +151,8 @@ struct SpherePartitionerX
 template <typename Sphere>
 struct SpherePartitionerY
 {
-    double y;
-    SpherePartitionerY(double y) : y(y) { }
+    real y;
+    SpherePartitionerY(real y) : y(y) { }
     bool operator()(const Sphere* s) const {
         return get_y(*s) < y;
     }
@@ -161,8 +161,8 @@ struct SpherePartitionerY
 template <typename Sphere>
 struct SpherePartitionerZ
 {
-    double z;
-    SpherePartitionerZ(double z) : z(z) { }
+    real z;
+    SpherePartitionerZ(real z) : z(z) { }
     bool operator()(const Sphere* s) const {
         return get_z(*s) < z;
     }
@@ -280,7 +280,7 @@ void CollisionSphereModelTree::buildFrom(
     ROS_DEBUG("%zu leaves", leaf_count);
 }
 
-double CollisionSphereModelTree::maxRadius() const
+real CollisionSphereModelTree::maxRadius() const
 {
     auto radius_comp = [](
         const CollisionSphereModel& s1,
@@ -298,7 +298,7 @@ double CollisionSphereModelTree::maxRadius() const
     }
 }
 
-double CollisionSphereModelTree::maxLeafRadius() const
+real CollisionSphereModelTree::maxLeafRadius() const
 {
     auto radius_comp = [](
         const CollisionSphereModel& s1,
@@ -345,7 +345,7 @@ size_t CollisionSphereModelTree::buildRecursive(
         CollisionSphereModel& cs = m_tree.back();
         const Sphere& s = **msfirst;
         cs.name = s.name; // ok, no i'm not making traits for these
-        cs.center = Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+        cs.center = Vector3(get_x(s), get_y(s), get_z(s));
         cs.radius = get_radius(s);
         cs.priority = s.priority; // ...or this
         reinterpret_cast<size_t&>(cs.left) = std::numeric_limits<size_t>::max();
@@ -362,19 +362,19 @@ size_t CollisionSphereModelTree::buildRecursive(
     ROS_DEBUG("Splitting along axis %d", split_axis);
 
     // compute the average centroid of all spheres at this level
-    Eigen::Vector3d compact_bounding_sphere_center = Eigen::Vector3d::Zero();
+    Vector3 compact_bounding_sphere_center = Vector3::Zero();
     for (auto it = msfirst; it != mslast; ++it) {
         const Sphere& s = **it;
-        compact_bounding_sphere_center += Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+        compact_bounding_sphere_center += Vector3(get_x(s), get_y(s), get_z(s));
     }
     compact_bounding_sphere_center /= count;
 
     // compute the radius required to encompass all model spheres at this level
     // with a sphere rooted at the model spheres centroid
-    double compact_bounding_sphere_radius = 0.0;
+    real compact_bounding_sphere_radius = 0.0;
     for (auto it = msfirst; it != mslast; ++it) {
-        Eigen::Vector3d c(get_x(**it), get_y(**it), get_z(**it));
-        double radius = (c - compact_bounding_sphere_center).norm() + get_radius(**it);
+        Vector3 c(get_x(**it), get_y(**it), get_z(**it));
+        real radius = (c - compact_bounding_sphere_center).norm() + get_radius(**it);
         if (radius > compact_bounding_sphere_radius) {
             compact_bounding_sphere_radius = radius;
         }
@@ -409,8 +409,8 @@ size_t CollisionSphereModelTree::buildRecursive(
     const CollisionSphereModel& sr = m_tree[right_idx];
 
     // compute the optimal sphere to contain both child spheres; mathematical!
-    Eigen::Vector3d greedy_bounding_sphere_center;
-    double greedy_bounding_sphere_radius;
+    Vector3 greedy_bounding_sphere_center;
+    real greedy_bounding_sphere_radius;
     computeOptimalBoundingSphere(
             sl, sr, greedy_bounding_sphere_center, greedy_bounding_sphere_radius);
 
@@ -453,7 +453,7 @@ size_t CollisionSphereModelTree::buildMetaRecursive(
         CollisionSphereModel& cs = m_tree.back();
         const CollisionSphereModel& s = **msfirst;
         cs.name = s.name; // ok, no i'm not making traits for these
-        cs.center = Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+        cs.center = Vector3(get_x(s), get_y(s), get_z(s));
         cs.radius = get_radius(s);
         cs.priority = s.priority; // ...or this
         cs.left = *msfirst;
@@ -470,19 +470,19 @@ size_t CollisionSphereModelTree::buildMetaRecursive(
     ROS_DEBUG("Splitting along axis %d", split_axis);
 
     // compute the average centroid of all spheres at this level
-    Eigen::Vector3d compact_bounding_sphere_center = Eigen::Vector3d::Zero();
+    Vector3 compact_bounding_sphere_center = Vector3::Zero();
     for (auto it = msfirst; it != mslast; ++it) {
         const CollisionSphereModel& s = **it;
-        compact_bounding_sphere_center += Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+        compact_bounding_sphere_center += Vector3(get_x(s), get_y(s), get_z(s));
     }
     compact_bounding_sphere_center /= count;
 
     // compute the radius required to encompass all model spheres at this level
     // with a sphere rooted at the model spheres centroid
-    double compact_bounding_sphere_radius = 0.0;
+    real compact_bounding_sphere_radius = 0.0;
     for (auto it = msfirst; it != mslast; ++it) {
-        Eigen::Vector3d c(get_x(**it), get_y(**it), get_z(**it));
-        double radius = (c - compact_bounding_sphere_center).norm() + get_radius(**it);
+        Vector3 c(get_x(**it), get_y(**it), get_z(**it));
+        real radius = (c - compact_bounding_sphere_center).norm() + get_radius(**it);
         if (radius > compact_bounding_sphere_radius) {
             compact_bounding_sphere_radius = radius;
         }
@@ -530,8 +530,8 @@ size_t CollisionSphereModelTree::buildMetaRecursive(
     const CollisionSphereModel& sr = m_tree[right_idx];
 
     // compute the optimal sphere to contain both child spheres; mathematical!
-    Eigen::Vector3d greedy_bounding_sphere_center;
-    double greedy_bounding_sphere_radius;
+    Vector3 greedy_bounding_sphere_center;
+    real greedy_bounding_sphere_radius;
     computeOptimalBoundingSphere(
             sl, sr, greedy_bounding_sphere_center, greedy_bounding_sphere_radius);
 
@@ -562,15 +562,15 @@ size_t CollisionSphereModelTree::buildMetaRecursive(
 void CollisionSphereModelTree::computeOptimalBoundingSphere(
     const CollisionSphereModel& s1,
     const CollisionSphereModel& s2,
-    Eigen::Vector3d& c,
-    double& r)
+    Vector3& c,
+    real& r)
 {
-    const Eigen::Vector3d& p = s1.center;
-    const Eigen::Vector3d& q = s2.center;
-    Eigen::Vector3d v = q - p;
-    Eigen::Vector3d vn = v.normalized();
-    Eigen::Vector3d a = p + v + vn * s2.radius;
-    Eigen::Vector3d b = q - v - vn * s1.radius;
+    const Vector3& p = s1.center;
+    const Vector3& q = s2.center;
+    Vector3 v = q - p;
+    Vector3 vn = v.normalized();
+    Vector3 a = p + v + vn * s2.radius;
+    Vector3 b = q - v - vn * s1.radius;
     c = 0.5 * (a + b);
     r = 0.5 * (a - b).norm();
 }
@@ -584,8 +584,8 @@ int CollisionSphereModelTree::computeLargestBoundingBoxAxis(
         return 0;
     }
 
-    Eigen::Vector3d min = Eigen::Vector3d(get_x(**first), get_y(**first), get_z(**first));
-    Eigen::Vector3d max = Eigen::Vector3d(get_x(**first), get_y(**first), get_z(**first));
+    Vector3 min = Vector3(get_x(**first), get_y(**first), get_z(**first));
+    Vector3 max = Vector3(get_x(**first), get_y(**first), get_z(**first));
     for (auto it = first; it != last; ++it) {
         const Sphere& sphere = **it;
         // update bounding box
@@ -609,9 +609,9 @@ int CollisionSphereModelTree::computeLargestBoundingBoxAxis(
         }
     }
 
-    const double spanx = max.x() - min.x();
-    const double spany = max.y() - min.y();
-    const double spanz = max.z() - min.z();
+    const real spanx = max.x() - min.x();
+    const real spany = max.y() - min.y();
+    const real spanz = max.z() - min.z();
     if (spanx > spany && spanx > spanz) {
         return 0;
     }

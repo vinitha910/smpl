@@ -39,7 +39,6 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
 #include <moveit_msgs/AttachedCollisionObject.h>
@@ -233,13 +232,6 @@ private:
     double maxLimit(int vidx) const;
 
     void updateState(const std::vector<double>& vals);
-
-    // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
-    // check as fast as possible, with all shortcutting policies enabled; a
-    // second for returning the nearest distance (or highest penetration
-    // distance), a third for returning a minimal but complete representation of
-    // the collision details (contact points, offending spheres, etc), and a
-    // fourth for visualizations
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
 

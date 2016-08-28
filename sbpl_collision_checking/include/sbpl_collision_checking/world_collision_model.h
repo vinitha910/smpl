@@ -87,24 +87,24 @@ public:
     bool checkCollision(
         RobotCollisionState& state,
         const std::string& group_name,
-        double& dist);
+        real& dist);
 
     bool checkCollision(
         RobotCollisionState& state,
         const int gidx,
-        double& dist);
+        real& dist);
 
     bool checkCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
         const std::string& group_name,
-        double& dist);
+        real& dist);
 
     bool checkCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
         const int gidx,
-        double& dist);
+        real& dist);
 
 private:
 

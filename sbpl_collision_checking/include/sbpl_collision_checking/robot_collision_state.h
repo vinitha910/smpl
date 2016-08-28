@@ -37,13 +37,13 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <ros/console.h>
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
 #include <sbpl_collision_checking/base_collision_states.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {
@@ -63,18 +63,18 @@ public:
     auto   worldToModelTransform() const -> const Affine3&;
     bool   setWorldToModelTransform(const Affine3& transform);
 
-    auto   jointVarPositions() const -> const std::vector<double>&;
+    auto   jointVarPositions() const -> const std::vector<real>&;
     auto   linkTransforms() const -> const Affine3Vector&;
 
-    double jointVarPosition(const std::string& var_name) const;
-    double jointVarPosition(int vidx) const;
+    real jointVarPosition(const std::string& var_name) const;
+    real jointVarPosition(int vidx) const;
 
-    const double* getJointVarPositions() const;
+    const real* getJointVarPositions() const;
 
-    bool   setJointVarPosition(const std::string& var_name, double position);
-    bool   setJointVarPosition(int vidx, double position);
+    bool   setJointVarPosition(const std::string& var_name, real position);
+    bool   setJointVarPosition(int vidx, real position);
 
-    bool   setJointVarPositions(const double* positions);
+    bool   setJointVarPositions(const real* positions);
 
     auto   linkTransform(const std::string& link_name) const -> const Affine3&;
     auto   linkTransform(int lidx) const -> const Affine3&;
@@ -136,9 +136,9 @@ private:
 
     /// \name Robot State
     ///@{
-    std::vector<double>                     m_jvar_positions;
+    std::vector<real>                       m_jvar_positions;
     std::vector<int>                        m_jvar_joints;
-    std::vector<double*>                    m_joint_var_offsets;
+    std::vector<real*>                      m_joint_var_offsets;
     std::vector<bool>                       m_dirty_joint_transforms;
     Affine3Vector                           m_joint_transforms;
     std::vector<bool>                       m_dirty_link_transforms;
@@ -228,7 +228,7 @@ bool RobotCollisionState::setWorldToModelTransform(const Affine3& transform)
 }
 
 inline
-const std::vector<double>& RobotCollisionState::jointVarPositions() const
+const std::vector<real>& RobotCollisionState::jointVarPositions() const
 {
     return m_jvar_positions;
 }
@@ -240,21 +240,21 @@ const Affine3Vector& RobotCollisionState::linkTransforms() const
 }
 
 inline
-double RobotCollisionState::jointVarPosition(const std::string& var_name) const
+real RobotCollisionState::jointVarPosition(const std::string& var_name) const
 {
     const int vidx = m_model->jointVarIndex(var_name);
     return m_jvar_positions[vidx];
 }
 
 inline
-double RobotCollisionState::jointVarPosition(int vidx) const
+real RobotCollisionState::jointVarPosition(int vidx) const
 {
     ASSERT_VECTOR_RANGE(m_jvar_positions, vidx);
     return m_jvar_positions[vidx];
 }
 
 inline
-const double* RobotCollisionState::getJointVarPositions() const
+const real* RobotCollisionState::getJointVarPositions() const
 {
     return m_jvar_positions.data();
 }
@@ -262,7 +262,7 @@ const double* RobotCollisionState::getJointVarPositions() const
 inline
 bool RobotCollisionState::setJointVarPosition(
     const std::string& var_name,
-    double position)
+    real position)
 {
     const int vidx = m_model->jointVarIndex(var_name);
     return setJointVarPosition(vidx, position);
@@ -334,7 +334,7 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
         JointTransformFunction fn = m_model->jointTransformFn(pjidx);
         const Affine3& joint_origin = m_model->jointOrigin(pjidx);
         const Vector3& joint_axis = m_model->jointAxis(pjidx);
-        double* variables = m_joint_var_offsets[pjidx];
+        real* variables = m_joint_var_offsets[pjidx];
         m_joint_transforms[pjidx] = fn(joint_origin, joint_axis, variables);
         m_dirty_joint_transforms[pjidx] = false;
     }

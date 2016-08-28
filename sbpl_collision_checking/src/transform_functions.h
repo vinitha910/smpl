@@ -32,7 +32,8 @@
 #ifndef sbpl_collision_transform_functions_h
 #define sbpl_collision_transform_functions_h
 
-#include <Eigen/Dense>
+// project includes
+#include <sbpl_collision_checking/types.h>
 
 #define SBPL_COLLISION_SPECIALIZED_JOINT_TRANSFORMS 1
 
@@ -44,47 +45,47 @@ namespace collision {
 ////////////////////////////////////////
 
 Affine3 ComputeRevoluteJointTransform(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputeRevoluteJointTransformX(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputeRevoluteJointTransformY(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputeRevoluteJointTransformZ(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputeContinuousJointTransform(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputePrismaticJointTransform(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputeFloatingJointTransform(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputePlanarJointTransform(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
 Affine3 ComputeFixedJointTransform(
-    const Affine3d& origin,
+    const Affine3& origin,
     const Vector3& axis,
     real* jvals);
 
@@ -94,7 +95,7 @@ Affine3 ComputeFixedJointTransform(
 
 inline
 Affine3 ComputeRevoluteJointTransform(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -103,7 +104,7 @@ Affine3 ComputeRevoluteJointTransform(
 
 inline
 Affine3 ComputeRevoluteJointTransformX(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -138,7 +139,7 @@ Affine3 ComputeRevoluteJointTransformX(
 
 inline
 Affine3 ComputeRevoluteJointTransformY(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -173,7 +174,7 @@ Affine3 ComputeRevoluteJointTransformY(
 
 inline
 Affine3 ComputeRevoluteJointTransformZ(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -208,7 +209,7 @@ Affine3 ComputeRevoluteJointTransformZ(
 
 inline
 Affine3 ComputeContinuousJointTransform(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -217,7 +218,7 @@ Affine3 ComputeContinuousJointTransform(
 
 inline
 Affine3 ComputePrismaticJointTransform(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -226,7 +227,7 @@ Affine3 ComputePrismaticJointTransform(
 
 inline
 Affine3 ComputeFloatingJointTransform(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -238,7 +239,7 @@ Affine3 ComputeFloatingJointTransform(
 
 inline
 Affine3 ComputePlanarJointTransform(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {
@@ -249,7 +250,7 @@ Affine3 ComputePlanarJointTransform(
 
 inline
 Affine3 ComputeFixedJointTransform(
-    const Affine3d& o,
+    const Affine3& o,
     const Vector3& axis,
     real* jvals)
 {

@@ -58,6 +58,98 @@ namespace collision {
 
 static const char* RCM_LOGGER = "robot_model";
 
+static
+void ComputeMeshBoundingSpheres(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<int>& triangles,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers)
+{
+    sbpl::ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
+}
+
+static
+void ComputeBoxBoundingSpheres(
+    double sx, double sy, double sz,
+    double radius, std::vector<Eigen::Vector3d>& centers)
+{
+    sbpl::ComputeBoxBoundingSpheres(sx, sy, sz, radius, centers);
+}
+
+static
+void ComputeCylinderBoundingSpheres(
+    double radius, double length,
+    double r, std::vector<Eigen::Vector3d>& centers)
+{
+    sbpl::ComputeCylinderBoundingSpheres(radius, length, r, centers);
+}
+
+static
+void ComputeSphereBoundingSpheres(
+    double radius,
+    double r, std::vector<Eigen::Vector3d>& centers)
+{
+    sbpl::ComputeSphereBoundingSpheres(radius, r, centers);
+}
+
+static
+void ComputeMeshBoundingSpheres(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<int>& triangles,
+    float radius,
+    std::vector<Eigen::Vector3f>& centers)
+{
+    std::vector<Eigen::Vector3d> cd;
+    ComputeMeshBoundingSpheres(vertices, triangles, radius, cd);
+    size_t prev_size = centers.size();
+    centers.resize(centers.size() + cd.size());
+    for (size_t i = 0; i < cd.size(); ++i) {
+        centers[prev_size + i] = cd[i].cast<float>();
+    }
+}
+
+static
+void ComputeBoxBoundingSpheres(
+    double sx, double sy, double sz,
+    float radius, std::vector<Eigen::Vector3f>& centers)
+{
+    std::vector<Eigen::Vector3d> cd;
+    ComputeBoxBoundingSpheres(sx, sy, sz, radius, cd);
+    size_t prev_size = centers.size();
+    centers.resize(centers.size() + cd.size());
+    for (size_t i = 0; i < cd.size(); ++i) {
+        centers[prev_size + i] = cd[i].cast<float>();
+    }
+}
+
+static
+void ComputeCylinderBoundingSpheres(
+    double radius, double length,
+    float r, std::vector<Eigen::Vector3f>& centers)
+{
+    std::vector<Eigen::Vector3d> cd;
+    ComputeCylinderBoundingSpheres(radius, length, r, cd);
+    size_t prev_size = centers.size();
+    centers.resize(centers.size() + cd.size());
+    for (size_t i = 0; i < cd.size(); ++i) {
+        centers[prev_size + i] = cd[i].cast<float>();
+    }
+}
+
+static
+void ComputeSphereBoundingSpheres(
+    double radius,
+    float r, std::vector<Eigen::Vector3f>& centers)
+{
+    std::vector<Eigen::Vector3d> cd;
+    ComputeSphereBoundingSpheres(radius, r, cd);
+    size_t prev_size = centers.size();
+    centers.resize(centers.size() + cd.size());
+    for (size_t i = 0; i < cd.size(); ++i) {
+        centers[prev_size + i] = cd[i].cast<float>();
+    }
+}
+
 RobotCollisionModelPtr RobotCollisionModel::Load(
     const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
@@ -131,7 +223,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
 
     m_joint_transforms.push_back(ComputeFixedJointTransform);
     m_joint_origins.push_back(Affine3::Identity());
-    m_joint_axes.push_back(Eigen::Vector3d::Zero());
+    m_joint_axes.push_back(Vector3::Zero());
     m_joint_parent_links.push_back(-1);
 
     // breadth-first traversal of all links in the robot
@@ -165,8 +257,8 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
 
             auto limits = joint->limits;
 
-            double min_position_limit = std::numeric_limits<double>::lowest();
-            double max_position_limit = std::numeric_limits<double>::max();
+            real min_position_limit = std::numeric_limits<real>::lowest();
+            real max_position_limit = std::numeric_limits<real>::max();
             bool has_position_limit = false;
             bool continuous = (joint->type == urdf::Joint::CONTINUOUS);
 
@@ -258,24 +350,24 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_min_positions.push_back(-std::numeric_limits<real>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<real>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/y";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_min_positions.push_back(-std::numeric_limits<real>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<real>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/theta";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(true);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_min_positions.push_back(-std::numeric_limits<real>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<real>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputePlanarJointTransform);
@@ -289,24 +381,24 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_min_positions.push_back(-std::numeric_limits<real>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<real>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/trans_y";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(false);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_min_positions.push_back(-std::numeric_limits<real>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<real>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/trans_z";
                 m_jvar_names.push_back(var_name);
                 m_jvar_continuous.push_back(true);
                 m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_min_positions.push_back(-std::numeric_limits<real>::infinity());
+                m_jvar_max_positions.push_back(std::numeric_limits<real>::infinity());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/rot_x";
@@ -352,8 +444,8 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
 
             m_link_children_joints[lidx].push_back(m_joint_origins.size());
 
-            m_joint_origins.push_back(poseUrdfToEigen(origin));
-            m_joint_axes.push_back(Eigen::Vector3d(axis.x, axis.y, axis.z));
+            m_joint_origins.push_back(poseUrdfToAffine(origin));
+            m_joint_axes.push_back(Vector3(axis.x, axis.y, axis.z));
 
             m_joint_parent_links.push_back(lidx);
 
@@ -485,7 +577,7 @@ bool RobotCollisionModel::initCollisionModel(
         CollisionVoxelsModel& voxels_model = m_voxels_models[i];
         const std::string& link_name = config.voxel_models[i].link_name;
         voxels_model.link_index = linkIndex(link_name);
-        const double LINK_VOXEL_RESOLUTION = 0.01; // TODO:
+        const real LINK_VOXEL_RESOLUTION = 0.01; // TODO:
         voxels_model.voxel_res = LINK_VOXEL_RESOLUTION;
         if (!voxelizeLink(urdf, link_name, voxels_model)) {
             ROS_ERROR_NAMED(RCM_LOGGER, "Failed to voxelize link '%s'", link_name.c_str());
@@ -542,7 +634,7 @@ bool RobotCollisionModel::initCollisionModel(
 bool RobotCollisionModel::generateSpheresModel(
     const urdf::ModelInterface& urdf,
     const std::string& link_name,
-    double radius,
+    real radius,
     std::vector<CollisionSphereConfig>& spheres) const
 {
     auto link = urdf.getLink(link_name);
@@ -585,7 +677,7 @@ bool RobotCollisionModel::generateSpheresModel(
 
 bool RobotCollisionModel::generateBoundingSpheres(
     const urdf::Collision& collision,
-    double radius,
+    real radius,
     std::vector<CollisionSphereConfig>& spheres) const
 {
     auto geom = collision.geometry;
@@ -595,13 +687,14 @@ bool RobotCollisionModel::generateBoundingSpheres(
         return false;
     }
 
-    Eigen::Translation3d translation(
+    double qw, qx, qy, qz;
+    collision.origin.rotation.getQuaternion(qx, qy, qz, qw);
+
+    Translation3 translation(
             collision.origin.position.x,
             collision.origin.position.y,
             collision.origin.position.z);
-    Eigen::Quaterniond rotation;
-    collision.origin.rotation.getQuaternion(
-            rotation.x(), rotation.y(), rotation.z(), rotation.w());
+    Quaternion rotation(qw, qx, qy, qz);
     Affine3 pose = translation * rotation;
 
     return generateBoundingSpheres(*geom, pose, radius, spheres);
@@ -610,12 +703,12 @@ bool RobotCollisionModel::generateBoundingSpheres(
 bool RobotCollisionModel::generateBoundingSpheres(
     const urdf::Geometry& geom,
     const Affine3& pose,
-    double radius,
+    real radius,
     std::vector<CollisionSphereConfig>& spheres) const
 {
-    std::vector<Eigen::Vector3d> centers;
+    std::vector<Vector3> centers;
     if (geom.type == urdf::Geometry::MESH) {
-        std::vector<Eigen::Vector3d> vertices;
+        std::vector<Vector3d> vertices;
         std::vector<int> triangles;
         urdf::Mesh* mesh = (urdf::Mesh*)&geom;
         if (!leatherman::getMeshComponentsFromResource(
@@ -627,25 +720,25 @@ bool RobotCollisionModel::generateBoundingSpheres(
 
         ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
 
-        sbpl::ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
+        ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::BOX) {
         urdf::Box* box = (urdf::Box*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
-        sbpl::ComputeBoxBoundingSpheres(box->dim.x, box->dim.y, box->dim.z, radius, centers);
+        ComputeBoxBoundingSpheres(box->dim.x, box->dim.y, box->dim.z, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::CYLINDER) {
         urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
-        sbpl::ComputeCylinderBoundingSpheres(cyl->radius, cyl->length, radius, centers);
+        ComputeCylinderBoundingSpheres(cyl->radius, cyl->length, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::SPHERE) {
         urdf::Sphere* sph = (urdf::Sphere*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "sphere: { radius: %0.3f }", sph->radius);
-        sbpl::ComputeSphereBoundingSpheres(sph->radius, radius, centers);
+        ComputeSphereBoundingSpheres(sph->radius, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else {
@@ -734,10 +827,10 @@ bool RobotCollisionModel::checkCollisionModelReferences() const
     return true;
 }
 
-Affine3 RobotCollisionModel::poseUrdfToEigen(const urdf::Pose& p) const
+Affine3 RobotCollisionModel::poseUrdfToAffine(const urdf::Pose& p) const
 {
-    return Eigen::Translation3d(p.position.x, p.position.y, p.position.z) *
-            Eigen::Quaterniond(
+    return Translation3(p.position.x, p.position.y, p.position.z) *
+            Quaternion(
                     p.rotation.w, p.rotation.x, p.rotation.y, p.rotation.z);
 }
 
@@ -787,8 +880,8 @@ bool RobotCollisionModel::voxelizeLink(
 
 bool RobotCollisionModel::voxelizeCollisionElement(
     const urdf::Collision& collision,
-    double res,
-    std::vector<Eigen::Vector3d>& voxels) const
+    real res,
+    std::vector<Vector3>& voxels) const
 {
     auto geom = collision.geometry;
 
@@ -797,11 +890,11 @@ bool RobotCollisionModel::voxelizeCollisionElement(
         return false;
     }
 
-    Eigen::Translation3d translation(
+    Translation3 translation(
             collision.origin.position.x,
             collision.origin.position.y,
             collision.origin.position.z);
-    Eigen::Quaterniond rotation;
+    Quaternion rotation;
     collision.origin.rotation.getQuaternion(
             rotation.x(), rotation.y(), rotation.z(), rotation.w());
     Affine3 pose = translation * rotation;
@@ -812,15 +905,15 @@ bool RobotCollisionModel::voxelizeCollisionElement(
 bool RobotCollisionModel::voxelizeGeometry(
     const urdf::Geometry& geom,
     const Affine3& pose,
-    double res,
-    std::vector<Eigen::Vector3d>& voxels) const
+    real res,
+    std::vector<Vector3>& voxels) const
 {
     if (geom.type == urdf::Geometry::MESH) {
-        std::vector<Eigen::Vector3d> vertices;
+        std::vector<Vector3> vertices;
         std::vector<int> triangles;
         urdf::Mesh* mesh = (urdf::Mesh*)&geom;
         if (!leatherman::getMeshComponentsFromResource(
-                mesh->filename, Eigen::Vector3d::Ones(), triangles, vertices))
+                mesh->filename, Vector3::Ones(), triangles, vertices))
         {
             ROS_ERROR_NAMED(RCM_LOGGER, "Failed to get mesh from file. (%s)", mesh->filename.c_str());
             return false;
@@ -828,25 +921,25 @@ bool RobotCollisionModel::voxelizeGeometry(
 
         ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
 
-        sbpl::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
+        sbpl::VoxelizeMesh(vertices, triangles, pose, res, std::back_inserter(voxels), false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else if (geom.type == urdf::Geometry::BOX) {
         urdf::Box* box = (urdf::Box*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
-        sbpl::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, voxels, false);
+        sbpl::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, std::back_inserter(voxels), false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else if (geom.type == urdf::Geometry::CYLINDER) {
         urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
-        sbpl::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, voxels, false);
+        sbpl::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, std::back_inserter(voxels), false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else if (geom.type == urdf::Geometry::SPHERE) {
         urdf::Sphere* sph = (urdf::Sphere*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "sphere: { radius: %0.3f }", sph->radius);
-        sbpl::VoxelizeSphere(sph->radius, pose, res, voxels, false);
+        sbpl::VoxelizeSphere(sph->radius, pose, res, std::back_inserter(voxels), false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else {

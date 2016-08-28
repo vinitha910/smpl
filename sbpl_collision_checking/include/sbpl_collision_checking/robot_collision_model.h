@@ -35,12 +35,10 @@
 
 // standard includes
 #include <memory>
-#include <ostream>
 #include <string>
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <geometric_shapes/shapes.h>
 #include <urdf_model/model.h>
 
@@ -56,7 +54,7 @@ namespace collision {
 typedef Affine3 (*JointTransformFunction)(
     const Affine3& origin,
     const Vector3& axis,
-    double* jvals);
+    real* jvals);
 
 class RobotCollisionModelImpl;
 
@@ -93,13 +91,13 @@ public:
 
     bool   jointVarIsContinuous(const std::string& joint_name) const;
     bool   jointVarHasPositionBounds(const std::string& joint_name) const;
-    double jointVarMinPosition(const std::string& joint_name) const;
-    double jointVarMaxPosition(const std::string& joint_name) const;
+    real   jointVarMinPosition(const std::string& joint_name) const;
+    real   jointVarMaxPosition(const std::string& joint_name) const;
 
     bool   jointVarIsContinuous(int jidx) const;
     bool   jointVarHasPositionBounds(int jidx) const;
-    double jointVarMinPosition(int jidx) const;
-    double jointVarMaxPosition(int jidx) const;
+    real   jointVarMinPosition(int jidx) const;
+    real   jointVarMaxPosition(int jidx) const;
     ///@}
 
     /// \name Robot Model - Joint Information
@@ -155,8 +153,8 @@ public:
     auto   groupLinkIndices(int gidx) const ->
             const std::vector<int>&;
 
-    double maxLeafSphereRadius() const;
-    double maxSphereRadius() const;
+    real maxLeafSphereRadius() const;
+    real maxSphereRadius() const;
     ///@}
 
 private:
@@ -171,8 +169,8 @@ private:
     std::vector<std::string>                m_jvar_names;
     std::vector<bool>                       m_jvar_continuous;
     std::vector<bool>                       m_jvar_has_position_bounds;
-    std::vector<double>                     m_jvar_min_positions;
-    std::vector<double>                     m_jvar_max_positions;
+    std::vector<real>                       m_jvar_min_positions;
+    std::vector<real>                       m_jvar_max_positions;
     hash_map<std::string, int>              m_jvar_name_to_index;
 
     std::vector<bool>                       m_desc_joint_matrix;
@@ -230,23 +228,23 @@ private:
     bool generateSpheresModel(
         const urdf::ModelInterface& urdf,
         const std::string& link_name,
-        double radius,
+        real radius,
         std::vector<CollisionSphereConfig>& spheres) const;
     bool generateBoundingSpheres(
         const urdf::Collision& collision,
-        double radius,
+        real radius,
         std::vector<CollisionSphereConfig>& spheres) const;
     bool generateBoundingSpheres(
         const urdf::Geometry& geom,
         const Affine3& pose,
-        double res,
+        real res,
         std::vector<CollisionSphereConfig>& spheres) const;
 
     bool checkCollisionModelConfig(const CollisionModelConfig& config);
 
     bool checkCollisionModelReferences() const;
 
-    Affine3 poseUrdfToEigen(const urdf::Pose& p) const;
+    Affine3 poseUrdfToAffine(const urdf::Pose& p) const;
 
     bool voxelizeLink(
         const urdf::ModelInterface& urdf,
@@ -255,13 +253,13 @@ private:
 
     bool voxelizeCollisionElement(
         const urdf::Collision& collision,
-        double res,
+        real res,
         std::vector<Vector3>& voxels) const;
 
     bool voxelizeGeometry(
         const urdf::Geometry& geom,
         const Affine3& pose,
-        double res,
+        real res,
         std::vector<Vector3>& voxels) const;
 };
 
@@ -328,7 +326,7 @@ bool RobotCollisionModel::jointVarHasPositionBounds(
 }
 
 inline
-double RobotCollisionModel::jointVarMinPosition(
+real RobotCollisionModel::jointVarMinPosition(
     const std::string& joint_name) const
 {
     const int jidx = jointVarIndex(joint_name);
@@ -336,7 +334,7 @@ double RobotCollisionModel::jointVarMinPosition(
 }
 
 inline
-double RobotCollisionModel::jointVarMaxPosition(
+real RobotCollisionModel::jointVarMaxPosition(
     const std::string& joint_name) const
 {
     const int jidx = jointVarIndex(joint_name);
@@ -358,14 +356,14 @@ bool RobotCollisionModel::jointVarHasPositionBounds(int jidx) const
 }
 
 inline
-double RobotCollisionModel::jointVarMinPosition(int jidx) const
+real RobotCollisionModel::jointVarMinPosition(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_jvar_min_positions, jidx);
     return m_jvar_min_positions[jidx];
 }
 
 inline
-double RobotCollisionModel::jointVarMaxPosition(int jidx) const
+real RobotCollisionModel::jointVarMaxPosition(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_jvar_max_positions, jidx);
     return m_jvar_max_positions[jidx];
@@ -584,9 +582,9 @@ const std::vector<int>& RobotCollisionModel::groupLinkIndices(int gidx) const
 }
 
 inline
-double RobotCollisionModel::maxSphereRadius() const
+real RobotCollisionModel::maxSphereRadius() const
 {
-    double d = 0.0;
+    real d = constants<real>::zero();
     for (const auto& spheres : m_spheres_models) {
         d = std::max(d, spheres.spheres.maxRadius());
     }
@@ -594,9 +592,9 @@ double RobotCollisionModel::maxSphereRadius() const
 }
 
 inline
-double RobotCollisionModel::maxLeafSphereRadius() const
+real RobotCollisionModel::maxLeafSphereRadius() const
 {
-    double d = 0.0;
+    real d = constants<real>::zero();
     for (const auto& spheres : m_spheres_models) {
         d = std::max(d, spheres.spheres.maxLeafRadius());
     }

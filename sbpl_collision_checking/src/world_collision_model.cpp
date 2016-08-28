@@ -112,7 +112,7 @@ private:
     std::map<std::string, ObjectConstPtr> m_object_map;
 
     // voxelization of objects in the grid reference frame
-    typedef std::vector<Eigen::Vector3d> VoxelList;
+    typedef std::vector<Vector3> VoxelList;
     std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
 
     double m_padding;
@@ -206,7 +206,7 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
     m_grid->getOrigin(ox, oy, oz);
     const Eigen::Vector3d origin(ox, oy, oz);
 
-    std::vector<std::vector<Eigen::Vector3d>> all_voxels;
+    std::vector<Vector3> all_voxels;
     if (!VoxelizeObject(*object, res, origin, all_voxels)) {
         ROS_ERROR_NAMED(WCM_LOGGER, "Failed to voxelize object '%s'", object->id_.c_str());
         return false;
@@ -214,7 +214,7 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
 
     auto vit = m_object_voxel_map.insert(
             std::make_pair(object->id_, std::vector<VoxelList>()));
-    vit.first->second = std::move(all_voxels);
+    vit.first->second = { std::move(all_voxels) };
     assert(vit.second);
 
     m_object_map.insert(std::make_pair(object->id_, object));
@@ -709,7 +709,7 @@ void WorldCollisionModelImpl::getAllCollisionObjectVoxels(
             if (is_collision_object) {
                 assert(vlsit->second.size() > sidx);
                 const VoxelList& vl = vlsit->second[sidx];
-                for (const Eigen::Vector3d& voxel : vl) {
+                for (const Vector3& voxel : vl) {
                     geometry_msgs::Point point;
                     point.x = voxel.x();
                     point.y = voxel.y();

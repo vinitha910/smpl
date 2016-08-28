@@ -51,138 +51,87 @@ namespace collision {
 /// \name Aggregate Types
 ///@{
 
+template <typename OutputIt>
 bool VoxelizeObject(
     const Object& object,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
-
-bool VoxelizeCollisionObject(
-    const moveit_msgs::CollisionObject& object,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
+    OutputIt ofirst);
 
 ///@}
 
 /// \name geometric_shapes::Shape Voxelization
 ///@{
 
-// These functions must only append voxels to the output vector
-
+template <typename OutputIt>
 bool VoxelizeShape(
     const shapes::Shape& shape,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizeSphere(
     const shapes::Sphere& sphere,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizeCylinder(
     const shapes::Cylinder& cylinder,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizeCone(
     const shapes::Cone& cone,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizeBox(
     const shapes::Box& box,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizePlane(
     const shapes::Plane& plane,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizeMesh(
     const shapes::Mesh& mesh,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
+template <typename OutputIt>
 bool VoxelizeOcTree(
     const shapes::OcTree& octree,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-///@}
-
-/// \name shape_msgs Voxelization
-///@{
-
-bool VoxelizeSolidPrimitive(
-    const shape_msgs::SolidPrimitive& prim,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-bool VoxelizeBox(
-    const shape_msgs::SolidPrimitive& box,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-bool VoxelizeSphere(
-    const shape_msgs::SolidPrimitive& sphere,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-bool VoxelizeCylinder(
-    const shape_msgs::SolidPrimitive& cylinder,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-bool VoxelizeCone(
-    const shape_msgs::SolidPrimitive& cone,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-bool VoxelizeMesh(
-    const shape_msgs::Mesh& mesh,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
-
-bool VoxelizePlane(
-    const shape_msgs::Plane& plane,
-    const geometry_msgs::Pose& pose,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<Eigen::Vector3d>& voxels);
+    OutputIt ofirst);
 
 ///@}
 
 } // namespace collision
 } // namespace sbpl
+
+#include "detail/voxel_operations.h"
 
 #endif

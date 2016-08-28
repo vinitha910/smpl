@@ -50,7 +50,7 @@
 namespace sbpl {
 namespace collision {
 
-typedef double real;
+typedef float real;
 
 typedef Eigen::Matrix<real, 3, 1> Vector3;
 
@@ -60,13 +60,30 @@ using Transform = Eigen::Transform<real, Dim, Mode, _Options>;
 template <int Dim>
 using Translation = Eigen::Translation<real, Dim>;
 
-typedef Translation<3> Translation;
+typedef Translation<3> Translation3;
 
 typedef Eigen::AngleAxis<real> AngleAxis;
 
 typedef Eigen::Quaternion<real> Quaternion;
 
 typedef Transform<3, Eigen::Affine> Affine3;
+
+template <typename T>
+struct constants
+{
+};
+
+template <>
+struct constants<float>
+{
+    static float zero() { return 0.0f; }
+};
+
+template <>
+struct constants<double>
+{
+    static double zero() { return 0.0; }
+};
 
 struct Sphere
 {

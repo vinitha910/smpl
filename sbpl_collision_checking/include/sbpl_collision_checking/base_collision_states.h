@@ -36,11 +36,9 @@
 #include <ostream>
 #include <vector>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <sbpl_collision_checking/base_collision_models.h>
+#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {

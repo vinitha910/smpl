@@ -258,7 +258,7 @@ bool AttachedBodiesCollisionStateImpl::updateVoxelsState(int vsidx)
     const Affine3& T_model_body = attachedBodyTransform(bidx);
 
     // transform voxels into the model frame
-    std::vector<Eigen::Vector3d> new_voxels(state.model->voxels.size());
+    std::vector<Vector3> new_voxels(state.model->voxels.size());
     for (size_t i = 0; i < state.model->voxels.size(); ++i) {
         new_voxels[i] = T_model_body * state.model->voxels[i];
     }

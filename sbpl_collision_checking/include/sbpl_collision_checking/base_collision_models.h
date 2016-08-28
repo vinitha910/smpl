@@ -37,11 +37,9 @@
 #include <string>
 #include <vector>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
+#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {
@@ -53,7 +51,7 @@ struct CollisionSphereModel
 {
     std::string name;
     Vector3 center; ///< offset from link center
-    double radius;
+    real radius;
     int priority;
     const CollisionSpheresModel* parent;
     const CollisionSphereModel *left, *right;
@@ -86,8 +84,8 @@ public:
         return m_tree[idx];
     }
 
-    double maxRadius() const;
-    double maxLeafRadius() const;
+    real maxRadius() const;
+    real maxLeafRadius() const;
 
 private:
 
@@ -105,7 +103,7 @@ private:
     void computeOptimalBoundingSphere(
         const CollisionSphereModel& s1,
         const CollisionSphereModel& s2,
-        Vector3& c, double& r);
+        Vector3& c, real& r);
 
     template <typename Sphere>
     int computeLargestBoundingBoxAxis(
@@ -131,7 +129,7 @@ std::ostream& operator<<(std::ostream& o, const CollisionSpheresModel& csm);
 struct CollisionVoxelsModel
 {
     int link_index; // -1 if not attached to a link
-    double voxel_res;
+    real voxel_res;
     std::vector<Vector3> voxels; // in the link frame
 };
 

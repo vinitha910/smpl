@@ -55,7 +55,7 @@
 namespace sbpl {
 namespace collision {
 
-bool RobotCollisionState::setJointVarPosition(int vidx, double position)
+bool RobotCollisionState::setJointVarPosition(int vidx, real position)
 {
     ASSERT_VECTOR_RANGE(m_jvar_positions, vidx);
 
@@ -100,7 +100,7 @@ bool RobotCollisionState::setJointVarPosition(int vidx, double position)
     }
 }
 
-bool RobotCollisionState::setJointVarPositions(const double* positions)
+bool RobotCollisionState::setJointVarPositions(const real* positions)
 {
     std::vector<int>& ancestors = m_ancestors;
     ancestors.clear();
@@ -188,10 +188,10 @@ RobotCollisionState::getVisualization(int gidx) const
                 continue;
             }
             std::vector<double> sphere(4, 0.0);
-            sphere[0] = sphere_state.pos.x();
-            sphere[1] = sphere_state.pos.y();
-            sphere[2] = sphere_state.pos.z();
-            sphere[3] = sphere_state.model->radius;
+            sphere[0] = (double)sphere_state.pos.x();
+            sphere[1] = (double)sphere_state.pos.y();
+            sphere[2] = (double)sphere_state.pos.z();
+            sphere[3] = (double)sphere_state.model->radius;
             spheres.push_back(std::move(sphere));
             rad.push_back(sphere_state.model->radius);
         }
@@ -224,7 +224,7 @@ void RobotCollisionState::initRobotState()
     // map joints to joint variable arrays and vice versa
     m_jvar_joints.reserve(m_model->jointVarCount());
     m_joint_var_offsets.resize(m_model->jointCount());
-    double* d = m_jvar_positions.data();
+    real* d = m_jvar_positions.data();
     for (size_t jidx = 0; jidx < m_model->jointCount(); ++jidx) {
         m_joint_var_offsets[jidx] = d;
         JointTransformFunction f = m_model->jointTransformFn(jidx);

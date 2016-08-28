@@ -621,13 +621,13 @@ void AttachedBodiesCollisionModelImpl::generateSpheresModel(
     const double object_enclosing_sphere_radius = 0.025;
 
     // voxelize the object
-    std::vector<Eigen::Vector3d> voxels;
+    std::vector<Vector3> voxels;
     for (size_t i = 0; i < shapes.size(); ++i) {
         if (!VoxelizeShape(
                 *shapes[i], transforms[i],
                 object_enclosing_sphere_radius / std::sqrt(2),
                 Eigen::Vector3d::Zero(),
-                voxels))
+                std::back_inserter(voxels)))
         {
             ROS_ERROR_NAMED(RCM_LOGGER, "Failed to voxelize attached body shape for sphere generation");
             return;
