@@ -100,8 +100,14 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
     // set the single-dof joint state
     for (size_t i = 0; i < joint_state.name.size(); ++i) {
         const std::string& joint_name = joint_state.name[i];
-        double joint_position = joint_state.position[i];
-        m_rcs->setJointVarPosition(joint_name, joint_position);
+        if (m_rcm->hasJointVar(joint_name)) {
+            double joint_position = joint_state.position[i];
+            int jidx = m_rcm->jointVarIndex(joint_name);
+            m_joint_vars[jidx] = joint_position;
+        }
+        else {
+            ROS_WARN("joint variable '%s' not found within the robot collision model", joint_name.c_str());
+        }
     }
 
     const sensor_msgs::MultiDOFJointState& multi_dof_joint_state =
@@ -167,7 +173,8 @@ bool CollisionSpace::setJointPosition(
     double position)
 {
     if (m_rcm->hasJointVar(name)) {
-        m_rcs->setJointVarPosition(name, position);
+        int jidx = m_rcm->jointVarIndex(name);
+        m_joint_vars[jidx] = position;
         return true;
     }
     else {
@@ -790,6 +797,10 @@ bool CollisionSpace::init(
     m_wcm = std::make_shared<WorldCollisionModel>(m_grid);
     m_scm = std::make_shared<SelfCollisionModel>(m_grid, m_rcm.get(), m_abcm.get());
 
+    m_joint_vars.assign(
+        m_rcs->getJointVarPositions(),
+        m_rcs->getJointVarPositions() + m_rcm->jointVarCount());
+
     return true;
 }
 
@@ -823,8 +834,14 @@ void CollisionSpace::updateState(const std::vector<double>& vals)
     // update the robot state
     for (size_t i = 0; i < vals.size(); ++i) {
         int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_rcs->setJointVarPosition(jidx, vals[i]);
+        m_joint_vars[jidx] = vals[i];
     }
+    copyState();
+}
+
+void CollisionSpace::copyState()
+{
+    m_rcs->setJointVarPositions(m_joint_vars.data());
 }
 
 /// \brief Check whether the planning joint variables are within limits

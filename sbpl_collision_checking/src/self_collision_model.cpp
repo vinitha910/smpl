@@ -164,7 +164,7 @@ private:
     // that are inside the new collision group and add voxels that are outside
     // the new collision group
     void updateGroup(int gidx);
-    void switchAttachedBodyGroup(int ab_gidx);
+    void updateAttachedBodyGroup(int ab_gidx);
 
     void copyState(const RobotCollisionState& state);
 
@@ -349,9 +349,7 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     updateGroup(gidx);
-    if (gidx != m_ab_gidx) {
-        switchAttachedBodyGroup(gidx);
-    }
+    updateAttachedBodyGroup(gidx);
 
     copyState(state);
 
@@ -607,9 +605,13 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     updateCheckedSpheresIndices();
 }
 
-void SelfCollisionModelImpl::switchAttachedBodyGroup(int ab_gidx)
+void SelfCollisionModelImpl::updateAttachedBodyGroup(int ab_gidx)
 {
+    if (ab_gidx == m_ab_gidx) {
+        return;
+    }
 
+    // TODO:
 }
 
 void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)

@@ -190,6 +190,7 @@ private:
     AttachedBodiesCollisionModelPtr m_abcm;
     RobotCollisionStatePtr          m_rcs;
     AttachedBodiesCollisionStatePtr m_abcs;
+    std::vector<double>             m_joint_vars;
 
     WorldCollisionModelPtr          m_wcm;
     SelfCollisionModelPtr           m_scm;
@@ -233,6 +234,7 @@ private:
     double maxLimit(int vidx) const;
 
     void updateState(const std::vector<double>& vals);
+    void copyState();
 
     // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
     // check as fast as possible, with all shortcutting policies enabled; a
