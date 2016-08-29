@@ -142,9 +142,15 @@ public:
                 Eigen::AngleAxisd(to_pose[4], Eigen::Vector3d::UnitY()) *
                 Eigen::AngleAxisd(to_pose[3], Eigen::Vector3d::UnitX()));
 
+        if (qstart.dot(qend) < 0.0) {
+            // negate one end of the quaternion path to ensure interpolation
+            // takes the short arc
+            qend = Eigen::Quaterniond(-qend.w(), -qend.x(), -qend.y(), -qend.z());
+        }
+
         // compute the number of path waypoints
         double posdiff = (pend - pstart).norm();
-        double rotdiff = Eigen::AngleAxisd(qstart.inverse() * qend).angle();
+        double rotdiff = angles::normalize_angle(2.0 * acos(qstart.dot(qend)));
 
         const double interp_pres = 0.01;
         const double interp_rres = angles::to_radians(5.0);
