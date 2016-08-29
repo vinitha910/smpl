@@ -664,14 +664,14 @@ void ManipLattice::removeGoalObserver(ManipLatticeGoalObserver* observer)
 }
 
 bool ManipLattice::isGoal(
-    const std::vector<double>& angles,
+    const RobotState& state,
     const std::vector<double>& pose)
 {
     switch (m_goal.type) {
     case GoalType::JOINT_STATE_GOAL:
     {
         for (int i = 0; i < m_goal.angles.size(); i++) {
-            if (fabs(angles[i] - m_goal.angles[i]) > m_goal.angle_tolerances[i]) {
+            if (fabs(state[i] - m_goal.angles[i]) > m_goal.angle_tolerances[i]) {
                 return false;
             }
         }
@@ -679,9 +679,12 @@ bool ManipLattice::isGoal(
     }   break;
     case GoalType::XYZ_RPY_GOAL:
     {
-        if (fabs(pose[0] - m_goal.tgt_off_pose[0]) <= m_goal.xyz_tolerance[0] &&
-            fabs(pose[1] - m_goal.tgt_off_pose[1]) <= m_goal.xyz_tolerance[1] &&
-            fabs(pose[2] - m_goal.tgt_off_pose[2]) <= m_goal.xyz_tolerance[2])
+        const double dx = fabs(pose[0] - m_goal.tgt_off_pose[0]);
+        const double dy = fabs(pose[1] - m_goal.tgt_off_pose[1]);
+        const double dz = fabs(pose[2] - m_goal.tgt_off_pose[2]);
+        if (dx <= m_goal.xyz_tolerance[0] &&
+            dy <= m_goal.xyz_tolerance[1] &&
+            dz <= m_goal.xyz_tolerance[2])
         {
             // log the amount of time required for the search to get close to the goal
             if (!m_near_goal) {
@@ -694,29 +697,20 @@ bool ManipLattice::isGoal(
                         time_to_goal_region,
                         m_expanded_states.size());
             }
-            const Eigen::Quaterniond qg(
+            Eigen::Quaterniond qg(
                     Eigen::AngleAxisd(m_goal.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(m_goal.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(m_goal.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
-            const Eigen::Quaterniond q(
+            Eigen::Quaterniond q(
                     Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()));
-            const Eigen::Quaterniond dq(qg.inverse() * q);
-            if (Eigen::AngleAxisd(dq).angle() < m_goal.rpy_tolerance[0]) {
+
+//            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
+            const double theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
+            if (theta < m_goal.rpy_tolerance[0]) {
                 return true;
             }
-
-//            const double droll = angles::shortest_angle_dist(pose[3], m_goal.tgt_off_pose[3]);
-//            const double dpitch = angles::shortest_angle_dist(pose[4], m_goal.tgt_off_pose[4]);
-//            const double dyaw = angles::shortest_angle_dist(pose[5], m_goal.tgt_off_pose[5]);
-//            ROS_DEBUG_NAMED(m_params->expands_log_, "Near goal! (%0.3f, %0.3f, %0.3f)", droll, dpitch, dyaw);
-//            if (droll < m_goal.rpy_tolerance[0] &&
-//                dpitch < m_goal.rpy_tolerance[1] &&
-//                dyaw < m_goal.rpy_tolerance[2])
-//            {
-//                return true;
-//            }
         }
     }   break;
     case GoalType::XYZ_GOAL:
