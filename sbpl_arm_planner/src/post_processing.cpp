@@ -63,29 +63,101 @@ double distance(
     return dist;
 }
 
-class ShortcutPathGenerator
+double pv_distance(
+    const RobotModel& robot,
+    const RobotState& from,
+    const RobotState& to)
+{
+    auto sqrd = [](double d) { return d * d; };
+    const double pweight = 1.0;
+    const double vweight = 1.0;
+
+    const size_t var_count = robot.getPlanningJoints().size();
+
+    double dist = 0.0;
+    for (size_t vidx = 0; vidx < var_count; ++vidx) {
+        if (!robot.hasPosLimit(vidx)) {
+            dist += angles::shortest_angle_dist(to[vidx], from[vidx]);
+        }
+        else {
+            dist += fabs(to[vidx] - from[vidx]);
+        }
+    }
+
+    double vdist = 0.0;
+    for (size_t vidx = 0; vidx < var_count; ++vidx) {
+        vdist += fabs(to[var_count + vidx] - from[var_count + vidx]);
+    }
+
+    return pweight * dist + vweight * vdist;
+}
+
+class JointPositionShortcutPathGenerator
 {
 public:
 
-    ShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
+    JointPositionShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
         m_robot(rm),
         m_cc(cc)
     { }
 
     template <typename OutputIt>
     bool operator()(
-        const RobotState& start, const RobotState& end,
+        const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
         int path_length;
         int num_checks;
         double dist;
+        const size_t var_count = m_robot->getPlanningJoints().size();
         if (m_cc->isStateToStateValid(
-                start, end, path_length, num_checks, dist))
+                start, finish, path_length, num_checks, dist))
         {
             *ofirst++ = start;
-            *ofirst++ = end;
-            cost = distance(*m_robot, start, end);
+            *ofirst++ = finish;
+            cost = distance(*m_robot, start, finish);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+private:
+
+    RobotModel* m_robot;
+    CollisionChecker* m_cc;
+};
+
+class JointPositionVelocityShortcutPathGenerator
+{
+public:
+
+    JointPositionVelocityShortcutPathGenerator(
+        RobotModel* rm,
+        CollisionChecker* cc)
+    :
+        m_robot(rm),
+        m_cc(cc)
+    { }
+
+    template <typename OutputIt>
+    bool operator()(
+        const RobotState& start, const RobotState& finish,
+        OutputIt ofirst, double& cost) const
+    {
+        int path_length;
+        int num_checks;
+        double dist;
+        const size_t var_count = m_robot->getPlanningJoints().size();
+        const RobotState pstart(start.begin(), start.begin() + var_count);
+        const RobotState pend(finish.begin(), finish.begin() + var_count);
+        if (m_cc->isStateToStateValid(
+                pstart, pend, path_length, num_checks, dist))
+        {
+            *ofirst++ = start;
+            *ofirst++ = finish;
+            cost = pv_distance(*m_robot, start, finish);
             return true;
         }
         else {
@@ -229,15 +301,17 @@ void ShortcutPath(
         return;
     }
 
-    std::vector<double> costs(pin.size() - 1);
-    for (size_t i = 1; i < pin.size(); ++i) {
-        costs[i - 1] = distance(*rm, pin[i], pin[i - 1]);
-    }
-
+    auto then = std::chrono::high_resolution_clock::now();
+    double prev_cost = 0.0, next_cost = 0.0;
     switch (type) {
     case ShortcutType::JOINT_SPACE:
     {
-        ShortcutPathGenerator generators[] = { ShortcutPathGenerator(rm, cc) };
+        std::vector<double> costs;
+        ComputePositionPathCosts(rm, pin, costs);
+        JointPositionShortcutPathGenerator generators[] =
+        {
+            JointPositionShortcutPathGenerator(rm, cc)
+        };
         shortcut::ShortcutPath(
                 pin.begin(), pin.end(),
                 costs.begin(), costs.end(),
@@ -246,24 +320,140 @@ void ShortcutPath(
     }   break;
     case ShortcutType::EUCLID_SPACE:
     {
-        EuclidShortcutPathGenerator generators[] =
-                { EuclidShortcutPathGenerator(rm, cc) };
+        std::vector<double> costs;
+        ComputePositionPathCosts(rm, pin, costs);
 
-        auto then = std::chrono::high_resolution_clock::now();
+        EuclidShortcutPathGenerator generators[] =
+        {
+            EuclidShortcutPathGenerator(rm, cc)
+        };
+
         shortcut::ShortcutPath(
                 pin.begin(), pin.end(),
                 costs.begin(), costs.end(),
                 generators, generators + 1,
                 std::back_inserter(pout));
-        auto now = std::chrono::high_resolution_clock::now();
-        ROS_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
+    }   break;
+    case ShortcutType::JOINT_POSITION_VELOCITY_SPACE:
+    {
+        std::vector<RobotState> pv_path;
+        CreatePositionVelocityPath(rm, pin, pv_path);
+
+        std::vector<double> costs;
+        ComputePositionVelocityPathCosts(rm, pv_path, costs);
+        prev_cost = std::accumulate(costs.begin(), costs.end(), 0.0);
+
+        JointPositionVelocityShortcutPathGenerator generators[] =
+        {
+            JointPositionVelocityShortcutPathGenerator(rm, cc)
+        };
+
+        std::vector<RobotState> opvpath;
+        shortcut::ShortcutPath(
+                pv_path.begin(), pv_path.end(),
+                costs.begin(), costs.end(),
+                generators, generators + 1,
+                std::back_inserter(opvpath));
+
+        std::vector<double> new_costs;
+        ComputePositionVelocityPathCosts(rm, opvpath, new_costs);
+        next_cost = std::accumulate(new_costs.begin(), new_costs.end(), 0.0);
+
+        ExtractPositionPath(rm, opvpath, pout);
     }   break;
     default:
         break;
     }
 
-    ROS_INFO("Original path length: %zu", pin.size());
-    ROS_INFO("Shortcutted path length: %zu", pout.size());
+    auto now = std::chrono::high_resolution_clock::now();
+    ROS_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
+
+    ROS_INFO("Original path: waypoint count: %zu, cost: %0.3f", pin.size(), prev_cost);
+    ROS_INFO("Shortcutted path: waypount_count: %zu, cost: %0.3f", pout.size(), next_cost);
+}
+
+bool CreatePositionVelocityPath(
+    RobotModel* rm,
+    const std::vector<RobotState>& path,
+    std::vector<RobotState>& opath)
+{
+    const size_t var_count = rm->getPlanningJoints().size();
+
+    // position + zero velocity for the first point
+    std::vector<RobotState> pv_path(path.size());
+    if (!pv_path.empty()) {
+        pv_path[0].resize(2 * var_count);
+        // p_0 = p_in_0, v_0 = { 0, ..., 0 }
+        std::copy(path[0].begin(), path[0].begin() + var_count, pv_path[0].begin());
+        std::generate(pv_path[0].begin() + var_count, pv_path[0].end(), []() { return 0.0; });
+    }
+
+    // position + velocities for the remaining points
+    for (size_t i = 1; i < path.size(); ++i) {
+        const RobotState& from = path[i - 1];
+        const RobotState& to = path[i];
+        pv_path[i].resize(2 * var_count);
+        std::copy(to.begin(), to.begin() + var_count, pv_path[i].begin());
+        for (size_t vidx = 0; vidx < var_count; ++vidx) {
+            if (!rm->hasPosLimit(vidx)) {
+                pv_path[i][var_count + vidx] = std::copysign(1.0, angles::shortest_angle_diff(to[vidx], from[vidx]));
+            }
+            else {
+                pv_path[i][var_count + vidx] = std::copysign(1.0, to[vidx] - from[vidx]);
+            }
+        }
+    }
+
+    opath = std::move(pv_path);
+    return true;
+}
+
+bool ExtractPositionPath(
+    RobotModel* rm,
+    const std::vector<RobotState>& pv_path,
+    std::vector<RobotState>& path)
+{
+    path.resize(pv_path.size());
+    const size_t var_count = rm->getPlanningJoints().size();
+    for (size_t pidx = 0; pidx < pv_path.size(); ++pidx) {
+        path[pidx].resize(var_count);
+        std::copy(&pv_path[pidx][0], &pv_path[pidx][0] + var_count, &path[pidx][0]);
+    }
+    return true;
+}
+
+bool ComputePositionPathCosts(
+    RobotModel* rm,
+    const std::vector<RobotState>& path,
+    std::vector<double>& costs)
+{
+    if (path.empty()) {
+        return false;
+    }
+
+    costs.clear();
+    costs.resize(path.size() - 1);
+    for (size_t i = 1; i < path.size(); ++i) {
+        costs[i - 1] = distance(*rm, path[i - 1], path[i]);
+    }
+    return true;
+}
+
+bool ComputePositionVelocityPathCosts(
+    RobotModel* rm,
+    const std::vector<RobotState>& pv_path,
+    std::vector<double>& costs)
+{
+    if (pv_path.empty()) {
+        return false;
+    }
+
+    costs.clear();
+    costs.resize(pv_path.size() - 1);
+    for (size_t i = 1; i < pv_path.size(); ++i) {
+        costs[i - 1] = pv_distance(*rm, pv_path[i - 1], pv_path[i]);
+    }
+    return true;
 }
 
 void ShortcutTrajectory(
