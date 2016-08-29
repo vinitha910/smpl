@@ -311,7 +311,7 @@ bool SelfCollisionModelImpl::checkCollision(
     double& dist)
 {
     if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
         return false;
     }
 
@@ -371,7 +371,7 @@ bool SelfCollisionModelImpl::checkCollision(
     double& dist)
 {
     if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
         return false;
     }
 
@@ -399,8 +399,34 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    // TODO: implement me
-    return false;
+    if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
+        return false;
+    }
+    if (ab_state.model() != m_abcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Attached Bodies Collision State is for another Attached Bodies Collision Model");
+        return false;
+    }
+
+    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount()) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "self collision check is for non-existent group");
+        return false;
+    }
+
+    updateGroup(gidx);
+    updateAttachedBodyGroup(gidx);
+
+    copyState(state);
+
+    if (!checkVoxelsStateCollisions(dist) ||
+        !checkAttachedBodyVoxelsStateCollisions(dist) ||
+        !checkSpheresStateCollisions(dist) ||
+        !checkAttachedBodySpheresStateCollisions(dist))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 double SelfCollisionModelImpl::collisionDistance(
@@ -408,7 +434,7 @@ double SelfCollisionModelImpl::collisionDistance(
     const int gidx)
 {
     if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
         return std::numeric_limits<double>::quiet_NaN();
     }
 
@@ -438,7 +464,7 @@ bool SelfCollisionModelImpl::collisionDetails(
     CollisionDetails& details)
 {
     if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Collision State is not derived from appropriate Collision Model");
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
         return false;
     }
 
