@@ -492,10 +492,15 @@ bool RobotCollisionModel::initCollisionModel(
     }
 
     // initialize groups
-    m_group_models.resize(config.groups.size());
+    std::vector<CollisionGroupConfig> expanded_groups;
+    if (!expandGroups(config.groups, expanded_groups)) {
+        ROS_ERROR("failed to expand groups");
+        return false;
+    }
+    m_group_models.resize(expanded_groups.size());
     for (size_t i = 0; i < m_group_models.size(); ++i) {
         CollisionGroupModel& group_model = m_group_models[i];
-        const CollisionGroupConfig& group_config = config.groups[i];
+        const CollisionGroupConfig& group_config = expanded_groups[i];
         const std::string& group_name = group_config.name;
         group_model.name = group_name;
 
@@ -535,6 +540,82 @@ bool RobotCollisionModel::initCollisionModel(
         ROS_DEBUG_NAMED(RCM_LOGGER, "    name: %s, link_indices: %s", group_model.name.c_str(), to_string(group_model.link_indices).c_str());
     }
 
+    return true;
+}
+
+bool RobotCollisionModel::expandGroups(
+    const std::vector<CollisionGroupConfig>& groups,
+    std::vector<CollisionGroupConfig>& expanded_groups) const
+{
+    // TODO first expand all chains
+
+    auto name_to_index = [&](const std::string& name) {
+        auto git = std::find_if(groups.begin(), groups.end(),
+                [&](const CollisionGroupConfig& g) { return g.name == name; });
+        return std::distance(groups.begin(), git);
+    };
+
+    // ad-hoc graph mapping groups to their dependencies, reverse dependencies,
+    // and the number of groups they're waiting to be computed
+    std::vector<std::vector<size_t>> deps(groups.size());
+    std::vector<std::vector<size_t>> rdeps(groups.size());
+    std::vector<size_t> waiting(groups.size(), 0);
+    for (size_t gidx = 0; gidx < groups.size(); ++gidx) {
+        const CollisionGroupConfig& group = groups[gidx];
+        for (const std::string& dep : group.groups) {
+            size_t didx = name_to_index(dep);
+            deps[gidx].push_back(didx);
+            rdeps[didx].push_back(gidx);
+        }
+        waiting[gidx] = group.groups.size();
+    }
+
+    // new container for expanded configurations
+    std::vector<CollisionGroupConfig> expanded;
+
+    std::vector<size_t> q(groups.size()); // start with all groups
+    size_t n = 0;
+    std::generate(q.begin(), q.end(), [&n]() { return n++; });
+
+    while (!q.empty()) { // unexpanded groups remaining
+        // find a config whose dependencies are finished expanding their config
+        auto git = std::find_if(q.begin(), q.end(), [&](size_t i) { return waiting[i] == 0; });
+        if (git == q.end()) {
+            ROS_ERROR("cycle in group config");
+            return false;
+        }
+
+        size_t gidx = *git;
+        --waiting[gidx]; // -1 -> done
+        q.erase(git);
+
+        CollisionGroupConfig config;
+        config.name = groups[gidx].name;
+        config.links = groups[gidx].links;
+        for (size_t didx : deps[gidx]) {
+            // find the existing expanded config for the group dependency
+            const std::string& dep = groups[didx].name;
+            auto same_name = [&](const CollisionGroupConfig& a) { return a.name == dep; };
+            auto ggit = std::find_if(expanded.begin(), expanded.end(), same_name);
+
+            // merge expanded config
+            config.links.insert(config.links.end(), ggit->links.begin(), ggit->links.end());
+        }
+        // remove any duplicates
+        auto uit = std::unique(config.links.begin(), config.links.end());
+        config.links.erase(uit, config.links.end());
+
+        ROS_INFO("Group '%s' contains %zu links", config.name.c_str(), config.links.size());
+
+        expanded.push_back(config);
+
+        // notify reverse dependencies that we're finished
+        for (size_t rdidx : rdeps[gidx]) {
+            --waiting[rdidx];
+        }
+    }
+
+    expanded_groups = std::move(expanded);
     return true;
 }
 

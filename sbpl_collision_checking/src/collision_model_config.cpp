@@ -314,49 +314,104 @@ bool CollisionGroupConfig::Load(
     CollisionGroupConfig& cfg)
 {
     if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        !config.hasMember("name") ||
-        !config.hasMember("links"))
+        !config.hasMember("name"))
     {
-        ROS_ERROR("group config is malformed. expected { name: <name>, links: [...] }");
+        ROS_ERROR("group config is malformed. expected { name: <name> }");
         return false;
     }
 
     XmlRpc::XmlRpcValue& name_value = config["name"];
-    XmlRpc::XmlRpcValue& links_value = config["links"];
-
     if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
         ROS_ERROR("group config 'name' element must be a string");
         return false;
     }
 
-    if (links_value.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_ERROR("group config 'links' element must be an array");
-        return false;
+
+    std::vector<std::string> links;
+    if (config.hasMember("links")) {
+        XmlRpc::XmlRpcValue& links_value = config["links"];
+        if (links_value.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+            ROS_ERROR("group config 'links' element must be an array");
+            return false;
+        }
+        links.reserve(links_value.size());
+        for (int i = 0; i < links_value.size(); ++i) {
+            XmlRpc::XmlRpcValue& link_value = links_value[i];
+            if (link_value.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+                !link_value.hasMember("name"))
+            {
+                ROS_ERROR("link config is malformed. expected { name: <name> }");
+                return false;
+            }
+
+            XmlRpc::XmlRpcValue& link_name_value = link_value["name"];
+            if (link_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+                ROS_ERROR("links config 'name' element must be a string");
+                return false;
+            }
+
+            links.push_back((std::string)link_name_value);
+        }
     }
 
-    std::vector<std::string> group_links;
-    group_links.reserve(links_value.size());
-    for (int i = 0; i < links_value.size(); ++i) {
-        XmlRpc::XmlRpcValue& link_value = links_value[i];
-        if (link_value.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-            !link_value.hasMember("name"))
-        {
-            ROS_ERROR("links config is malformed. expected { name: <name> }");
+    std::vector<std::string> groups;
+    if (config.hasMember("groups")) {
+        XmlRpc::XmlRpcValue& groups_value = config["groups"];
+        if (groups_value.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+            ROS_ERROR("group config 'groups' element must be an array");
             return false;
         }
 
-        XmlRpc::XmlRpcValue& link_name_value = link_value["name"];
-        if (link_name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
-            ROS_ERROR("links config 'name' element must be a string");
+        groups.reserve(groups_value.size());
+        for (int i = 0; i < groups_value.size(); ++i) {
+            XmlRpc::XmlRpcValue& group_value = groups_value[i];
+            if (group_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+                ROS_ERROR("group element must be a string");
+                return false;
+            }
+            groups.push_back((std::string)group_value);
+        }
+    }
+
+    std::vector<std::pair<std::string, std::string>> chains;
+    if (config.hasMember("chains")) {
+        XmlRpc::XmlRpcValue& chains_value = config["chains"];
+        if (chains_value.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+            ROS_ERROR("group config 'chains' element must be an array");
             return false;
         }
 
-        group_links.push_back((std::string)link_name_value);
+        chains.reserve(chains_value.size());
+        for (int i = 0; i < chains_value.size(); ++i) {
+            XmlRpc::XmlRpcValue& chain_value = chains_value[i];
+            if (chain_value.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+                !chain_value.hasMember("base") ||
+                !chain_value.hasMember("tip"))
+            {
+                ROS_ERROR("chain config is malformed. expected { base: <name>, tip: <name> }");
+                return false;
+            }
+
+            XmlRpc::XmlRpcValue& base_value = chain_value["base"];
+            XmlRpc::XmlRpcValue& tip_value = chain_value["tip"];
+
+            if (base_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+                ROS_ERROR("chain config 'base' element must be a string");
+                return false;
+            }
+            if (tip_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+                ROS_ERROR("chain config 'tip' element must be a string");
+                return false;
+            }
+
+            chains.emplace_back((std::string)base_value, (std::string)tip_value);
+        }
     }
 
     cfg.name = (std::string)name_value;
-    cfg.links = std::move(group_links);
-
+    cfg.links = std::move(links);
+    cfg.groups = std::move(groups);
+    cfg.chains = std::move(chains);
     return true;
 }
 
