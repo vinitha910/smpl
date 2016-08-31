@@ -444,6 +444,12 @@ bool RobotCollisionModel::initCollisionModel(
         return false;
     }
 
+    std::vector<CollisionGroupConfig> expanded_groups;
+    if (!expandGroups(config.groups, expanded_groups)) {
+        ROS_ERROR("failed to expand groups");
+        return false;
+    }
+
     // initialize spheres models
     m_spheres_models.reserve(config.spheres_models.size());
     for (size_t i = 0; i < config.spheres_models.size(); ++i) {
@@ -492,11 +498,6 @@ bool RobotCollisionModel::initCollisionModel(
     }
 
     // initialize groups
-    std::vector<CollisionGroupConfig> expanded_groups;
-    if (!expandGroups(config.groups, expanded_groups)) {
-        ROS_ERROR("failed to expand groups");
-        return false;
-    }
     m_group_models.resize(expanded_groups.size());
     for (size_t i = 0; i < m_group_models.size(); ++i) {
         CollisionGroupModel& group_model = m_group_models[i];
@@ -605,7 +606,7 @@ bool RobotCollisionModel::expandGroups(
         auto uit = std::unique(config.links.begin(), config.links.end());
         config.links.erase(uit, config.links.end());
 
-        ROS_INFO("Group '%s' contains %zu links", config.name.c_str(), config.links.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Group '%s' contains %zu links", config.name.c_str(), config.links.size());
 
         expanded.push_back(config);
 
