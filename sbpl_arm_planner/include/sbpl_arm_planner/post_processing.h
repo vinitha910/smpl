@@ -67,6 +67,26 @@ bool InterpolateTrajectory(
     const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
     std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out);
 
+bool CreatePositionVelocityPath(
+    RobotModel* rm,
+    const std::vector<RobotState>& path,
+    std::vector<RobotState>& opath);
+
+bool ExtractPositionPath(
+    RobotModel* rm,
+    const std::vector<RobotState>& pv_path,
+    std::vector<RobotState>& path);
+
+bool ComputePositionPathCosts(
+    RobotModel* rm,
+    const std::vector<RobotState>& path,
+    std::vector<double>& costs);
+
+bool ComputePositionVelocityPathCosts(
+    RobotModel* rm,
+    const std::vector<RobotState>& pv_path,
+    std::vector<double>& costs);
+
 } // namespace manip
 } // namespace sbpl
 

@@ -49,12 +49,16 @@ const std::string PlanningParams::DefaultSolutionLog = "solution";
 std::string to_string(ShortcutType type)
 {
     switch (type) {
+    case ShortcutType::INVALID_SHORTCUT_TYPE:
+        return "INVALID_SHORTCUT_TYPE";
     case ShortcutType::JOINT_SPACE:
         return "JOINT_SPACE";
+    case ShortcutType::JOINT_POSITION_VELOCITY_SPACE:
+        return "JOINT_POSITION_VELOCITY_SPACE";
     case ShortcutType::EUCLID_SPACE:
         return "EUCLID_SPACE";
     default:
-        return "INVALID_SHORTCUT_TYPE";
+        return "UNRECOGNIZED_SHORTCUT_TYPE";
     }
 }
 

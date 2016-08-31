@@ -281,7 +281,7 @@ private:
     /// \name planning
     ///@{
     virtual bool isGoal(
-        const std::vector<double>& angles,
+        const RobotState& state,
         const std::vector<double>& pose);
     ///@}
 
