@@ -548,7 +548,63 @@ bool RobotCollisionModel::expandGroups(
     const std::vector<CollisionGroupConfig>& groups,
     std::vector<CollisionGroupConfig>& expanded_groups) const
 {
-    // TODO first expand all chains
+    // container for expanded configurations
+    std::vector<CollisionGroupConfig> expanded;
+
+    /////////////////////////////////////////////////////////////////////////
+    // initialized expanded configurations with explicitly specified links //
+    /////////////////////////////////////////////////////////////////////////
+
+    for (const CollisionGroupConfig& g : groups) {
+        CollisionGroupConfig config;
+        config.name = g.name;
+        config.links = g.links;
+        expanded.push_back(std::move(config));
+    }
+
+    ///////////////////
+    // expand chains //
+    ///////////////////
+
+    for (size_t gidx = 0; gidx < groups.size(); ++gidx) {
+        const CollisionGroupConfig& g = groups[gidx];
+        for (const auto& chain : g.chains) {
+            const std::string& base = std::get<0>(chain);
+            const std::string& tip = std::get<1>(chain);
+
+            std::vector<std::string> chain_links;
+
+            std::string link_name = tip;
+            chain_links.push_back(link_name);
+            while (link_name != base) {
+                if (!hasLink(link_name)) {
+                    ROS_ERROR_NAMED(RCM_LOGGER, "link '%s' not found in the robot model", link_name.c_str());
+                    return false;
+                }
+
+                int lidx = linkIndex(link_name);
+                int pjidx = linkParentJointIndex(lidx);
+                int plidx = jointParentLinkIndex(pjidx);
+
+                if (plidx < 0) {
+                    ROS_ERROR_NAMED(RCM_LOGGER, "(base: %s, tip: %s) is not a chain in the robot model", base.c_str(), tip.c_str());
+                    return false;
+                }
+
+                link_name = linkName(plidx);
+                chain_links.push_back(link_name);
+            }
+
+            CollisionGroupConfig& eg = expanded[gidx];
+            eg.links.insert(eg.links.end(), chain_links.begin(), chain_links.end());
+        }
+    }
+
+    //////////////////////
+    // expand subgroups //
+    //////////////////////
+
+    auto is_named = [](const CollisionGroupConfig& g, const std::string& name) { return g.name == name; };
 
     auto name_to_index = [&](const std::string& name) {
         auto git = std::find_if(groups.begin(), groups.end(),
@@ -571,8 +627,6 @@ bool RobotCollisionModel::expandGroups(
         waiting[gidx] = group.groups.size();
     }
 
-    // new container for expanded configurations
-    std::vector<CollisionGroupConfig> expanded;
 
     std::vector<size_t> q(groups.size()); // start with all groups
     size_t n = 0;
@@ -590,30 +644,32 @@ bool RobotCollisionModel::expandGroups(
         --waiting[gidx]; // -1 -> done
         q.erase(git);
 
-        CollisionGroupConfig config;
-        config.name = groups[gidx].name;
-        config.links = groups[gidx].links;
+        auto eit = std::find_if(expanded.begin(), expanded.end(), std::bind(is_named, std::placeholders::_1, groups[gidx].name));
+        assert(eit != expanded.end());
+
         for (size_t didx : deps[gidx]) {
             // find the existing expanded config for the group dependency
             const std::string& dep = groups[didx].name;
-            auto same_name = [&](const CollisionGroupConfig& a) { return a.name == dep; };
+            auto same_name = std::bind(is_named, std::placeholders::_1, dep);
             auto ggit = std::find_if(expanded.begin(), expanded.end(), same_name);
+            assert(ggit != expanded.end());
 
             // merge expanded config
-            config.links.insert(config.links.end(), ggit->links.begin(), ggit->links.end());
+            eit->links.insert(eit->links.end(), ggit->links.begin(), ggit->links.end());
         }
-        // remove any duplicates
-        auto uit = std::unique(config.links.begin(), config.links.end());
-        config.links.erase(uit, config.links.end());
 
-        ROS_DEBUG_NAMED(RCM_LOGGER, "Group '%s' contains %zu links", config.name.c_str(), config.links.size());
-
-        expanded.push_back(config);
+        ROS_INFO_NAMED(RCM_LOGGER, "Group '%s' contains %zu links", eit->name.c_str(), eit->links.size());
 
         // notify reverse dependencies that we're finished
         for (size_t rdidx : rdeps[gidx]) {
             --waiting[rdidx];
         }
+    }
+
+    // remove any duplicates
+    for (CollisionGroupConfig& eg : expanded) {
+        auto uit = std::unique(eg.links.begin(), eg.links.end());
+        eg.links.erase(uit, eg.links.end());
     }
 
     expanded_groups = std::move(expanded);

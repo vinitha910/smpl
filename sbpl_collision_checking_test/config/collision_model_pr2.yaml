@@ -245,32 +245,18 @@ robot_collision_model:
   collision_groups:
     - name: left_arm
       groups: [ left_gripper ]
-      links:
-        - name: l_shoulder_pan_link
-        - name: l_shoulder_lift_link
-        - name: l_upper_arm_roll_link
-        - name: l_upper_arm_link
-        - name: l_elbow_flex_link
-        - name: l_forearm_roll_link
-        - name: l_forearm_link
-        - name: l_wrist_flex_link
-        - name: l_wrist_roll_link
+      chains:
+        - base: l_shoulder_pan_link
+          tip: l_wrist_roll_link
     - name: left_arm_and_torso
       groups: [ left_arm ]
       links:
         - name: torso_lift_link
     - name: right_arm
       groups: [ right_gripper ]
-      links:
-        - name: r_shoulder_pan_link
-        - name: r_shoulder_lift_link
-        - name: r_upper_arm_roll_link
-        - name: r_upper_arm_link
-        - name: r_elbow_flex_link
-        - name: r_forearm_roll_link
-        - name: r_forearm_link
-        - name: r_wrist_flex_link
-        - name: r_wrist_roll_link
+      chains:
+        - base: r_shoulder_pan_link
+          tip: r_wrist_roll_link
     - name: right_arm_and_torso
       groups: [ right_arm ]
       links:
