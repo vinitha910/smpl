@@ -283,11 +283,12 @@ robot_collision_model:
         - name: head_pan_link
         - name: head_tilt_link
     - name: torso
-      groups: [ arms ]
+      groups: [ arms, head ]
       links:
         - name: torso_lift_link
+        - name: laser_tilt_mount_link
     - name: whole_body
-      groups: [ arms, head ]
+      groups: [ torso ]
       links:
         - name: base_link
         - name: bl_caster_rotation_link
@@ -302,8 +303,6 @@ robot_collision_model:
         - name: fr_caster_rotation_link
         - name: fr_caster_l_wheel_link
         - name: fr_caster_r_wheel_link
-        - name: torso_lift_link
-        - name: laser_tilt_mount_link
         - name: base_bellow_link
     - name: right_gripper
       links:
