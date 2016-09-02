@@ -236,13 +236,6 @@ private:
     void updateState(const std::vector<double>& vals);
     void copyState();
 
-    // TODO: THE DREAM is 3-4 variants of checkCollision. One to explicitly
-    // check as fast as possible, with all shortcutting policies enabled; a
-    // second for returning the nearest distance (or highest penetration
-    // distance), a third for returning a minimal but complete representation of
-    // the collision details (contact points, offending spheres, etc), and a
-    // fourth for visualizations
-
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
 
     bool checkAttachedObjectCollision(
