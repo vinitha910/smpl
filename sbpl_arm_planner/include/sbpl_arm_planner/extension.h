@@ -47,6 +47,8 @@ class Extension
 {
 public:
 
+    virtual ~Extension() { }
+
     template <typename T>
     T* getExtension()
     {
