@@ -313,13 +313,14 @@ bool RobotCollisionState::updateLinkTransforms()
 inline
 bool RobotCollisionState::updateLinkTransform(int lidx)
 {
-    // this function should never be used to update the transform from the world
-    // to the model root
-    assert(lidx != 0);
     ASSERT_VECTOR_RANGE(m_dirty_link_transforms, lidx);
     if (!m_dirty_link_transforms[lidx]) {
         return false;
     }
+
+    // this function should never be used to update the transform from the world
+    // to the model root
+    assert(lidx != 0);
 
     int pjidx = m_model->linkParentJointIndex(lidx);
     int plidx = m_model->jointParentLinkIndex(pjidx);
