@@ -462,9 +462,15 @@ bool CollisionModelConfig::Load(
     const ros::NodeHandle& nh,
     CollisionModelConfig& cfg)
 {
+    std::string rcm_key;
+    if (!nh.searchParam("robot_collision_model", rcm_key)) {
+        ROS_ERROR("failed to find 'robot_collision_model' key on the param server");
+        return false;
+    }
+
     XmlRpc::XmlRpcValue robot_collision_model_config;
-    if (!nh.getParam("robot_collision_model", robot_collision_model_config)) {
-        ROS_ERROR("Failed to retrieve 'robot_collision_model' from the param server");
+    if (!nh.getParam(rcm_key, robot_collision_model_config)) {
+        ROS_ERROR("failed to retrieve '%s' from the param server", rcm_key.c_str());
         return false;
     }
 
@@ -495,7 +501,7 @@ bool CollisionModelConfig::Load(
         }
     }
     else {
-        ROS_WARN("No param 'spheres_models' found on the param server");
+        ROS_WARN("No key 'spheres_models' found in robot collision model config");
     }
 
     if (config.hasMember("voxels_models")) {
@@ -505,7 +511,7 @@ bool CollisionModelConfig::Load(
         }
     }
     else {
-        ROS_WARN("No param 'voxels_model' found on the param server");
+        ROS_WARN("No key 'voxels_model' found in robot collision model config");
     }
 
     if (config.hasMember("collision_groups")) {
@@ -515,7 +521,7 @@ bool CollisionModelConfig::Load(
         }
     }
     else {
-        ROS_WARN("No param 'collision_groups' found on the param server");
+        ROS_WARN("No key 'collision_groups' found in robot collision model config");
     }
 
     // TODO: check references to spheres in collision_groups?
