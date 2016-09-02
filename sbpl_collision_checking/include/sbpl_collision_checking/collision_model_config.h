@@ -87,6 +87,8 @@ struct CollisionGroupConfig
 {
     std::string name;
     std::vector<std::string> links;
+    std::vector<std::string> groups;
+    std::vector<std::pair<std::string, std::string>> chains;
 
     static bool Load(XmlRpc::XmlRpcValue& config, CollisionGroupConfig& cfg);
 };

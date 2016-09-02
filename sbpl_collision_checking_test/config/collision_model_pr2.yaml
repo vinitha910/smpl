@@ -244,48 +244,37 @@ robot_collision_model:
         - { name: lft1, x: 0.035, y: -0.005, z: 0.00, radius: 0.02, priority: 1 }
   collision_groups:
     - name: left_arm
-      links:
-        - name: l_shoulder_pan_link
-        - name: l_shoulder_lift_link
-        - name: l_upper_arm_roll_link
-        - name: l_upper_arm_link
-        - name: l_elbow_flex_link
-        - name: l_forearm_roll_link
-        - name: l_forearm_link
-        - name: l_wrist_flex_link
-        - name: l_wrist_roll_link
-        - name: l_gripper_palm_link
-        - name: l_gripper_r_finger_link
-        - name: l_gripper_r_finger_tip_link
-        - name: l_gripper_l_finger_link
-        - name: l_gripper_l_finger_tip_link
+      groups: [ left_gripper ]
+      chains:
+        - base: l_shoulder_pan_link
+          tip: l_wrist_roll_link
     - name: left_arm_and_torso
-      links: []
-    - name: right_arm
+      groups: [ left_arm ]
       links:
-        - name: r_shoulder_pan_link
-        - name: r_shoulder_lift_link
-        - name: r_upper_arm_roll_link
-        - name: r_upper_arm_link
-        - name: r_elbow_flex_link
-        - name: r_forearm_roll_link
-        - name: r_forearm_link
-        - name: r_wrist_flex_link
-        - name: r_wrist_roll_link
-        - name: r_gripper_palm_link
-        - name: r_gripper_r_finger_link
-        - name: r_gripper_r_finger_tip_link
-        - name: r_gripper_l_finger_link
-        - name: r_gripper_l_finger_tip_link
+        - name: torso_lift_link
+    - name: right_arm
+      groups: [ right_gripper ]
+      chains:
+        - base: r_shoulder_pan_link
+          tip: r_wrist_roll_link
     - name: right_arm_and_torso
-      links: []
+      groups: [ right_arm ]
+      links:
+        - name: torso_lift_link
     - name: arms
+      groups: [ right_arm, left_arm ]
       links: []
     - name: head
-      links: []
+      links:
+        - name: head_pan_link
+        - name: head_tilt_link
     - name: torso
-      links: []
+      groups: [ arms, head ]
+      links:
+        - name: torso_lift_link
+        - name: laser_tilt_mount_link
     - name: whole_body
+      groups: [ torso ]
       links:
         - name: base_link
         - name: bl_caster_rotation_link
@@ -300,40 +289,18 @@ robot_collision_model:
         - name: fr_caster_rotation_link
         - name: fr_caster_l_wheel_link
         - name: fr_caster_r_wheel_link
-        - name: torso_lift_link
-        - name: head_pan_link
-        - name: head_tilt_link
-        - name: l_shoulder_pan_link
-        - name: l_shoulder_lift_link
-        - name: l_upper_arm_roll_link
-        - name: l_upper_arm_link
-        - name: l_elbow_flex_link
-        - name: l_forearm_roll_link
-        - name: l_forearm_link
-        - name: l_wrist_flex_link
-        - name: l_wrist_roll_link
-        - name: l_gripper_palm_link
-        - name: l_gripper_r_finger_link
-        - name: l_gripper_r_finger_tip_link
-        - name: l_gripper_l_finger_link
-        - name: l_gripper_l_finger_tip_link
-        - name: laser_tilt_mount_link
-        - name: r_shoulder_pan_link
-        - name: r_shoulder_lift_link
-        - name: r_upper_arm_roll_link
-        - name: r_upper_arm_link
-        - name: r_elbow_flex_link
-        - name: r_forearm_roll_link
-        - name: r_forearm_link
-        - name: r_wrist_flex_link
-        - name: r_wrist_roll_link
+        - name: base_bellow_link
+    - name: right_gripper
+      links:
         - name: r_gripper_palm_link
         - name: r_gripper_r_finger_link
         - name: r_gripper_r_finger_tip_link
         - name: r_gripper_l_finger_link
         - name: r_gripper_l_finger_tip_link
-        - name: base_bellow_link
-    - name: right_gripper
-      links: []
     - name: left_gripper
-      links: []
+      links:
+        - name: l_gripper_palm_link
+        - name: l_gripper_r_finger_link
+        - name: l_gripper_r_finger_tip_link
+        - name: l_gripper_l_finger_link
+        - name: l_gripper_l_finger_tip_link

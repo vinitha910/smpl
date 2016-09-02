@@ -225,6 +225,10 @@ private:
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
+    bool expandGroups(
+        const std::vector<CollisionGroupConfig>& groups,
+        std::vector<CollisionGroupConfig>& expanded_groups) const;
+
     // this hierarchy is almost identical to the voxelization workflow and is
     // begging to be templated?...or maybe its not that important
     bool generateSpheresModel(
