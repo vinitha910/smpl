@@ -104,5 +104,8 @@ int main(int argc, char* argv[])
     ros::spinOnce();
     ros::Duration(1.0).sleep(); // let the publisher...publish
 
+    ma_pub.publish(grid.getBoundingBoxVisualization());
+    ros::Duration(1.0).sleep();
+
     return 0;
 }
