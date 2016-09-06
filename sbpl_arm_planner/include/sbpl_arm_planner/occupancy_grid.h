@@ -165,6 +165,8 @@ public:
     /// \brief Get the distance to the, in meters, to the border
     double getDistanceToBorder(int x, int y, int z) const;
 
+    double getDistanceToBorder(double x, double y, double z) const;
+
     // TODO: this whole implicit casting nonsense makes me nervous...factor
     // these (T, T, T) triples into point class representations
     bool isInBounds(double x, double y, double z) const;
@@ -355,6 +357,14 @@ double OccupancyGrid::getDistanceToBorder(int x, int y, int z) const
     int dy = std::min(grid_->getYNumCells() - y, y);
     int dz = std::min(grid_->getZNumCells() - z, z);
     return grid_->getResolution() * std::min(dx, std::min(dy, dz));
+}
+
+inline
+double OccupancyGrid::getDistanceToBorder(double x, double y, double z) const
+{
+    int gx, gy, gz;
+    worldToGrid(x, y, z, gx, gy, gz);
+    return getDistanceToBorder(gx, gy, gz);
 }
 
 inline
