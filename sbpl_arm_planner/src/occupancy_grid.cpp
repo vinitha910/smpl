@@ -242,27 +242,77 @@ visualization_msgs::MarkerArray
 OccupancyGrid::getBoundingBoxVisualization() const
 {
     visualization_msgs::MarkerArray ma;
-    double dimx, dimy, dimz, originx, originy, originz;
-    std::vector<geometry_msgs::Point> pts(10);
-    getOrigin(originx, originy, originz);
-    getWorldSize(dimx, dimy, dimz);
-    pts[0].x = originx;      pts[0].y = originy;      pts[0].z = originz;
-    pts[1].x = originx+dimx; pts[1].y = originy;      pts[1].z = originz;
-    pts[2].x = originx+dimx; pts[2].y = originy+dimy; pts[2].z = originz;
-    pts[3].x = originx;      pts[3].y = originy+dimy; pts[3].z = originz;
-    pts[4].x = originx;      pts[4].y = originy;      pts[4].z = originz;
-    pts[5].x = originx;      pts[5].y = originy;      pts[5].z = originz+dimz;
-    pts[6].x = originx+dimx; pts[6].y = originy;      pts[6].z = originz+dimz;
-    pts[7].x = originx+dimx; pts[7].y = originy+dimy; pts[7].z = originz+dimz;
-    pts[8].x = originx;      pts[8].y = originy+dimy; pts[8].z = originz+dimz;
-    pts[9].x = originx;      pts[9].y = originy;      pts[9].z = originz+dimz;
 
-    ma.markers.resize(1);
+    visualization_msgs::Marker m;
+    m.header.frame_id = getReferenceFrame();
+    m.ns = "collision_space_bounds";
+    m.id = 0;
+    m.type = visualization_msgs::Marker::CUBE_LIST;
+    m.action = visualization_msgs::Marker::ADD;
+    m.scale.x = m.scale.y = m.scale.z = getResolution();
+    leatherman::msgHSVToRGB(10.0, 1.0, 1.0, m.color);
 
-    double thickness = 0.05;
-    int hue = 10;
-    ma.markers[0] = viz::getLineMarker(
-            pts, 0.05, 10, getReferenceFrame(), "collision_space_bounds");
+    m.points.reserve(4 * (grid_->getXNumCells() + 2) + 4 * (grid_->getYNumCells()) + 4 * (grid_->getZNumCells()));
+
+    geometry_msgs::Point p;
+    int x, y, z;
+
+    for (x = -1; x <= grid_->getXNumCells(); ++x) {
+        y = -1, z = -1;
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        y = grid_->getYNumCells(), z = -1;
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        y = -1, z = grid_->getZNumCells();
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        y = grid_->getYNumCells(), z = grid_->getZNumCells();
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+    }
+
+    for (y = 0; y < grid_->getYNumCells(); ++y) {
+        x = -1, z = -1;
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        x = grid_->getXNumCells(), z = -1;
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        x = -1, z = grid_->getZNumCells();
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        x = grid_->getXNumCells(), z = grid_->getZNumCells();
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+    }
+
+    for (z = 0; z < grid_->getZNumCells(); ++z) {
+        y = -1, x = -1;
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        y = grid_->getYNumCells(), x = -1;
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        y = -1, x = grid_->getXNumCells();
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+
+        y = grid_->getYNumCells(), x = grid_->getXNumCells();
+        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m.points.push_back(p);
+    }
+
+    ma.markers = { m };
+
     return ma;
 }
 
