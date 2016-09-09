@@ -188,6 +188,7 @@ void CollisionSpace::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
     m_rcs->setWorldToModelTransform(transform);
+    m_scm->setWorldToModelTransform(transform);
 }
 
 /// \brief Set the padding applied to the collision model

@@ -61,6 +61,8 @@ public:
 
     void setPadding(double padding);
 
+    void setWorldToModelTransform(const Eigen::Affine3d& transform);
+
     bool checkCollision(
         RobotCollisionState& state,
         const int gidx,
@@ -144,7 +146,8 @@ private:
     double                                  m_padding;
 
     // cached group information for voxels checks
-    typedef std::unordered_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
+    typedef hash_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
+
     ModelStateMap                               m_model_state_map;
     std::vector<CollisionSphereModel>           m_root_models;
     std::vector<const CollisionSphereModel*>    m_root_model_pointers;
@@ -303,6 +306,12 @@ void SelfCollisionModelImpl::setAllowedCollisionMatrix(
 void SelfCollisionModelImpl::setPadding(double padding)
 {
     m_padding = padding;
+}
+
+void SelfCollisionModelImpl::setWorldToModelTransform(
+    const Eigen::Affine3d& transform)
+{
+    (void)m_rcs.setWorldToModelTransform(transform);
 }
 
 bool SelfCollisionModelImpl::checkCollision(
@@ -1343,6 +1352,11 @@ void SelfCollisionModel::setAllowedCollisionMatrix(
 void SelfCollisionModel::setPadding(double padding)
 {
     return m_impl->setPadding(padding);
+}
+
+void SelfCollisionModel::setWorldToModelTransform(const Eigen::Affine3d& transform)
+{
+    return m_impl->setWorldToModelTransform(transform);
 }
 
 bool SelfCollisionModel::checkCollision(

@@ -69,6 +69,8 @@ public:
 
     void setPadding(double padding);
 
+    void setWorldToModelTransform(const Eigen::Affine3d& transform);
+
     bool checkCollision(
         RobotCollisionState& state,
         const int gidx,
