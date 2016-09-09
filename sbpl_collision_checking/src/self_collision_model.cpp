@@ -729,11 +729,11 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
             m_rcs.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
         }
 
-        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere '%s' with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->name.c_str(), s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
 
         double obs_dist;
         if (CheckSphereCollision(*m_grid, *s, m_padding, obs_dist)) {
-            ROS_DEBUG_NAMED(SCM_LOGGER, "Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
+            ROS_DEBUG_NAMED(SCM_LOGGER, "  Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
             continue; // no collision -> ok!
         }
 
