@@ -355,7 +355,13 @@ bool ArmPlannerInterface::setStart(const moveit_msgs::RobotState& state)
     ROS_INFO("set start configuration");
 
     if (!state.multi_dof_joint_state.joint_names.empty()) {
-        ROS_WARN("planner does not currently support multi-dof joints");
+        const auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
+        for (const std::string& joint_name : prm_.planning_joints_) {
+            auto it = std::find(mdof_joint_names.begin(), mdof_joint_names.end(), joint_name);
+            if (it != mdof_joint_names.end()) {
+                ROS_WARN("planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
+            }
+        }
     }
 
     RobotState initial_positions;
