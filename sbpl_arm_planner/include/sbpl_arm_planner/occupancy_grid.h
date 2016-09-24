@@ -111,6 +111,18 @@ public:
     /// \name Attributes
     ///@{
 
+    int numCellsX() const { return grid_->getXNumCells(); }
+    int numCellsY() const { return grid_->getYNumCells(); }
+    int numCellsZ() const { return grid_->getZNumCells(); }
+    double originX() const { return grid_->getOriginX(); }
+    double originY() const { return grid_->getOriginY(); }
+    double originZ() const { return grid_->getOriginZ(); }
+    double sizeX() const { return grid_->getSizeX(); }
+    double sizeY() const { return grid_->getSizeY(); }
+    double sizeZ() const { return grid_->getSizeZ(); }
+
+    double resolution() const { return grid_->getResolution(); }
+
     /// \brief Get the dimensions of the grid, in cells
     void getGridSize(int &dim_x, int &dim_y, int &dim_z) const;
 
