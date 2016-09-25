@@ -38,6 +38,9 @@ target_link_libraries(callPlanner ${catkin_LIBRARIES})
 add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)
 target_link_libraries(occupancy_grid_test ${catkin_LIBRARIES})
 
+add_executable(visualizer_test src/visualizer_test.cpp)
+target_link_libraries(visualizer_test ${catkin_LIBRARIES})
+
 install(
     TARGETS callPlanner
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
