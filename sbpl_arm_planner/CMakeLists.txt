@@ -66,7 +66,8 @@ add_library(
     src/robot_model.cpp
     src/robot_state_lattice.cpp
     src/workspace_lattice.cpp
-    src/visualize.cpp)
+    src/visualize.cpp
+    src/visualizer_ros.cpp)
 
 target_link_libraries(
     sbpl_arm_planner

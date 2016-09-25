@@ -17,6 +17,11 @@ void unset_visualizer()
     g_visualizer = nullptr;
 }
 
+VisualizerBase* visualizer()
+{
+    return g_visualizer;
+}
+
 void visualize(
     levels::Level level,
     const visualization_msgs::MarkerArray& markers)

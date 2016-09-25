@@ -3,6 +3,7 @@
 
 // standard includes
 #include <stdlib.h>
+#include <unordered_set>
 
 // system includes
 #include <ros/ros.h>
@@ -11,13 +12,14 @@
 #include <sbpl_arm_planner/visualize.h>
 
 namespace sbpl {
-namespace ros {
 
 class VisualizerROS : public viz::VisualizerBase
 {
 public:
 
-    VisualizerROS(size_t queue_size = 100);
+    VisualizerROS(
+        const ros::NodeHandle& nh = ros::NodeHandle(),
+        size_t queue_size = 100);
 
     void visualize(
         sbpl::viz::levels::Level level,
@@ -25,11 +27,14 @@ public:
 
 private:
 
-    ::ros::NodeHandle m_nh;
-    ::ros::Publisher m_pub;
+    ros::NodeHandle m_nh;
+    ros::Publisher m_pub;
+
+    std::unordered_set<std::string> m_disabled;
+
+    visualization_msgs::MarkerArray m_enabled;
 };
 
-} // namespace ros
 } // namespace sbpl
 
 #endif
