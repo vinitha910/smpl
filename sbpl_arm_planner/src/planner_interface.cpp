@@ -47,6 +47,7 @@
 #include <sbpl_arm_planner/bfs_heuristic.h>
 #include <sbpl_arm_planner/euclid_dist_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/manip_lattice_action_space.h>
 #include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/post_processing.h>

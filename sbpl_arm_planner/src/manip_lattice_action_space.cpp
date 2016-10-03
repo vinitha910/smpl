@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/manip_lattice_action_space.h>
 
 // standard includes
 #include <limits>

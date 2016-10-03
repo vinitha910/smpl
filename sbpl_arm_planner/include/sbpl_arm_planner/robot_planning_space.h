@@ -39,7 +39,7 @@
 #include <sbpl/discrete_space_information/environment.h>
 
 // project includes
-#include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/action_space.h>
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/robot_planning_space_observer.h>

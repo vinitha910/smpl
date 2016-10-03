@@ -52,7 +52,6 @@ include_directories(include)
 add_library(
     sbpl_arm_planner
     src/bfs3d.cpp
-    src/action_set.cpp
     src/action_space.cpp
     src/planner_interface.cpp
     src/bfs_heuristic.cpp
@@ -60,6 +59,7 @@ add_library(
     src/collision_checker.cpp
     src/robot_heuristic.cpp
     src/manip_lattice.cpp
+    src/manip_lattice_action_space.cpp
     src/multi_frame_bfs_heuristic.cpp
     src/occupancy_grid.cpp
     src/planning_params.cpp
