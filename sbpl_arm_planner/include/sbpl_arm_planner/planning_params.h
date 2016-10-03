@@ -105,64 +105,64 @@ public:
 
     /// \name Environment
     ///@{
-    std::string planning_frame_;
-    int num_joints_;
-    std::vector<std::string> planning_joints_;
-    std::vector<int> coord_vals_;
-    std::vector<double> coord_delta_;
+    std::string planning_frame;
+    int num_joints;
+    std::vector<std::string> planning_joints;
+    std::vector<int> coord_vals;
+    std::vector<double> coord_delta;
     ///@}
 
     /// \name Actions
     ///@{
     std::string action_file;
-    bool use_multiple_ik_solutions_;
+    bool use_multiple_ik_solutions;
     ///@}
 
     /// \name Costs
     ///@{
-    int cost_multiplier_;           ///< uniform cost of actions
-    int cost_per_cell_;             ///< uniform cost of cells in heuristic
-    int cost_per_meter_;            ///< euclidean distance heuristic cost
-    int cost_per_second_;
-    double time_per_cell_;
-    double max_mprim_offset_;
+    int cost_multiplier;           ///< uniform cost of actions
+    int cost_per_cell;             ///< uniform cost of cells in heuristic
+    int cost_per_meter;            ///< euclidean distance heuristic cost
+    int cost_per_second;
+    double time_per_cell;
+    double max_mprim_offset;
     ///@}
 
     /// \name Heuristic
     ///@{
-    bool use_bfs_heuristic_;
-    double planning_link_sphere_radius_;
+    bool use_bfs_heuristic;
+    double planning_link_sphere_radius;
     ///@}
 
     /// \name Search
     ///@{
-    std::string planner_name_;
-    double epsilon_;
-    double allowed_time_;
-    bool search_mode_; // true => stop after first solution
+    std::string planner_name;
+    double epsilon;
+    double allowed_time;
+    bool search_mode; // true => stop after first solution
     ///@}
 
     /// \name Post-Processing
     ///@{
-    bool shortcut_path_;
-    bool interpolate_path_;
-    double waypoint_time_;
+    bool shortcut_path;
+    bool interpolate_path;
+    double waypoint_time;
     ShortcutType shortcut_type;
     ///@}
 
     /// \name Logging
     ///@{
-    bool print_path_;
-    bool verbose_;
-    bool verbose_heuristics_;
-    bool verbose_collisions_;
+    bool print_path;
+    bool verbose;
+    bool verbose_heuristics;
+    bool verbose_collisions;
 
-    std::string graph_log_;
-    std::string heuristic_log_;
-    std::string expands_log_;
-    std::string rmodel_log_;
-    std::string post_processing_log_;
-    std::string solution_log_;
+    std::string graph_log;
+    std::string heuristic_log;
+    std::string expands_log;
+    std::string robot_log;
+    std::string post_processing_log;
+    std::string solution_log;
     ///@}
 };
 

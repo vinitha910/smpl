@@ -107,6 +107,10 @@ public:
 
     /// \name Reimplemented Public Functions from DiscreteSpaceInformation
     ///@{
+    virtual int GetGoalHeuristic(int state_id) override;
+    virtual int GetStartHeuristic(int state_id) override;
+    virtual int GetFromToHeuristic(int from_id, int to_id) override;
+
     virtual void GetLazySuccs(
         int state_id,
         std::vector<int>* succs,
@@ -118,10 +122,6 @@ public:
 
     /// \name Restate Required Public Functions from DiscreteSpaceInformation
     ///@{
-    virtual int GetGoalHeuristic(int state_id) override = 0;
-    virtual int GetStartHeuristic(int state_id) override = 0;
-    virtual int GetFromToHeuristic(int from_id, int to_id) override = 0;
-
     virtual void GetSuccs(
         int state_id,
         std::vector<int>* succs,

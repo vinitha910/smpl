@@ -46,6 +46,7 @@
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
+#include <sbpl_arm_planner/robot_planning_space.h>
 #include <sbpl_arm_planner/types.h>
 
 namespace sbpl {
@@ -101,7 +102,7 @@ namespace manip {
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
-class WorkspaceLattice : public DiscreteSpaceInformation
+class WorkspaceLattice : public RobotPlanningSpace
 {
 public:
 
@@ -125,64 +126,55 @@ public:
     };
 
     WorkspaceLattice(
-        OccupancyGrid* grid,
-        CollisionChecker* cc,
-        PlanningParams* params);
+        RobotModel* robot,
+        CollisionChecker* checker,
+        PlanningParams* params,
+        OccupancyGrid* grid);
 
     ~WorkspaceLattice();
 
     bool init(RobotModel* robot, const Params& params);
     bool initialized() const;
 
-    RobotModel* getRobotModel() { return m_robot; }
-    CollisionChecker* getCollisionChecker();
+    // TODO: add path extraction function that returns path in workspace rep
 
-    /// \name Start and Goal States
     ///@{
     bool setStart(const RobotState& state);
-
-    bool setGoalPose(const PoseGoal& goal);
-    bool setGoalPoses(const std::vector<PoseGoal>& goals);
+    bool setGoal(const GoalConstraint& goal);
 
     int getStartStateID() const;
     int getGoalStateID() const;
     ///@}
 
-    /// \name Path Extraction
-    ///@{
     bool extractPath(
         const std::vector<int>& ids,
         std::vector<RobotState>& path);
 
-    // TODO: add variant that returns the path in the workspace representation
+    /// \name Reimplemented Public Functions From RobotPlanningSpace
+    ///@{
+    virtual int GetGoalHeuristic(int state_id) override;
     ///@}
 
-    /// \name Reimplemented Public Functions
+    /// \name Required Public Functions From RobotPlanningSpace
     ///@{
-    virtual int GetFromToHeuristic(int from_state_id, int to_state_id) override;
-    virtual int GetGoalHeuristic(int state_id) override;
-    virtual int GetStartHeuristic(int state_id) override;
+    ///@}
+
+    /// \name Required Public Functions From DiscreteSpaceInformation
+    ///@{
     virtual void GetSuccs(
-        int SourceStateID,
-        std::vector<int>* SuccIDV,
-        std::vector<int>* CostV) override;
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs) override;
+
+    virtual void GetPreds(
+        int state_id,
+        std::vector<int>* preds,
+        std::vector<int>* costs) override;
+
     virtual void PrintState(
         int state_id,
         bool verbose,
         FILE* fout = nullptr) override;
-    ///@}
-
-    /// \name Reimplemented Public Functions (Unused)
-    ///@{
-    virtual bool InitializeMDPCfg(MDPConfig* MDPCfg) override { return false; }
-    virtual bool InitializeEnv(const char* sEnvFile) override { return false; }
-    virtual void GetPreds(
-        int TargetStateID,
-        std::vector<int>* PredIDV,
-        std::vector<int>* CostV) override { }
-    virtual void SetAllActionsandAllOutcomes(CMDPSTATE* state) override { }
-    virtual void SetAllPreds(CMDPSTATE* state) override { }
-    virtual void PrintEnv_Config(FILE* fOut) override { }
     ///@}
 
 private:
@@ -255,6 +247,9 @@ private:
 
     ///@}
 
+    bool setGoalPose(const PoseGoal& goal);
+    bool setGoalPoses(const std::vector<PoseGoal>& goals);
+
     size_t freeAngleCount() const { return m_fangle_indices.size(); }
 
     int createState(const WorkspaceCoord& coord);
@@ -290,7 +285,9 @@ private:
 
     bool isGoal(const WorkspaceState& state);
 
-    void visualizeState(const RobotState& state, const std::string& ns);
+    visualization_msgs::MarkerArray getStateVisualization(
+        const RobotState& state,
+        const std::string& ns);
 
 #if !BROKEN
     std::vector<double> mp_gradient_;

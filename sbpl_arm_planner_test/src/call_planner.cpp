@@ -472,20 +472,20 @@ int main(int argc, char* argv[])
     ph.param<std::string>("object_filename", object_filename, "");
 
     // collision objects
-    moveit_msgs::PlanningScenePtr scene(new moveit_msgs::PlanningScene);
+    moveit_msgs::PlanningScene scene;
     if (!object_filename.empty()) {
-        scene->world.collision_objects = getCollisionObjects(object_filename, planning_frame);
+        scene.world.collision_objects = getCollisionObjects(object_filename, planning_frame);
     }
 
     // fill start state
-    if (!getInitialConfiguration(ph, scene->robot_state)) {
+    if (!getInitialConfiguration(ph, scene.robot_state)) {
         ROS_ERROR("Failed to get initial configuration.");
         return 0;
     }
-    scene->robot_state.joint_state.header.frame_id = planning_frame;
+    scene.robot_state.joint_state.header.frame_id = planning_frame;
 
     // set planning scene
-    cc->setPlanningScene(*scene);
+    cc->setPlanningScene(scene);
 
     //////////////
     // Planning //
@@ -504,7 +504,7 @@ int main(int argc, char* argv[])
     moveit_msgs::MotionPlanResponse res;
 
     // fill start state
-    req.start_state = scene->robot_state;
+    req.start_state = scene.robot_state;
 
     // fill goal state
     req.goal_constraints.resize(1);
@@ -515,10 +515,10 @@ int main(int argc, char* argv[])
     ROS_INFO("Calling solve...");
     if (!planner.solve(scene, req, res)) {
         ROS_ERROR("Failed to plan.");
+        return 1;
     }
-    else {
-        ma_pub.publish(planner.getCollisionModelTrajectoryMarker());
-    }
+
+    ma_pub.publish(planner.getCollisionModelTrajectoryVisualization(res.trajectory_start, res.trajectory));
 
     ///////////////////////////////////
     // Visualizations and Statistics //
@@ -551,8 +551,7 @@ int main(int argc, char* argv[])
     ros::spinOnce();
     ma_pub.publish(cc->getVisualization("bounds"));
     ma_pub.publish(cc->getVisualization("distance_field"));
-    ma_pub.publish(planner.getVisualization("goal"));
-    ma_pub.publish(planner.getVisualization("expansions"));
+    ma_pub.publish(planner.getGoalVisualization());
     ma_pub.publish(cc->getVisualization("collision_objects"));
     ma_pub.publish(cc->getCollisionModelVisualization(start_angles));
 

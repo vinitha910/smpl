@@ -63,44 +63,44 @@ std::string to_string(ShortcutType type)
 }
 
 PlanningParams::PlanningParams() :
-    planning_frame_(),
-    num_joints_(0),
-    planning_joints_(),
-    coord_vals_(),
-    coord_delta_(),
+    planning_frame(),
+    num_joints(0),
+    planning_joints(),
+    coord_vals(),
+    coord_delta(),
 
-    use_multiple_ik_solutions_(DefaultUseMultipleIkSolutions),
+    use_multiple_ik_solutions(DefaultUseMultipleIkSolutions),
 
-    cost_multiplier_(DefaultCostMultiplier),
-    cost_per_cell_(DefaultCostPerCell),
-    cost_per_meter_(DefaultCostPerMeter),
-    cost_per_second_(DefaultCostPerSecond),
-    time_per_cell_(DefaultTimePerCell),
-    max_mprim_offset_(DefaultMaxMprimOffset),
+    cost_multiplier(DefaultCostMultiplier),
+    cost_per_cell(DefaultCostPerCell),
+    cost_per_meter(DefaultCostPerMeter),
+    cost_per_second(DefaultCostPerSecond),
+    time_per_cell(DefaultTimePerCell),
+    max_mprim_offset(DefaultMaxMprimOffset),
 
-    use_bfs_heuristic_(DefaultUseBfsHeuristic),
-    planning_link_sphere_radius_(DefaultPlanningLinkSphereRadius),
+    use_bfs_heuristic(DefaultUseBfsHeuristic),
+    planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
-    planner_name_(),
-    epsilon_(DefaultEpsilon),
-    allowed_time_(DefaultAllowedTime),
-    search_mode_(DefaultSearchMode),
+    planner_name(),
+    epsilon(DefaultEpsilon),
+    allowed_time(DefaultAllowedTime),
+    search_mode(DefaultSearchMode),
 
-    shortcut_path_(DefaultShortcutPath),
-    interpolate_path_(DefaultInterpolatePath),
-    waypoint_time_(DefaultWaypointTime),
+    shortcut_path(DefaultShortcutPath),
+    interpolate_path(DefaultInterpolatePath),
+    waypoint_time(DefaultWaypointTime),
     shortcut_type(DefaultShortcutType),
 
-    print_path_(true),
-    verbose_(false),
-    verbose_heuristics_(false),
-    verbose_collisions_(false),
-    rmodel_log_(DefaultRobotModelLog),
-    graph_log_(DefaultGraphLog),
-    heuristic_log_(DefaultHeuristicLog),
-    expands_log_(DefaultExpandsLog),
-    post_processing_log_(DefaultPostProcessingLog),
-    solution_log_(DefaultSolutionLog)
+    print_path(true),
+    verbose(false),
+    verbose_heuristics(false),
+    verbose_collisions(false),
+    robot_log(DefaultRobotModelLog),
+    graph_log(DefaultGraphLog),
+    heuristic_log(DefaultHeuristicLog),
+    expands_log(DefaultExpandsLog),
+    post_processing_log(DefaultPostProcessingLog),
+    solution_log(DefaultSolutionLog)
 {
 }
 
@@ -109,21 +109,21 @@ bool PlanningParams::init(const std::string& ns)
     ros::NodeHandle nh(ns);
     ROS_ERROR("Getting params from namespace: %s", nh.getNamespace().c_str());
     /* planning */
-    nh.param("planning/epsilon", epsilon_, 10.0);
-    nh.param<std::string>("planning/planner_name", planner_name_, "ARA*");
-    nh.param("planning/use_bfs_heuristic", use_bfs_heuristic_, true);
-    nh.param("planning/verbose", verbose_, false);
-    nh.param("planning/verbose_collisions", verbose_collisions_, false);
-    nh.param("planning/search_mode", search_mode_, false); //true: stop after first solution
-    nh.param("planning/shortcut_path", shortcut_path_, false);
+    nh.param("planning/epsilon", epsilon, 10.0);
+    nh.param<std::string>("planning/planner_name", planner_name, "ARA*");
+    nh.param("planning/use_bfs_heuristic", use_bfs_heuristic, true);
+    nh.param("planning/verbose", verbose, false);
+    nh.param("planning/verbose_collisions", verbose_collisions, false);
+    nh.param("planning/search_mode", search_mode, false); //true: stop after first solution
+    nh.param("planning/shortcut_path", shortcut_path, false);
     // TODO: shortcut_type
-    nh.param("planning/interpolate_path", interpolate_path_, false);
-    nh.param("planning/use_multiple_ik_solutions", use_multiple_ik_solutions_, false);
-    nh.param("planning/seconds_per_waypoint", waypoint_time_, 0.35);
-    nh.param<std::string>("planning/planning_frame", planning_frame_, "");
+    nh.param("planning/interpolate_path", interpolate_path, false);
+    nh.param("planning/use_multiple_ik_solutions", use_multiple_ik_solutions, false);
+    nh.param("planning/seconds_per_waypoint", waypoint_time, 0.35);
+    nh.param<std::string>("planning/planning_frame", planning_frame, "");
 
     /* logging */
-    nh.param ("debug/print_out_path", print_path_, true);
+    nh.param ("debug/print_out_path", print_path, true);
 
     /* planning joints */
     XmlRpc::XmlRpcValue xlist;
@@ -136,9 +136,9 @@ bool PlanningParams::init(const std::string& ns)
         if (jname.size() == 0) {
             continue;
         }
-        planning_joints_.push_back(jname);
+        planning_joints.push_back(jname);
     }
-    num_joints_ = planning_joints_.size();
+    num_joints = planning_joints.size();
 
     // discretization
     std::string p;
@@ -146,12 +146,12 @@ bool PlanningParams::init(const std::string& ns)
         nh.getParam("planning/discretization", xlist);
         std::stringstream ss(xlist);
         while (ss >> p) {
-            coord_vals_.push_back(atof(p.c_str()));
+            coord_vals.push_back(atof(p.c_str()));
         }
 
-        coord_delta_.resize(coord_vals_.size(), 0);
-        for (int i = 0; i < num_joints_; ++i) {
-            coord_delta_[i] = (2.0 * M_PI) / coord_vals_[i];
+        coord_delta.resize(coord_vals.size(), 0);
+        for (int i = 0; i < num_joints; ++i) {
+            coord_delta[i] = (2.0 * M_PI) / coord_vals[i];
         }
     }
     else {
@@ -166,21 +166,21 @@ void PlanningParams::printParams(const std::string& stream) const
 {
     ROS_INFO_NAMED(stream, " ");
     ROS_INFO_NAMED(stream, "Manipulation Environment Parameters:");
-    ROS_INFO_NAMED(stream, "%40s: %.2f", "epsilon",epsilon_);
-    ROS_INFO_NAMED(stream, "%40s: %s", "use dijkstra heuristic", use_bfs_heuristic_ ? "yes" : "no");
-    ROS_INFO_NAMED(stream, "%40s: %s", "sbpl search mode", search_mode_ ? "stop_after_first_sol" : "run_until_timeout");
-    ROS_INFO_NAMED(stream, "%40s: %s", "postprocessing: shortcut", shortcut_path_ ? "yes" : "no");
-    ROS_INFO_NAMED(stream, "%40s: %s", "postprocessing: interpolate", interpolate_path_ ? "yes" : "no");
-    ROS_INFO_NAMED(stream, "%40s: %0.3fsec", "time_per_waypoint", waypoint_time_);
-    ROS_INFO_NAMED(stream, "%40s: %d", "cost per cell", cost_per_cell_);
-    ROS_INFO_NAMED(stream, "%40s: %s", "reference frame", planning_frame_.c_str());
+    ROS_INFO_NAMED(stream, "%40s: %.2f", "epsilon",epsilon);
+    ROS_INFO_NAMED(stream, "%40s: %s", "use dijkstra heuristic", use_bfs_heuristic ? "yes" : "no");
+    ROS_INFO_NAMED(stream, "%40s: %s", "sbpl search mode", search_mode ? "stop_after_first_sol" : "run_until_timeout");
+    ROS_INFO_NAMED(stream, "%40s: %s", "postprocessing: shortcut", shortcut_path ? "yes" : "no");
+    ROS_INFO_NAMED(stream, "%40s: %s", "postprocessing: interpolate", interpolate_path ? "yes" : "no");
+    ROS_INFO_NAMED(stream, "%40s: %0.3fsec", "time_per_waypoint", waypoint_time);
+    ROS_INFO_NAMED(stream, "%40s: %d", "cost per cell", cost_per_cell);
+    ROS_INFO_NAMED(stream, "%40s: %s", "reference frame", planning_frame.c_str());
     ROS_INFO_NAMED(stream, "planning joints: ");
-    for (size_t i = 0; i < planning_joints_.size(); ++i) {
-        ROS_INFO_NAMED(stream, "   [%d] %30s", int(i), planning_joints_[i].c_str());
+    for (size_t i = 0; i < planning_joints.size(); ++i) {
+        ROS_INFO_NAMED(stream, "   [%d] %30s", int(i), planning_joints[i].c_str());
     }
     ROS_INFO_NAMED(stream, "discretization: ");
-    for (size_t i = 0; i < coord_vals_.size(); ++i) {
-        ROS_INFO_NAMED(stream, "   [%d] val: %d  delta: %0.3f", int(i), coord_vals_[i], coord_delta_[i]);
+    for (size_t i = 0; i < coord_vals.size(); ++i) {
+        ROS_INFO_NAMED(stream, "   [%d] val: %d  delta: %0.3f", int(i), coord_vals[i], coord_delta[i]);
     }
     ROS_INFO_NAMED(stream, " ");
 }

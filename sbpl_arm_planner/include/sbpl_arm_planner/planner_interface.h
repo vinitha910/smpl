@@ -33,26 +33,29 @@
 #define sbpl_manip_planner_interface_h
 
 // standard includes
+#include <chrono>
 #include <map>
 #include <memory>
 #include <string>
 
 // system includes
-#include <moveit/distance_field/propagation_distance_field.h>
+#include <Eigen/Dense>
 #include <moveit_msgs/MotionPlanRequest.h>
 #include <moveit_msgs/MotionPlanResponse.h>
 #include <moveit_msgs/PlanningScene.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <moveit_msgs/RobotState.h>
+#include <moveit_msgs/RobotTrajectory.h>
 #include <ros/ros.h>
 #include <sbpl/headers.h>
+#include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/action_space.h>
 #include <sbpl_arm_planner/collision_checker.h>
-#include <sbpl_arm_planner/robot_heuristic.h>
+#include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/robot_model.h>
 
 SBPL_CLASS_FORWARD(Heuristic);
@@ -77,7 +80,7 @@ public:
     bool init(const PlanningParams& params);
 
     bool solve(
-        const moveit_msgs::PlanningSceneConstPtr& planning_scene,
+        const moveit_msgs::PlanningScene& planning_scene,
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res);
 
@@ -104,21 +107,8 @@ public:
     ///@{
 
     visualization_msgs::MarkerArray getGoalVisualization() const;
-
-    /// \brief Retrieve visualization of the arm planner
-    ///
-    /// The visualization_msgs::MarkerArray's contents vary depending on the
-    /// argument:
-    ///
-    ///     "goal":
-    ///     <any argument accepted by ManipLattice::getVisualization>:
-    ///         <the corresponding visualization provided by ManipLattice>
-    ///
-    /// \param type The type of visualization to get
-    /// \return The visualization
-    visualization_msgs::MarkerArray getVisualization(
-        const std::string& type) const;
-    visualization_msgs::MarkerArray getCollisionModelTrajectoryMarker();
+    visualization_msgs::MarkerArray getBfsWallsVisualization() const;
+    visualization_msgs::MarkerArray getBfsValuesVisualization() const;
 
     visualization_msgs::MarkerArray getCollisionModelTrajectoryVisualization(
         const moveit_msgs::RobotState& ref_state,
@@ -156,8 +146,6 @@ protected:
     moveit_msgs::MotionPlanRequest m_req;
     moveit_msgs::MotionPlanResponse m_res;
 
-    clock_t m_starttime;
-
     bool checkConstructionArgs() const;
 
     // Initialize the SBPL planner and the sbpl_arm_planner environment
@@ -175,7 +163,7 @@ protected:
     bool setGoalConfiguration(const moveit_msgs::Constraints& goal_constraints);
 
     // Plan a path to a cartesian goal(s)
-    bool planToPosition(
+    bool planToPose(
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res);
     bool planToConfiguration(

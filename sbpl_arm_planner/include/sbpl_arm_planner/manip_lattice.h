@@ -64,7 +64,6 @@ class RobotHeuristic;
 struct ManipLatticeState
 {
     int stateID;                // hash entry ID number
-    int heur;                   // cached heuristic value (why, I don't know; it's only used in getExpandedStates and another print)
     int xyz[3];                 // planning frame cell (x, y, z)
     double dist;
     std::vector<int> coord;     // discrete coordinate
@@ -95,6 +94,8 @@ struct hash<sbpl::manip::ManipLatticeState>
 namespace sbpl {
 namespace manip {
 
+SBPL_CLASS_FORWARD(ManipLattice);
+
 /// \class Discrete space constructed by expliciting discretizing each joint
 class ManipLattice : public RobotPlanningSpace
 {
@@ -118,8 +119,6 @@ public:
 
     std::vector<double> getTargetOffsetPose(
         const std::vector<double>& tip_pose) const;
-
-    const GoalConstraint& getGoalConstraints() const;
 
     std::vector<double> getStartConfiguration() const;
     std::vector<double> getGoalConfiguration() const;
@@ -156,9 +155,6 @@ public:
 
     /// \name Required Public Functions from DiscreteSpaceInformation
     ///@{
-    int GetFromToHeuristic(int FromStateID, int ToStateID) override;
-    int GetGoalHeuristic(int stateID) override;
-    int GetStartHeuristic(int stateID) override;
     void GetSuccs(
         int state_id,
         std::vector<int>* succs,
@@ -210,7 +206,7 @@ private:
     ManipLatticeState* m_start_entry;
 
     // maps from coords to stateID
-    std::unordered_map<ManipLatticeState*, int, StateHash, StateEqual> m_state_to_id;
+    hash_map<ManipLatticeState*, int, StateHash, StateEqual> m_state_to_id;
 
     // maps from stateID to coords
     std::vector<ManipLatticeState*> m_states;

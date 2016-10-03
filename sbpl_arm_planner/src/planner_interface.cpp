@@ -34,13 +34,8 @@
 
 // standard includes
 #include <assert.h>
-#include <time.h>
-#include <iostream>
-#include <map>
-#include <regex>
 
 // system includes
-#include <Eigen/Geometry>
 #include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
@@ -55,6 +50,7 @@
 #include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/post_processing.h>
+#include <sbpl_arm_planner/workspace_lattice.h>
 #include <sbpl_arm_planner/visualize.h>
 
 namespace sbpl {
@@ -78,8 +74,7 @@ PlannerInterface::PlannerInterface(
     m_sol_cost(INFINITECOST),
     m_planner_id(),
     m_req(),
-    m_res(),
-    m_starttime()
+    m_res()
 {
 }
 
@@ -91,26 +86,26 @@ bool PlannerInterface::init(const PlanningParams& params)
 {
     ROS_INFO("initialize arm planner interface");
 
-    ROS_INFO("  Planning Frame: %s", params.planning_frame_.c_str());
-    ROS_INFO("  Num Joints: %d", params.num_joints_);
-    ROS_INFO("  Planning Joints: %s", to_string(params.planning_joints_).c_str());
-    ROS_INFO("  Coord Values: %s", to_string(params.coord_vals_).c_str());
-    ROS_INFO("  Coord Deltas: %s", to_string(params.coord_delta_).c_str());
+    ROS_INFO("  Planning Frame: %s", params.planning_frame.c_str());
+    ROS_INFO("  Num Joints: %d", params.num_joints);
+    ROS_INFO("  Planning Joints: %s", to_string(params.planning_joints).c_str());
+    ROS_INFO("  Coord Values: %s", to_string(params.coord_vals).c_str());
+    ROS_INFO("  Coord Deltas: %s", to_string(params.coord_delta).c_str());
 
-    ROS_INFO("  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions_ ? "true" : "false");
+    ROS_INFO("  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions ? "true" : "false");
 
-    ROS_INFO("  Use BFS Heuristic: %s", params.use_bfs_heuristic_ ? "true" : "false");
-    ROS_INFO("  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius_);
+    ROS_INFO("  Use BFS Heuristic: %s", params.use_bfs_heuristic ? "true" : "false");
+    ROS_INFO("  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
 
-    ROS_INFO("  Planner Name: %s", params.planner_name_.c_str());
-    ROS_INFO("  Epsilon: %0.3f", params.epsilon_);
-    ROS_INFO("  Allowed Time: %0.3f", params.allowed_time_);
-    ROS_INFO("  Search Mode: %s", params.search_mode_ ? "true" : "false");
+    ROS_INFO("  Planner Name: %s", params.planner_name.c_str());
+    ROS_INFO("  Epsilon: %0.3f", params.epsilon);
+    ROS_INFO("  Allowed Time: %0.3f", params.allowed_time);
+    ROS_INFO("  Search Mode: %s", params.search_mode ? "true" : "false");
 
-    ROS_INFO("  Shortcut Path: %s", params.shortcut_path_ ? "true" : "false");
+    ROS_INFO("  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
     ROS_INFO("  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
-    ROS_INFO("  Interpolate Path: %s", params.interpolate_path_ ? "true" : "false");
-    ROS_INFO("  Waypoint Time: %0.3f", params.waypoint_time_);
+    ROS_INFO("  Interpolate Path: %s", params.interpolate_path ? "true" : "false");
+    ROS_INFO("  Waypoint Time: %0.3f", params.waypoint_time);
 
 
     if (!checkConstructionArgs()) {
@@ -123,7 +118,7 @@ bool PlannerInterface::init(const PlanningParams& params)
 
     m_params = params;
 
-    m_grid->setReferenceFrame(m_params.planning_frame_);
+    m_grid->setReferenceFrame(m_params.planning_frame);
 
     m_initialized = true;
 
@@ -151,12 +146,8 @@ bool PlannerInterface::checkConstructionArgs() const
     return true;
 }
 
-bool PlannerInterface::initializePlannerAndEnvironment()
-{
-}
-
 bool PlannerInterface::solve(
-    const moveit_msgs::PlanningSceneConstPtr& planning_scene,
+    const moveit_msgs::PlanningScene& planning_scene,
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
 {
@@ -167,17 +158,11 @@ bool PlannerInterface::solve(
         return false;
     }
 
-    // TODO: lazily reinitialize planner when algorithm changes
-    if (!reinitPlanner(req.planner_id)) {
-        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+    if (!canServiceRequest(req, res)) {
         return false;
     }
 
-    if (!planning_scene) {
-        ROS_ERROR("Planning scene is null");
-        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
-        return false;
-    }
+    m_req = req; // record the last attempted request
 
     if (req.goal_constraints.empty()) {
         ROS_WARN("No goal constraints in request!");
@@ -185,102 +170,102 @@ bool PlannerInterface::solve(
         return true;
     }
 
-    if (!canServiceRequest(req, res)) {
+    // TODO: lazily reinitialize planner when algorithm changes
+    if (!reinitPlanner(req.planner_id)) {
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
         return false;
     }
 
-    ROS_INFO("Got octomap in %s frame", planning_scene->world.octomap.header.frame_id.c_str());
-    ROS_INFO("Current m_params.planning_frame_ is %s", m_params.planning_frame_.c_str());
-
-    // preprocess
-    clock_t t_preprocess = clock();
-    double preprocess_time = (clock() - t_preprocess) / (double)CLOCKS_PER_SEC;
-
     // plan
-    clock_t t_plan = clock();
-    res.trajectory_start = planning_scene->robot_state;
-    m_params.allowed_time_ = req.allowed_planning_time;
-    ROS_INFO("Allowed Time (s): %0.3f", m_params.allowed_time_);
+    res.trajectory_start = planning_scene.robot_state;
+    m_params.allowed_time = req.allowed_planning_time;
+    ROS_INFO("Allowed Time (s): %0.3f", m_params.allowed_time);
+
+    auto then = std::chrono::high_resolution_clock::now();
 
     if (req.goal_constraints.front().position_constraints.size() > 0) {
         ROS_INFO("Planning to position!");
-        if (!planToPosition(req, res)) {
+        if (!planToPose(req, res)) {
+            auto now = std::chrono::high_resolution_clock::now();
+            res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
         }
-    }
-    else if (req.goal_constraints.front().joint_constraints.size() > 0) {
+    } else if (req.goal_constraints.front().joint_constraints.size() > 0) {
         ROS_INFO("Planning to joint configuration!");
         if (!planToConfiguration(req, res)) {
+            auto now = std::chrono::high_resolution_clock::now();
+            res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
         }
-    }
-    else {
+    } else {
         ROS_ERROR("Both position and joint constraints empty!");
+        auto now = std::chrono::high_resolution_clock::now();
+        res.planning_time = std::chrono::duration<double>(now - then).count();
         return false;
     }
 
-    m_res = res;
-    double plan_time = (clock() - t_plan) / (double)CLOCKS_PER_SEC;
-    ROS_INFO("t_plan: %0.3fsec  t_preprocess: %0.3fsec", plan_time, preprocess_time);
+    auto now = std::chrono::high_resolution_clock::now();
+    res.planning_time = std::chrono::duration<double>(now - then).count();
+    m_res = res; // record the last result
     return true;
 }
 
 bool PlannerInterface::checkParams(
     const PlanningParams& params) const
 {
-    if (params.allowed_time_ < 0.0) {
+    if (params.allowed_time < 0.0) {
         return false;
     }
 
-    if (params.waypoint_time_ < 0.0) {
+    if (params.waypoint_time < 0.0) {
         return false;
     }
 
-    if (params.num_joints_ != (int)params.planning_joints_.size()) {
+    if (params.num_joints != (int)params.planning_joints.size()) {
         return false;
     }
 
     // TODO: check for frame in robot model?
-    if (params.planning_frame_.empty()) {
+    if (params.planning_frame.empty()) {
         return false;
     }
 
     // TODO: check for search algorithm availability
-    if (params.planner_name_.empty()) {
+    if (params.planner_name.empty()) {
         return false;
     }
 
     // TODO: check for existence of planning joints in robot model
 
-    if (params.epsilon_ < 1.0) {
+    if (params.epsilon < 1.0) {
         return false;
     }
 
-    if (params.num_joints_ != (int)params.coord_vals_.size()) {
+    if (params.num_joints != (int)params.coord_vals.size()) {
         return false;
     }
 
-    if (params.num_joints_ != (int)params.coord_delta_.size()) {
+    if (params.num_joints != (int)params.coord_delta.size()) {
         return false;
     }
 
-    if (params.cost_multiplier_ < 0) {
+    if (params.cost_multiplier < 0) {
         return false;
     }
 
-    if (params.cost_per_cell_ < 0) {
+    if (params.cost_per_cell < 0) {
         return false;
     }
 
-    if (params.cost_per_meter_ < 0) {
+    if (params.cost_per_meter < 0) {
         return false;
     }
 
-    if (params.cost_per_second_ < 0) {
+    if (params.cost_per_second < 0) {
         return false;
     }
 
-    if (params.time_per_cell_ < 0.0) {
+    if (params.time_per_cell < 0.0) {
         return false;
     }
 
@@ -293,7 +278,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 
     if (!state.multi_dof_joint_state.joint_names.empty()) {
         const auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
-        for (const std::string& joint_name : m_params.planning_joints_) {
+        for (const std::string& joint_name : m_params.planning_joints) {
             auto it = std::find(mdof_joint_names.begin(), mdof_joint_names.end(), joint_name);
             if (it != mdof_joint_names.end()) {
                 ROS_WARN("planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
@@ -304,7 +289,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     RobotState initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(
-            state.joint_state, m_params.planning_joints_, initial_positions, missing))
+            state.joint_state, m_params.planning_joints, initial_positions, missing))
     {
         ROS_ERROR("start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
@@ -429,7 +414,7 @@ bool PlannerInterface::setGoalPosition(
     goal.rpy_tolerance[2] = sbpl_tolerance[5];
 
     ROS_INFO("New Goal");
-    ROS_INFO("    frame: %s", m_params.planning_frame_.c_str());
+    ROS_INFO("    frame: %s", m_params.planning_frame.c_str());
     ROS_INFO("    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", sbpl_goal[0], sbpl_goal[1], sbpl_goal[2], sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
     ROS_INFO("    offset: (%0.3f, %0.3f, %0.3f)", goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2]);
     ROS_INFO("    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
@@ -459,7 +444,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
     // scenario
-    SV_SHOW_INFO(getVisualization("bfs_walls"));
+    SV_SHOW_INFO(getBfsWallsVisualization());
 
     ROS_WARN("Planning!!!!!");
     bool b_ret = false;
@@ -469,8 +454,8 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     m_planner->force_planning_from_scratch();
 
     //plan
-    ReplanParams replan_params(m_params.allowed_time_);
-    replan_params.initial_eps = m_params.epsilon_;
+    ReplanParams replan_params(m_params.allowed_time);
+    replan_params.initial_eps = m_params.epsilon;
     replan_params.final_eps = 1.0;
     replan_params.dec_eps = 0.2;
     replan_params.return_first_solution = false;
@@ -498,39 +483,33 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     return b_ret;
 }
 
-bool PlannerInterface::planToPosition(
+bool PlannerInterface::planToPose(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
 {
-    const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.goal_constraints;
+    const auto& goal_constraints_v = req.goal_constraints;
     assert(!goal_constraints_v.empty());
-
-    m_starttime = clock();
-    m_req = req;
 
     // transform goal pose into reference_frame
 
     // only acknowledge the first constraint
-    const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front();
+    const auto& goal_constraints = goal_constraints_v.front();
 
     if (!setGoalPosition(goal_constraints)) {
         ROS_ERROR("Failed to set goal position.");
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
         return false;
     }
 
     if (!setStart(req.start_state)) {
         ROS_ERROR("Failed to set initial configuration of robot.");
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
         return false;
     }
 
     std::vector<RobotState> path;
     if (!plan(path)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time_, m_planner->get_n_expands());
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
@@ -541,7 +520,6 @@ bool PlannerInterface::planToPosition(
 
     visualizePath(res.trajectory_start, res.trajectory);
 
-    res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
     return true;
 }
@@ -550,33 +528,27 @@ bool PlannerInterface::planToConfiguration(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
 {
-    const std::vector<moveit_msgs::Constraints>& goal_constraints_v = req.goal_constraints;
+    const auto& goal_constraints_v = req.goal_constraints;
     assert(!goal_constraints_v.empty());
 
-    m_starttime = clock();
-    m_req = req;
-
     // only acknowledge the first constraint
-    const moveit_msgs::Constraints& goal_constraints = goal_constraints_v.front();
-
-    if (!setStart(req.start_state)) {
-        ROS_ERROR("Failed to set initial configuration of robot.");
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
-        res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
-        return false;
-    }
+    const auto& goal_constraints = goal_constraints_v.front();
 
     if (!setGoalConfiguration(goal_constraints)) {
         ROS_ERROR("Failed to set goal position.");
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
         res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
+        return false;
+    }
+
+    if (!setStart(req.start_state)) {
+        ROS_ERROR("Failed to set initial configuration of robot.");
+        res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
         return false;
     }
 
     std::vector<RobotState> path;
     if (!plan(path)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time_, m_planner->get_n_expands());
-        res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
@@ -585,7 +557,6 @@ bool PlannerInterface::planToConfiguration(
 
     visualizePath(res.trajectory_start, res.trajectory);
 
-    res.planning_time = ((clock() - m_starttime) / (double)CLOCKS_PER_SEC);
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
     return true;
 }
@@ -646,13 +617,6 @@ std::map<std::string, double> PlannerInterface::getPlannerStats()
     stats["expansions"] = m_planner->get_n_expands();
     stats["solution cost"] = m_sol_cost;
     return stats;
-}
-
-visualization_msgs::MarkerArray
-PlannerInterface::getCollisionModelTrajectoryMarker()
-{
-    return getCollisionModelTrajectoryVisualization(
-            m_res.trajectory_start, m_res.trajectory);
 }
 
 visualization_msgs::MarkerArray
@@ -744,45 +708,45 @@ PlannerInterface::getGoalVisualization() const
     return ::viz::getPosesMarkerArray(poses, goal_constraints.position_constraints[0].header.frame_id, "goals", 0);
 }
 
-visualization_msgs::MarkerArray PlannerInterface::getVisualization(
-    const std::string& type) const
+visualization_msgs::MarkerArray
+PlannerInterface::getBfsWallsVisualization() const
 {
-    if (type == "goal") {
-        return getGoalVisualization();
+    if (m_heuristics.empty()) {
+        return visualization_msgs::MarkerArray();
     }
-    else if (type =="bfs_walls") {
-        if (m_heuristics.empty()) {
-            return visualization_msgs::MarkerArray();
-        }
 
-        auto first = m_heuristics.begin();
+    auto first = m_heuristics.begin();
 
-        auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second);
-        if (hbfs) {
-            return hbfs->getWallsVisualization();
-        }
-
-        auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second);
-        if (hmfbfs) {
-            return hmfbfs->getWallsVisualization();
-        }
+    auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second);
+    if (hbfs) {
+        return hbfs->getValuesVisualization();
     }
-    else if (type == "bfs_values") {
-        if (m_heuristics.empty()) {
-            return visualization_msgs::MarkerArray();
-        }
 
-        auto first = m_heuristics.begin();
+    auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second);
+    if (hmfbfs) {
+        return hmfbfs->getValuesVisualization();
+    }
 
-        auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second);
-        if (hbfs) {
-            return hbfs->getValuesVisualization();
-        }
+    return visualization_msgs::MarkerArray();
+}
 
-        auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second);
-        if (hmfbfs) {
-            return hmfbfs->getValuesVisualization();
-        }
+visualization_msgs::MarkerArray
+PlannerInterface::getBfsValuesVisualization() const
+{
+    if (m_heuristics.empty()) {
+        return visualization_msgs::MarkerArray();
+    }
+
+    auto first = m_heuristics.begin();
+
+    auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second);
+    if (hbfs) {
+        return hbfs->getWallsVisualization();
+    }
+
+    auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second);
+    if (hmfbfs) {
+        return hmfbfs->getWallsVisualization();
     }
 
     return visualization_msgs::MarkerArray();
@@ -969,7 +933,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             ROS_ERROR("Failed to load actions from file '%s'", m_params.action_file.c_str());
             return false;
         }
-        manip_actions->useMultipleIkSolutions(m_params.use_multiple_ik_solutions_);
+        manip_actions->useMultipleIkSolutions(m_params.use_multiple_ik_solutions);
 
         // associate action space with lattice
         if (!m_lattice->setActionSpace(m_action_space.get())) {
@@ -977,8 +941,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             return false;
         }
     } else if (space_name == "WORKSPACE") {
-        return false;
-//        m_lattice.reset(new WorkspaceLattice(m_robot, m_checker, &m_params, m_grid));
+        m_lattice.reset(new WorkspaceLattice(m_robot, m_checker, &m_params, m_grid));
     } else {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
         return false;
@@ -1027,8 +990,8 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     // initialize the search algorithm
     if (search_name == "ARA*") {
         m_planner.reset(new ARAPlanner(m_lattice.get(), true));
-        m_planner->set_initialsolution_eps(m_params.epsilon_);
-        m_planner->set_search_mode(m_params.search_mode_);
+        m_planner->set_initialsolution_eps(m_params.epsilon);
+        m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "MHA*") {
         MHAPlanner* mha = new MHAPlanner(
                 m_lattice.get(),
@@ -1041,12 +1004,12 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         mha->set_initial_mha_eps(1.0);
 
         m_planner.reset(mha);
-        m_planner->set_initialsolution_eps(m_params.epsilon_);
-        m_planner->set_search_mode(m_params.search_mode_);
+        m_planner->set_initialsolution_eps(m_params.epsilon);
+        m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "LARA*") {
         m_planner.reset(new LazyARAPlanner(m_lattice.get(), true));
-        m_planner->set_initialsolution_eps(m_params.epsilon_);
-        m_planner->set_search_mode(m_params.search_mode_);
+        m_planner->set_initialsolution_eps(m_params.epsilon);
+        m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "LMHA*") {
         ROS_ERROR("LMHA* unimplemented");
         return false;
@@ -1151,7 +1114,7 @@ void PlannerInterface::postProcessPath(
     traj.header.stamp = ros::Time::now();
 
     // shortcut path
-    if (m_params.shortcut_path_) {
+    if (m_params.shortcut_path) {
         trajectory_msgs::JointTrajectory straj;
         if (!InterpolateTrajectory(m_checker, traj.points, straj.points)) {
             ROS_WARN("Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
@@ -1166,14 +1129,14 @@ void PlannerInterface::postProcessPath(
     }
 
     // interpolate path
-    if (m_params.interpolate_path_) {
+    if (m_params.interpolate_path) {
         trajectory_msgs::JointTrajectory itraj = traj;
         if (!InterpolateTrajectory(m_checker, itraj.points, traj.points)) {
             ROS_WARN("Failed to interpolate trajectory");
         }
     }
 
-    if (m_params.print_path_) {
+    if (m_params.print_path) {
         leatherman::printJointTrajectory(traj, "path");
     }
 
@@ -1184,8 +1147,8 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
     const std::vector<RobotState>& path,
     trajectory_msgs::JointTrajectory& traj) const
 {
-    traj.header.frame_id = m_params.planning_frame_;
-    traj.joint_names = m_params.planning_joints_;
+    traj.header.frame_id = m_params.planning_frame;
+    traj.joint_names = m_params.planning_joints;
     traj.points.clear();
     traj.points.reserve(path.size());
     for (const auto& point : path) {

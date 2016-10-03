@@ -1,5 +1,7 @@
 #include <sbpl_arm_planner/robot_planning_space.h>
 
+#include <sbpl_arm_planner/robot_heuristic.h>
+
 namespace sbpl {
 namespace manip {
 
@@ -100,6 +102,30 @@ void RobotPlanningSpace::notifyGoalChanged(const GoalConstraint& goal)
     for (RobotPlanningSpaceObserver* obs : m_obs) {
         obs->updateGoal(goal);
     }
+}
+
+int RobotPlanningSpace::GetGoalHeuristic(int state_id)
+{
+    if (numHeuristics() == 0) {
+        return 0;
+    }
+    return heuristic(0)->GetGoalHeuristic(state_id);
+}
+
+int RobotPlanningSpace::GetStartHeuristic(int state_id)
+{
+    if (numHeuristics() == 0) {
+        return 0;
+    }
+    return heuristic(0)->GetStartHeuristic(state_id);
+}
+
+int RobotPlanningSpace::GetFromToHeuristic(int from_id, int to_id)
+{
+    if (numHeuristics() == 0) {
+        return 0;
+    }
+    heuristic(0)->GetFromToHeuristic(from_id, to_id);
 }
 
 void RobotPlanningSpace::GetLazySuccs(

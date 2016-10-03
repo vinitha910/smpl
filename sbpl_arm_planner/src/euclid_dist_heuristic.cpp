@@ -83,7 +83,7 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
 
     int h;
     h = EuclideanDistance(x, y, z, gp[0], gp[1], gp[2]);
-    h *= params()->cost_per_meter_;
+    h *= params()->cost_per_meter;
     h *= 500;
     return h;
 }
@@ -109,7 +109,7 @@ int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 
     int h;
     h = EuclideanDistance(fx, fy, fz, tx, ty, tz);
-    h *= params()->cost_per_meter_;
+    h *= params()->cost_per_meter;
     h *= 500;
     h /= grid()->getResolution();
     return h;
