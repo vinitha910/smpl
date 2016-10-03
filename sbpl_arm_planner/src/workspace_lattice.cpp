@@ -69,7 +69,6 @@ WorkspaceLattice::WorkspaceLattice(
     OccupancyGrid* grid)
 :
     RobotPlanningSpace(robot, checker, params),
-    m_vpub(),
     m_grid(grid),
     m_goal(),
     m_goal_entry(nullptr),
@@ -80,7 +79,6 @@ WorkspaceLattice::WorkspaceLattice(
     m_fangle_indices(),
     m_dof_count(-1)
 {
-    m_vpub = ros::NodeHandle().advertise<visualization_msgs::MarkerArray>("visualization_markers", 100);
 }
 
 WorkspaceLattice::~WorkspaceLattice()

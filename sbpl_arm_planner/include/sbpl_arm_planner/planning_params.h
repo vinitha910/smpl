@@ -99,8 +99,6 @@ public:
 
     PlanningParams();
 
-    bool init(const std::string& ns = "~");
-
     void printParams(const std::string& stream) const;
 
     /// \name Environment

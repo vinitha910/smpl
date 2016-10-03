@@ -199,8 +199,6 @@ private:
         }
     };
 
-    ros::Publisher m_vpub;
-
     // Context Interfaces
     OccupancyGrid* m_grid;
     RobotModel* m_robot;

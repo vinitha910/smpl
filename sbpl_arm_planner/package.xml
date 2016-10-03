@@ -3,6 +3,7 @@
     <version>0.0.0</version>
     <description>Motion Planning for Robotic Manipulators</description>
     <author email="bcohen@seas.upenn.edu">Benjamin Cohen</author>
+    <author email="andrew.dornbush@gmail.com">Andrew Dornbush</author>
     <author>Harsh Pandey</author>
     <maintainer email="andrew.dornbush@gmail.com">Andrew Dornbush</maintainer>
     <license>BSD</license>
@@ -17,9 +18,7 @@
     <depend>moveit_core</depend>
     <depend>moveit_msgs</depend>
     <depend>roscpp</depend>
-    <!-- TODO: non-ros sbpl dependency -->
     <depend>sbpl_geometry_utils</depend>
-    <depend>tf</depend>
     <depend>trajectory_msgs</depend>
     <depend>visualization_msgs</depend>
 </package>

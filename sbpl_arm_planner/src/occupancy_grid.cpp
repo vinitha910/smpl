@@ -326,7 +326,7 @@ OccupancyGrid::getDistanceFieldVisualization() const
             grid_->getResolution(),
             getMaxDistance(),
             getReferenceFrame(),
-            ros::Time::now(),
+            ros::Time(0),
             m);
     m.color.a += 0.2;
 
@@ -342,7 +342,7 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
     visualization_msgs::Marker marker;
 
     marker.header.seq = 0;
-    marker.header.stamp = ros::Time::now();
+    marker.header.stamp = ros::Time(0);
     marker.header.frame_id = getReferenceFrame();
 
     marker.ns = "occupied_voxels";

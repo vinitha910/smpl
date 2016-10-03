@@ -102,30 +102,6 @@ PlanningParams::PlanningParams() :
 {
 }
 
-bool PlanningParams::init(const std::string& ns)
-{
-    ros::NodeHandle nh(ns);
-    ROS_ERROR("Getting params from namespace: %s", nh.getNamespace().c_str());
-    /* planning */
-    nh.param("planning/epsilon", epsilon, 10.0);
-    nh.param<std::string>("planning/planner_name", planner_name, "ARA*");
-    nh.param("planning/use_bfs_heuristic", use_bfs_heuristic, true);
-    nh.param("planning/verbose", verbose, false);
-    nh.param("planning/verbose_collisions", verbose_collisions, false);
-    nh.param("planning/search_mode", search_mode, false); //true: stop after first solution
-    nh.param("planning/shortcut_path", shortcut_path, false);
-    // TODO: shortcut_type
-    nh.param("planning/interpolate_path", interpolate_path, false);
-    nh.param("planning/use_multiple_ik_solutions", use_multiple_ik_solutions, false);
-    nh.param("planning/seconds_per_waypoint", waypoint_time, 0.35);
-    nh.param<std::string>("planning/planning_frame", planning_frame, "");
-
-    /* logging */
-    nh.param("debug/print_out_path", print_path, true);
-
-    return true;
-}
-
 void PlanningParams::printParams(const std::string& stream) const
 {
     ROS_INFO_NAMED(stream, " ");

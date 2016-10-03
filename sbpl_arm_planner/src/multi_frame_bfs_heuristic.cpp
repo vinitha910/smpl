@@ -261,7 +261,7 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
     }
 
     visualization_msgs::Marker marker;
-    marker.header.stamp = ros::Time::now();
+    marker.header.stamp = ros::Time(0);
     marker.header.frame_id = grid()->getReferenceFrame();
     marker.ns = "bfs_values";
     marker.id = 0;
