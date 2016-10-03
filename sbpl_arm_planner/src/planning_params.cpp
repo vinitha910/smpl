@@ -64,8 +64,6 @@ std::string to_string(ShortcutType type)
 
 PlanningParams::PlanningParams() :
     planning_frame(),
-    num_joints(0),
-    planning_joints(),
     coord_vals(),
     coord_delta(),
 
@@ -123,41 +121,7 @@ bool PlanningParams::init(const std::string& ns)
     nh.param<std::string>("planning/planning_frame", planning_frame, "");
 
     /* logging */
-    nh.param ("debug/print_out_path", print_path, true);
-
-    /* planning joints */
-    XmlRpc::XmlRpcValue xlist;
-    nh.getParam("planning/planning_joints", xlist);
-    std::string joint_list = std::string(xlist);
-    std::stringstream joint_name_stream(joint_list);
-    while (joint_name_stream.good() && !joint_name_stream.eof()) {
-        std::string jname;
-        joint_name_stream >> jname;
-        if (jname.size() == 0) {
-            continue;
-        }
-        planning_joints.push_back(jname);
-    }
-    num_joints = planning_joints.size();
-
-    // discretization
-    std::string p;
-    if (nh.hasParam("planning/discretization")) {
-        nh.getParam("planning/discretization", xlist);
-        std::stringstream ss(xlist);
-        while (ss >> p) {
-            coord_vals.push_back(atof(p.c_str()));
-        }
-
-        coord_delta.resize(coord_vals.size(), 0);
-        for (int i = 0; i < num_joints; ++i) {
-            coord_delta[i] = (2.0 * M_PI) / coord_vals[i];
-        }
-    }
-    else {
-        ROS_ERROR("Discretization of statespace has not been defined.");
-        return false;
-    }
+    nh.param("debug/print_out_path", print_path, true);
 
     return true;
 }
@@ -174,10 +138,6 @@ void PlanningParams::printParams(const std::string& stream) const
     ROS_INFO_NAMED(stream, "%40s: %0.3fsec", "time_per_waypoint", waypoint_time);
     ROS_INFO_NAMED(stream, "%40s: %d", "cost per cell", cost_per_cell);
     ROS_INFO_NAMED(stream, "%40s: %s", "reference frame", planning_frame.c_str());
-    ROS_INFO_NAMED(stream, "planning joints: ");
-    for (size_t i = 0; i < planning_joints.size(); ++i) {
-        ROS_INFO_NAMED(stream, "   [%d] %30s", int(i), planning_joints[i].c_str());
-    }
     ROS_INFO_NAMED(stream, "discretization: ");
     for (size_t i = 0; i < coord_vals.size(); ++i) {
         ROS_INFO_NAMED(stream, "   [%d] val: %d  delta: %0.3f", int(i), coord_vals[i], coord_delta[i]);

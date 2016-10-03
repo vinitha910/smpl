@@ -224,7 +224,7 @@ bool WorkspaceLattice::setStart(const RobotState& state)
     }
 
     ROS_DEBUG_NAMED(params()->graph_log, "set the start state");
-    if (state.size() < params()->num_joints) {
+    if (state.size() < robot()->jointVariableCount()) {
         ROS_ERROR_NAMED(params()->graph_log, "start state contains insufficient coordinate positions");
         return false;
     }
@@ -341,7 +341,7 @@ bool WorkspaceLattice::extractPath(
 
                 // shouldn't have created a new state, so no need to set the
                 // continuous state counterpart
-                assert(goal_state->state.size() == params()->num_joints);
+                assert(goal_state->state.size() == robot()->jointVariableCount());
 
                 best_cost = 30; // Hardcoded primitive value in GetSuccs
                 best_goal_entry = goal_state;
@@ -515,7 +515,7 @@ bool WorkspaceLattice::setGoalPose(const PoseGoal& goal)
 
     // check if an IK solution exists for the goal pose before we do
     // the search we plan even if there is no solution
-    RobotState seed(params()->num_joints, 0);
+    RobotState seed(robot()->jointVariableCount(), 0);
     RobotState ik_solution;
     if (!m_ik_iface->computeIK(goal.pose, seed, ik_solution)) {
         ROS_WARN("No valid IK solution for the goal pose.");
@@ -614,7 +614,7 @@ bool WorkspaceLattice::stateWorkspaceToRobot(
 {
     SixPose pose(state.begin(), state.begin() + 6);
 
-    RobotState seed(params()->num_joints, 0);
+    RobotState seed(robot()->jointVariableCount(), 0);
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
         seed[m_fangle_indices[fai]] = state[6 + fai];
     }

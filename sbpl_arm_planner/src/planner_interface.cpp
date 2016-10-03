@@ -88,8 +88,6 @@ bool PlannerInterface::init(const PlanningParams& params)
     ROS_INFO("initialize arm planner interface");
 
     ROS_INFO("  Planning Frame: %s", params.planning_frame.c_str());
-    ROS_INFO("  Num Joints: %d", params.num_joints);
-    ROS_INFO("  Planning Joints: %s", to_string(params.planning_joints).c_str());
     ROS_INFO("  Coord Values: %s", to_string(params.coord_vals).c_str());
     ROS_INFO("  Coord Deltas: %s", to_string(params.coord_delta).c_str());
 
@@ -222,10 +220,6 @@ bool PlannerInterface::checkParams(
         return false;
     }
 
-    if (params.num_joints != (int)params.planning_joints.size()) {
-        return false;
-    }
-
     // TODO: check for frame in robot model?
     if (params.planning_frame.empty()) {
         return false;
@@ -242,11 +236,11 @@ bool PlannerInterface::checkParams(
         return false;
     }
 
-    if (params.num_joints != (int)params.coord_vals.size()) {
+    if (m_robot->jointVariableCount() != (int)params.coord_vals.size()) {
         return false;
     }
 
-    if (params.num_joints != (int)params.coord_delta.size()) {
+    if (m_robot->jointVariableCount() != (int)params.coord_delta.size()) {
         return false;
     }
 
@@ -279,7 +273,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 
     if (!state.multi_dof_joint_state.joint_names.empty()) {
         const auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
-        for (const std::string& joint_name : m_params.planning_joints) {
+        for (const std::string& joint_name : m_robot->getPlanningJoints()) {
             auto it = std::find(mdof_joint_names.begin(), mdof_joint_names.end(), joint_name);
             if (it != mdof_joint_names.end()) {
                 ROS_WARN("planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
@@ -290,7 +284,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     RobotState initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(
-            state.joint_state, m_params.planning_joints, initial_positions, missing))
+            state.joint_state, m_robot->getPlanningJoints(), initial_positions, missing))
     {
         ROS_ERROR("start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
@@ -320,10 +314,10 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 bool PlannerInterface::setGoalConfiguration(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    ROS_INFO("Setting goal configuration");
+    ROS_INFO("set goal configuration");
 
     std::vector<double> sbpl_angle_goal(7, 0);
-    std::vector<double> sbpl_angle_tolerance(7, 0.05); //~3 degrees tolerance by default
+    std::vector<double> sbpl_angle_tolerance(7, angles::to_radians(3.0));
 
     if (goal_constraints.joint_constraints.size() < 7) {
         ROS_WARN("All 7 arm joint constraints must be specified for goal!");
@@ -340,8 +334,7 @@ bool PlannerInterface::setGoalConfiguration(
         const auto& joint_constraint = goal_constraints.joint_constraints[i];
         sbpl_angle_goal[i] = joint_constraint.position;
         sbpl_angle_tolerance[i] =
-               0.5 * abs(joint_constraint.tolerance_above) +
-               0.5 * abs(joint_constraint.tolerance_below);
+                0.5 * (fabs(joint_constraint.tolerance_above) + fabs(joint_constraint.tolerance_below));
         ROS_INFO("Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
     }
 
@@ -1149,7 +1142,7 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
     trajectory_msgs::JointTrajectory& traj) const
 {
     traj.header.frame_id = m_params.planning_frame;
-    traj.joint_names = m_params.planning_joints;
+    traj.joint_names = m_robot->getPlanningJoints();
     traj.points.clear();
     traj.points.reserve(path.size());
     for (const auto& point : path) {

@@ -72,6 +72,9 @@ public:
     /// \brief Check a state for joint limit violations.
     virtual bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) = 0;
 
+    size_t jointCount() const { return planning_joints_.size(); }
+    size_t jointVariableCount() const { return planning_joints_.size(); }
+
     void setPlanningJoints(const std::vector<std::string>& joints);
     const std::vector<std::string>& getPlanningJoints() const;
 

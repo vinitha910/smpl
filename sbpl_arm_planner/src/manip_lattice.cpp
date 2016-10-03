@@ -78,10 +78,10 @@ ManipLattice::ManipLattice(
 {
     m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
 
-    m_min_limits.resize(params()->num_joints);
-    m_max_limits.resize(params()->num_joints);
-    m_continuous.resize(params()->num_joints);
-    for (int jidx = 0; jidx < params()->num_joints; ++jidx) {
+    m_min_limits.resize(robot()->jointVariableCount());
+    m_max_limits.resize(robot()->jointVariableCount());
+    m_continuous.resize(robot()->jointVariableCount());
+    for (int jidx = 0; jidx < robot()->jointVariableCount(); ++jidx) {
         m_min_limits[jidx] = robot_model->minPosLimit(jidx);
         m_max_limits[jidx] = robot_model->maxPosLimit(jidx);
         m_continuous[jidx] = !robot_model->hasPosLimit(jidx);
@@ -96,7 +96,7 @@ ManipLattice::ManipLattice(
     // values and all continuous joints to be at their zero positions, but that
     // case will likely produce a bug in the current state
     int endeff[3] = { 0 };
-    std::vector<int> coord(params()->num_joints, 0);
+    std::vector<int> coord(robot()->jointVariableCount(), 0);
     m_start_entry = nullptr;
     m_goal_entry = createHashEntry(coord, {}, 0, endeff);
     ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_entry->stateID);
@@ -155,7 +155,7 @@ void ManipLattice::GetSuccs(
     ManipLatticeState* parent_entry = m_states[state_id];
 
     assert(parent_entry);
-    assert(parent_entry->coord.size() >= params()->num_joints);
+    assert(parent_entry->coord.size() >= robot()->jointVariableCount());
 
     // log expanded state details
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
@@ -178,7 +178,7 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     // check actions for validity
-    std::vector<int> succ_coord(params()->num_joints, 0);
+    std::vector<int> succ_coord(robot()->jointVariableCount(), 0);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
@@ -280,7 +280,7 @@ void ManipLattice::GetLazySuccs(
     ManipLatticeState* state_entry = m_states[SourceStateID];
 
     assert(state_entry);
-    assert(state_entry->coord.size() >= params()->num_joints);
+    assert(state_entry->coord.size() >= robot()->jointVariableCount());
 
     // log expanded state details
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
@@ -302,7 +302,7 @@ void ManipLattice::GetLazySuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     int goal_succ_count = 0;
-    std::vector<int> succ_coord(params()->num_joints);
+    std::vector<int> succ_coord(robot()->jointVariableCount());
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
@@ -371,8 +371,8 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
     ManipLatticeState* parent_entry = m_states[parentID];
     ManipLatticeState* child_entry = m_states[childID];
-    assert(parent_entry && parent_entry->coord.size() >= params()->num_joints);
-    assert(child_entry && child_entry->coord.size() >= params()->num_joints);
+    assert(parent_entry && parent_entry->coord.size() >= robot()->jointVariableCount());
+    assert(child_entry && child_entry->coord.size() >= robot()->jointVariableCount());
 
     const std::vector<double>& parent_angles = parent_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(parent_angles, "expansion"));
@@ -393,7 +393,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     size_t num_actions = 0;
 
     // check actions for validity and find the valid action with the least cost
-    std::vector<int> succ_coord(params()->num_joints);
+    std::vector<int> succ_coord(robot()->jointVariableCount());
     int best_cost = std::numeric_limits<int>::max();
     for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
         const Action& action = actions[aidx];
@@ -514,7 +514,7 @@ bool ManipLattice::computePlanningFrameFK(
     const std::vector<double>& state,
     std::vector<double>& pose) const
 {
-    assert(state.size() == params()->num_joints);
+    assert(state.size() == robot()->jointVariableCount());
 
     if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
         return false;
@@ -727,7 +727,7 @@ bool ManipLattice::setStart(const RobotState& state)
 {
     ROS_DEBUG_NAMED(params()->graph_log, "set the start state");
 
-    if ((int)state.size() < params()->num_joints) {
+    if ((int)state.size() < robot()->jointVariableCount()) {
         ROS_ERROR_NAMED(params()->graph_log, "start state does not contain enough joint positions");
         return false;
     }
@@ -758,7 +758,7 @@ bool ManipLattice::setStart(const RobotState& state)
     SV_SHOW_INFO(getStateVisualization(state, "start_config"));
 
     // get arm position in environment
-    std::vector<int> start_coord(params()->num_joints);
+    std::vector<int> start_coord(robot()->jointVariableCount());
     anglesToCoord(state, start_coord);
     ROS_DEBUG_NAMED(params()->graph_log, "  coord: %s", to_string(start_coord).c_str());
 
@@ -804,7 +804,7 @@ void ManipLattice::printJointArray(
     ManipLatticeState* HashEntry,
     bool bVerbose)
 {
-    std::vector<double> angles(params()->num_joints, 0.0);
+    std::vector<double> angles(robot()->jointVariableCount(), 0.0);
 
     std::stringstream ss;
 
@@ -840,7 +840,7 @@ void ManipLattice::printJointArray(
 void ManipLattice::getExpandedStates(
     std::vector<std::vector<double>>& states) const
 {
-    std::vector<double> angles(params()->num_joints,0);
+    std::vector<double> angles(robot()->jointVariableCount(),0);
     std::vector<double> state(7, 0); // { x, y, z, r, p, y, heur }
 
     for (size_t i = 0; i < m_expanded_states.size(); ++i) {
@@ -935,7 +935,7 @@ bool ManipLattice::extractPath(
             }
 
             ManipLatticeState* best_goal_state = nullptr;
-            std::vector<int> succ_coord(params()->num_joints);
+            std::vector<int> succ_coord(robot()->jointVariableCount());
             int best_cost = std::numeric_limits<int>::max();
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
                 const Action& action = actions[aidx];
@@ -1180,7 +1180,7 @@ bool ManipLattice::setGoalPosition(
     // set goal hash entry
     m_grid->worldToGrid(tgt_off_pose.data(), m_goal.xyz);
 
-    for (int i = 0; i < params()->num_joints; i++) {
+    for (int i = 0; i < robot()->jointVariableCount(); i++) {
         m_goal_entry->coord[i] = 0;
     }
 
@@ -1273,8 +1273,8 @@ void ManipLattice::anglesToCoord(
     const std::vector<double>& angle,
     std::vector<int>& coord) const
 {
-    assert((int)angle.size() == params()->num_joints &&
-            (int)coord.size() == params()->num_joints);
+    assert((int)angle.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
 
     for (size_t i = 0; i < angle.size(); ++i) {
         if (m_continuous[i]) {
