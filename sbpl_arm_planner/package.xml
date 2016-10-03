@@ -9,7 +9,6 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
-    <depend>angles</depend>
     <depend>boost</depend>
     <depend>cmake_modules</depend>
     <depend>eigen</depend>
