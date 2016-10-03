@@ -316,15 +316,15 @@ bool PlannerInterface::setGoalConfiguration(
 {
     ROS_INFO("set goal configuration");
 
-    std::vector<double> sbpl_angle_goal(7, 0);
-    std::vector<double> sbpl_angle_tolerance(7, angles::to_radians(3.0));
+    std::vector<double> sbpl_angle_goal(m_robot->jointVariableCount(), 0);
+    std::vector<double> sbpl_angle_tolerance(m_robot->jointVariableCount(), angles::to_radians(3.0));
 
-    if (goal_constraints.joint_constraints.size() < 7) {
-        ROS_WARN("All 7 arm joint constraints must be specified for goal!");
+    if (goal_constraints.joint_constraints.size() < m_robot->jointVariableCount()) {
+        ROS_WARN("All %zu arm joint constraints must be specified for goal!", m_robot->jointVariableCount());
         return false;
     }
-    if (goal_constraints.joint_constraints.size() > 7) {
-        ROS_WARN("%d joint constraints specified! Using the first 7!", (int)goal_constraints.joint_constraints.size());
+    if (goal_constraints.joint_constraints.size() > m_robot->jointVariableCount()) {
+        ROS_WARN("%d joint constraints specified! Using the first %zu!", (int)goal_constraints.joint_constraints.size(), m_robot->jointVariableCount());
         return false;
     }
 
