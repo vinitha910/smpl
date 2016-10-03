@@ -450,20 +450,16 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    sbpl::manip::ActionSet as;
-    if (!sbpl::manip::ActionSet::Load(action_set_filename, as)) {
-        ROS_ERROR("Failed to load Action Set");
-        return 1;
-    }
-
     ////////////////////////
     // Planning Interface //
     ////////////////////////
 
     // planner interface
-    sbpl::manip::ArmPlannerInterface planner(rm.get(), cc.get(), &as, &grid);
+    sbpl::manip::MotionPlannerInterface planner(rm.get(), cc.get(), &grid);
 
-    if (!planner.init()) {
+    sbpl::manip::PlanningParams params;
+    params.action_file = action_set_filename;
+    if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Arm Planner Interface");
         return 1;
     }

@@ -63,16 +63,16 @@ namespace manip {
 
 class ManipLattice;
 
-class ArmPlannerInterface
+class MotionPlannerInterface
 {
 public:
 
-    ArmPlannerInterface(
+    MotionPlannerInterface(
         RobotModel* robot,
         CollisionChecker* checker,
         OccupancyGrid* grid);
 
-    ~ArmPlannerInterface();
+    ~MotionPlannerInterface();
 
     bool init(const PlanningParams& params);
 
