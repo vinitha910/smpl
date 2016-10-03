@@ -41,6 +41,7 @@
 // project includes
 #include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_arm_planner/angles.h>
+#include <sbpl_arm_planner/manip_heuristic.h>
 
 #define VERIFY_KINEMATICS 0
 
@@ -57,10 +58,8 @@ namespace manip {
 // ...
 // dvi1         dvi2        ... dvim
 
-bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
+bool ManipLatticeActionSpace::load(const std::string& action_file)
 {
-    ActionSet as;
-
     FILE* fCfg = NULL;
     if ((fCfg = fopen(action_file.c_str(), "r")) == NULL) {
         ROS_ERROR("Failed to open action set file. (file: '%s')", action_file.c_str());
@@ -133,67 +132,47 @@ bool ActionSet::Load(const std::string& action_file, ActionSet& action_set)
             }
         }
         if (i < (nrows - short_mprims)) {
-            as.addMotionPrim(mprim, false);
+            addMotionPrim(mprim, false);
         }
         else {
-            as.addMotionPrim(mprim, true);
+            addMotionPrim(mprim, true);
             have_short_dist_mprims = true;
         }
     }
 
     if (have_short_dist_mprims) {
-        as.useAmp(MotionPrimitive::SHORT_DISTANCE, true);
+        useAmp(MotionPrimitive::SHORT_DISTANCE, true);
     }
 
-    action_set = as;
     return true;
 }
 
-const double ActionSet::DefaultAmpThreshold = 0.2;
+const double ManipLatticeActionSpace::DefaultAmpThreshold = 0.2;
 
-ActionSet::ActionSet() :
-    ManipLatticeStartObserver(),
-    ManipLatticeGoalObserver(),
+ManipLatticeActionSpace::ManipLatticeActionSpace(RobotPlanningSpace* pspace) :
+    ActionSpace(pspace),
     mp_(),
     m_mprim_enabled(),
     m_mprim_thresh(),
-    use_multiple_ik_solutions_(false),
-    env_(nullptr)
+    use_multiple_ik_solutions_(false)
 {
     clear();
-}
 
-bool ActionSet::init(ManipLattice* env, bool use_multiple_ik_solutions)
-{
-    assert(env);
+    RobotModel* robot = planningSpace()->robot();
 
-    RobotModel* rm = env->getRobotModel();
-    assert(rm);
-
-    m_fk_iface = rm->getExtension<ForwardKinematicsInterface>();
-    m_ik_iface = rm->getExtension<InverseKinematicsInterface>();
+    m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
+    m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
 
     if (!m_fk_iface || !m_ik_iface) {
         ROS_WARN("Action Set requires Forward and Inverse Kinematics Interfaces");
-        return false;
     }
-
-    env_ = env;
-    env_->insertStartObserver(this);
-    env_->insertGoalObserver(this);
-    use_multiple_ik_solutions_ = use_multiple_ik_solutions;
-    return true;
 }
 
-ActionSet::~ActionSet()
+ManipLatticeActionSpace::~ManipLatticeActionSpace()
 {
-    if (env_) {
-        env_->removeStartObserver(this);
-        env_->removeGoalObserver(this);
-    }
 }
 
-void ActionSet::addMotionPrim(
+void ManipLatticeActionSpace::addMotionPrim(
     const std::vector<double>& mprim,
     bool short_dist_mprim,
     bool add_converse)
@@ -224,7 +203,7 @@ void ActionSet::addMotionPrim(
     }
 }
 
-void ActionSet::clear()
+void ManipLatticeActionSpace::clear()
 {
     mp_.clear();
 
@@ -250,7 +229,7 @@ void ActionSet::clear()
     }
 }
 
-int ActionSet::longDistCount() const
+int ManipLatticeActionSpace::longDistCount() const
 {
     return std::accumulate(
             begin(), end(), 0,
@@ -261,7 +240,7 @@ int ActionSet::longDistCount() const
             });
 }
 
-int ActionSet::shortDistCount() const
+int ManipLatticeActionSpace::shortDistCount() const
 {
     return std::accumulate(
             begin(), end(), 0,
@@ -272,7 +251,7 @@ int ActionSet::shortDistCount() const
             });
 }
 
-bool ActionSet::useAmp(MotionPrimitive::Type type) const
+bool ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
         return true;
@@ -285,12 +264,12 @@ bool ActionSet::useAmp(MotionPrimitive::Type type) const
     }
 }
 
-bool ActionSet::useMultipleIkSolutions() const
+bool ManipLatticeActionSpace::useMultipleIkSolutions() const
 {
     return use_multiple_ik_solutions_;
 }
 
-double ActionSet::ampThresh(MotionPrimitive::Type type) const
+double ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
         return std::numeric_limits<double>::infinity();
@@ -303,43 +282,43 @@ double ActionSet::ampThresh(MotionPrimitive::Type type) const
     }
 }
 
-void ActionSet::useAmp(MotionPrimitive::Type type, bool enable)
+void ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type, bool enable)
 {
     if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
         m_mprim_enabled[type] = enable;
     }
 }
 
-void ActionSet::useMultipleIkSolutions(bool enable)
+void ManipLatticeActionSpace::useMultipleIkSolutions(bool enable)
 {
     use_multiple_ik_solutions_ = enable;
 }
 
-void ActionSet::ampThresh(MotionPrimitive::Type type, double thresh)
+void ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type, double thresh)
 {
     if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
         m_mprim_thresh[type] = thresh;
     }
 }
 
-void ActionSet::print() const
+void ManipLatticeActionSpace::print() const
 {
     for (size_t i = 0; i < mp_.size(); ++i) {
         mp_[i].print();
     }
 }
 
-void ActionSet::updateStart(const RobotState& start)
+void ManipLatticeActionSpace::updateStart(const RobotState& start)
 {
-    ManipLatticeStartObserver::updateStart(start);
+    RobotStateSpaceObserver::updateStart(start);
 }
 
-void ActionSet::updateGoal(const GoalConstraint& goal)
+void ManipLatticeActionSpace::updateGoal(const GoalConstraint& goal)
 {
-    ManipLatticeGoalObserver::updateGoal(goal);
+    RobotStateSpaceObserver::updateGoal(goal);
 }
 
-bool ActionSet::getActionSet(
+bool ManipLatticeActionSpace::apply(
     const RobotState& parent,
     std::vector<Action>& actions)
 {
@@ -350,8 +329,9 @@ bool ActionSet::getActionSet(
     }
 
     // get distance to the goal pose
-    const double goal_dist = env_->getGoalDistance(pose);
-    const double start_dist = env_->getStartDistance(pose);
+    RobotHeuristic* h = planningSpace()->heuristic(0);
+    const double goal_dist = h->getMetricGoalDistance(pose[0], pose[1], pose[2]);
+    const double start_dist = h->getMetricStartDistance(pose[0], pose[1], pose[2]);
 
     std::vector<Action> act;
     for (size_t i = 0; i < mp_.size(); ++i) {
@@ -368,7 +348,7 @@ bool ActionSet::getActionSet(
     return true;
 }
 
-bool ActionSet::getAction(
+bool ManipLatticeActionSpace::getAction(
     const RobotState& parent,
     double goal_dist,
     double start_dist,
@@ -378,6 +358,9 @@ bool ActionSet::getAction(
     if (!mprimActive(start_dist, goal_dist, mp.type)) {
         return false;
     }
+
+    GoalType goal_type = planningSpace()->goal().type;
+    const std::vector<double>& goal_pose = planningSpace()->goal().pose;
 
     switch (mp.type) {
     case MotionPrimitive::LONG_DISTANCE:
@@ -394,7 +377,7 @@ bool ActionSet::getAction(
     {
         return computeIkAction(
                 parent,
-                env_->getGoal(),
+                goal_pose,
                 goal_dist,
                 ik_option::RESTRICT_XYZ,
                 actions);
@@ -403,17 +386,17 @@ bool ActionSet::getAction(
     {
         return computeIkAction(
                 parent,
-                env_->getGoal(),
+                goal_pose,
                 goal_dist,
                 ik_option::RESTRICT_RPY,
                 actions);
     }
     case MotionPrimitive::SNAP_TO_XYZ_RPY:
     {
-        if (env_->getGoalConstraints().type != GoalType::JOINT_STATE_GOAL) {
+        if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
             return computeIkAction(
                     parent,
-                    env_->getGoal(),
+                    goal_pose,
                     goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);
@@ -423,7 +406,7 @@ bool ActionSet::getAction(
             // the IK solution
             actions.resize(1);
             actions[0].resize(1);
-            actions[0][0] = env_->getGoalConfiguration();
+            actions[0][0] = planningSpace()->goal().angles;
         }
 
         return true;
@@ -434,7 +417,7 @@ bool ActionSet::getAction(
     }
 }
 
-bool ActionSet::applyMotionPrimitive(
+bool ManipLatticeActionSpace::applyMotionPrimitive(
     const RobotState& state,
     const MotionPrimitive& mp,
     Action& action)
@@ -452,7 +435,7 @@ bool ActionSet::applyMotionPrimitive(
     return true;
 }
 
-bool ActionSet::computeIkAction(
+bool ManipLatticeActionSpace::computeIkAction(
     const RobotState& state,
     const std::vector<double>& goal,
     double dist_to_goal,
@@ -488,7 +471,7 @@ bool ActionSet::computeIkAction(
     return true;
 }
 
-bool ActionSet::mprimActive(
+bool ManipLatticeActionSpace::mprimActive(
     double start_dist,
     double goal_dist,
     MotionPrimitive::Type type) const

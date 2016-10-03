@@ -40,20 +40,18 @@
 
 // project includes
 #include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl {
 namespace manip {
 
 class BFS_3D;
 
-class BfsHeuristic : public ManipHeuristic
+class BfsHeuristic : public RobotHeuristic
 {
 public:
 
-    BfsHeuristic(
-        ManipLattice* env,
-        const OccupancyGrid* grid,
-        const PlanningParams* params);
+    BfsHeuristic(ManipLattice* env, const OccupancyGrid* grid);
 
     virtual ~BfsHeuristic();
 
@@ -64,7 +62,7 @@ public:
 
     double getMetricStartDistance(double x, double y, double z);
 
-    /// \name Inherited from ManipHeuristic
+    /// \name Inherited from RobotHeuristic
     ///@{
     double getMetricGoalDistance(double x, double y, double z);
     ///@}

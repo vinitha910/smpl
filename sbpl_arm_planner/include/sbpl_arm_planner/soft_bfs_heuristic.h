@@ -38,7 +38,7 @@
 namespace sbpl {
 namespace manip {
 
-class SoftBfsHeuristic : public ManipHeuristic
+class SoftBfsHeuristic : public RobotHeuristic
 {
 public:
 

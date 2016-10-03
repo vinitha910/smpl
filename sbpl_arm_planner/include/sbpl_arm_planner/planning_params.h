@@ -63,7 +63,7 @@ public:
 
     // manipulation lattice parameters
     static const int DefaultCostMultiplier = 1000;
-    static const int DefaultCostPerCell = 1;
+    static const int DefaultCostPerCell = 100;
     static const int DefaultCostPerMeter = 50;
     static const int DefaultCostPerSecond = DefaultCostMultiplier;
     static constexpr double DefaultTimePerCell = 0.05;
@@ -114,6 +114,7 @@ public:
 
     /// \name Actions
     ///@{
+    std::string action_file;
     bool use_multiple_ik_solutions_;
     ///@}
 

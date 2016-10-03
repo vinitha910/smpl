@@ -216,7 +216,7 @@ bool WorkspaceLattice::initialized() const
     return m_goal_entry; // sufficient for the moment
 }
 
-bool WorkspaceLattice::setStartState(const RobotState& state)
+bool WorkspaceLattice::setStart(const RobotState& state)
 {
     if (!initialized()) {
         ROS_ERROR_NAMED(m_params->graph_log_, "cannot set start state on uninitialized lattice");

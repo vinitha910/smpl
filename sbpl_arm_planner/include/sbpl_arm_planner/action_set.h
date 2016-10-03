@@ -46,35 +46,32 @@
 #include <ros/ros.h>
 
 // project includes
+#include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/motion_primitive.h>
 #include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_arm_planner/manip_lattice_observers.h>
+#include <sbpl_arm_planner/action_space.h>
 
 namespace sbpl {
 namespace manip {
 
-class ManipLattice;
+class RobotPlanningSpace;
 
-class ActionSet;
-typedef std::shared_ptr<ActionSet> ActionSetPtr;
-typedef std::shared_ptr<ActionSet> ActionSetConstPtr;
+SBPL_CLASS_FORWARD(RobotPlanningSpace);
+SBPL_CLASS_FORWARD(ManipLatticeActionSpace);
 
-class ActionSet :
-    public ManipLatticeStartObserver,
-    public ManipLatticeGoalObserver
+class ManipLatticeActionSpace : public ActionSpace
 {
 public:
 
     typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
 
-    static bool Load(const std::string& action_file, ActionSet& action_set);
+    bool load(const std::string& action_file);
 
     static const double DefaultAmpThreshold;
 
-    ActionSet();
-    virtual ~ActionSet();
-
-    bool init(ManipLattice* env, bool use_multiple_ik_solutions = false);
+    ManipLatticeActionSpace(RobotPlanningSpace* pspace);
+    virtual ~ManipLatticeActionSpace();
 
     /// \brief Add a long or short distance motion primitive to the action set
     /// \param mprim The angle delta for each joint, in radians
@@ -110,7 +107,7 @@ public:
     /// successor state. The sequence of waypoints need not contain the the
     /// source state. The motion between waypoints will be checked via the set
     /// CollisionChecker's isStateToStateValid function during a search.
-    bool getActionSet(const RobotState& parent, std::vector<Action>& actions);
+    bool apply(const RobotState& parent, std::vector<Action>& actions);
 
     void print() const;
 
@@ -134,7 +131,7 @@ protected:
 
     bool use_multiple_ik_solutions_;
 
-    ManipLattice* env_;
+    RobotPlanningSpace* env_;
 
     bool applyMotionPrimitive(
         const RobotState& state,

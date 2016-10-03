@@ -139,7 +139,7 @@ public:
 
     /// \name Start and Goal States
     ///@{
-    bool setStartState(const RobotState& state);
+    bool setStart(const RobotState& state);
 
     bool setGoalPose(const PoseGoal& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);

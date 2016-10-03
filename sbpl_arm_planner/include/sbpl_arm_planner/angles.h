@@ -34,6 +34,8 @@
 
 #include <math.h>
 
+#include <Eigen/Dense>
+
 namespace sbpl {
 namespace angles {
 
@@ -92,6 +94,14 @@ inline
 double shortest_angle_dist(double af, double ai)
 {
     return fabs(shortest_angle_diff(af, ai));
+}
+
+template <typename T>
+void get_euler_zyx(const Eigen::Matrix<T, 3, 3>& rot, T& y, T& p, T& r)
+{
+    y = atan2(rot(1, 0), rot(0, 0));
+    p  = atan2(-rot(2, 0), sqrt(rot(2, 1) * rot(2, 1) + rot(2, 2) * rot(2, 2)));
+    r = atan2(rot(2, 1), rot(2, 2));
 }
 
 } // namespace angles

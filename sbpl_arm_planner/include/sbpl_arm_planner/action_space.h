@@ -29,32 +29,37 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/manip_heuristic.h>
+#ifndef sbpl_manip_action_space_h
+#define sbpl_manip_action_space_h
+
+#include <sbpl_arm_planner/forward.h>
+#include <sbpl_arm_planner/manip_lattice_observers.h>
 
 namespace sbpl {
 namespace manip {
 
-RobotHeuristic::RobotHeuristic(
-    RobotPlanningSpace* pspace,
-    const OccupancyGrid* grid)
-:
-    Heuristic(pspace),
-    RobotStateSpaceObserver(),
-    m_pspace(pspace),
-    m_grid(grid)
-{
-    m_pspace->insertObserver(this);
-}
+SBPL_CLASS_FORWARD(RobotPlanningSpace);
 
-RobotHeuristic::~RobotHeuristic()
+SBPL_CLASS_FORWARD(ActionSpace);
+class ActionSpace : public RobotStateSpaceObserver
 {
-    m_pspace->eraseObserver(this);
-}
+public:
 
-bool RobotHeuristic::setGoal(const GoalConstraint& goal)
-{
-    return true;
-}
+    ActionSpace(RobotPlanningSpace* pspace);
+
+    virtual ~ActionSpace();
+
+    virtual bool apply(const RobotState& parent, std::vector<Action>& actions) = 0;
+
+    RobotPlanningSpace* planningSpace() { return m_pspace; }
+    const RobotPlanningSpace* planningSpace() const { return m_pspace; }
+
+private:
+
+    RobotPlanningSpace* m_pspace;
+};
 
 } // namespace manip
 } // namespace sbpl
+
+#endif

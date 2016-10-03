@@ -29,32 +29,19 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/manip_heuristic.h>
+#ifndef sbpl_manip_forward_h
+#define sbpl_manip_forward_h
 
-namespace sbpl {
-namespace manip {
+#include <memory>
 
-RobotHeuristic::RobotHeuristic(
-    RobotPlanningSpace* pspace,
-    const OccupancyGrid* grid)
-:
-    Heuristic(pspace),
-    RobotStateSpaceObserver(),
-    m_pspace(pspace),
-    m_grid(grid)
-{
-    m_pspace->insertObserver(this);
-}
+#define SBPL_CLASS_FORWARD(classname) \
+class classname;\
+typedef ::std::shared_ptr<classname> classname##Ptr;\
+typedef ::std::shared_ptr<const classname> classname##ConstPtr;
 
-RobotHeuristic::~RobotHeuristic()
-{
-    m_pspace->eraseObserver(this);
-}
+#define SBPL_STRUCT_FORWARD(structname) \
+struct structname;\
+typedef ::std::shared_ptr<structname> structname##Ptr;\
+typedef ::std::shared_ptr<const structname> structname##ConstPtr;
 
-bool RobotHeuristic::setGoal(const GoalConstraint& goal)
-{
-    return true;
-}
-
-} // namespace manip
-} // namespace sbpl
+#endif

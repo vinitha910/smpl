@@ -49,32 +49,43 @@ double EuclideanDistance(
 }
 
 EuclidDistHeuristic::EuclidDistHeuristic(
-    ManipLattice* manip_env,
-    const OccupancyGrid* grid,
-    const PlanningParams* params)
+    ManipLattice* pspace,
+    const OccupancyGrid* grid)
 :
-    ManipHeuristic(manip_env, grid, params)
+    RobotHeuristic(pspace, grid)
 {
 }
 
 double EuclidDistHeuristic::getMetricGoalDistance(double x, double y, double z)
 {
-    const std::vector<double>& goal_pose = m_manip_env->getGoal();
+    const std::vector<double>& goal_pose = planningSpace()->goal().pose;
     return EuclideanDistance(x, y, z, goal_pose[0], goal_pose[1], goal_pose[2]);
+}
+
+double EuclidDistHeuristic::getMetricStartDistance(double x, double y, double z)
+{
+    // TODO: implement
+    return 0.0;
 }
 
 int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
 {
-    if (state_id == m_manip_env->getGoalStateID()) {
+    if (state_id == planningSpace()->getGoalStateID()) {
         return 0;
     }
 
-    const std::vector<double>& goal_pose = m_manip_env->getGoal();
-    const ManipLatticeState* state = m_manip_env->getHashEntry(state_id);
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+
+    const std::vector<double>& gp = planningSpace()->goal().pose;
+    const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
     double x, y, z;
-    m_grid->gridToWorld(state->xyz[0], state->xyz[1], state->xyz[2], x, y, z);
-    return 500 * m_params->cost_per_meter_ * EuclideanDistance(
-            x, y, z, goal_pose[0], goal_pose[1], goal_pose[2]);
+    grid()->gridToWorld(state->xyz[0], state->xyz[1], state->xyz[2], x, y, z);
+
+    int h;
+    h = EuclideanDistance(x, y, z, gp[0], gp[1], gp[2]);
+    h *= params()->cost_per_meter_;
+    h *= 500;
+    return h;
 }
 
 int EuclidDistHeuristic::GetStartHeuristic(int state_id)
@@ -84,19 +95,24 @@ int EuclidDistHeuristic::GetStartHeuristic(int state_id)
 
 int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    const ManipLatticeState* from_entry = m_manip_env->getHashEntry(from_id);
-    const ManipLatticeState* to_entry = m_manip_env->getHashEntry(to_id);
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    const ManipLatticeState* from_entry = manip_lattice->getHashEntry(from_id);
+    const ManipLatticeState* to_entry = manip_lattice->getHashEntry(to_id);
 
     double fx, fy, fz, tx, ty, tz;
-    m_grid->gridToWorld(
+    grid()->gridToWorld(
             from_entry->xyz[0], from_entry->xyz[1], from_entry->xyz[2],
             fx, fy, fz);
-    m_grid->gridToWorld(
+    grid()->gridToWorld(
             to_entry->xyz[0], to_entry->xyz[1], to_entry->xyz[2],
             tx, ty, tz);
-    return 500 * m_params->cost_per_meter_ *
-         EuclideanDistance(fx, fy, fz, tx, ty, tz) /
-         m_grid->getResolution();
+
+    int h;
+    h = EuclideanDistance(fx, fy, fz, tx, ty, tz);
+    h *= params()->cost_per_meter_;
+    h *= 500;
+    h /= grid()->getResolution();
+    return h;
 }
 
 } // namespace manip

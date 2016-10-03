@@ -32,25 +32,40 @@
 #ifndef sbpl_manip_robot_state_lattice
 #define sbpl_manip_robot_state_lattice
 
+// standard includes
+#include <vector>
+
 // system includes
 #include <sbpl/discrete_space_information/environment.h>
 
 // project includes
+#include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/collision_checker.h>
+#include <sbpl_arm_planner/forward.h>
+#include <sbpl_arm_planner/manip_lattice_observers.h>
+#include <sbpl_arm_planner/planning_params.h>
+#include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_arm_planner/types.h>
 
 namespace sbpl {
 namespace manip {
 
-class RobotStateLattice : public DiscreteSpaceInformation
+SBPL_CLASS_FORWARD(RobotHeuristic);
+SBPL_CLASS_FORWARD(RobotPlanningSpace);
+
+class RobotPlanningSpace : public DiscreteSpaceInformation
 {
 public:
 
-    RobotStateLattice();
-    virtual ~RobotStateLattice();
+    RobotPlanningSpace(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* params);
 
-//    virtual bool init(RobotModel* robot) = 0;
+    virtual ~RobotPlanningSpace();
 
-    virtual bool setStartState(const RobotState& state) = 0;
+    virtual bool setStart(const RobotState& state);
+    virtual bool setGoal(const GoalConstraint& goal);
 
     virtual int getStartStateID() const = 0;
     virtual int getGoalStateID() const = 0;
@@ -59,7 +74,49 @@ public:
         const std::vector<int>& ids,
         std::vector<RobotState>& path) = 0;
 
-    /// \name Restate Required Public Functions
+    virtual bool setActionSpace(ActionSpace* actions);
+
+    virtual bool insertHeuristic(RobotHeuristic* h);
+    virtual bool eraseHeuristic(RobotHeuristic* h);
+    virtual bool hasHeuristic(RobotHeuristic* h);
+
+    RobotModel* robot() { return m_robot; }
+    const RobotModel* robot() const { return m_robot; }
+
+    CollisionChecker* collisionChecker() { return m_checker; }
+    const CollisionChecker* collisionChecker() const { return m_checker; }
+
+    const PlanningParams* params() const { return m_params; }
+
+    ActionSpace* actionSpace() { return m_actions; }
+    const ActionSpace* actionSpace() const { return m_actions; }
+
+    const RobotState& startState() const { return m_start; }
+    const GoalConstraint& goal() const { return m_goal; }
+
+    size_t numHeuristics() const;
+    RobotHeuristic* heuristic(size_t i);
+    const RobotHeuristic* heuristic(size_t i) const;
+
+    void insertObserver(RobotStateSpaceObserver* obs);
+    void eraseObserver(RobotStateSpaceObserver* obs);
+    bool hasObserver(RobotStateSpaceObserver* obs) const;
+
+    void notifyStartChanged(const RobotState& state);
+    void notifyGoalChanged(const GoalConstraint& goal);
+
+    /// \name Reimplemented Public Functions from DiscreteSpaceInformation
+    ///@{
+    virtual void GetLazySuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs,
+        std::vector<bool>* true_costs) override;
+
+    virtual int GetTrueCost(int parentID, int childID) override;
+    ///@}
+
+    /// \name Restate Required Public Functions from DiscreteSpaceInformation
     ///@{
     virtual int GetGoalHeuristic(int state_id) override = 0;
     virtual int GetStartHeuristic(int state_id) override = 0;
@@ -81,15 +138,20 @@ public:
         FILE* f = nullptr) override = 0;
     ///@}
 
-    virtual void GetLazySuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs,
-        std::vector<bool>* true_costs) override;
-
-    virtual int GetTrueCost(int parentID, int childID) override;
-
 private:
+
+    RobotModel* m_robot;
+    CollisionChecker* m_checker;
+    const PlanningParams* m_params;
+
+    ActionSpace* m_actions;
+
+    RobotState m_start;
+    GoalConstraint m_goal;
+
+    std::vector<RobotHeuristic*> m_heuristics;
+
+    std::vector<RobotStateSpaceObserver*> m_obs;
 
     // Make all attempts to hide the set of useless functions from
     // DiscreteSpaceInformation
@@ -100,6 +162,30 @@ private:
     virtual void SetAllPreds(CMDPSTATE*) final { }
     virtual void PrintEnv_Config(FILE*) final { }
 };
+
+inline
+size_t RobotPlanningSpace::numHeuristics() const
+{
+    return m_heuristics.size();
+}
+
+inline
+RobotHeuristic* RobotPlanningSpace::heuristic(size_t i)
+{
+    if (i >= m_heuristics.size()) {
+        return nullptr;
+    }
+    return m_heuristics[i];
+}
+
+inline
+const RobotHeuristic* RobotPlanningSpace::heuristic(size_t i) const
+{
+    if (i >= m_heuristics.size()) {
+        return nullptr;
+    }
+    return m_heuristics[i];
+}
 
 } // namespace manip
 } // namespace sbpl

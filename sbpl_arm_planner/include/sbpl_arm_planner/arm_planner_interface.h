@@ -48,11 +48,15 @@
 
 // project includes
 #include <sbpl_arm_planner/action_set.h>
+#include <sbpl_arm_planner/action_space.h>
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/manip_heuristic.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
+
+SBPL_CLASS_FORWARD(Heuristic);
+SBPL_CLASS_FORWARD(SBPLPlanner);
 
 namespace sbpl {
 namespace manip {
@@ -64,14 +68,12 @@ class ArmPlannerInterface
 public:
 
     ArmPlannerInterface(
-        RobotModel* rmodel,
-        CollisionChecker* cc,
-        ActionSet* as,
+        RobotModel* robot,
+        CollisionChecker* checker,
         OccupancyGrid* grid);
 
     ~ArmPlannerInterface();
 
-    bool init();
     bool init(const PlanningParams& params);
 
     bool solve(
@@ -102,7 +104,6 @@ public:
     ///@{
 
     visualization_msgs::MarkerArray getGoalVisualization() const;
-    visualization_msgs::MarkerArray getExpansionsVisualization() const;
 
     /// \brief Retrieve visualization of the arm planner
     ///
@@ -110,7 +111,6 @@ public:
     /// argument:
     ///
     ///     "goal":
-    ///     "expansions":
     ///     <any argument accepted by ManipLattice::getVisualization>:
     ///         <the corresponding visualization provided by ManipLattice>
     ///
@@ -126,60 +126,39 @@ public:
 
     ///@}
 
-    /// \name Planner-specific functionality
-    ///@{
-
-    ///
-    bool addBfsHeuristic(
-        const std::string& name,
-        OccupancyGrid* grid,
-        double radius);
-
-    bool removeHeuristic(const std::string& name);
-
-    ///@}
-
 protected:
+
+    RobotModel* m_robot;
+    CollisionChecker* m_checker;
+    OccupancyGrid* m_grid;
+
+    PlanningParams m_params;
 
     // params
     bool m_initialized;
-    int solution_cost_;
-
-    PlanningParams prm_;
 
     // planner components
-    RobotModel* rm_;
-    CollisionChecker* cc_;
-    OccupancyGrid* grid_;
-    ActionSet* as_;
 
-    // planner & environment
-    MDPConfig mdp_cfg_;
-    std::unique_ptr<ManipLattice> sbpl_arm_env_;
-    std::unique_ptr<ManipHeuristic> m_heur;
-    std::unique_ptr<SBPLPlanner> planner_;
+    RobotPlanningSpacePtr m_lattice;
+    ActionSpacePtr m_action_space;
+    std::map<std::string, RobotHeuristicPtr> m_heuristics;
+    SBPLPlannerPtr m_planner;
 
     /// \name MHA*-Specific Heuristics
     ///@{
-    typedef std::shared_ptr<Heuristic> HeuristicPtr;
-    HeuristicPtr m_heuristic; // lazily-initialized upon using mha*
     std::vector<Heuristic*> m_heur_vec;
-    std::map<std::string, HeuristicPtr> m_heuristics;
     ///@}
+
+    int m_sol_cost;
 
     std::string m_planner_id;
 
-    moveit_msgs::MotionPlanRequest req_;
-    moveit_msgs::MotionPlanResponse res_;
-    moveit_msgs::PlanningScene pscene_;
-
-    ros::Publisher m_vpub;
+    moveit_msgs::MotionPlanRequest m_req;
+    moveit_msgs::MotionPlanResponse m_res;
 
     clock_t m_starttime;
 
     bool checkConstructionArgs() const;
-
-    bool initializeParamsFromParamServer();
 
     // Initialize the SBPL planner and the sbpl_arm_planner environment
     bool initializePlannerAndEnvironment();
@@ -220,11 +199,14 @@ protected:
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res) const;
 
+    bool parsePlannerID(
+        const std::string& planner_id,
+        std::string& search_name,
+        std::string& heuristic_name,
+        std::string& graph_name) const;
+
     void clearGraphStateToPlannerStateMap();
     bool reinitPlanner(const std::string& planner_id);
-    bool reinitAraPlanner();
-    bool reinitMhaPlanner();
-    bool reinitLaraPlanner();
 
     bool isPathValid(const std::vector<RobotState>& path) const;
     void postProcessPath(

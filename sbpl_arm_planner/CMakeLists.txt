@@ -53,6 +53,7 @@ add_library(
     sbpl_arm_planner
     src/bfs3d.cpp
     src/action_set.cpp
+    src/action_space.cpp
     src/arm_planner_interface.cpp
     src/bfs_heuristic.cpp
     src/euclid_dist_heuristic.cpp

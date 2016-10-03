@@ -37,6 +37,7 @@
 #include <time.h>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // system includes
@@ -59,7 +60,7 @@
 namespace sbpl {
 namespace manip {
 
-class ManipHeuristic;
+class RobotHeuristic;
 
 struct ManipLatticeState
 {
@@ -95,45 +96,24 @@ struct hash<sbpl::manip::ManipLatticeState>
 namespace sbpl {
 namespace manip {
 
-/// \class Discrete state lattice representation representing a robot as the
-///     set of all its joint variables
-class ManipLattice : public RobotStateLattice
+/// \class Discrete space constructed by expliciting discretizing each joint
+class ManipLattice : public RobotPlanningSpace
 {
 public:
 
     ManipLattice(
-        OccupancyGrid* grid,
-        RobotModel* rmodel,
-        CollisionChecker* cc,
-        ActionSet* as,
-        PlanningParams* pm);
+        RobotModel* robot,
+        CollisionChecker* checker,
+        PlanningParams* params,
+        OccupancyGrid* grid);
 
     ~ManipLattice();
-
-    bool initEnvironment(ManipHeuristic* heur);
-
-    RobotModel* getRobotModel() { return m_robot; }
-    CollisionChecker* getCollisionChecker() { return m_cc; }
-    ros::Publisher& visualizationPublisher() { return m_vpub; }
 
     const ManipLatticeState* getHashEntry(int state_id) const;
 
     bool computePlanningFrameFK(
         const std::vector<double>& state,
         std::vector<double>& pose) const;
-
-    /// \name Start and Goal States
-    ///@{
-    virtual bool setStartState(const RobotState& angles);
-
-    virtual bool setGoalPosition(
-        const std::vector<std::vector<double>>& goals,
-        const std::vector<std::vector<double>>& offsets,
-        const std::vector<std::vector<double>>& tolerances);
-
-    virtual bool setGoalConfiguration(
-        const std::vector<double>& angles,
-        const std::vector<double>& angle_tolerances);
 
     const std::vector<double>& getGoal() const;
 
@@ -151,46 +131,44 @@ public:
     double getGoalDistance(double x, double y, double z);
     double getGoalDistance(const std::vector<double>& pose);
 
-    int getStartStateID() const;
-    int getGoalStateID() const;
-
-    void insertStartObserver(ManipLatticeStartObserver* observer);
-    void removeStartObserver(ManipLatticeStartObserver* observer);
-    void insertGoalObserver(ManipLatticeGoalObserver* observer);
-    void removeGoalObserver(ManipLatticeGoalObserver* observer);
-    ///@}
-
     virtual void getExpandedStates(
         std::vector<std::vector<double>>& ara_states) const;
 
-    /// \name Path Extraction
+    /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
-    virtual bool extractPath(
-        const std::vector<int>& idpath,
-        std::vector<RobotState>& path);
+    void GetLazySuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs,
+        std::vector<bool>* true_costs) override;
+    int GetTrueCost(int parent_id, int child_id) override;
     ///@}
 
-    /// \name Reimplemented Public Functions
+    /// \name Required Public Functions from RobotPlanningSpace
     ///@{
-    virtual int GetFromToHeuristic(int FromStateID, int ToStateID) override;
-    virtual int GetGoalHeuristic(int stateID) override;
-    virtual int GetStartHeuristic(int stateID) override;
-    virtual void GetSuccs(
-        int SourceStateID,
-        std::vector<int>* SuccIDV,
-        std::vector<int>* CostV) override;
-    virtual void GetLazySuccs(
-        int SourceStateID,
-        std::vector<int>* SuccIDV,
-        std::vector<int>* CostV,
-        std::vector<bool>* isTrueCost) override;
-    virtual int GetTrueCost(int parentID, int childID) override;
-    virtual void PrintState(
-        int stateID, bool bVerbose, FILE* fOut = NULL) override;
-    virtual void GetPreds(
-        int TargetStateID,
-        std::vector<int>* PredIDV,
-        std::vector<int>* CostV) override;
+    bool setStart(const RobotState& state) override;
+    bool setGoal(const GoalConstraint& goal) override;
+    int getStartStateID() const override;
+    int getGoalStateID() const override;
+    bool extractPath(
+        const std::vector<int>& ids,
+        std::vector<RobotState>& path) override;
+    ///@}
+
+    /// \name Required Public Functions from DiscreteSpaceInformation
+    ///@{
+    int GetFromToHeuristic(int FromStateID, int ToStateID) override;
+    int GetGoalHeuristic(int stateID) override;
+    int GetStartHeuristic(int stateID) override;
+    void GetSuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs) override;
+    void PrintState(int state_id, bool verbose, FILE* fout = nullptr) override;
+    void GetPreds(
+        int state_id,
+        std::vector<int>* preds,
+        std::vector<int>* costs) override;
     ///@}
 
 private:
@@ -215,20 +193,9 @@ private:
         }
     };
 
-    std::vector<ManipLatticeStartObserver*> m_start_observers;
-    std::vector<ManipLatticeGoalObserver*> m_goal_observers;
-
-    // Context Interfaces
     OccupancyGrid* m_grid;
-    RobotModel* m_robot;
-    CollisionChecker* m_cc;
-    ActionSet* m_as;
 
     ForwardKinematicsInterface* m_fk_iface;
-
-    PlanningParams* m_params;
-
-    ManipHeuristic* m_heur;
 
     // cached from robot model
     std::vector<double> m_min_limits;
@@ -244,8 +211,7 @@ private:
     ManipLatticeState* m_start_entry;
 
     // maps from coords to stateID
-    int m_HashTableSize;
-    std::vector<ManipLatticeState*>* m_Coord2StateIDHashTable;
+    std::unordered_map<ManipLatticeState*, int, StateHash, StateEqual> m_state_to_id;
 
     // maps from stateID to coords
     std::vector<ManipLatticeState*> m_states;
@@ -253,19 +219,27 @@ private:
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
 
-    ros::NodeHandle nh_;
-    ros::Publisher m_vpub;
+    bool setGoalPosition(
+        const std::vector<std::vector<double>>& goals,
+        const std::vector<std::vector<double>>& offsets,
+        const std::vector<std::vector<double>>& tolerances);
 
-    bool m_initialized;
+    bool setGoalConfiguration(
+        const std::vector<double>& angles,
+        const std::vector<double>& angle_tolerances);
 
     virtual bool StateID2Angles(int stateID, RobotState& angles) const;
 
-    /** hash table */
-    unsigned int intHash(unsigned int key);
-    unsigned int getHashBin(const std::vector<int>& coord);
-    virtual ManipLatticeState* getHashEntry(const std::vector<int>& coord);
-    virtual ManipLatticeState* createHashEntry(
+    ManipLatticeState* getHashEntry(const std::vector<int>& coord);
+    ManipLatticeState* createHashEntry(
         const std::vector<int>& coord,
+        const RobotState& state,
+        double dist,
+        int endeff[3]);
+    ManipLatticeState* getOrCreateState(
+        const std::vector<int>& coord,
+        const RobotState& state,
+        double dist,
         int endeff[3]);
 
     /// \name coordinate frame/angle functions
@@ -297,25 +271,23 @@ private:
         const std::vector<double>& to_config,
         int dist);
 
-    // NOTE: const although CollisionChecker used underneath may not be
     bool checkAction(
         const RobotState& state,
         const Action& action,
-        double& dist) const;
+        double& dist);
     ///@}
 
     /// \name output
     ///@{
-    void printHashTableHist();
     void printJointArray(
         FILE* fOut,
         ManipLatticeState* HashEntry,
         bool bVerbose);
     ///@}
 
-    void visualizeState(
-        const std::vector<double>& jvals,
-        const std::string& ns) const;
+    visualization_msgs::MarkerArray getStateVisualization(
+        const std::vector<double>& vars,
+        const std::string& ns);
 };
 
 } // namespace manip

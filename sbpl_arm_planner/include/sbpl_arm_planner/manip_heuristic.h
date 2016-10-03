@@ -40,27 +40,26 @@
 #include <sbpl/heuristics/heuristic.h>
 
 // project includes
-#include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/forward.h>
+#include <sbpl_arm_planner/manip_lattice_observers.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
+#include <sbpl_arm_planner/robot_state_lattice.h>
 
 namespace sbpl {
 namespace manip {
 
-class ManipHeuristic : public Heuristic
+class RobotHeuristic : public Heuristic, public RobotStateSpaceObserver
 {
 public:
 
     static const int Infinity = std::numeric_limits<int16_t>::max();
 
-    ManipHeuristic(
-        ManipLattice* env,
-        const OccupancyGrid* grid,
-        const PlanningParams* params);
+    RobotHeuristic(
+        RobotPlanningSpace* pspace,
+        const OccupancyGrid* grid);
 
-    virtual ~ManipHeuristic() { }
-
-    virtual bool setGoal(const GoalConstraint& goal);
+    virtual ~RobotHeuristic();
 
     /// \brief Return the heuristic distance of the planning link to the start.
     ///
@@ -74,11 +73,26 @@ public:
     /// to activate context-aware actions.
     virtual double getMetricGoalDistance(double x, double y, double z) = 0;
 
-protected:
+    virtual bool setGoal(const GoalConstraint& goal);
 
-    ManipLattice* m_manip_env;
+    RobotPlanningSpace* planningSpace() { return m_pspace; }
+    const RobotPlanningSpace* planningSpace() const { return m_pspace; }
+
+    const PlanningParams* params() const { return m_pspace->params(); }
+
+    const OccupancyGrid* grid() const { return m_grid; }
+
+    /// \name Restate Required Public Functions from Heuristic
+    ///@{
+    virtual int GetGoalHeuristic(int state_id) = 0;
+    virtual int GetStartHeuristic(int state_id) = 0;
+    virtual int GetFromToHeuristic(int from_id, int to_id) = 0;
+    ///@}
+
+private:
+
+    RobotPlanningSpace* m_pspace;
     const OccupancyGrid* m_grid;
-    const PlanningParams* m_params;
 };
 
 } // namespace manip

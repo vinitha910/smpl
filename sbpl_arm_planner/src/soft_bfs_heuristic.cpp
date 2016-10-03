@@ -39,7 +39,7 @@ SoftBfsHeuristic::SoftBfsHeuristic(
     const OccupancyGridConstPtr& grid,
     const PlanningParams* params)
 :
-    ManipHeuristic(env, grid, params)
+    RobotHeuristic(env, grid, params)
 {
     syncGridAndBfs();
 }

@@ -41,15 +41,14 @@ namespace sbpl {
 namespace manip {
 
 MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
-    ManipLattice* env,
-    const OccupancyGrid* grid,
-    const PlanningParams* params)
+    ManipLattice* pspace,
+    const OccupancyGrid* grid)
 :
-    ManipHeuristic(env, grid, params),
+    RobotHeuristic(pspace, grid),
     m_bfs(),
     m_ee_bfs()
 {
-    m_fk_iface = env->getRobotModel()->getExtension<ForwardKinematicsInterface>();
+    m_fk_iface = pspace->robot()->getExtension<ForwardKinematicsInterface>();
     syncGridAndBfs();
 }
 
@@ -58,57 +57,56 @@ MultiFrameBfsHeuristic::~MultiFrameBfsHeuristic()
     // empty to allow forward declaration of BFS_3D
 }
 
-bool MultiFrameBfsHeuristic::setGoal(const GoalConstraint& goal)
+void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
     int ogx, ogy, ogz;
-    m_grid->worldToGrid(
+    grid()->worldToGrid(
             goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
             ogx, ogy, ogz);
 
     int plgx, plgy, plgz;
-    m_grid->worldToGrid(
+    grid()->worldToGrid(
             goal.pose[0], goal.pose[1], goal.pose[2],
             plgx, plgy, plgz);
 
-    ROS_DEBUG_NAMED(m_params->heuristic_log_, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
+    ROS_DEBUG_NAMED(params()->heuristic_log_, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
 
     if (!m_bfs->inBounds(ogx, ogy, ogz) ||
         !m_ee_bfs->inBounds(plgx, plgy, plgz))
     {
-        ROS_ERROR_NAMED(m_params->heuristic_log_, "Heuristic goal is out of BFS bounds");
-        return false;
+        ROS_ERROR_NAMED(params()->heuristic_log_, "Heuristic goal is out of BFS bounds");
+        return;
     }
 
     m_bfs->run(ogx, ogy, ogz);
     m_ee_bfs->run(plgx, plgy, plgz);
-    return true;
 }
 
 double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double z)
 {
     // TODO: shamefully copied from BfsHeuristic
-    int start_id = m_manip_env->getStartStateID();
-    const ManipLatticeState* start_state = m_manip_env->getHashEntry(start_id);
+    int start_id = planningSpace()->getStartStateID();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    const ManipLatticeState* start_state = manip_lattice->getHashEntry(start_id);
     if (start_state) {
         // compute the manhattan distance to the start cell
         std::vector<double> pose;
-        if (!m_manip_env->computePlanningFrameFK(start_state->state, pose)) {
-            ROS_ERROR_NAMED(m_params->heuristic_log_, "Failed to compute forward kinematics for the planning frame");
+        if (!manip_lattice->computePlanningFrameFK(start_state->state, pose)) {
+            ROS_ERROR_NAMED(params()->heuristic_log_, "Failed to compute forward kinematics for the planning frame");
             return 0.0;
         }
 
         int sx, sy, sz;
-        m_grid->worldToGrid(pose[0], pose[1], pose[2], sx, sy, sz);
+        grid()->worldToGrid(pose[0], pose[1], pose[2], sx, sy, sz);
 
         int gx, gy, gz;
-        m_grid->worldToGrid(x, y, z, gx, gy, gz);
+        grid()->worldToGrid(x, y, z, gx, gy, gz);
 
         const int dx = sx - gx;
         const int dy = sy - gy;
         const int dz = sz - gz;
-        return m_grid->getResolution() * (abs(dx) + abs(dy) + abs(dz));
-    }
-    else {
+        return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
+    } else {
         return 0.0;
     }
 }
@@ -117,12 +115,11 @@ double MultiFrameBfsHeuristic::getMetricGoalDistance(
     double x, double y, double z)
 {
     int gx, gy, gz;
-    m_grid->worldToGrid(x, y, z, gx, gy, gz);
+    grid()->worldToGrid(x, y, z, gx, gy, gz);
     if (!m_bfs->inBounds(gx, gy, gz)) {
-        return (double)BFS_3D::WALL * m_grid->getResolution();
-    }
-    else {
-        return (double)m_bfs->getDistance(gx, gy, gz) * m_grid->getResolution();
+        return (double)BFS_3D::WALL * grid()->getResolution();
+    } else {
+        return (double)m_bfs->getDistance(gx, gy, gz) * grid()->getResolution();
     }
 }
 
@@ -139,10 +136,9 @@ int MultiFrameBfsHeuristic::GetStartHeuristic(int state_id)
 
 int MultiFrameBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    if (to_id == m_manip_env->getGoalStateID()) {
+    if (to_id == planningSpace()->getGoalStateID()) {
         return GetGoalHeuristic(from_id);
-    }
-    else {
+    } else {
         ROS_WARN_ONCE("MultiFrameBfsHeuristic::GetFromToHeuristic unimplemented for arbitrary state pair");
         return 0;
     }
@@ -153,20 +149,20 @@ MultiFrameBfsHeuristic::getWallsVisualization() const
 {
     std::vector<geometry_msgs::Point> points;
     int dimX, dimY, dimZ;
-    m_grid->getGridSize(dimX, dimY, dimZ);
+    grid()->getGridSize(dimX, dimY, dimZ);
     for (int z = 0; z < dimZ; z++) {
         for (int y = 0; y < dimY; y++) {
             for (int x = 0; x < dimX; x++) {
                 if (m_bfs->isWall(x, y, z)) {
                     geometry_msgs::Point p;
-                    m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
+                    grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
                     points.push_back(p);
                 }
             }
         }
     }
 
-    ROS_DEBUG_NAMED(m_params->heuristic_log_, "BFS Visualization contains %zu points", points.size());
+    ROS_DEBUG_NAMED(params()->heuristic_log_, "BFS Visualization contains %zu points", points.size());
 
     std_msgs::ColorRGBA color;
     color.r = 100.0f / 255.0f;
@@ -176,9 +172,9 @@ MultiFrameBfsHeuristic::getWallsVisualization() const
 
     visualization_msgs::Marker cubes_marker = viz::getCubesMarker(
             points,
-            m_grid->getResolution(),
+            grid()->getResolution(),
             color,
-            m_grid->getReferenceFrame(),
+            grid()->getReferenceFrame(),
             "bfs_walls",
             0);
 
@@ -194,7 +190,7 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
     geometry_msgs::Pose pose;
     pose.orientation.w = 1.0;
     int dimX, dimY, dimZ;
-    m_grid->getGridSize(dimX, dimY, dimZ);
+    grid()->getGridSize(dimX, dimY, dimZ);
 
     // factor in the ee bfs values? This doesn't seem to make a whole lot of
     // sense since the color would be derived from colocated cell values
@@ -203,9 +199,9 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
     // hopefully this doesn't screw anything up too badly...this will flush the
     // bfs to a little past the start, but this would be done by the search
     // hereafter anyway
-    int start_heur = getGoalHeuristic(m_manip_env->getStartStateID(), factor_ee);
+    int start_heur = getGoalHeuristic(planningSpace()->getStartStateID(), factor_ee);
 
-    const int edge_cost = m_params->cost_per_cell_;
+    const int edge_cost = params()->cost_per_cell_;
 
     int max_cost = (int)(1.1 * start_heur);
 
@@ -242,12 +238,13 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
                 color.a = 1.0f;
 
                 auto clamp = [](double d, double lo, double hi) {
-                    if (d < lo)
+                    if (d < lo) {
                         return lo;
-                    else if (d > hi)
+                    } else if (d > hi) {
                         return hi;
-                    else
+                    } else {
                         return d;
+                    }
                 };
 
                 color.r = clamp(color.r, 0.0f, 1.0f);
@@ -255,7 +252,7 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
                 color.b = clamp(color.b, 0.0f, 1.0f);
 
                 geometry_msgs::Point p;
-                m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
+                grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
                 points.push_back(p);
 
                 colors.push_back(color);
@@ -265,15 +262,15 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
 
     visualization_msgs::Marker marker;
     marker.header.stamp = ros::Time::now();
-    marker.header.frame_id = m_grid->getReferenceFrame();
+    marker.header.frame_id = grid()->getReferenceFrame();
     marker.ns = "bfs_values";
     marker.id = 0;
     marker.type = visualization_msgs::Marker::CUBE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
     marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.5 * m_grid->getResolution();
-    marker.scale.y = 0.5 * m_grid->getResolution();
-    marker.scale.z = 0.5 * m_grid->getResolution();
+    marker.scale.x = 0.5 * grid()->getResolution();
+    marker.scale.y = 0.5 * grid()->getResolution();
+    marker.scale.z = 0.5 * grid()->getResolution();
 //    marker.color;
     marker.lifetime = ros::Duration(0.0);
     marker.frame_locked = false;
@@ -292,21 +289,21 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
         return 0;
     }
 
-    const ManipLatticeState* state = m_manip_env->getHashEntry(state_id);
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
     if (state) {
-        if (state->stateID == m_manip_env->getGoalStateID()) {
+        if (state->stateID == planningSpace()->getGoalStateID()) {
             return 0;
         }
 
         std::vector<double> pose;
-        RobotModel* robot_model = m_manip_env->getRobotModel();
         if (!m_fk_iface->computePlanningLinkFK(state->state, pose)) {
-            ROS_ERROR_NAMED(m_params->heuristic_log_, "Failed to compute FK for planning link (state = %d)", state->stateID);
+            ROS_ERROR_NAMED(params()->heuristic_log_, "Failed to compute FK for planning link (state = %d)", state->stateID);
             return Infinity;
         }
 
         int eex[3];
-        m_grid->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
+        grid()->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
         const int ee_heur = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
 
         int h = getBfsCostToGoal(
@@ -325,7 +322,7 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 void MultiFrameBfsHeuristic::syncGridAndBfs()
 {
     int xc, yc, zc;
-    m_grid->getGridSize(xc, yc, zc);
+    grid()->getGridSize(xc, yc, zc);
     m_bfs.reset(new BFS_3D(xc, yc, zc));
     m_ee_bfs.reset(new BFS_3D(xc, yc, zc));
     const int cell_count = xc * yc * zc;
@@ -333,8 +330,8 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
     for (int z = 0; z < zc; ++z) {
         for (int y = 0; y < yc; ++y) {
             for (int x = 0; x < xc; ++x) {
-                const double radius = m_params->planning_link_sphere_radius_;
-                if (m_grid->getDistance(x, y, z) <= radius) {
+                const double radius = params()->planning_link_sphere_radius_;
+                if (grid()->getDistance(x, y, z) <= radius) {
                     m_bfs->setWall(x, y, z);
                     m_ee_bfs->setWall(x, y, z);
                     ++wall_count;
@@ -343,7 +340,7 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
         }
     }
 
-    ROS_DEBUG_NAMED(m_params->heuristic_log_, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    ROS_DEBUG_NAMED(params()->heuristic_log_, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 int MultiFrameBfsHeuristic::getBfsCostToGoal(
@@ -356,7 +353,7 @@ int MultiFrameBfsHeuristic::getBfsCostToGoal(
         return Infinity;
     }
     else {
-        return m_params->cost_per_cell_ * bfs.getDistance(x, y, z);
+        return params()->cost_per_cell_ * bfs.getDistance(x, y, z);
     }
 }
 

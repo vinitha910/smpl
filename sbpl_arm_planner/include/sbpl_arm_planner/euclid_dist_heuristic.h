@@ -33,26 +33,29 @@
 #define sbpl_manip_euclid_dist_heuristic_h
 
 #include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl {
 namespace manip {
 
-class EuclidDistHeuristic : public ManipHeuristic
+class EuclidDistHeuristic : public RobotHeuristic
 {
 public:
 
-    EuclidDistHeuristic(
-        ManipLattice* manip_env,
-        const OccupancyGrid* grid,
-        const PlanningParams* params);
+    EuclidDistHeuristic(ManipLattice* pspace, const OccupancyGrid* grid);
 
-    virtual ~EuclidDistHeuristic() { }
+    /// \name Required Public Functions from RobotHeuristic
+    ///@{
+    double getMetricGoalDistance(double x, double y, double z) override;
+    double getMetricStartDistance(double x, double y, double z) override;
+    ///@}
 
-    double getMetricGoalDistance(double x, double y, double z);
-
-    int GetGoalHeuristic(int state_id);
-    int GetStartHeuristic(int state_id);
-    int GetFromToHeuristic(int from_id, int to_id);
+    /// \name Required Public Functions from Heuristic
+    ///@{
+    int GetGoalHeuristic(int state_id) override;
+    int GetStartHeuristic(int state_id) override;
+    int GetFromToHeuristic(int from_id, int to_id) override;
+    ///@}
 };
 
 } // namespace manip

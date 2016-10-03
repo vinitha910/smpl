@@ -40,37 +40,41 @@
 
 // project includes
 #include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl {
 namespace manip {
 
 class BFS_3D;
 
-class MultiFrameBfsHeuristic : public ManipHeuristic
+class MultiFrameBfsHeuristic : public RobotHeuristic
 {
 public:
 
-    MultiFrameBfsHeuristic(
-        ManipLattice* env,
-        const OccupancyGrid* grid,
-        const PlanningParams* params);
+    MultiFrameBfsHeuristic(ManipLattice* pspace, const OccupancyGrid* grid);
 
     virtual ~MultiFrameBfsHeuristic();
-
-    bool setGoal(const GoalConstraint& goal);
 
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
 
-    /// \sa ManipHeuristic::getMetricStartDistance
+    /// \name Required Public Functions From RobotHeuristic
+    ///@{
     double getMetricStartDistance(double x, double y, double z);
-
-    /// \brief Return the metric distance of the planning link.
     double getMetricGoalDistance(double x, double y, double z);
+    ///@}
 
+    /// \name Reimplemented Public Functions From RobotStateSpaceObserver
+    ///@{
+    void updateGoal(const GoalConstraint& goal);
+    ///@}
+
+    /// \name Required Public Functions From Heuristic
+    ///@{
     int GetGoalHeuristic(int state_id);
     int GetStartHeuristic(int state_id);
     int GetFromToHeuristic(int from_id, int to_id);
+    ///@}
 
 private:
 
