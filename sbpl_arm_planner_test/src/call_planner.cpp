@@ -40,7 +40,7 @@
 #include <moveit_msgs/GetMotionPlan.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <ros/ros.h>
-#include <sbpl_arm_planner/arm_planner_interface.h>
+#include <sbpl_arm_planner/planner_interface.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
@@ -455,7 +455,7 @@ int main(int argc, char* argv[])
     ////////////////////////
 
     // planner interface
-    sbpl::manip::MotionPlannerInterface planner(rm.get(), cc.get(), &grid);
+    sbpl::manip::PlannerInterface planner(rm.get(), cc.get(), &grid);
 
     sbpl::manip::PlanningParams params;
     params.action_file = action_set_filename;

@@ -50,11 +50,10 @@
 #include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/bfs3d/bfs3d.h>
 #include <sbpl_arm_planner/collision_checker.h>
-#include <sbpl_arm_planner/manip_lattice_observers.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
-#include <sbpl_arm_planner/robot_state_lattice.h>
+#include <sbpl_arm_planner/robot_planning_space.h>
 #include <sbpl_arm_planner/types.h>
 
 namespace sbpl {

@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_robot_state_lattice
-#define sbpl_manip_robot_state_lattice
+#ifndef sbpl_manip_robot_planning_space_h
+#define sbpl_manip_robot_planning_space_h
 
 // standard includes
 #include <vector>
@@ -42,7 +42,7 @@
 #include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/forward.h>
-#include <sbpl_arm_planner/manip_lattice_observers.h>
+#include <sbpl_arm_planner/robot_planning_space_observer.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_arm_planner/types.h>
@@ -98,9 +98,9 @@ public:
     RobotHeuristic* heuristic(size_t i);
     const RobotHeuristic* heuristic(size_t i) const;
 
-    void insertObserver(RobotStateSpaceObserver* obs);
-    void eraseObserver(RobotStateSpaceObserver* obs);
-    bool hasObserver(RobotStateSpaceObserver* obs) const;
+    void insertObserver(RobotPlanningSpaceObserver* obs);
+    void eraseObserver(RobotPlanningSpaceObserver* obs);
+    bool hasObserver(RobotPlanningSpaceObserver* obs) const;
 
     void notifyStartChanged(const RobotState& state);
     void notifyGoalChanged(const GoalConstraint& goal);
@@ -151,7 +151,7 @@ private:
 
     std::vector<RobotHeuristic*> m_heuristics;
 
-    std::vector<RobotStateSpaceObserver*> m_obs;
+    std::vector<RobotPlanningSpaceObserver*> m_obs;
 
     // Make all attempts to hide the set of useless functions from
     // DiscreteSpaceInformation

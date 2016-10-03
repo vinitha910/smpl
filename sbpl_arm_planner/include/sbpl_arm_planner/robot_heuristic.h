@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_manip_heuristic_h
-#define sbpl_manip_manip_heuristic_h
+#ifndef sbpl_manip_robot_heuristic_h
+#define sbpl_manip_robot_heuristic_h
 
 // standard includes
 #include <stdint.h>
@@ -41,15 +41,15 @@
 
 // project includes
 #include <sbpl_arm_planner/forward.h>
-#include <sbpl_arm_planner/manip_lattice_observers.h>
+#include <sbpl_arm_planner/robot_planning_space_observer.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
-#include <sbpl_arm_planner/robot_state_lattice.h>
+#include <sbpl_arm_planner/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {
 
-class RobotHeuristic : public Heuristic, public RobotStateSpaceObserver
+class RobotHeuristic : public Heuristic, public RobotPlanningSpaceObserver
 {
 public:
 

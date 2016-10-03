@@ -39,7 +39,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl {
@@ -64,7 +64,7 @@ public:
     double getMetricGoalDistance(double x, double y, double z);
     ///@}
 
-    /// \name Reimplemented Public Functions From RobotStateSpaceObserver
+    /// \name Reimplemented Public Functions From RobotPlanningSpaceObserver
     ///@{
     void updateGoal(const GoalConstraint& goal);
     ///@}

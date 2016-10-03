@@ -32,7 +32,7 @@
 #ifndef sbpl_manip_euclid_dist_heuristic_h
 #define sbpl_manip_euclid_dist_heuristic_h
 
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl {

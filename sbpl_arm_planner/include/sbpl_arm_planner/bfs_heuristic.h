@@ -39,7 +39,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
 
 namespace sbpl {

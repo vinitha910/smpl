@@ -33,7 +33,7 @@
 #define sbpl_manip_action_space_h
 
 #include <sbpl_arm_planner/forward.h>
-#include <sbpl_arm_planner/manip_lattice_observers.h>
+#include <sbpl_arm_planner/robot_planning_space_observer.h>
 
 namespace sbpl {
 namespace manip {
@@ -41,7 +41,7 @@ namespace manip {
 SBPL_CLASS_FORWARD(RobotPlanningSpace);
 
 SBPL_CLASS_FORWARD(ActionSpace);
-class ActionSpace : public RobotStateSpaceObserver
+class ActionSpace : public RobotPlanningSpaceObserver
 {
 public:
 

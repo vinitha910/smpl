@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 
 namespace sbpl {
 namespace manip {
@@ -39,7 +39,7 @@ RobotHeuristic::RobotHeuristic(
     const OccupancyGrid* grid)
 :
     Heuristic(pspace),
-    RobotStateSpaceObserver(),
+    RobotPlanningSpaceObserver(),
     m_pspace(pspace),
     m_grid(grid)
 {

@@ -41,7 +41,7 @@
 // project includes
 #include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_arm_planner/angles.h>
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 
 #define VERIFY_KINEMATICS 0
 
@@ -310,12 +310,12 @@ void ManipLatticeActionSpace::print() const
 
 void ManipLatticeActionSpace::updateStart(const RobotState& start)
 {
-    RobotStateSpaceObserver::updateStart(start);
+    RobotPlanningSpaceObserver::updateStart(start);
 }
 
 void ManipLatticeActionSpace::updateGoal(const GoalConstraint& goal)
 {
-    RobotStateSpaceObserver::updateGoal(goal);
+    RobotPlanningSpaceObserver::updateGoal(goal);
 }
 
 bool ManipLatticeActionSpace::apply(

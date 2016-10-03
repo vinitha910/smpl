@@ -32,13 +32,13 @@
 #include <sbpl_arm_planner/action_space.h>
 
 // project includes
-#include <sbpl_arm_planner/robot_state_lattice.h>
+#include <sbpl_arm_planner/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {
 
 ActionSpace::ActionSpace(RobotPlanningSpace* pspace) :
-    RobotStateSpaceObserver(),
+    RobotPlanningSpaceObserver(),
     m_pspace(pspace)
 {
     m_pspace->insertObserver(this);

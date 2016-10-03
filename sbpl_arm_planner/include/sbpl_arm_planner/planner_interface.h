@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_manip_arm_planner_interface_h
-#define sbpl_manip_arm_planner_interface_h
+#ifndef sbpl_manip_planner_interface_h
+#define sbpl_manip_planner_interface_h
 
 // standard includes
 #include <map>
@@ -50,7 +50,7 @@
 #include <sbpl_arm_planner/action_set.h>
 #include <sbpl_arm_planner/action_space.h>
 #include <sbpl_arm_planner/collision_checker.h>
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
@@ -63,16 +63,16 @@ namespace manip {
 
 class ManipLattice;
 
-class MotionPlannerInterface
+class PlannerInterface
 {
 public:
 
-    MotionPlannerInterface(
+    PlannerInterface(
         RobotModel* robot,
         CollisionChecker* checker,
         OccupancyGrid* grid);
 
-    ~MotionPlannerInterface();
+    ~PlannerInterface();
 
     bool init(const PlanningParams& params);
 

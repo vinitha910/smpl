@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/arm_planner_interface.h>
+#include <sbpl_arm_planner/planner_interface.h>
 
 // standard includes
 #include <assert.h>
@@ -60,7 +60,7 @@
 namespace sbpl {
 namespace manip {
 
-MotionPlannerInterface::MotionPlannerInterface(
+PlannerInterface::PlannerInterface(
     RobotModel* robot,
     CollisionChecker* checker,
     OccupancyGrid* grid)
@@ -83,11 +83,11 @@ MotionPlannerInterface::MotionPlannerInterface(
 {
 }
 
-MotionPlannerInterface::~MotionPlannerInterface()
+PlannerInterface::~PlannerInterface()
 {
 }
 
-bool MotionPlannerInterface::init(const PlanningParams& params)
+bool PlannerInterface::init(const PlanningParams& params)
 {
     ROS_INFO("initialize arm planner interface");
 
@@ -131,7 +131,7 @@ bool MotionPlannerInterface::init(const PlanningParams& params)
     return m_initialized;
 }
 
-bool MotionPlannerInterface::checkConstructionArgs() const
+bool PlannerInterface::checkConstructionArgs() const
 {
     if (!m_robot) {
         ROS_ERROR("Robot Model given to Arm Planner Interface must be non-null");
@@ -151,11 +151,11 @@ bool MotionPlannerInterface::checkConstructionArgs() const
     return true;
 }
 
-bool MotionPlannerInterface::initializePlannerAndEnvironment()
+bool PlannerInterface::initializePlannerAndEnvironment()
 {
 }
 
-bool MotionPlannerInterface::solve(
+bool PlannerInterface::solve(
     const moveit_msgs::PlanningSceneConstPtr& planning_scene,
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
@@ -225,7 +225,7 @@ bool MotionPlannerInterface::solve(
     return true;
 }
 
-bool MotionPlannerInterface::checkParams(
+bool PlannerInterface::checkParams(
     const PlanningParams& params) const
 {
     if (params.allowed_time_ < 0.0) {
@@ -287,7 +287,7 @@ bool MotionPlannerInterface::checkParams(
     return true;
 }
 
-bool MotionPlannerInterface::setStart(const moveit_msgs::RobotState& state)
+bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 {
     ROS_INFO("set start configuration");
 
@@ -331,7 +331,7 @@ bool MotionPlannerInterface::setStart(const moveit_msgs::RobotState& state)
     return true;
 }
 
-bool MotionPlannerInterface::setGoalConfiguration(
+bool PlannerInterface::setGoalConfiguration(
     const moveit_msgs::Constraints& goal_constraints)
 {
     ROS_INFO("Setting goal configuration");
@@ -385,7 +385,7 @@ bool MotionPlannerInterface::setGoalConfiguration(
     return true;
 }
 
-bool MotionPlannerInterface::setGoalPosition(
+bool PlannerInterface::setGoalPosition(
     const moveit_msgs::Constraints& goal_constraints)
 {
     ROS_INFO("Setting goal position");
@@ -454,7 +454,7 @@ bool MotionPlannerInterface::setGoalPosition(
     return true;
 }
 
-bool MotionPlannerInterface::plan(std::vector<RobotState>& path)
+bool PlannerInterface::plan(std::vector<RobotState>& path)
 {
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
@@ -498,7 +498,7 @@ bool MotionPlannerInterface::plan(std::vector<RobotState>& path)
     return b_ret;
 }
 
-bool MotionPlannerInterface::planToPosition(
+bool PlannerInterface::planToPosition(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
 {
@@ -546,7 +546,7 @@ bool MotionPlannerInterface::planToPosition(
     return true;
 }
 
-bool MotionPlannerInterface::planToConfiguration(
+bool PlannerInterface::planToConfiguration(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
 {
@@ -590,7 +590,7 @@ bool MotionPlannerInterface::planToConfiguration(
     return true;
 }
 
-bool MotionPlannerInterface::canServiceRequest(
+bool PlannerInterface::canServiceRequest(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res) const
 {
@@ -634,7 +634,7 @@ bool MotionPlannerInterface::canServiceRequest(
     return true;
 }
 
-std::map<std::string, double> MotionPlannerInterface::getPlannerStats()
+std::map<std::string, double> PlannerInterface::getPlannerStats()
 {
     std::map<std::string, double> stats;
     stats["initial solution planning time"] = m_planner->get_initial_eps_planning_time();
@@ -649,14 +649,14 @@ std::map<std::string, double> MotionPlannerInterface::getPlannerStats()
 }
 
 visualization_msgs::MarkerArray
-MotionPlannerInterface::getCollisionModelTrajectoryMarker()
+PlannerInterface::getCollisionModelTrajectoryMarker()
 {
     return getCollisionModelTrajectoryVisualization(
             m_res.trajectory_start, m_res.trajectory);
 }
 
 visualization_msgs::MarkerArray
-MotionPlannerInterface::getCollisionModelTrajectoryVisualization(
+PlannerInterface::getCollisionModelTrajectoryVisualization(
     const moveit_msgs::RobotState& ref_state,
     const moveit_msgs::RobotTrajectory& res_traj) const
 {
@@ -695,7 +695,7 @@ MotionPlannerInterface::getCollisionModelTrajectoryVisualization(
 }
 
 visualization_msgs::MarkerArray
-MotionPlannerInterface::getGoalVisualization() const
+PlannerInterface::getGoalVisualization() const
 {
     const moveit_msgs::Constraints& goal_constraints = m_req.goal_constraints.front();
     if (goal_constraints.position_constraints.empty()) {
@@ -744,7 +744,7 @@ MotionPlannerInterface::getGoalVisualization() const
     return ::viz::getPosesMarkerArray(poses, goal_constraints.position_constraints[0].header.frame_id, "goals", 0);
 }
 
-visualization_msgs::MarkerArray MotionPlannerInterface::getVisualization(
+visualization_msgs::MarkerArray PlannerInterface::getVisualization(
     const std::string& type) const
 {
     if (type == "goal") {
@@ -788,7 +788,7 @@ visualization_msgs::MarkerArray MotionPlannerInterface::getVisualization(
     return visualization_msgs::MarkerArray();
 }
 
-bool MotionPlannerInterface::extractGoalPoseFromGoalConstraints(
+bool PlannerInterface::extractGoalPoseFromGoalConstraints(
     const moveit_msgs::Constraints& constraints,
     Eigen::Affine3d& goal_pose,
     Eigen::Vector3d& offset) const
@@ -835,7 +835,7 @@ bool MotionPlannerInterface::extractGoalPoseFromGoalConstraints(
     return true;
 }
 
-bool MotionPlannerInterface::extractGoalToleranceFromGoalConstraints(
+bool PlannerInterface::extractGoalToleranceFromGoalConstraints(
     const moveit_msgs::Constraints& goal_constraints,
     double* tol)
 {
@@ -888,7 +888,7 @@ bool MotionPlannerInterface::extractGoalToleranceFromGoalConstraints(
     return true;
 }
 
-void MotionPlannerInterface::clearMotionPlanResponse(
+void PlannerInterface::clearMotionPlanResponse(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res) const
 {
@@ -911,7 +911,7 @@ void MotionPlannerInterface::clearMotionPlanResponse(
     res.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
 }
 
-bool MotionPlannerInterface::parsePlannerID(
+bool PlannerInterface::parsePlannerID(
     const std::string& planner_id,
     std::string& space_name,
     std::string& heuristic_name,
@@ -936,7 +936,7 @@ bool MotionPlannerInterface::parsePlannerID(
     search_name = "ARA*";
 }
 
-void MotionPlannerInterface::clearGraphStateToPlannerStateMap()
+void PlannerInterface::clearGraphStateToPlannerStateMap()
 {
     if (!m_lattice) {
         return;
@@ -950,7 +950,7 @@ void MotionPlannerInterface::clearGraphStateToPlannerStateMap()
     }
 }
 
-bool MotionPlannerInterface::reinitPlanner(const std::string& planner_id)
+bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 {
     std::string search_name;
     std::string heuristic_name;
@@ -1062,7 +1062,7 @@ bool MotionPlannerInterface::reinitPlanner(const std::string& planner_id)
     return true;
 }
 
-void MotionPlannerInterface::profilePath(
+void PlannerInterface::profilePath(
     trajectory_msgs::JointTrajectory& traj) const
 {
     if (traj.points.empty()) {
@@ -1122,7 +1122,7 @@ void MotionPlannerInterface::profilePath(
     }
 }
 
-bool MotionPlannerInterface::isPathValid(
+bool PlannerInterface::isPathValid(
     const std::vector<RobotState>& path) const
 {
     for (size_t i = 1; i < path.size(); ++i) {
@@ -1136,7 +1136,7 @@ bool MotionPlannerInterface::isPathValid(
     return true;
 }
 
-void MotionPlannerInterface::postProcessPath(
+void PlannerInterface::postProcessPath(
     const std::vector<RobotState>& path,
     trajectory_msgs::JointTrajectory& traj) const
 {
@@ -1180,7 +1180,7 @@ void MotionPlannerInterface::postProcessPath(
     profilePath(traj);
 }
 
-void MotionPlannerInterface::convertJointVariablePathToJointTrajectory(
+void PlannerInterface::convertJointVariablePathToJointTrajectory(
     const std::vector<RobotState>& path,
     trajectory_msgs::JointTrajectory& traj) const
 {
@@ -1195,7 +1195,7 @@ void MotionPlannerInterface::convertJointVariablePathToJointTrajectory(
     }
 }
 
-void MotionPlannerInterface::visualizePath(
+void PlannerInterface::visualizePath(
     const moveit_msgs::RobotState& traj_start,
     const moveit_msgs::RobotTrajectory& traj) const
 {

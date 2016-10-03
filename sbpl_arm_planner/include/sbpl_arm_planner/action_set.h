@@ -49,7 +49,7 @@
 #include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/motion_primitive.h>
 #include <sbpl_arm_planner/robot_model.h>
-#include <sbpl_arm_planner/manip_lattice_observers.h>
+#include <sbpl_arm_planner/robot_planning_space_observer.h>
 #include <sbpl_arm_planner/action_space.h>
 
 namespace sbpl {

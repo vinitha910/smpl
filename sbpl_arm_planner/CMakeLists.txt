@@ -54,18 +54,18 @@ add_library(
     src/bfs3d.cpp
     src/action_set.cpp
     src/action_space.cpp
-    src/arm_planner_interface.cpp
+    src/planner_interface.cpp
     src/bfs_heuristic.cpp
     src/euclid_dist_heuristic.cpp
     src/collision_checker.cpp
-    src/manip_heuristic.cpp
+    src/robot_heuristic.cpp
     src/manip_lattice.cpp
     src/multi_frame_bfs_heuristic.cpp
     src/occupancy_grid.cpp
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
-    src/robot_state_lattice.cpp
+    src/robot_planning_space.cpp
     src/workspace_lattice.cpp
     src/visualize.cpp
     src/visualizer_ros.cpp)

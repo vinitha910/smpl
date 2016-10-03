@@ -1,4 +1,4 @@
-#include <sbpl_arm_planner/robot_state_lattice.h>
+#include <sbpl_arm_planner/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {
@@ -68,7 +68,7 @@ bool RobotPlanningSpace::setGoal(const GoalConstraint& goal)
 }
 
 /// Add an observer to the list of observers if it is not already observing
-void RobotPlanningSpace::insertObserver(RobotStateSpaceObserver* obs)
+void RobotPlanningSpace::insertObserver(RobotPlanningSpaceObserver* obs)
 {
     if (std::find(m_obs.begin(), m_obs.begin(), obs) == m_obs.end()) {
         m_obs.push_back(obs);
@@ -76,28 +76,28 @@ void RobotPlanningSpace::insertObserver(RobotStateSpaceObserver* obs)
 }
 
 /// Remove an observer from the list of observers
-void RobotPlanningSpace::eraseObserver(RobotStateSpaceObserver* obs)
+void RobotPlanningSpace::eraseObserver(RobotPlanningSpaceObserver* obs)
 {
     auto it = std::remove(m_obs.begin(), m_obs.end(), obs);
     m_obs.erase(it, m_obs.end());
 }
 
 /// Return whether an observer is in the list of observers
-bool RobotPlanningSpace::hasObserver(RobotStateSpaceObserver* obs) const
+bool RobotPlanningSpace::hasObserver(RobotPlanningSpaceObserver* obs) const
 {
     return std::find(m_obs.begin(), m_obs.end(), obs) != m_obs.end();
 }
 
 void RobotPlanningSpace::notifyStartChanged(const RobotState& state)
 {
-    for (RobotStateSpaceObserver* obs : m_obs) {
+    for (RobotPlanningSpaceObserver* obs : m_obs) {
         obs->updateStart(state);
     }
 }
 
 void RobotPlanningSpace::notifyGoalChanged(const GoalConstraint& goal)
 {
-    for (RobotStateSpaceObserver* obs : m_obs) {
+    for (RobotPlanningSpaceObserver* obs : m_obs) {
         obs->updateGoal(goal);
     }
 }

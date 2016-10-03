@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_robot_state_space_observer_h
-#define sbpl_manip_robot_state_space_observer_h
+#ifndef sbpl_manip_robot_planning_space_observer_h
+#define sbpl_manip_robot_planning_space_observer_h
 
 // project includes
 #include <sbpl_arm_planner/types.h>
@@ -38,13 +38,11 @@
 namespace sbpl {
 namespace manip {
 
-class GoalConstraint;
-
-class RobotStateSpaceObserver
+class RobotPlanningSpaceObserver
 {
 public:
 
-    virtual ~RobotStateSpaceObserver() { }
+    virtual ~RobotPlanningSpaceObserver() { }
 
     virtual void updateStart(const RobotState& state) { }
     virtual void updateGoal(const GoalConstraint& goal) { }

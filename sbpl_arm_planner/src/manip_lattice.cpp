@@ -41,7 +41,7 @@
 #include <leatherman/print.h>
 
 #include <sbpl_arm_planner/angles.h>
-#include <sbpl_arm_planner/manip_heuristic.h>
+#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/visualize.h>
 #include "profiling.h"
 
