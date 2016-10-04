@@ -150,16 +150,16 @@ public:
         const std::vector<int>& ids,
         std::vector<RobotState>& path);
 
-    /// \name Reimplemented Public Functions From RobotPlanningSpace
+    /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
     virtual int GetGoalHeuristic(int state_id) override;
     ///@}
 
-    /// \name Required Public Functions From RobotPlanningSpace
+    /// \name Required Public Functions from RobotPlanningSpace
     ///@{
     ///@}
 
-    /// \name Required Public Functions From DiscreteSpaceInformation
+    /// \name Required Public Functions from DiscreteSpaceInformation
     ///@{
     virtual void GetSuccs(
         int state_id,

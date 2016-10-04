@@ -103,7 +103,7 @@ public:
 
     /// \brief Return the set of actions available from a state.
     ///
-    /// Each action consists of a sequence of waypoints From the source state
+    /// Each action consists of a sequence of waypoints from the source state
     /// describing the approximate motion the robot will take to reach a
     /// successor state. The sequence of waypoints need not contain the the
     /// source state. The motion between waypoints will be checked via the set

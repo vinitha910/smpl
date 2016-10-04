@@ -55,7 +55,7 @@ BfsHeuristic::~BfsHeuristic()
     // empty to allow forward declaration of BFS_3D
 }
 
-bool BfsHeuristic::setGoal(const GoalConstraint& goal)
+void BfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
     int gx, gy, gz;
     grid()->worldToGrid(
@@ -66,11 +66,9 @@ bool BfsHeuristic::setGoal(const GoalConstraint& goal)
 
     if (!m_bfs->inBounds(gx, gy, gz)) {
         ROS_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
-        return false;
     }
 
     m_bfs->run(gx, gy, gz);
-    return true;
 }
 
 double BfsHeuristic::getMetricStartDistance(double x, double y, double z)

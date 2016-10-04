@@ -60,18 +60,18 @@ public:
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
 
-    /// \name Required Public Functions From RobotHeuristic
+    /// \name Required Public Functions from RobotHeuristic
     ///@{
     double getMetricStartDistance(double x, double y, double z);
     double getMetricGoalDistance(double x, double y, double z);
     ///@}
 
-    /// \name Reimplemented Public Functions From RobotPlanningSpaceObserver
+    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
     ///@{
     void updateGoal(const GoalConstraint& goal) override;
     ///@}
 
-    /// \name Required Public Functions From Heuristic
+    /// \name Required Public Functions from Heuristic
     ///@{
     int GetGoalHeuristic(int state_id);
     int GetStartHeuristic(int state_id);

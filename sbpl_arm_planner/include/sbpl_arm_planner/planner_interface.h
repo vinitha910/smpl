@@ -191,9 +191,9 @@ protected:
 
     bool parsePlannerID(
         const std::string& planner_id,
-        std::string& search_name,
+        std::string& space_name,
         std::string& heuristic_name,
-        std::string& graph_name) const;
+        std::string& search_name) const;
 
     void clearGraphStateToPlannerStateMap();
     bool reinitPlanner(const std::string& planner_id);
