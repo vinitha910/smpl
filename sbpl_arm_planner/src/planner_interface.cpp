@@ -36,6 +36,7 @@
 #include <assert.h>
 
 // system includes
+#include <boost/regex.hpp>
 #include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
@@ -866,23 +867,38 @@ bool PlannerInterface::parsePlannerID(
     std::string& heuristic_name,
     std::string& search_name) const
 {
-//    boost::regex alg_regex("(\\w+)(?:.(\\w+)){0, 2}");
-//    boost::smatch sm;
-//    if (!boost::regex_match(planner_id, sm, alg_regex)) {
-//        return false;
-//    }
-//
-//    for (size_t i = 0; i < sm.size(); ++i) {
-//
-//    }
-//
-//    std::string space_id;
-//    std::string heuristic_id;
-//    std::string search_id;
+    boost::regex alg_regex("(\\w+)(?:\\.(\\w+))?(?:\\.(\\w+))?");
 
-    space_name = "MANIP";
-    heuristic_name = "MFBFS";
-    search_name = "ARA*";
+    boost::smatch sm;
+
+    ROS_INFO("Match planner id '%s' against regex '%s'", planner_id.c_str(), alg_regex.str().c_str());
+    if (!boost::regex_match(planner_id, sm, alg_regex)) {
+        return false;
+    }
+
+    const std::string default_search_name = "arastar";
+    const std::string default_heuristic_name = "bfs";
+    const std::string default_space_name = "manip";
+
+    if (sm.size() < 2 || sm[1].str().empty()) {
+        search_name = default_search_name;
+    } else {
+        search_name = sm[0];
+    }
+
+    if (sm.size() < 3 || sm[2].str().empty()) {
+        heuristic_name = default_heuristic_name;
+    } else {
+        heuristic_name = sm[2];
+    }
+
+    if (sm.size() < 4 || sm[3].str().empty()) {
+        space_name = default_space_name;
+    } else {
+        space_name = sm[3];
+    }
+
+    return true;
 }
 
 void PlannerInterface::clearGraphStateToPlannerStateMap()
@@ -906,14 +922,17 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     std::string search_name;
     std::string heuristic_name;
     std::string space_name;
-    parsePlannerID(planner_id, space_name, heuristic_name, search_name);
+    if (!parsePlannerID(planner_id, space_name, heuristic_name, search_name)) {
+        ROS_ERROR("Failed to parse planner setup");
+        return false;
+    }
 
     ROS_INFO_NAMED(PI_LOGGER, " -> Planning Space: %s", space_name.c_str());
     ROS_INFO_NAMED(PI_LOGGER, " -> Heuristic: %s", heuristic_name.c_str());
     ROS_INFO_NAMED(PI_LOGGER, " -> Search: %s", search_name.c_str());
 
     // initialize the planning space
-    if (space_name == "MANIP") {
+    if (space_name == "manip") {
         m_planning_space = std::make_shared<ManipLattice>(m_robot, m_checker, &m_params, m_grid);
 
         // instantiate action space and load from file
@@ -954,7 +973,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             ROS_ERROR("Failed to associate action space with planning space");
             return false;
         }
-    } else if (space_name == "WORKSPACE") {
+    } else if (space_name == "workspace") {
         m_planning_space = std::make_shared<WorkspaceLattice>(
                 m_robot, m_checker, &m_params, m_grid);
     } else {
@@ -964,7 +983,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 
     // initialize heuristics
     m_heuristics.clear();
-    if (heuristic_name == "MFBFS") {
+    if (heuristic_name == "mfbfs") {
         auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
         if (!ml) {
             ROS_ERROR("MFBFS requires a Manip Lattice");
@@ -972,7 +991,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         }
         auto h = std::make_shared<MultiFrameBfsHeuristic>(ml, m_grid);
         m_heuristics.insert(std::make_pair("MFBFS", h));
-    } else if (heuristic_name == "BFS") {
+    } else if (heuristic_name == "bfs") {
         auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
         if (!ml) {
             ROS_ERROR("BFS requires a Manip Lattice");
@@ -980,7 +999,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         }
         auto h = std::make_shared<BfsHeuristic>(ml, m_grid);
         m_heuristics.insert(std::make_pair("BFS", h));
-    } else if (heuristic_name == "EUCLID") {
+    } else if (heuristic_name == "euclid") {
         auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
         if (!ml) {
             ROS_ERROR("EUCLID requires a Manip Lattice");
@@ -1002,12 +1021,15 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         m_heur_vec.push_back(heuristic.get());
     }
 
+
     // initialize the search algorithm
-    if (search_name == "ARA*") {
+    if (search_name == "arastar") {
         m_planner.reset(new ARAPlanner(m_planning_space.get(), true));
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
-    } else if (search_name == "MHA*") {
+    } else if (search_name == "mhastar") {
+        ROS_INFO_NAMED(PI_LOGGER, "Using %zu heuristics", m_heur_vec.size());
+
         MHAPlanner* mha = new MHAPlanner(
                 m_planning_space.get(),
                 m_heur_vec[0],
@@ -1016,22 +1038,22 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 
         // TODO: figure out a clean way to pass down planner-specific parameters
         // via solve or an auxiliary member function
-        mha->set_initial_mha_eps(1.0);
+        mha->set_initial_mha_eps(2.0);
 
         m_planner.reset(mha);
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
-    } else if (search_name == "LARA*") {
+    } else if (search_name == "larastar") {
         m_planner.reset(new LazyARAPlanner(m_planning_space.get(), true));
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
-    } else if (search_name == "LMHA*") {
+    } else if (search_name == "lmhastar") {
         ROS_ERROR("LMHA* unimplemented");
         return false;
-    } else if (search_name == "AD*") {
+    } else if (search_name == "adstar") {
         ROS_ERROR("AD* unimplemented");
         return false;
-    } else if (search_name == "R*") {
+    } else if (search_name == "rstar") {
         ROS_ERROR("R* unimplemented");
         return false;
     }
