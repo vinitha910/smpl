@@ -167,9 +167,11 @@ protected:
     // Plan a path to a cartesian goal(s)
     bool planToPose(
         const moveit_msgs::MotionPlanRequest& req,
+        std::vector<RobotState>& path,
         moveit_msgs::MotionPlanResponse& res);
     bool planToConfiguration(
         const moveit_msgs::MotionPlanRequest& req,
+        std::vector<RobotState>& path,
         moveit_msgs::MotionPlanResponse& res);
 
     // Retrieve plan from sbpl

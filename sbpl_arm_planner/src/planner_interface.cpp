@@ -183,16 +183,17 @@ bool PlannerInterface::solve(
 
     auto then = std::chrono::high_resolution_clock::now();
 
+    std::vector<RobotState> path;
     if (req.goal_constraints.front().position_constraints.size() > 0) {
         ROS_INFO_NAMED(PI_LOGGER, "Planning to position!");
-        if (!planToPose(req, res)) {
+        if (!planToPose(req, path, res)) {
             auto now = std::chrono::high_resolution_clock::now();
             res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
         }
     } else if (req.goal_constraints.front().joint_constraints.size() > 0) {
         ROS_INFO_NAMED(PI_LOGGER, "Planning to joint configuration!");
-        if (!planToConfiguration(req, res)) {
+        if (!planToConfiguration(req, path, res)) {
             auto now = std::chrono::high_resolution_clock::now();
             res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
@@ -203,6 +204,9 @@ bool PlannerInterface::solve(
         res.planning_time = std::chrono::duration<double>(now - then).count();
         return false;
     }
+
+    postProcessPath(path, res.trajectory.joint_trajectory);
+    visualizePath(res.trajectory_start, res.trajectory);
 
     auto now = std::chrono::high_resolution_clock::now();
     res.planning_time = std::chrono::duration<double>(now - then).count();
@@ -436,10 +440,10 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     bool b_ret = false;
     std::vector<int> solution_state_ids;
 
-    //reinitialize the search space
+    // reinitialize the search space
     m_planner->force_planning_from_scratch();
 
-    //plan
+    // plan
     ReplanParams replan_params(m_params.allowed_time);
     replan_params.initial_eps = m_params.epsilon;
     replan_params.final_eps = 1.0;
@@ -449,7 +453,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     replan_params.repair_time = 1.0;
     b_ret = m_planner->replan(&solution_state_ids, replan_params, &m_sol_cost);
 
-    //check if an empty plan was received.
+    // check if an empty plan was received.
     if (b_ret && solution_state_ids.size() <= 0) {
         ROS_WARN_NAMED(PI_LOGGER, "Path returned by the planner is empty?");
         b_ret = false;
@@ -457,8 +461,12 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
 
     // if a path is returned, then pack it into msg form
     if (b_ret && (solution_state_ids.size() > 0)) {
-        ROS_INFO_NAMED(PI_LOGGER, "Path Length: %zu, Initial Epsilon: %0.3f, Final Epsilon: %0.3f, Solution Cost: %d",
-                solution_state_ids.size(), m_planner->get_initial_eps(), m_planner->get_final_epsilon(), m_sol_cost);
+        ROS_INFO_NAMED(PI_LOGGER, "Planning succeeded");
+        ROS_INFO_NAMED(PI_LOGGER, "  Num Expansions: %d", m_planner->get_n_expands());
+        ROS_INFO_NAMED(PI_LOGGER, "  Path Length (states): %zu", solution_state_ids.size());
+        ROS_INFO_NAMED(PI_LOGGER, "  Initial Epsilon: %0.3f", m_planner->get_initial_eps());
+        ROS_INFO_NAMED(PI_LOGGER, "  Final Epsilon: %0.3f", m_planner->get_final_epsilon());
+        ROS_INFO_NAMED(PI_LOGGER, "  Solution Cost: %d", m_sol_cost);
 
         path.clear();
         if (!m_planning_space->extractPath(solution_state_ids, path)) {
@@ -471,6 +479,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
 
 bool PlannerInterface::planToPose(
     const moveit_msgs::MotionPlanRequest& req,
+    std::vector<RobotState>& path,
     moveit_msgs::MotionPlanResponse& res)
 {
     const auto& goal_constraints_v = req.goal_constraints;
@@ -493,18 +502,11 @@ bool PlannerInterface::planToPose(
         return false;
     }
 
-    std::vector<RobotState> path;
     if (!plan(path)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
-
-    ROS_INFO_NAMED(PI_LOGGER, "Planning succeeded in %d expansions", m_planner->get_n_expands());
-
-    postProcessPath(path, res.trajectory.joint_trajectory);
-
-    visualizePath(res.trajectory_start, res.trajectory);
 
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
     return true;
@@ -512,6 +514,7 @@ bool PlannerInterface::planToPose(
 
 bool PlannerInterface::planToConfiguration(
     const moveit_msgs::MotionPlanRequest& req,
+    std::vector<RobotState>& path,
     moveit_msgs::MotionPlanResponse& res)
 {
     const auto& goal_constraints_v = req.goal_constraints;
@@ -532,16 +535,11 @@ bool PlannerInterface::planToConfiguration(
         return false;
     }
 
-    std::vector<RobotState> path;
     if (!plan(path)) {
         ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
-
-    postProcessPath(path, res.trajectory.joint_trajectory);
-
-    visualizePath(res.trajectory_start, res.trajectory);
 
     res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
     return true;
