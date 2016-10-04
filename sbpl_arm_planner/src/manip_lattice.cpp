@@ -142,7 +142,7 @@ void ManipLattice::GetSuccs(
 
     ROS_DEBUG_NAMED(params()->expands_log, "expanding state %d", state_id);
 
-    ActionSpace* action_space = actionSpace();
+    ActionSpacePtr action_space = actionSpace();
     if (!action_space) {
         return;
     }
@@ -165,7 +165,7 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - parent_entry->xyz[0]), abs(m_goal.xyz[1] - parent_entry->xyz[1]), abs(m_goal.xyz[2] - parent_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(params()->expands_log_, "  goal dist: %0.3f", m_grid->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
-    SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
+    SV_SHOW_INFO(getStateVisualization(parent_entry->state, "expansion"));
 
     int goal_succ_count = 0;
 
@@ -267,7 +267,7 @@ void ManipLattice::GetLazySuccs(
 
     ROS_DEBUG_NAMED(params()->expands_log, "expand state %d", SourceStateID);
 
-    ActionSpace* action_space = actionSpace();
+    ActionSpacePtr action_space = actionSpace();
     if (!action_space) {
         return;
     }
@@ -377,7 +377,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     const std::vector<double>& parent_angles = parent_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(parent_angles, "expansion"));
 
-    ActionSpace* action_space = actionSpace();
+    ActionSpacePtr action_space = actionSpace();
     if (!action_space) {
         return -1;
     }
@@ -782,7 +782,9 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
     case GoalType::XYZ_GOAL:
     case GoalType::XYZ_RPY_GOAL: {
         std::vector<std::vector<double>> goal_poses = { goal.pose };
-        std::vector<std::vector<double>> goal_offsets = { goal.tgt_off_pose };
+        goal_poses[0].push_back((double)goal.type);
+        std::vector<std::vector<double>> goal_offsets(1);
+        goal_offsets[0].assign(goal.xyz_offset, goal.xyz_offset + 3);
         std::vector<std::vector<double>> goal_tolerances =
         {
             {
@@ -907,7 +909,7 @@ bool ManipLattice::extractPath(
         opath.push_back(std::move(angles));
     }
 
-    ActionSpace* action_space = actionSpace();
+    ActionSpacePtr action_space = actionSpace();
     if (!action_space) {
         return false;
     }

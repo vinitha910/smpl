@@ -37,7 +37,7 @@
 namespace sbpl {
 namespace manip {
 
-ActionSpace::ActionSpace(RobotPlanningSpace* pspace) :
+ActionSpace::ActionSpace(const RobotPlanningSpacePtr& pspace) :
     RobotPlanningSpaceObserver(),
     m_pspace(pspace)
 {

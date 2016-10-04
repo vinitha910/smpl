@@ -66,6 +66,8 @@ namespace manip {
 
 class ManipLattice;
 
+SBPL_CLASS_FORWARD(PlannerInterface);
+
 class PlannerInterface
 {
 public:
@@ -129,7 +131,7 @@ protected:
 
     // planner components
 
-    RobotPlanningSpacePtr m_lattice;
+    RobotPlanningSpacePtr m_planning_space;
     ActionSpacePtr m_action_space;
     std::map<std::string, RobotHeuristicPtr> m_heuristics;
     SBPLPlannerPtr m_planner;

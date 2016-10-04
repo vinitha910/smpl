@@ -49,7 +49,7 @@ double EuclideanDistance(
 }
 
 EuclidDistHeuristic::EuclidDistHeuristic(
-    ManipLattice* pspace,
+    const ManipLatticePtr& pspace,
     const OccupancyGrid* grid)
 :
     RobotHeuristic(pspace, grid)
@@ -74,7 +74,7 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
 
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
 
     const std::vector<double>& gp = planningSpace()->goal().pose;
     const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
@@ -95,7 +95,7 @@ int EuclidDistHeuristic::GetStartHeuristic(int state_id)
 
 int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
     const ManipLatticeState* from_entry = manip_lattice->getHashEntry(from_id);
     const ManipLatticeState* to_entry = manip_lattice->getHashEntry(to_id);
 

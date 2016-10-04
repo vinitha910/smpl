@@ -45,18 +45,18 @@ class ActionSpace : public RobotPlanningSpaceObserver
 {
 public:
 
-    ActionSpace(RobotPlanningSpace* pspace);
+    ActionSpace(const RobotPlanningSpacePtr& pspace);
 
     virtual ~ActionSpace();
 
     virtual bool apply(const RobotState& parent, std::vector<Action>& actions) = 0;
 
-    RobotPlanningSpace* planningSpace() { return m_pspace; }
-    const RobotPlanningSpace* planningSpace() const { return m_pspace; }
+    RobotPlanningSpacePtr planningSpace() { return m_pspace; }
+    RobotPlanningSpaceConstPtr planningSpace() const { return m_pspace; }
 
 private:
 
-    RobotPlanningSpace* m_pspace;
+    RobotPlanningSpacePtr m_pspace;
 };
 
 } // namespace manip

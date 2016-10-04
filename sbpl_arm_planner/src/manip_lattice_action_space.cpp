@@ -58,11 +58,11 @@ namespace manip {
 // ...
 // dvi1         dvi2        ... dvim
 
-bool ManipLatticeActionSpace::load(const std::string& action_file)
+bool ManipLatticeActionSpace::load(const std::string& action_filename)
 {
     FILE* fCfg = NULL;
-    if ((fCfg = fopen(action_file.c_str(), "r")) == NULL) {
-        ROS_ERROR("Failed to open action set file. (file: '%s')", action_file.c_str());
+    if ((fCfg = fopen(action_filename.c_str(), "r")) == NULL) {
+        ROS_ERROR("Failed to open action set file. (file: '%s')", action_filename.c_str());
         return false;
     }
 
@@ -149,7 +149,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_file)
 
 const double ManipLatticeActionSpace::DefaultAmpThreshold = 0.2;
 
-ManipLatticeActionSpace::ManipLatticeActionSpace(RobotPlanningSpace* pspace) :
+ManipLatticeActionSpace::ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace) :
     ActionSpace(pspace),
     mp_(),
     m_mprim_enabled(),
@@ -166,6 +166,8 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(RobotPlanningSpace* pspace) :
     if (!m_fk_iface || !m_ik_iface) {
         ROS_WARN("Action Set requires Forward and Inverse Kinematics Interfaces");
     }
+
+    readParameters(*pspace->params());
 }
 
 ManipLatticeActionSpace::~ManipLatticeActionSpace()
@@ -329,7 +331,7 @@ bool ManipLatticeActionSpace::apply(
     }
 
     // get distance to the goal pose
-    RobotHeuristic* h = planningSpace()->heuristic(0);
+    RobotHeuristicPtr h = planningSpace()->heuristic(0);
     const double goal_dist = h->getMetricGoalDistance(pose[0], pose[1], pose[2]);
     const double start_dist = h->getMetricStartDistance(pose[0], pose[1], pose[2]);
 
@@ -415,6 +417,19 @@ bool ManipLatticeActionSpace::getAction(
         ROS_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
         return false;
     }
+}
+
+bool ManipLatticeActionSpace::readParameters(const PlanningParams& p)
+{
+    useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ, p.use_xyz_snap_mprim);
+    useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_RPY, p.use_rpy_snap_mprim);
+    useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY, p.use_xyzrpy_snap_mprim);
+    useAmp(sbpl::manip::MotionPrimitive::SHORT_DISTANCE, p.use_short_dist_mprims);
+    ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ, p.xyz_snap_thresh);
+    ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_RPY, p.rpy_snap_thresh);
+    ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY, p.xyzrpy_snap_thresh);
+    ampThresh(sbpl::manip::MotionPrimitive::SHORT_DISTANCE, p.short_dist_mprims_thresh);
+    return true;
 }
 
 bool ManipLatticeActionSpace::applyMotionPrimitive(

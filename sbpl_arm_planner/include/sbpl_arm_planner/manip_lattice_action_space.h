@@ -48,6 +48,7 @@
 // project includes
 #include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/motion_primitive.h>
+#include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
 #include <sbpl_arm_planner/robot_planning_space_observer.h>
 #include <sbpl_arm_planner/action_space.h>
@@ -66,11 +67,11 @@ public:
 
     typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
 
-    bool load(const std::string& action_file);
+    bool load(const std::string& action_filename);
 
     static const double DefaultAmpThreshold;
 
-    ManipLatticeActionSpace(RobotPlanningSpace* pspace);
+    ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace);
     virtual ~ManipLatticeActionSpace();
 
     /// \brief Add a long or short distance motion primitive to the action set
@@ -132,6 +133,8 @@ protected:
     bool use_multiple_ik_solutions_;
 
     RobotPlanningSpace* env_;
+
+    bool readParameters(const PlanningParams& params);
 
     bool applyMotionPrimitive(
         const RobotState& state,

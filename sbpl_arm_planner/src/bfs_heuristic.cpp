@@ -40,8 +40,11 @@
 namespace sbpl {
 namespace manip {
 
-BfsHeuristic::BfsHeuristic(ManipLattice* env, const OccupancyGrid* grid) :
-    RobotHeuristic(env, grid),
+BfsHeuristic::BfsHeuristic(
+    const ManipLatticePtr& ps,
+    const OccupancyGrid* grid)
+:
+    RobotHeuristic(ps, grid),
     m_bfs()
 {
     syncGridAndBfs();
@@ -73,7 +76,7 @@ bool BfsHeuristic::setGoal(const GoalConstraint& goal)
 double BfsHeuristic::getMetricStartDistance(double x, double y, double z)
 {
     int start_id = planningSpace()->getStartStateID();
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
     const ManipLatticeState* start_state = manip_lattice->getHashEntry(start_id);
     if (start_state) {
         // compute the manhattan distance to the start cell
@@ -113,7 +116,7 @@ double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 
 int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
     const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
     if (state) {
         return getBfsCostToGoal(

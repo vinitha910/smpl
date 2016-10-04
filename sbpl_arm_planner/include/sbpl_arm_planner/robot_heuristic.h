@@ -56,7 +56,7 @@ public:
     static const int Infinity = std::numeric_limits<int16_t>::max();
 
     RobotHeuristic(
-        RobotPlanningSpace* pspace,
+        const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
     virtual ~RobotHeuristic();
@@ -75,8 +75,8 @@ public:
 
     virtual bool setGoal(const GoalConstraint& goal);
 
-    RobotPlanningSpace* planningSpace() { return m_pspace; }
-    const RobotPlanningSpace* planningSpace() const { return m_pspace; }
+    RobotPlanningSpacePtr planningSpace() { return m_pspace; }
+    RobotPlanningSpaceConstPtr planningSpace() const { return m_pspace; }
 
     const PlanningParams* params() const { return m_pspace->params(); }
 
@@ -91,7 +91,7 @@ public:
 
 private:
 
-    RobotPlanningSpace* m_pspace;
+    RobotPlanningSpacePtr m_pspace;
     const OccupancyGrid* m_grid;
 };
 

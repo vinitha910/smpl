@@ -51,7 +51,9 @@ class MultiFrameBfsHeuristic : public RobotHeuristic
 {
 public:
 
-    MultiFrameBfsHeuristic(ManipLattice* pspace, const OccupancyGrid* grid);
+    MultiFrameBfsHeuristic(
+        const ManipLatticePtr& pspace,
+        const OccupancyGrid* grid);
 
     virtual ~MultiFrameBfsHeuristic();
 
@@ -66,7 +68,7 @@ public:
 
     /// \name Reimplemented Public Functions From RobotPlanningSpaceObserver
     ///@{
-    void updateGoal(const GoalConstraint& goal);
+    void updateGoal(const GoalConstraint& goal) override;
     ///@}
 
     /// \name Required Public Functions From Heuristic

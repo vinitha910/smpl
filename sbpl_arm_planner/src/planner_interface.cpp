@@ -57,6 +57,8 @@
 namespace sbpl {
 namespace manip {
 
+const char* PI_LOGGER = "simple";
+
 PlannerInterface::PlannerInterface(
     RobotModel* robot,
     CollisionChecker* checker,
@@ -67,7 +69,7 @@ PlannerInterface::PlannerInterface(
     m_grid(grid),
     m_params(),
     m_initialized(false),
-    m_lattice(),
+    m_planning_space(),
     m_action_space(),
     m_heuristics(),
     m_planner(),
@@ -85,27 +87,25 @@ PlannerInterface::~PlannerInterface()
 
 bool PlannerInterface::init(const PlanningParams& params)
 {
-    ROS_INFO("initialize arm planner interface");
+    ROS_INFO_NAMED(PI_LOGGER, "initialize arm planner interface");
 
-    ROS_INFO("  Planning Frame: %s", params.planning_frame.c_str());
-    ROS_INFO("  Coord Values: %s", to_string(params.coord_vals).c_str());
-    ROS_INFO("  Coord Deltas: %s", to_string(params.coord_delta).c_str());
+    ROS_INFO_NAMED(PI_LOGGER, "  Planning Frame: %s", params.planning_frame.c_str());
+    ROS_INFO_NAMED(PI_LOGGER, "  Coord Values: %s", to_string(params.coord_vals).c_str());
+    ROS_INFO_NAMED(PI_LOGGER, "  Coord Deltas: %s", to_string(params.coord_delta).c_str());
 
-    ROS_INFO("  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions ? "true" : "false");
+    ROS_INFO_NAMED(PI_LOGGER, "  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions ? "true" : "false");
 
-    ROS_INFO("  Use BFS Heuristic: %s", params.use_bfs_heuristic ? "true" : "false");
-    ROS_INFO("  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
+    ROS_INFO_NAMED(PI_LOGGER, "  Use BFS Heuristic: %s", params.use_bfs_heuristic ? "true" : "false");
+    ROS_INFO_NAMED(PI_LOGGER, "  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
 
-    ROS_INFO("  Planner Name: %s", params.planner_name.c_str());
-    ROS_INFO("  Epsilon: %0.3f", params.epsilon);
-    ROS_INFO("  Allowed Time: %0.3f", params.allowed_time);
-    ROS_INFO("  Search Mode: %s", params.search_mode ? "true" : "false");
+    ROS_INFO_NAMED(PI_LOGGER, "  Epsilon: %0.3f", params.epsilon);
+    ROS_INFO_NAMED(PI_LOGGER, "  Allowed Time: %0.3f", params.allowed_time);
+    ROS_INFO_NAMED(PI_LOGGER, "  Search Mode: %s", params.search_mode ? "true" : "false");
 
-    ROS_INFO("  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
-    ROS_INFO("  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
-    ROS_INFO("  Interpolate Path: %s", params.interpolate_path ? "true" : "false");
-    ROS_INFO("  Waypoint Time: %0.3f", params.waypoint_time);
-
+    ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
+    ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
+    ROS_INFO_NAMED(PI_LOGGER, "  Interpolate Path: %s", params.interpolate_path ? "true" : "false");
+    ROS_INFO_NAMED(PI_LOGGER, "  Waypoint Time: %0.3f", params.waypoint_time);
 
     if (!checkConstructionArgs()) {
         return false;
@@ -121,7 +121,7 @@ bool PlannerInterface::init(const PlanningParams& params)
 
     m_initialized = true;
 
-    ROS_INFO("initialized arm planner interface");
+    ROS_INFO_NAMED(PI_LOGGER, "initialized arm planner interface");
     return m_initialized;
 }
 
@@ -164,7 +164,7 @@ bool PlannerInterface::solve(
     m_req = req; // record the last attempted request
 
     if (req.goal_constraints.empty()) {
-        ROS_WARN("No goal constraints in request!");
+        ROS_WARN_NAMED(PI_LOGGER, "No goal constraints in request!");
         res.error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
         return true;
     }
@@ -178,19 +178,19 @@ bool PlannerInterface::solve(
     // plan
     res.trajectory_start = planning_scene.robot_state;
     m_params.allowed_time = req.allowed_planning_time;
-    ROS_INFO("Allowed Time (s): %0.3f", m_params.allowed_time);
+    ROS_INFO_NAMED(PI_LOGGER, "Allowed Time (s): %0.3f", m_params.allowed_time);
 
     auto then = std::chrono::high_resolution_clock::now();
 
     if (req.goal_constraints.front().position_constraints.size() > 0) {
-        ROS_INFO("Planning to position!");
+        ROS_INFO_NAMED(PI_LOGGER, "Planning to position!");
         if (!planToPose(req, res)) {
             auto now = std::chrono::high_resolution_clock::now();
             res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
         }
     } else if (req.goal_constraints.front().joint_constraints.size() > 0) {
-        ROS_INFO("Planning to joint configuration!");
+        ROS_INFO_NAMED(PI_LOGGER, "Planning to joint configuration!");
         if (!planToConfiguration(req, res)) {
             auto now = std::chrono::high_resolution_clock::now();
             res.planning_time = std::chrono::duration<double>(now - then).count();
@@ -222,11 +222,6 @@ bool PlannerInterface::checkParams(
 
     // TODO: check for frame in robot model?
     if (params.planning_frame.empty()) {
-        return false;
-    }
-
-    // TODO: check for search algorithm availability
-    if (params.planner_name.empty()) {
         return false;
     }
 
@@ -269,14 +264,14 @@ bool PlannerInterface::checkParams(
 
 bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 {
-    ROS_INFO("set start configuration");
+    ROS_INFO_NAMED(PI_LOGGER, "set start configuration");
 
     if (!state.multi_dof_joint_state.joint_names.empty()) {
         const auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
         for (const std::string& joint_name : m_robot->getPlanningJoints()) {
             auto it = std::find(mdof_joint_names.begin(), mdof_joint_names.end(), joint_name);
             if (it != mdof_joint_names.end()) {
-                ROS_WARN("planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
+                ROS_WARN_NAMED(PI_LOGGER, "planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
             }
         }
     }
@@ -290,14 +285,14 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
         return false;
     }
 
-    ROS_INFO("  joint variables: %s", to_string(initial_positions).c_str());
+    ROS_INFO_NAMED(PI_LOGGER, "  joint variables: %s", to_string(initial_positions).c_str());
 
-    if (m_lattice->setStart(initial_positions) == 0) {
+    if (m_planning_space->setStart(initial_positions) == 0) {
         ROS_ERROR("environment failed to set start state. not planning.");
         return false;
     }
 
-    const int start_id = m_lattice->getStartStateID();
+    const int start_id = m_planning_space->getStartStateID();
     if (start_id == -1) {
         ROS_ERROR("no start state has been set");
         return false;
@@ -314,17 +309,17 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 bool PlannerInterface::setGoalConfiguration(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    ROS_INFO("set goal configuration");
+    ROS_INFO_NAMED(PI_LOGGER, "set goal configuration");
 
     std::vector<double> sbpl_angle_goal(m_robot->jointVariableCount(), 0);
     std::vector<double> sbpl_angle_tolerance(m_robot->jointVariableCount(), angles::to_radians(3.0));
 
     if (goal_constraints.joint_constraints.size() < m_robot->jointVariableCount()) {
-        ROS_WARN("All %zu arm joint constraints must be specified for goal!", m_robot->jointVariableCount());
+        ROS_WARN_NAMED(PI_LOGGER, "All %zu arm joint constraints must be specified for goal!", m_robot->jointVariableCount());
         return false;
     }
     if (goal_constraints.joint_constraints.size() > m_robot->jointVariableCount()) {
-        ROS_WARN("%d joint constraints specified! Using the first %zu!", (int)goal_constraints.joint_constraints.size(), m_robot->jointVariableCount());
+        ROS_WARN_NAMED(PI_LOGGER, "%d joint constraints specified! Using the first %zu!", (int)goal_constraints.joint_constraints.size(), m_robot->jointVariableCount());
         return false;
     }
 
@@ -335,7 +330,7 @@ bool PlannerInterface::setGoalConfiguration(
         sbpl_angle_goal[i] = joint_constraint.position;
         sbpl_angle_tolerance[i] =
                 0.5 * (fabs(joint_constraint.tolerance_above) + fabs(joint_constraint.tolerance_below));
-        ROS_INFO("Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
+        ROS_INFO_NAMED(PI_LOGGER, "Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
     }
 
     GoalConstraint goal;
@@ -344,13 +339,13 @@ bool PlannerInterface::setGoalConfiguration(
     goal.angle_tolerances = sbpl_angle_tolerance;
 
     // set sbpl environment goal
-    if (!m_lattice->setGoal(goal)) {
+    if (!m_planning_space->setGoal(goal)) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
     }
 
     // set planner goal
-    const int goal_id = m_lattice->getGoalStateID();
+    const int goal_id = m_planning_space->getGoalStateID();
     if (goal_id == -1) {
         ROS_ERROR("No goal state has been set");
         return false;
@@ -367,18 +362,16 @@ bool PlannerInterface::setGoalConfiguration(
 bool PlannerInterface::setGoalPosition(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    ROS_INFO("Setting goal position");
+    ROS_INFO_NAMED(PI_LOGGER, "Setting goal position");
 
     Eigen::Affine3d goal_pose;
     Eigen::Vector3d offset;
     if (!extractGoalPoseFromGoalConstraints(
             goal_constraints, goal_pose, offset))
     {
-        ROS_WARN("Failed to extract goal pose from goal constraints");
+        ROS_WARN_NAMED(PI_LOGGER, "Failed to extract goal pose from goal constraints");
         return false;
     }
-
-    std::vector<double> sbpl_goal(7, 0.0);
 
     GoalConstraint goal;
     goal.type = GoalType::XYZ_RPY_GOAL;
@@ -387,16 +380,14 @@ bool PlannerInterface::setGoalPosition(
     goal.pose[1] = goal_pose.translation()[1];
     goal.pose[2] = goal_pose.translation()[2];
     angles::get_euler_zyx(
-            goal_pose.rotation(),
-            goal.pose[5],
-            goal.pose[4],
-            goal.pose[3]);
-    goal.tgt_off_pose = { offset.x(), offset.y(), offset.z() };
+            goal_pose.rotation(), goal.pose[5], goal.pose[4], goal.pose[3]);
+    goal.xyz_offset[0] = offset.x();
+    goal.xyz_offset[1] = offset.y();
+    goal.xyz_offset[2] = offset.z();
 
-    // allowable tolerance from goal
     std::vector<double> sbpl_tolerance(6, 0.0);
     if (!extractGoalToleranceFromGoalConstraints(goal_constraints, &sbpl_tolerance[0])) {
-        ROS_WARN("Failed to extract goal tolerance from goal constraints");
+        ROS_WARN_NAMED(PI_LOGGER, "Failed to extract goal tolerance from goal constraints");
         return false;
     }
 
@@ -407,19 +398,19 @@ bool PlannerInterface::setGoalPosition(
     goal.rpy_tolerance[1] = sbpl_tolerance[4];
     goal.rpy_tolerance[2] = sbpl_tolerance[5];
 
-    ROS_INFO("New Goal");
-    ROS_INFO("    frame: %s", m_params.planning_frame.c_str());
-    ROS_INFO("    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", sbpl_goal[0], sbpl_goal[1], sbpl_goal[2], sbpl_goal[3], sbpl_goal[4], sbpl_goal[5]);
-    ROS_INFO("    offset: (%0.3f, %0.3f, %0.3f)", goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2]);
-    ROS_INFO("    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
+    ROS_INFO_NAMED(PI_LOGGER, "New Goal");
+    ROS_INFO_NAMED(PI_LOGGER, "    frame: %s", m_params.planning_frame.c_str());
+    ROS_INFO_NAMED(PI_LOGGER, "    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", goal.pose[0], goal.pose[1], goal.pose[2], goal.pose[3], goal.pose[4], goal.pose[5]);
+    ROS_INFO_NAMED(PI_LOGGER, "    offset: (%0.3f, %0.3f, %0.3f)", goal.xyz_offset[0], goal.xyz_offset[1], goal.xyz_offset[2]);
+    ROS_INFO_NAMED(PI_LOGGER, "    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
 
-    if (!m_lattice->setGoal(goal)) {
+    if (!m_planning_space->setGoal(goal)) {
         ROS_ERROR("Failed to set goal state");
         return false;
     }
 
     // set sbpl planner goal
-    const int goal_id = m_lattice->getGoalStateID();
+    const int goal_id = m_planning_space->getGoalStateID();
     if (goal_id == -1) {
         ROS_ERROR("No goal state has been set");
         return false;
@@ -440,7 +431,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     // scenario
     SV_SHOW_INFO(getBfsWallsVisualization());
 
-    ROS_WARN("Planning!!!!!");
+    ROS_WARN_NAMED(PI_LOGGER, "Planning!!!!!");
     bool b_ret = false;
     std::vector<int> solution_state_ids;
 
@@ -459,17 +450,17 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
 
     //check if an empty plan was received.
     if (b_ret && solution_state_ids.size() <= 0) {
-        ROS_WARN("Path returned by the planner is empty?");
+        ROS_WARN_NAMED(PI_LOGGER, "Path returned by the planner is empty?");
         b_ret = false;
     }
 
     // if a path is returned, then pack it into msg form
     if (b_ret && (solution_state_ids.size() > 0)) {
-        ROS_INFO("Path Length: %zu, Initial Epsilon: %0.3f, Final Epsilon: %0.3f, Solution Cost: %d",
+        ROS_INFO_NAMED(PI_LOGGER, "Path Length: %zu, Initial Epsilon: %0.3f, Final Epsilon: %0.3f, Solution Cost: %d",
                 solution_state_ids.size(), m_planner->get_initial_eps(), m_planner->get_final_epsilon(), m_sol_cost);
 
         path.clear();
-        if (!m_lattice->extractPath(solution_state_ids, path)) {
+        if (!m_planning_space->extractPath(solution_state_ids, path)) {
             ROS_ERROR("Failed to convert state id path to joint variable path");
             return false;
         }
@@ -508,7 +499,7 @@ bool PlannerInterface::planToPose(
         return false;
     }
 
-    ROS_INFO("Planning succeeded in %d expansions", m_planner->get_n_expands());
+    ROS_INFO_NAMED(PI_LOGGER, "Planning succeeded in %d expansions", m_planner->get_n_expands());
 
     postProcessPath(path, res.trajectory.joint_trajectory);
 
@@ -593,7 +584,7 @@ bool PlannerInterface::canServiceRequest(
     if (goal_constraints.position_constraints.size() > 1 ||
         goal_constraints.orientation_constraints.size() > 1)
     {
-        ROS_WARN("The planning request message contains %zd position and %zd orientation constraints. Currently the planner only supports one position & orientation constraint pair at a time. Planning to the first goal may not satisfy move_arm.", goal_constraints.position_constraints.size(), goal_constraints.orientation_constraints.size());
+        ROS_WARN_NAMED(PI_LOGGER, "The planning request message contains %zd position and %zd orientation constraints. Currently the planner only supports one position & orientation constraint pair at a time. Planning to the first goal may not satisfy move_arm.", goal_constraints.position_constraints.size(), goal_constraints.orientation_constraints.size());
     }
 
     return true;
@@ -657,7 +648,7 @@ PlannerInterface::getGoalVisualization() const
 {
     const moveit_msgs::Constraints& goal_constraints = m_req.goal_constraints.front();
     if (goal_constraints.position_constraints.empty()) {
-        ROS_WARN("Failed to get visualization marker for goals because no position constraints found.");
+        ROS_WARN_NAMED(PI_LOGGER, "Failed to get visualization marker for goals because no position constraints found.");
         return visualization_msgs::MarkerArray();
     }
 
@@ -703,7 +694,7 @@ PlannerInterface::getGoalVisualization() const
 }
 
 visualization_msgs::MarkerArray
-PlannerInterface::getBfsWallsVisualization() const
+PlannerInterface::getBfsValuesVisualization() const
 {
     if (m_heuristics.empty()) {
         return visualization_msgs::MarkerArray();
@@ -725,7 +716,7 @@ PlannerInterface::getBfsWallsVisualization() const
 }
 
 visualization_msgs::MarkerArray
-PlannerInterface::getBfsValuesVisualization() const
+PlannerInterface::getBfsWallsVisualization() const
 {
     if (m_heuristics.empty()) {
         return visualization_msgs::MarkerArray();
@@ -754,7 +745,7 @@ bool PlannerInterface::extractGoalPoseFromGoalConstraints(
     if (constraints.position_constraints.empty() ||
         constraints.orientation_constraints.empty())
     {
-        ROS_WARN("Conversion from goal constraints to goal pose requires at least one position and one orientation constraint");
+        ROS_WARN_NAMED(PI_LOGGER, "Conversion from goal constraints to goal pose requires at least one position and one orientation constraint");
         return false;
     }
 
@@ -764,7 +755,7 @@ bool PlannerInterface::extractGoalPoseFromGoalConstraints(
     const moveit_msgs::OrientationConstraint& orientation_constraint = constraints.orientation_constraints.front();
 
     if (position_constraint.constraint_region.primitive_poses.empty()) {
-        ROS_WARN("Conversion from goal constraints to goal pose requires at least one primitive shape pose associated with the position constraint region");
+        ROS_WARN_NAMED(PI_LOGGER, "Conversion from goal constraints to goal pose requires at least one primitive shape pose associated with the position constraint region");
         return false;
     }
 
@@ -896,11 +887,11 @@ bool PlannerInterface::parsePlannerID(
 
 void PlannerInterface::clearGraphStateToPlannerStateMap()
 {
-    if (!m_lattice) {
+    if (!m_planning_space) {
         return;
     }
 
-    std::vector<int*>& state_id_to_index = m_lattice->StateID2IndexMapping;
+    std::vector<int*>& state_id_to_index = m_planning_space->StateID2IndexMapping;
     for (int* mapping : state_id_to_index) {
         for (int i = 0; i < NUMOFINDICES_STATEID2IND; ++i) {
             mapping[i] = -1;
@@ -910,32 +901,62 @@ void PlannerInterface::clearGraphStateToPlannerStateMap()
 
 bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 {
+    ROS_INFO_NAMED(PI_LOGGER, "Initialize planner");
+
     std::string search_name;
     std::string heuristic_name;
     std::string space_name;
     parsePlannerID(planner_id, space_name, heuristic_name, search_name);
 
+    ROS_INFO_NAMED(PI_LOGGER, " -> Planning Space: %s", space_name.c_str());
+    ROS_INFO_NAMED(PI_LOGGER, " -> Heuristic: %s", heuristic_name.c_str());
+    ROS_INFO_NAMED(PI_LOGGER, " -> Search: %s", search_name.c_str());
+
     // initialize the planning space
     if (space_name == "MANIP") {
-        m_lattice.reset(new ManipLattice(m_robot, m_checker, &m_params, m_grid));
+        m_planning_space = std::make_shared<ManipLattice>(m_robot, m_checker, &m_params, m_grid);
 
         // instantiate action space and load from file
-        ManipLatticeActionSpace* manip_actions = new ManipLatticeActionSpace(m_lattice.get());
-        m_action_space.reset(manip_actions);
+        m_action_space = std::make_shared<ManipLatticeActionSpace>(m_planning_space);
+        ManipLatticeActionSpace* manip_actions =
+                (ManipLatticeActionSpace*)m_action_space.get();
 
-        if (!manip_actions->load(m_params.action_file)) {
-            ROS_ERROR("Failed to load actions from file '%s'", m_params.action_file.c_str());
+        if (!manip_actions->load(m_params.action_filename)) {
+            ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
             return false;
         }
         manip_actions->useMultipleIkSolutions(m_params.use_multiple_ik_solutions);
 
+        ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
+        for (auto ait = manip_actions->begin(); ait != manip_actions->end(); ++ait) {
+            ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_string(ait->type).c_str());
+            if (ait->type == sbpl::manip::MotionPrimitive::SNAP_TO_RPY) {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_RPY));
+            }
+            else if (ait->type == sbpl::manip::MotionPrimitive::SNAP_TO_XYZ) {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ));
+            }
+            else if (ait->type == sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY) {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY));
+            }
+            else if (ait->type == sbpl::manip::MotionPrimitive::LONG_DISTANCE ||
+                ait->type == sbpl::manip::MotionPrimitive::SHORT_DISTANCE)
+            {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    action: %s", to_string(ait->action).c_str());
+            }
+        }
+
         // associate action space with lattice
-        if (!m_lattice->setActionSpace(m_action_space.get())) {
+        if (!m_planning_space->setActionSpace(m_action_space)) {
             ROS_ERROR("Failed to associate action space with planning space");
             return false;
         }
     } else if (space_name == "WORKSPACE") {
-        m_lattice.reset(new WorkspaceLattice(m_robot, m_checker, &m_params, m_grid));
+        m_planning_space = std::make_shared<WorkspaceLattice>(
+                m_robot, m_checker, &m_params, m_grid);
     } else {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
         return false;
@@ -944,28 +965,28 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     // initialize heuristics
     m_heuristics.clear();
     if (heuristic_name == "MFBFS") {
-        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_lattice);
+        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
         if (!ml) {
             ROS_ERROR("MFBFS requires a Manip Lattice");
             return false;
         }
-        auto h = std::make_shared<MultiFrameBfsHeuristic>(ml.get(), m_grid);
+        auto h = std::make_shared<MultiFrameBfsHeuristic>(ml, m_grid);
         m_heuristics.insert(std::make_pair("MFBFS", h));
     } else if (heuristic_name == "BFS") {
-        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_lattice);
+        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
         if (!ml) {
             ROS_ERROR("BFS requires a Manip Lattice");
             return false;
         }
-        auto h = std::make_shared<BfsHeuristic>(ml.get(), m_grid);
+        auto h = std::make_shared<BfsHeuristic>(ml, m_grid);
         m_heuristics.insert(std::make_pair("BFS", h));
     } else if (heuristic_name == "EUCLID") {
-        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_lattice);
+        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
         if (!ml) {
             ROS_ERROR("EUCLID requires a Manip Lattice");
             return false;
         }
-        auto h = std::make_shared<EuclidDistHeuristic>(ml.get(), m_grid);
+        auto h = std::make_shared<EuclidDistHeuristic>(ml, m_grid);
         m_heuristics.insert(std::make_pair("EUCLID", h));
     } else {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
@@ -977,18 +998,18 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     m_heur_vec.clear();
     for (const auto& entry : m_heuristics) {
         RobotHeuristicPtr heuristic = entry.second;
-        m_lattice->insertHeuristic(heuristic.get());
+        m_planning_space->insertHeuristic(heuristic);
         m_heur_vec.push_back(heuristic.get());
     }
 
     // initialize the search algorithm
     if (search_name == "ARA*") {
-        m_planner.reset(new ARAPlanner(m_lattice.get(), true));
+        m_planner.reset(new ARAPlanner(m_planning_space.get(), true));
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "MHA*") {
         MHAPlanner* mha = new MHAPlanner(
-                m_lattice.get(),
+                m_planning_space.get(),
                 m_heur_vec[0],
                 &m_heur_vec[0],
                 m_heur_vec.size());
@@ -1001,7 +1022,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "LARA*") {
-        m_planner.reset(new LazyARAPlanner(m_lattice.get(), true));
+        m_planner.reset(new LazyARAPlanner(m_planning_space.get(), true));
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "LMHA*") {
@@ -1111,7 +1132,7 @@ void PlannerInterface::postProcessPath(
     if (m_params.shortcut_path) {
         trajectory_msgs::JointTrajectory straj;
         if (!InterpolateTrajectory(m_checker, traj.points, straj.points)) {
-            ROS_WARN("Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
+            ROS_WARN_NAMED(PI_LOGGER, "Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
             trajectory_msgs::JointTrajectory otraj = traj;
             ShortcutTrajectory(
                     m_robot, m_checker, otraj.points, traj.points, m_params.shortcut_type);
@@ -1126,7 +1147,7 @@ void PlannerInterface::postProcessPath(
     if (m_params.interpolate_path) {
         trajectory_msgs::JointTrajectory itraj = traj;
         if (!InterpolateTrajectory(m_checker, itraj.points, traj.points)) {
-            ROS_WARN("Failed to interpolate trajectory");
+            ROS_WARN_NAMED(PI_LOGGER, "Failed to interpolate trajectory");
         }
     }
 

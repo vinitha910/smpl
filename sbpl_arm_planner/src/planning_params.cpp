@@ -79,7 +79,6 @@ PlanningParams::PlanningParams() :
     use_bfs_heuristic(DefaultUseBfsHeuristic),
     planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
-    planner_name(),
     epsilon(DefaultEpsilon),
     allowed_time(DefaultAllowedTime),
     search_mode(DefaultSearchMode),

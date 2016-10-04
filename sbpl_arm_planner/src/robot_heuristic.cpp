@@ -35,10 +35,10 @@ namespace sbpl {
 namespace manip {
 
 RobotHeuristic::RobotHeuristic(
-    RobotPlanningSpace* pspace,
+    const RobotPlanningSpacePtr& pspace,
     const OccupancyGrid* grid)
 :
-    Heuristic(pspace),
+    Heuristic(pspace.get()),
     RobotPlanningSpaceObserver(),
     m_pspace(pspace),
     m_grid(grid)

@@ -41,14 +41,14 @@ namespace sbpl {
 namespace manip {
 
 MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
-    ManipLattice* pspace,
+    const ManipLatticePtr& ps,
     const OccupancyGrid* grid)
 :
-    RobotHeuristic(pspace, grid),
+    RobotHeuristic(ps, grid),
     m_bfs(),
     m_ee_bfs()
 {
-    m_fk_iface = pspace->robot()->getExtension<ForwardKinematicsInterface>();
+    m_fk_iface = ps->robot()->getExtension<ForwardKinematicsInterface>();
     syncGridAndBfs();
 }
 
@@ -59,6 +59,8 @@ MultiFrameBfsHeuristic::~MultiFrameBfsHeuristic()
 
 void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
+    ROS_DEBUG_NAMED(params()->heuristic_log, "Update goal");
+
     int ogx, ogy, ogz;
     grid()->worldToGrid(
             goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
@@ -86,7 +88,7 @@ double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double
 {
     // TODO: shamefully copied from BfsHeuristic
     int start_id = planningSpace()->getStartStateID();
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
     const ManipLatticeState* start_state = manip_lattice->getHashEntry(start_id);
     if (start_state) {
         // compute the manhattan distance to the start cell
@@ -289,7 +291,7 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
         return 0;
     }
 
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace();
+    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
     const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
     if (state) {
         if (state->stateID == planningSpace()->getGoalStateID()) {

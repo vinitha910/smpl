@@ -57,6 +57,75 @@ enum ShortcutType
 
 std::string to_string(ShortcutType type);
 
+#define PARAMETER_EXPERIMENTAL 0
+#if PARAMETER_EXPERIMENTAL
+struct PlanningParameter
+{
+    typedef std::vector<PlanningParameter>              ParameterArray;
+    typedef std::map<std::string, PlanningParameter>    ParameterMap;
+    typedef ParameterMap::iterator                      iterator;
+
+    enum Type
+    {
+        TypeInvalid,
+        TypeBoolean,
+        TypeInt,
+        TypeDouble,
+        TypeString,
+        TypeArray,
+        TypeMap,
+    }
+
+    Type type() const { return m_type; }
+
+    PlanningParameter() : m_type(TypeInvalid), m_value() { }
+    PlanningParameter(bool value) : m_type(TypeBoolean) { m_value.b = value; }
+    PlanningParameter(int value) : m_type(TypeInt) { m_value.i = value; }
+    PlanningParameter(double value) : m_type(TypeDouble) { m_value.d = value; }
+    PlanningParameter(const std::string& value) : m_type(TypeString) {
+        m_value.s = new std::string(value);
+    }
+    PlanningParameter(const char* value) : m_type(TypeString) {
+        m_value.s = new std::string(value);
+    }
+
+    ~PlanningParameter();
+
+    operator bool&();
+    operator int&();
+    operator double&();
+    operator std::string&();
+    operator std::map<std::string, PlanningParameter>&();
+    operator std::vector<PlanningParameter>&();
+
+    size_t size() const;
+
+    PlanningParameter& operator[](size_t i);
+    const PlanningParameter& operator[](size_t i) const;
+
+    bool hasMember(const std::string& name) const;
+
+    PlanningParameter& operator[](const std::string& key);
+    const PlanningParameter& operator[](const std::string& key);
+
+    iterator begin() { return m_value.m->begin(); }
+    iterator end() { return m_value.m->end(); }
+
+private:
+
+    Type m_type;
+    union
+    {
+        bool            b;
+        int             i;
+        double          d;
+        std::string*    s;
+        ParameterArray* a;
+        ParameterMap*   m;
+    } m_value;
+};
+#endif
+
 class PlanningParams
 {
 public:
@@ -110,8 +179,17 @@ public:
 
     /// \name Actions
     ///@{
-    std::string action_file;
+    std::string action_filename;
     bool use_multiple_ik_solutions;
+
+    bool use_xyz_snap_mprim;
+    bool use_rpy_snap_mprim;
+    bool use_xyzrpy_snap_mprim;
+    bool use_short_dist_mprims;
+    double xyz_snap_thresh;
+    double rpy_snap_thresh;
+    double xyzrpy_snap_thresh;
+    double short_dist_mprims_thresh;
     ///@}
 
     /// \name Costs
@@ -132,7 +210,6 @@ public:
 
     /// \name Search
     ///@{
-    std::string planner_name;
     double epsilon;
     double allowed_time;
     bool search_mode; // true => stop after first solution
@@ -161,6 +238,24 @@ public:
     std::string solution_log;
     ///@}
 };
+
+#if PARAMETER_EXPERIMENTAL
+inline
+PlanningParameter::~PlanningParameter()
+{
+    switch (type) {
+    case Type::TypeString:
+        delete m_value.s;
+        break;
+    case Type::TypeArray:
+        delete m_value.a;
+        break;
+    case Type::TypeMap:
+        delete m_value.m;
+        break;
+    }
+}
+#endif
 
 } // namespace manip
 } // namespace sbpl

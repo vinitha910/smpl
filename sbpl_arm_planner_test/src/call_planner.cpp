@@ -458,7 +458,7 @@ int main(int argc, char* argv[])
     sbpl::manip::PlannerInterface planner(rm.get(), cc.get(), &grid);
 
     sbpl::manip::PlanningParams params;
-    params.action_file = action_set_filename;
+    params.action_filename = action_set_filename;
     if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Arm Planner Interface");
         return 1;

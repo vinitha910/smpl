@@ -23,33 +23,35 @@ RobotPlanningSpace::~RobotPlanningSpace()
 {
 }
 
-bool RobotPlanningSpace::setActionSpace(ActionSpace* as)
+bool RobotPlanningSpace::setActionSpace(const ActionSpacePtr& as)
 {
     m_actions = as;
     return true;
 }
 
-bool RobotPlanningSpace::insertHeuristic(RobotHeuristic* h)
+bool RobotPlanningSpace::insertHeuristic(const RobotHeuristicPtr& h)
 {
     auto hit = std::find(m_heuristics.begin(), m_heuristics.end(), h);
     if (hit != m_heuristics.end()) {
         return false;
     }
+    ROS_DEBUG_NAMED(params()->graph_log, "Insert heuristic %p", h.get());
     m_heuristics.push_back(h);
     return true;
 }
 
-bool RobotPlanningSpace::eraseHeuristic(RobotHeuristic* h)
+bool RobotPlanningSpace::eraseHeuristic(const RobotHeuristicPtr& h)
 {
     auto hit = std::remove(m_heuristics.begin(), m_heuristics.end(), h);
     if (hit == m_heuristics.end()) {
         return false;
     }
+    ROS_DEBUG_NAMED(params()->graph_log, "Erasure heuristic %p", h.get());
     m_heuristics.erase(hit, m_heuristics.end());
     return true;
 }
 
-bool RobotPlanningSpace::hasHeuristic(RobotHeuristic* h)
+bool RobotPlanningSpace::hasHeuristic(const RobotHeuristicPtr& h)
 {
     auto hit = std::find(m_heuristics.begin(), m_heuristics.end(), h);
     return hit != m_heuristics.end();
@@ -72,7 +74,8 @@ bool RobotPlanningSpace::setGoal(const GoalConstraint& goal)
 /// Add an observer to the list of observers if it is not already observing
 void RobotPlanningSpace::insertObserver(RobotPlanningSpaceObserver* obs)
 {
-    if (std::find(m_obs.begin(), m_obs.begin(), obs) == m_obs.end()) {
+    if (std::find(m_obs.begin(), m_obs.end(), obs) == m_obs.end()) {
+        ROS_DEBUG_NAMED(params()->graph_log, "Insert observer %p", obs);
         m_obs.push_back(obs);
     }
 }
@@ -81,7 +84,10 @@ void RobotPlanningSpace::insertObserver(RobotPlanningSpaceObserver* obs)
 void RobotPlanningSpace::eraseObserver(RobotPlanningSpaceObserver* obs)
 {
     auto it = std::remove(m_obs.begin(), m_obs.end(), obs);
-    m_obs.erase(it, m_obs.end());
+    if (it != m_obs.end()) {
+        ROS_DEBUG_NAMED(params()->graph_log, "Erase observer %p", obs);
+        m_obs.erase(it, m_obs.end());
+    }
 }
 
 /// Return whether an observer is in the list of observers
@@ -93,6 +99,7 @@ bool RobotPlanningSpace::hasObserver(RobotPlanningSpaceObserver* obs) const
 void RobotPlanningSpace::notifyStartChanged(const RobotState& state)
 {
     for (RobotPlanningSpaceObserver* obs : m_obs) {
+        ROS_DEBUG_NAMED(params()->graph_log, "Notify %p of start change", obs);
         obs->updateStart(state);
     }
 }
@@ -100,6 +107,7 @@ void RobotPlanningSpace::notifyStartChanged(const RobotState& state)
 void RobotPlanningSpace::notifyGoalChanged(const GoalConstraint& goal)
 {
     for (RobotPlanningSpaceObserver* obs : m_obs) {
+        ROS_DEBUG_NAMED(params()->graph_log, "Notify %p of goal change", obs);
         obs->updateGoal(goal);
     }
 }
