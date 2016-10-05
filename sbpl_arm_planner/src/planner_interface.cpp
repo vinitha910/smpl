@@ -70,8 +70,8 @@ PlannerInterface::PlannerInterface(
     m_grid(grid),
     m_params(),
     m_initialized(false),
-    m_planning_space(),
-    m_action_space(),
+    m_pspace(),
+    m_aspace(),
     m_heuristics(),
     m_planner(),
     m_heur_vec(),
@@ -292,12 +292,12 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 
     ROS_INFO_NAMED(PI_LOGGER, "  joint variables: %s", to_string(initial_positions).c_str());
 
-    if (m_planning_space->setStart(initial_positions) == 0) {
+    if (m_pspace->setStart(initial_positions) == 0) {
         ROS_ERROR("environment failed to set start state. not planning.");
         return false;
     }
 
-    const int start_id = m_planning_space->getStartStateID();
+    const int start_id = m_pspace->getStartStateID();
     if (start_id == -1) {
         ROS_ERROR("no start state has been set");
         return false;
@@ -344,13 +344,13 @@ bool PlannerInterface::setGoalConfiguration(
     goal.angle_tolerances = sbpl_angle_tolerance;
 
     // set sbpl environment goal
-    if (!m_planning_space->setGoal(goal)) {
+    if (!m_pspace->setGoal(goal)) {
         ROS_ERROR("Failed to set goal state. Exiting.");
         return false;
     }
 
     // set planner goal
-    const int goal_id = m_planning_space->getGoalStateID();
+    const int goal_id = m_pspace->getGoalStateID();
     if (goal_id == -1) {
         ROS_ERROR("No goal state has been set");
         return false;
@@ -409,13 +409,13 @@ bool PlannerInterface::setGoalPosition(
     ROS_INFO_NAMED(PI_LOGGER, "    offset: (%0.3f, %0.3f, %0.3f)", goal.xyz_offset[0], goal.xyz_offset[1], goal.xyz_offset[2]);
     ROS_INFO_NAMED(PI_LOGGER, "    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
 
-    if (!m_planning_space->setGoal(goal)) {
+    if (!m_pspace->setGoal(goal)) {
         ROS_ERROR("Failed to set goal state");
         return false;
     }
 
     // set sbpl planner goal
-    const int goal_id = m_planning_space->getGoalStateID();
+    const int goal_id = m_pspace->getGoalStateID();
     if (goal_id == -1) {
         ROS_ERROR("No goal state has been set");
         return false;
@@ -469,7 +469,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
         ROS_INFO_NAMED(PI_LOGGER, "  Solution Cost: %d", m_sol_cost);
 
         path.clear();
-        if (!m_planning_space->extractPath(solution_state_ids, path)) {
+        if (!m_pspace->extractPath(solution_state_ids, path)) {
             ROS_ERROR("Failed to convert state id path to joint variable path");
             return false;
         }
@@ -901,11 +901,11 @@ bool PlannerInterface::parsePlannerID(
 
 void PlannerInterface::clearGraphStateToPlannerStateMap()
 {
-    if (!m_planning_space) {
+    if (!m_pspace) {
         return;
     }
 
-    std::vector<int*>& state_id_to_index = m_planning_space->StateID2IndexMapping;
+    std::vector<int*>& state_id_to_index = m_pspace->StateID2IndexMapping;
     for (int* mapping : state_id_to_index) {
         for (int i = 0; i < NUMOFINDICES_STATEID2IND; ++i) {
             mapping[i] = -1;
@@ -931,12 +931,13 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 
     // initialize the planning space
     if (space_name == "manip") {
-        m_planning_space = std::make_shared<ManipLattice>(m_robot, m_checker, &m_params, m_grid);
+        m_pspace = std::make_shared<ManipLattice>(
+                m_robot, m_checker, &m_params, m_grid);
 
         // instantiate action space and load from file
-        m_action_space = std::make_shared<ManipLatticeActionSpace>(m_planning_space);
+        m_aspace = std::make_shared<ManipLatticeActionSpace>(m_pspace);
         ManipLatticeActionSpace* manip_actions =
-                (ManipLatticeActionSpace*)m_action_space.get();
+                (ManipLatticeActionSpace*)m_aspace.get();
 
         if (!manip_actions->load(m_params.action_filename)) {
             ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
@@ -967,12 +968,12 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         }
 
         // associate action space with lattice
-        if (!m_planning_space->setActionSpace(m_action_space)) {
+        if (!m_pspace->setActionSpace(m_aspace)) {
             ROS_ERROR("Failed to associate action space with planning space");
             return false;
         }
     } else if (space_name == "workspace") {
-        m_planning_space = std::make_shared<WorkspaceLattice>(
+        m_pspace = std::make_shared<WorkspaceLattice>(
                 m_robot, m_checker, &m_params, m_grid);
     } else {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
@@ -982,28 +983,13 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     // initialize heuristics
     m_heuristics.clear();
     if (heuristic_name == "mfbfs") {
-        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
-        if (!ml) {
-            ROS_ERROR("MFBFS requires a Manip Lattice");
-            return false;
-        }
-        auto h = std::make_shared<MultiFrameBfsHeuristic>(ml, m_grid);
+        auto h = std::make_shared<MultiFrameBfsHeuristic>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("MFBFS", h));
     } else if (heuristic_name == "bfs") {
-        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
-        if (!ml) {
-            ROS_ERROR("BFS requires a Manip Lattice");
-            return false;
-        }
-        auto h = std::make_shared<BfsHeuristic>(ml, m_grid);
+        auto h = std::make_shared<BfsHeuristic>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("BFS", h));
     } else if (heuristic_name == "euclid") {
-        auto ml = std::dynamic_pointer_cast<ManipLattice>(m_planning_space);
-        if (!ml) {
-            ROS_ERROR("EUCLID requires a Manip Lattice");
-            return false;
-        }
-        auto h = std::make_shared<EuclidDistHeuristic>(ml, m_grid);
+        auto h = std::make_shared<EuclidDistHeuristic>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("EUCLID", h));
     } else {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
@@ -1015,21 +1001,21 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     m_heur_vec.clear();
     for (const auto& entry : m_heuristics) {
         RobotHeuristicPtr heuristic = entry.second;
-        m_planning_space->insertHeuristic(heuristic);
+        m_pspace->insertHeuristic(heuristic);
         m_heur_vec.push_back(heuristic.get());
     }
 
 
     // initialize the search algorithm
     if (search_name == "arastar") {
-        m_planner.reset(new ARAPlanner(m_planning_space.get(), true));
+        m_planner.reset(new ARAPlanner(m_pspace.get(), true));
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "mhastar") {
         ROS_INFO_NAMED(PI_LOGGER, "Using %zu heuristics", m_heur_vec.size());
 
         MHAPlanner* mha = new MHAPlanner(
-                m_planning_space.get(),
+                m_pspace.get(),
                 m_heur_vec[0],
                 &m_heur_vec[0],
                 m_heur_vec.size());
@@ -1042,7 +1028,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "larastar") {
-        m_planner.reset(new LazyARAPlanner(m_planning_space.get(), true));
+        m_planner.reset(new LazyARAPlanner(m_pspace.get(), true));
         m_planner->set_initialsolution_eps(m_params.epsilon);
         m_planner->set_search_mode(m_params.search_mode);
     } else if (search_name == "lmhastar") {

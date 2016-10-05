@@ -131,8 +131,8 @@ protected:
 
     // planner components
 
-    RobotPlanningSpacePtr m_planning_space;
-    ActionSpacePtr m_action_space;
+    RobotPlanningSpacePtr m_pspace;
+    ActionSpacePtr m_aspace;
     std::map<std::string, RobotHeuristicPtr> m_heuristics;
     SBPLPlannerPtr m_planner;
 
