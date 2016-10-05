@@ -40,6 +40,9 @@
 // system includes
 #include <visualization_msgs/MarkerArray.h>
 
+// project includes
+#include <sbpl_arm_planner/types.h>
+
 namespace sbpl {
 namespace manip {
 
@@ -58,7 +61,7 @@ public:
     /// \param[out] dist The distance to the nearest obstacle
     /// \return Whether the state is valid
     virtual bool isStateValid(
-        const std::vector<double>& angles,
+        const RobotState& state,
         bool verbose,
         bool visualize,
         double &dist) = 0;
@@ -75,8 +78,8 @@ public:
     /// \param[out] dist The distance to the nearest obstacle
     /// \return true if the interpolated path is valid; false otherwise
     virtual bool isStateToStateValid(
-        const std::vector<double>& start,
-        const std::vector<double>& finish,
+        const RobotState& start,
+        const RobotState& finish,
         int& path_length,
         int& num_checks,
         double& dist) = 0;
@@ -91,8 +94,8 @@ public:
     /// \param[out] path The output path
     /// \return Whether a valid linearly interpolated path could be constructed
     virtual bool interpolatePath(
-        const std::vector<double>& start,
-        const std::vector<double>& finish,
+        const RobotState& start,
+        const RobotState& finish,
         std::vector<std::vector<double>>& path) = 0;
 
     /// \name Visualization
