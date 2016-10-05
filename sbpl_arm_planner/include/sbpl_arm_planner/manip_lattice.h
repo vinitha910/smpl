@@ -96,7 +96,9 @@ namespace manip {
 SBPL_CLASS_FORWARD(ManipLattice);
 
 /// \class Discrete space constructed by expliciting discretizing each joint
-class ManipLattice : public RobotPlanningSpace
+class ManipLattice :
+    public RobotPlanningSpace,
+    public PointProjectionExtension
 {
 public:
 
@@ -141,6 +143,11 @@ public:
     int GetTrueCost(int parent_id, int child_id) override;
     ///@}
 
+    /// \name Required Public Functions from PointProjectionExtension
+    ///@{
+    bool projectToPoint(int state_id, Eigen::Vector3d& pos);
+    ///@}
+
     /// \name Required Public Functions from RobotPlanningSpace
     ///@{
     bool setStart(const RobotState& state) override;
@@ -150,6 +157,11 @@ public:
     bool extractPath(
         const std::vector<int>& ids,
         std::vector<RobotState>& path) override;
+    ///@}
+
+    /// \name Required Public Functions from Extension
+    ///@{
+    virtual Extension* getExtension(size_t class_code);
     ///@}
 
     /// \name Required Public Functions from DiscreteSpaceInformation

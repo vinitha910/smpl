@@ -362,6 +362,16 @@ bool WorkspaceLattice::extractPath(
     return true;
 }
 
+Extension* WorkspaceLattice::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<WorkspaceLattice>() ||
+        class_code == GetClassCode<RobotPlanningSpace>())
+    {
+        return this;
+    }
+    return nullptr;
+}
+
 int WorkspaceLattice::GetGoalHeuristic(int state_id)
 {
     int xyz_heur = 0, rpy_heur = 0;

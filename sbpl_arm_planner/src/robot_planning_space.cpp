@@ -10,6 +10,7 @@ RobotPlanningSpace::RobotPlanningSpace(
     CollisionChecker* checker,
     const PlanningParams* params)
 :
+    DiscreteSpaceInformation(),
     m_robot(robot),
     m_checker(checker),
     m_params(params),

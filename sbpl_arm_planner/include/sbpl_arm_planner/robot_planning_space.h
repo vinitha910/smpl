@@ -36,6 +36,7 @@
 #include <vector>
 
 // system includes
+#include <Eigen/Dense>
 #include <sbpl/discrete_space_information/environment.h>
 
 // project includes
@@ -53,7 +54,9 @@ namespace manip {
 SBPL_CLASS_FORWARD(RobotHeuristic);
 SBPL_CLASS_FORWARD(RobotPlanningSpace);
 
-class RobotPlanningSpace : public DiscreteSpaceInformation
+class RobotPlanningSpace :
+    public DiscreteSpaceInformation,
+    public virtual Extension
 {
 public:
 
@@ -161,6 +164,15 @@ private:
     virtual void SetAllActionsandAllOutcomes(CMDPSTATE*) final { }
     virtual void SetAllPreds(CMDPSTATE*) final { }
     virtual void PrintEnv_Config(FILE*) final { }
+};
+
+class PointProjectionExtension : public virtual Extension
+{
+public:
+
+    virtual ~PointProjectionExtension() { }
+
+    virtual bool projectToPoint(int state_id, Eigen::Vector3d& pos) = 0;
 };
 
 inline

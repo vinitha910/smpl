@@ -62,7 +62,9 @@ ManipLattice::ManipLattice(
     PlanningParams* _params,
     OccupancyGrid* grid)
 :
+    Extension(),
     RobotPlanningSpace(robot_model, checker, _params),
+    PointProjectionExtension(),
     m_grid(grid),
     m_fk_iface(nullptr),
     m_min_limits(),
@@ -446,6 +448,19 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     else {
         return -1;
     }
+}
+
+bool ManipLattice::projectToPoint(int state_id, Eigen::Vector3d& pos)
+{
+    std::vector<double> pose;
+    if (!computePlanningFrameFK(m_states[state_id]->state, pose)) {
+        return false;
+    }
+
+    pos.x() = pose[0];
+    pos.y() = pose[1];
+    pos.z() = pose[2];
+    return true;
 }
 
 void ManipLattice::GetPreds(
@@ -991,6 +1006,17 @@ bool ManipLattice::extractPath(
     // we made it!
     path = std::move(opath);
     return true;
+}
+
+Extension* ManipLattice::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<RobotPlanningSpace>() ||
+        class_code == GetClassCode<PointProjectionExtension>() ||
+        class_code == GetClassCode<ManipLattice>())
+    {
+        return this;
+    }
+    return nullptr;
 }
 
 /// \brief Get the (heuristic) distance from the planning link pose to the start

@@ -41,12 +41,16 @@ namespace sbpl {
 namespace manip {
 
 BfsHeuristic::BfsHeuristic(
-    const ManipLatticePtr& ps,
+    const RobotPlanningSpacePtr& ps,
     const OccupancyGrid* grid)
 :
     RobotHeuristic(ps, grid),
     m_bfs()
 {
+    m_pp = ps->getExtension<PointProjectionExtension>();
+    if (m_pp) {
+        ROS_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
+    }
     syncGridAndBfs();
 }
 
@@ -74,30 +78,27 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
 double BfsHeuristic::getMetricStartDistance(double x, double y, double z)
 {
     int start_id = planningSpace()->getStartStateID();
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
-    const ManipLatticeState* start_state = manip_lattice->getHashEntry(start_id);
-    if (start_state) {
-        // compute the manhattan distance to the start cell
-        std::vector<double> pose;
-        if (!manip_lattice->computePlanningFrameFK(start_state->state, pose)) {
-            ROS_ERROR_NAMED(params()->heuristic_log, "Failed to compute forward kinematics for the planning frame");
-            return 0.0;
-        }
 
-        int sx, sy, sz;
-        grid()->worldToGrid(pose[0], pose[1], pose[2], sx, sy, sz);
-
-        int gx, gy, gz;
-        grid()->worldToGrid(x, y, z, gx, gy, gz);
-
-        const int dx = sx - gx;
-        const int dy = sy - gy;
-        const int dz = sz - gz;
-        return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
-    }
-    else {
+    if (!m_pp) {
         return 0.0;
     }
+
+    Eigen::Vector3d p;
+    if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
+        return 0.0;
+    }
+
+    int sx, sy, sz;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
+
+    int gx, gy, gz;
+    grid()->worldToGrid(x, y, z, gx, gy, gz);
+
+    // compute the manhattan distance to the start cell
+    const int dx = sx - gx;
+    const int dy = sy - gy;
+    const int dz = sz - gz;
+    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
 }
 
 double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
@@ -114,15 +115,19 @@ double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 
 int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
-    const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
-    if (state) {
-        return getBfsCostToGoal(
-                *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
-    }
-    else {
+    if (!m_pp) {
         return 0;
     }
+
+    Eigen::Vector3d p;
+    if (!m_pp->projectToPoint(state_id, p)) {
+        return 0;
+    }
+
+    Eigen::Vector3i dp;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+
+    return getBfsCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
 }
 
 int BfsHeuristic::GetStartHeuristic(int state_id)

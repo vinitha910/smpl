@@ -138,18 +138,6 @@ public:
 
     // TODO: add path extraction function that returns path in workspace rep
 
-    ///@{
-    bool setStart(const RobotState& state);
-    bool setGoal(const GoalConstraint& goal);
-
-    int getStartStateID() const;
-    int getGoalStateID() const;
-    ///@}
-
-    bool extractPath(
-        const std::vector<int>& ids,
-        std::vector<RobotState>& path);
-
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
     virtual int GetGoalHeuristic(int state_id) override;
@@ -157,6 +145,20 @@ public:
 
     /// \name Required Public Functions from RobotPlanningSpace
     ///@{
+    bool setStart(const RobotState& state);
+    bool setGoal(const GoalConstraint& goal);
+
+    int getStartStateID() const;
+    int getGoalStateID() const;
+
+    bool extractPath(
+        const std::vector<int>& ids,
+        std::vector<RobotState>& path);
+    ///@}
+
+    /// \name Required Public Functions from Extension
+    ///@{
+    virtual Extension* getExtension(size_t class_code);
     ///@}
 
     /// \name Required Public Functions from DiscreteSpaceInformation

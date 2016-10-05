@@ -40,7 +40,7 @@
 
 // project includes
 #include <sbpl_arm_planner/robot_heuristic.h>
-#include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {
@@ -51,7 +51,7 @@ class BfsHeuristic : public RobotHeuristic
 {
 public:
 
-    BfsHeuristic(const ManipLatticePtr& pspace, const OccupancyGrid* grid);
+    BfsHeuristic(const RobotPlanningSpacePtr& pspace, const OccupancyGrid* grid);
 
     virtual ~BfsHeuristic();
 
@@ -79,6 +79,7 @@ public:
 private:
 
     std::unique_ptr<BFS_3D> m_bfs;
+    PointProjectionExtension* m_pp;
 
     void syncGridAndBfs();
     int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
