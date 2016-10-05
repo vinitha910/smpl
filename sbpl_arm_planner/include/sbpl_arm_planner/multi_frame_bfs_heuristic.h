@@ -52,7 +52,7 @@ class MultiFrameBfsHeuristic : public RobotHeuristic
 public:
 
     MultiFrameBfsHeuristic(
-        const ManipLatticePtr& pspace,
+        const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
     virtual ~MultiFrameBfsHeuristic();
@@ -80,6 +80,8 @@ public:
 
 private:
 
+    PointProjectionExtension* m_pp;
+    ExtractRobotStateExtension* m_ers;
     ForwardKinematicsInterface* m_fk_iface;
 
     std::unique_ptr<BFS_3D> m_bfs;

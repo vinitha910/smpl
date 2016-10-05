@@ -41,14 +41,25 @@ namespace sbpl {
 namespace manip {
 
 MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
-    const ManipLatticePtr& ps,
+    const RobotPlanningSpacePtr& ps,
     const OccupancyGrid* grid)
 :
     RobotHeuristic(ps, grid),
     m_bfs(),
     m_ee_bfs()
 {
+    m_pp = ps->getExtension<PointProjectionExtension>();
+    if (m_pp) {
+        ROS_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
+    }
+    m_ers = ps->getExtension<ExtractRobotStateExtension>();
+    if (m_ers) {
+        ROS_INFO_NAMED(params()->heuristic_log, "Got Extract Robot State Extension!");
+    }
     m_fk_iface = ps->robot()->getExtension<ForwardKinematicsInterface>();
+    if (m_fk_iface) {
+        ROS_INFO_NAMED(params()->heuristic_log, "Got Forward Kinematics Interface!");
+    }
     syncGridAndBfs();
 }
 
@@ -88,29 +99,27 @@ double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double
 {
     // TODO: shamefully copied from BfsHeuristic
     int start_id = planningSpace()->getStartStateID();
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
-    const ManipLatticeState* start_state = manip_lattice->getHashEntry(start_id);
-    if (start_state) {
-        // compute the manhattan distance to the start cell
-        std::vector<double> pose;
-        if (!manip_lattice->computePlanningFrameFK(start_state->state, pose)) {
-            ROS_ERROR_NAMED(params()->heuristic_log, "Failed to compute forward kinematics for the planning frame");
-            return 0.0;
-        }
 
-        int sx, sy, sz;
-        grid()->worldToGrid(pose[0], pose[1], pose[2], sx, sy, sz);
-
-        int gx, gy, gz;
-        grid()->worldToGrid(x, y, z, gx, gy, gz);
-
-        const int dx = sx - gx;
-        const int dy = sy - gy;
-        const int dz = sz - gz;
-        return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
-    } else {
+    if (!m_pp) {
         return 0.0;
     }
+
+    Eigen::Vector3d p;
+    if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
+        return 0.0;
+    }
+
+    int sx, sy, sz;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
+
+    int gx, gy, gz;
+    grid()->worldToGrid(x, y, z, gx, gy, gz);
+
+    // compute the manhattan distance to the start cell
+    const int dx = sx - gx;
+    const int dy = sy - gy;
+    const int dz = sz - gz;
+    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
 }
 
 double MultiFrameBfsHeuristic::getMetricGoalDistance(
@@ -287,38 +296,34 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
 
 int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 {
-    if (!m_fk_iface) {
+    if (state_id == planningSpace()->getGoalStateID()) {
         return 0;
     }
 
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
-    const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
-    if (state) {
-        if (state->stateID == planningSpace()->getGoalStateID()) {
-            return 0;
+    int h_planning_frame = 0;
+    if (m_pp) {
+        Eigen::Vector3d p;
+        if (m_pp->projectToPoint(state_id, p)) {
+            Eigen::Vector3i dp;
+            grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+            h_planning_frame = getBfsCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
         }
+    }
 
+    int h_planning_link = 0;
+    if (use_ee && m_ers && m_fk_iface) {
+        const RobotState& state = m_ers->extractState(state_id);
         std::vector<double> pose;
-        if (!m_fk_iface->computePlanningLinkFK(state->state, pose)) {
-            ROS_ERROR_NAMED(params()->heuristic_log, "Failed to compute FK for planning link (state = %d)", state->stateID);
-            return Infinity;
+        if (m_fk_iface->computePlanningLinkFK(state, pose)) {
+            Eigen::Vector3i eex;
+            grid()->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
+            h_planning_link = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
+        } else {
+            ROS_ERROR_NAMED(params()->heuristic_log, "Failed to compute FK for planning link (state = %d)", state_id);
         }
-
-        int eex[3];
-        grid()->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
-        const int ee_heur = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
-
-        int h = getBfsCostToGoal(
-                *m_bfs, state->xyz[0], state->xyz[1], state->xyz[2]);
-
-        if (use_ee) {
-            h = combine_costs(h, ee_heur);
-        }
-        return h;
     }
-    else {
-        return 0;
-    }
+
+    return combine_costs(h_planning_frame, h_planning_link);
 }
 
 void MultiFrameBfsHeuristic::syncGridAndBfs()
