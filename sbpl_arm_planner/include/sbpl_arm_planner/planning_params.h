@@ -133,7 +133,7 @@ public:
     // manipulation lattice parameters
     static const int DefaultCostMultiplier = 1000;
     static const int DefaultCostPerCell = 100;
-    static const int DefaultCostPerMeter = 50;
+    static const int DefaultCostPerMeter = 1000;
     static const int DefaultCostPerSecond = DefaultCostMultiplier;
     static constexpr double DefaultTimePerCell = 0.05;
     static constexpr double DefaultMaxMprimOffset = 0.0;
