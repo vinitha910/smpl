@@ -107,8 +107,7 @@ double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
     grid()->worldToGrid(x, y, z, gx, gy, gz);
     if (!m_bfs->inBounds(gx, gy, gz)) {
         return (double)BFS_3D::WALL * grid()->getResolution();
-    }
-    else {
+    } else {
         return (double)m_bfs->getDistance(gx, gy, gz) * grid()->getResolution();
     }
 }

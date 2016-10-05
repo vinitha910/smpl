@@ -43,7 +43,7 @@ class EuclidDistHeuristic : public RobotHeuristic
 public:
 
     EuclidDistHeuristic(
-        const ManipLatticePtr& pspace,
+        const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
     /// \name Required Public Functions from RobotHeuristic
@@ -58,6 +58,10 @@ public:
     int GetStartHeuristic(int state_id) override;
     int GetFromToHeuristic(int from_id, int to_id) override;
     ///@}
+
+private:
+
+    PointProjectionExtension* m_pp;
 };
 
 } // namespace manip

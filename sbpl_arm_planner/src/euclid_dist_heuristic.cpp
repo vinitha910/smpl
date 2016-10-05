@@ -49,11 +49,15 @@ double EuclideanDistance(
 }
 
 EuclidDistHeuristic::EuclidDistHeuristic(
-    const ManipLatticePtr& pspace,
+    const RobotPlanningSpacePtr& pspace,
     const OccupancyGrid* grid)
 :
     RobotHeuristic(pspace, grid)
 {
+    m_pp = pspace->getExtension<PointProjectionExtension>();
+    if (m_pp) {
+        ROS_INFO("Got Point Projection Extension!");
+    }
 }
 
 double EuclidDistHeuristic::getMetricGoalDistance(double x, double y, double z)
@@ -74,17 +78,20 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
 
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
+    if (!m_pp) {
+        return 0;
+    }
 
-    const std::vector<double>& gp = planningSpace()->goal().pose;
-    const ManipLatticeState* state = manip_lattice->getHashEntry(state_id);
-    double x, y, z;
-    grid()->gridToWorld(state->xyz[0], state->xyz[1], state->xyz[2], x, y, z);
+    const std::vector<double>& goal_pose = planningSpace()->goal().pose;
+    Eigen::Vector3d gp(goal_pose[0], goal_pose[1], goal_pose[2]);
 
-    int h;
-    h = EuclideanDistance(x, y, z, gp[0], gp[1], gp[2]);
-    h *= params()->cost_per_meter;
-    h *= 500;
+    Eigen::Vector3d p;
+    if (!m_pp->projectToPoint(state_id, p)) {
+        return 0;
+    }
+
+    int h = 50 * params()->cost_per_meter * (gp - p).norm();
+    ROS_DEBUG_NAMED(params()->heuristic_log, "h(%d) = %d", state_id, h);
     return h;
 }
 
@@ -95,20 +102,19 @@ int EuclidDistHeuristic::GetStartHeuristic(int state_id)
 
 int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    ManipLattice* manip_lattice = (ManipLattice*)planningSpace().get();
-    const ManipLatticeState* from_entry = manip_lattice->getHashEntry(from_id);
-    const ManipLatticeState* to_entry = manip_lattice->getHashEntry(to_id);
+    if (!m_pp) {
+        return 0;
+    }
 
-    double fx, fy, fz, tx, ty, tz;
-    grid()->gridToWorld(
-            from_entry->xyz[0], from_entry->xyz[1], from_entry->xyz[2],
-            fx, fy, fz);
-    grid()->gridToWorld(
-            to_entry->xyz[0], to_entry->xyz[1], to_entry->xyz[2],
-            tx, ty, tz);
+    Eigen::Vector3d fp, tp;
+    if (!m_pp->projectToPoint(from_id, fp) ||
+        !m_pp->projectToPoint(to_id, tp))
+    {
+        return 0;
+    }
 
     int h;
-    h = EuclideanDistance(fx, fy, fz, tx, ty, tz);
+    h = (tp - fp).norm();
     h *= params()->cost_per_meter;
     h *= 500;
     h /= grid()->getResolution();
