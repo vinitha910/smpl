@@ -65,6 +65,7 @@ ManipLattice::ManipLattice(
     Extension(),
     RobotPlanningSpace(robot_model, checker, _params),
     PointProjectionExtension(),
+    ExtractRobotStateExtension(),
     m_grid(grid),
     m_fk_iface(nullptr),
     m_min_limits(),
@@ -448,6 +449,11 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     else {
         return -1;
     }
+}
+
+const RobotState& ManipLattice::extractState(int state_id)
+{
+    return m_states[state_id]->state;
 }
 
 bool ManipLattice::projectToPoint(int state_id, Eigen::Vector3d& pos)
@@ -1012,6 +1018,7 @@ Extension* ManipLattice::getExtension(size_t class_code)
 {
     if (class_code == GetClassCode<RobotPlanningSpace>() ||
         class_code == GetClassCode<PointProjectionExtension>() ||
+        class_code == GetClassCode<ExtractRobotStateExtension>() ||
         class_code == GetClassCode<ManipLattice>())
     {
         return this;

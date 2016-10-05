@@ -98,7 +98,8 @@ SBPL_CLASS_FORWARD(ManipLattice);
 /// \class Discrete space constructed by expliciting discretizing each joint
 class ManipLattice :
     public RobotPlanningSpace,
-    public PointProjectionExtension
+    public PointProjectionExtension,
+    public ExtractRobotStateExtension
 {
 public:
 
@@ -141,6 +142,11 @@ public:
         std::vector<int>* costs,
         std::vector<bool>* true_costs) override;
     int GetTrueCost(int parent_id, int child_id) override;
+    ///@}
+
+    /// \name Required Public Functions from ExtractRobotStateExtension
+    ///@{
+    const RobotState& extractState(int state_id);
     ///@}
 
     /// \name Required Public Functions from PointProjectionExtension
