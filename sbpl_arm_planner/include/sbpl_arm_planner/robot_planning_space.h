@@ -175,6 +175,15 @@ public:
     virtual bool projectToPoint(int state_id, Eigen::Vector3d& pos) = 0;
 };
 
+class ExtractRobotStateExtension : public virtual Extension
+{
+public:
+
+    virtual ~ExtractRobotStateExtension() { }
+
+    virtual const RobotState& extractState(int state_id) = 0;
+};
+
 inline
 size_t RobotPlanningSpace::numHeuristics() const
 {
