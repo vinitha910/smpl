@@ -51,6 +51,12 @@ auto std::hash<sbpl::manip::WorkspaceLatticeState>::operator()(
 namespace sbpl {
 namespace manip {
 
+std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s)
+{
+    o << "{ coord: " << s.coord << ", state: " << s.state << ", h: " << s.h << " }";
+    return o;
+}
+
 template <
     class InputIt,
     class Equal = std::equal_to<typename std::iterator_traits<InputIt>::value_type>>
@@ -70,7 +76,6 @@ WorkspaceLattice::WorkspaceLattice(
 :
     RobotPlanningSpace(robot, checker, params),
     m_grid(grid),
-    m_goal(),
     m_goal_entry(nullptr),
     m_start_entry(nullptr),
     m_state_to_id(),
@@ -92,24 +97,21 @@ WorkspaceLattice::~WorkspaceLattice()
     // NOTE: StateID2IndexMapping cleared by DiscreteSpaceInformation
 }
 
-bool WorkspaceLattice::init(RobotModel* robot, const Params& _params)
+bool WorkspaceLattice::init(const Params& _params)
 {
-    assert(robot);
-    m_robot = robot;
-
-    m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
+    m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
     if (!m_fk_iface) {
         ROS_WARN("Workspace Lattice requires Forward Kinematics Interface extension");
         return false;
     }
 
-    m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
+    m_ik_iface = robot()->getExtension<InverseKinematicsInterface>();
     if (!m_ik_iface) {
         ROS_WARN("Workspace Lattice requires Inverse Kinematics Interface extension");
         return false;
     }
 
-    m_rm_iface = robot->getExtension<RedundantManipulatorInterface>();
+    m_rm_iface = robot()->getExtension<RedundantManipulatorInterface>();
     if (!m_rm_iface) {
         ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return false;
@@ -122,14 +124,15 @@ bool WorkspaceLattice::init(RobotModel* robot, const Params& _params)
     m_dof_count = 6 + m_fangle_indices.size();
 
     m_res.resize(m_dof_count);
+    m_val_count.resize(m_dof_count);
 
     m_res[0] = m_grid->getResolution();
     m_res[1] = m_grid->getResolution();
     m_res[2] = m_grid->getResolution();
     // TODO: limit these ranges and handle discretization appropriately
-    m_res[3] = (2.0 * M_PI) / _params.R_count;
-    m_res[4] = (2.0 * M_PI) / _params.P_count;
-    m_res[5] = (2.0 * M_PI) / _params.Y_count;
+    m_res[3] = 2.0 * M_PI / _params.R_count;
+    m_res[4] = M_PI       / _params.P_count;
+    m_res[5] = 2.0 * M_PI / _params.Y_count;
 
     for (int i = 0; i < m_fangle_indices.size(); ++i) {
         m_res[6 + i] = (2.0 * M_PI) / _params.free_angle_res[i];
@@ -207,6 +210,8 @@ bool WorkspaceLattice::init(RobotModel* robot, const Params& _params)
         prim.action.push_back(d);
         m_prims.push_back(prim);
     }
+
+    return true;
 }
 
 bool WorkspaceLattice::initialized() const
@@ -255,22 +260,10 @@ bool WorkspaceLattice::setGoal(const GoalConstraint& goal)
 {
     bool res = false;
     if (goal.type == GoalType::XYZ_RPY_GOAL) {
-        PoseGoal pose_goal;
-        pose_goal.pose = goal.pose;
-        pose_goal.offset = goal.tgt_off_pose;
-        pose_goal.tolerance = {
-                goal.xyz_tolerance[0],
-                goal.xyz_tolerance[1],
-                goal.xyz_tolerance[2],
-                goal.rpy_tolerance[0],
-                goal.rpy_tolerance[1],
-                goal.rpy_tolerance[2]
-        };
-        res = setGoalPose(pose_goal);
-    }
-
-    if (res) {
-        return RobotPlanningSpace::setGoal(goal);
+        return setGoalPose(goal);
+    } else {
+        // TODO: set other goals here
+        return false;
     }
 
     return false;
@@ -374,19 +367,46 @@ Extension* WorkspaceLattice::getExtension(size_t class_code)
 
 int WorkspaceLattice::GetGoalHeuristic(int state_id)
 {
-    int xyz_heur = 0, rpy_heur = 0;
+    if (state_id == m_goal_state_id) {
+        return 0;
+    }
+
     WorkspaceLatticeState* state = getState(state_id);
 
-    int r = (m_goal_entry->coord[3] - state->coord[3]) % m_val_count[3];
-    int p = (m_goal_entry->coord[4] - state->coord[4]) % m_val_count[4];
-    int y = (m_goal_entry->coord[5] - state->coord[5]) % m_val_count[5];
+    int dx = abs(state->coord[0] - m_goal_coord[0]);
+    int dy = abs(state->coord[1] - m_goal_coord[1]);
+    int dz = abs(state->coord[2] - m_goal_coord[2]);
+    int xyz_heur = (dx + dy + dz) * params()->cost_per_cell;
 
-    rpy_heur = (abs(r) + abs(p) + abs(y)) * params()->cost_per_cell;
-    ROS_DEBUG("stateid: %5d   xyz: %2d %2d %2d  rpy: %2d %2d %2d  (goal-rpy: %2d %2d %2d)", state_id, state->coord[0], state->coord[1], state->coord[2], state->coord[3], state->coord[4], state->coord[5], m_goal_entry->coord[3], m_goal_entry->coord[4], m_goal_entry->coord[5]);
-    ROS_DEBUG("               xyz-heur: %4d  rpy-heur: %4d  (r: %2d  p:%2d  y: %2d)", xyz_heur, rpy_heur, r, p, y);
+    double rpy[3];
+    rotCoordToWorkspace(&state->coord[3], &rpy[0]);
+
+    double grpy[3];
+    rotCoordToWorkspace(&m_goal_coord[3], &grpy[0]);
+
+    Eigen::Quaterniond qstate(
+            Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()));
+
+    Eigen::Quaterniond qgoal(
+            Eigen::AngleAxisd(grpy[2], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(grpy[1], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(grpy[0], Eigen::Vector3d::UnitX()));
+
+    if (qstate.dot(qgoal) < 0.0) {
+        qgoal = Eigen::Quaterniond(-qgoal.w(), -qgoal.x(), -qgoal.y(), -qgoal.z());
+    }
+
+    double dr = angles::normalize_angle(2.0 * acos(qstate.dot(qgoal)));
+
+    int rpy_heur = (params()->cost_per_cell * dr / m_res[3]);
+
+    ROS_DEBUG_STREAM_NAMED(params()->graph_log, "id: " << state_id << ", state: " << *state);
+    ROS_DEBUG_NAMED(params()->graph_log, "(%d + %d + %d) * %d = %d", dx, dy, dz, params()->cost_per_cell, xyz_heur);
 
     state->h = xyz_heur + rpy_heur;
-    return xyz_heur + rpy_heur;
+    return state->h;
 }
 
 void WorkspaceLattice::GetSuccs(
@@ -400,7 +420,7 @@ void WorkspaceLattice::GetSuccs(
     succs->clear();
     costs->clear();
 
-    ROS_DEBUG_NAMED(params()->expands_log, "expand state %d", state_id);
+    ROS_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -415,7 +435,7 @@ void WorkspaceLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(parent_entry->state).c_str());
 
-    SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
+    SV_SHOW_INFO(getStateVisualization(parent_entry->state, "expansion"));
 
     std::vector<Action> actions;
     getActions(*parent_entry, actions);
@@ -430,7 +450,8 @@ void WorkspaceLattice::GetSuccs(
         ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
         double dist;
-        if (!checkAction(parent_entry->state, action, dist)) {
+        RobotState final_rstate;
+        if (!checkAction(parent_entry->state, action, dist, &final_rstate)) {
             continue;
         }
 
@@ -441,7 +462,7 @@ void WorkspaceLattice::GetSuccs(
         // check if hash entry already exists, if not then create one
         int succ_id = createState(succ_coord);
         WorkspaceLatticeState* succ_state = getState(succ_id);
-        succ_state->state = parent_entry->state;
+        succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
         const bool is_goal_succ = isGoal(final_state);
@@ -470,10 +491,7 @@ void WorkspaceLattice::GetPreds(
 {
 }
 
-void WorkspaceLattice::PrintState(
-    int state_id,
-    bool verbose,
-    FILE* fout)
+void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
     if (!fout) {
@@ -483,7 +501,7 @@ void WorkspaceLattice::PrintState(
     WorkspaceLatticeState* state = getState(state_id);
 
     std::stringstream ss;
-    ss << "{ coord: " << state->coord << ", state: " << state->state << " }";
+    ss << *state;
 
     if (fout == stdout) {
         ROS_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
@@ -496,7 +514,7 @@ void WorkspaceLattice::PrintState(
     }
 }
 
-bool WorkspaceLattice::setGoalPose(const PoseGoal& goal)
+bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
 {
     if (!initialized()) {
         ROS_ERROR_NAMED(params()->graph_log, "cannot set goal pose on uninitialized lattice");
@@ -504,18 +522,8 @@ bool WorkspaceLattice::setGoalPose(const PoseGoal& goal)
     }
 
     // TODO/NOTE: 7 for compatibility with ManipLattice goal
-    if (goal.pose.size() != 7) {
+    if (goal.pose.size() != 6) {
         ROS_ERROR("goal element has incorrect format");
-        return false;
-    }
-
-    if (goal.offset.size() != 3) {
-        ROS_ERROR("offset element has incorrect format");
-        return false;
-    }
-
-    if (goal.tolerance.size() != 6) {
-        ROS_ERROR("tolerance element has incorrect format");
         return false;
     }
 
@@ -529,22 +537,18 @@ bool WorkspaceLattice::setGoalPose(const PoseGoal& goal)
         ROS_WARN("No valid IK solution for the goal pose.");
     }
 
-    m_goal.pose = goal.pose;
-    std::copy(goal.offset.begin(), goal.offset.end(), m_goal.xyz_offset);
-    std::copy(goal.tolerance.begin(), goal.tolerance.begin() + 3, m_goal.xyz_tolerance);
-    std::copy(goal.tolerance.begin() + 3, goal.tolerance.begin() + 6, m_goal.rpy_tolerance);
+    ROS_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose[0], goal.pose[1], goal.pose[2]);
+    ROS_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
+    ROS_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", goal.pose[3], goal.pose[4], goal.pose[5]);
+    ROS_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
 
-    m_goal.type = GoalType::XYZ_RPY_GOAL;
-
-    ROS_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", m_goal.pose[0], m_goal.pose[1], m_goal.pose[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", m_goal.xyz_tolerance[0], m_goal.xyz_tolerance[1], m_goal.xyz_tolerance[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", m_goal.pose[3], m_goal.pose[4], m_goal.pose[5]);
-    ROS_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", m_goal.rpy_tolerance[0], m_goal.rpy_tolerance[1], m_goal.rpy_tolerance[2]);
+    posWorkspaceToCoord(&goal.tgt_off_pose[0], &m_goal_coord[0]);
+    rotWorkspaceToCoord(&goal.tgt_off_pose[3], &m_goal_coord[3]);
 
     m_near_goal = false;
     m_t_start = clock();
 
-    return true;
+    return RobotPlanningSpace::setGoal(goal);
 }
 
 bool WorkspaceLattice::setGoalPoses(const std::vector<PoseGoal>& goals)
@@ -627,6 +631,18 @@ bool WorkspaceLattice::stateWorkspaceToRobot(
         seed[m_fangle_indices[fai]] = state[6 + fai];
     }
 
+    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "pose: " << pose << ", seed: " << seed);
+
+    return m_rm_iface->computeFastIK(pose, seed, ostate);
+}
+
+bool WorkspaceLattice::stateWorkspaceToRobot(
+    const WorkspaceState& state, const RobotState& seed, RobotState& ostate)
+{
+    SixPose pose(state.begin(), state.begin() + 6);
+
+    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "pose: " << pose << ", seed: " << seed);
+
     // TODO: unrestricted variant?
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
@@ -652,7 +668,10 @@ void WorkspaceLattice::stateCoordToWorkspace(
     const WorkspaceCoord& coord,
     WorkspaceState& state)
 {
-
+    state.resize(m_dof_count);
+    posCoordToWorkspace(&coord[0], &state[0]);
+    rotCoordToWorkspace(&coord[3], &state[3]);
+    favCoordToWorkspace(&coord[6], &state[6]);
 }
 
 /// \brief Convert a discrete position to its continuous counterpart.
@@ -675,7 +694,7 @@ void WorkspaceLattice::rotWorkspaceToCoord(const double* wr, int* gr)
     gr[2] = (int)((angles::normalize_angle_positive(wr[2]) + m_res[5] * 0.5) / m_res[5]) % m_val_count[5];
 }
 
-/// \brief Convert a discrete rotation to its continuous counterpart.
+/// Convert a discrete rotation to its continuous counterpart.
 void WorkspaceLattice::rotCoordToWorkspace(const int* gr, double* wr)
 {
     wr[0] = angles::normalize_angle((double)gr[0] * m_res[3]);
@@ -683,21 +702,21 @@ void WorkspaceLattice::rotCoordToWorkspace(const int* gr, double* wr)
     wr[2] = angles::normalize_angle((double)gr[2] * m_res[5]);
 }
 
-/// \brief Convert a continuous pose to its discrete counterpart.
+/// Convert a continuous pose to its discrete counterpart.
 void WorkspaceLattice::poseWorkspaceToCoord(const double* wp, int* gp)
 {
     posWorkspaceToCoord(wp, gp);
     rotWorkspaceToCoord(wp + 3, gp + 3);
 }
 
-/// \brief Convert a discrete pose to its continuous counterpart.
+/// Convert a discrete pose to its continuous counterpart.
 void WorkspaceLattice::poseCoordToWorkspace(const int* gp, double* wp)
 {
     posCoordToWorkspace(gp, wp);
     rotCoordToWorkspace(gp + 3, wp + 3);
 }
 
-/// \brief Convert a continuous free angle vector to its discrete counterpart.
+/// Convert a continuous free angle vector to its discrete counterpart.
 void WorkspaceLattice::favWorkspaceToCoord(const double* wa, int* ga)
 {
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
@@ -705,7 +724,7 @@ void WorkspaceLattice::favWorkspaceToCoord(const double* wa, int* ga)
     }
 }
 
-/// \brief Convert a discrete free angle vector to its continuous counterpart.
+/// Convert a discrete free angle vector to its continuous counterpart.
 void WorkspaceLattice::favCoordToWorkspace(const int* ga, double* wa)
 {
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
@@ -716,9 +735,9 @@ void WorkspaceLattice::favCoordToWorkspace(const int* ga, double* wa)
 bool WorkspaceLattice::isGoal(const WorkspaceState& state)
 {
     // check position
-    if (fabs(state[0] - m_goal.pose[0]) <= m_goal.xyz_tolerance[0] &&
-        fabs(state[1] - m_goal.pose[1]) <= m_goal.xyz_tolerance[1] &&
-        fabs(state[2] - m_goal.pose[2]) <= m_goal.xyz_tolerance[2])
+    if (fabs(state[0] - goal().pose[0]) <= goal().xyz_tolerance[0] &&
+        fabs(state[1] - goal().pose[1]) <= goal().xyz_tolerance[1] &&
+        fabs(state[2] - goal().pose[2]) <= goal().xyz_tolerance[2])
     {
         // log the amount of time required for the search to get close to the goal
         if (!m_near_goal) {
@@ -727,9 +746,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state)
             ROS_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
         }
         // check orientation
-        if (angles::shortest_angle_dist(state[3], m_goal.pose[3]) <= m_goal.rpy_tolerance[0] &&
-            angles::shortest_angle_dist(state[4], m_goal.pose[4]) <= m_goal.rpy_tolerance[1] &&
-            angles::shortest_angle_dist(state[5], m_goal.pose[5]) <= m_goal.rpy_tolerance[2])
+        if (angles::shortest_angle_dist(state[3], goal().pose[3]) <= goal().rpy_tolerance[0] &&
+            angles::shortest_angle_dist(state[4], goal().pose[4]) <= goal().rpy_tolerance[1] &&
+            angles::shortest_angle_dist(state[5], goal().pose[5]) <= goal().rpy_tolerance[2])
         {
             return true;
         }
@@ -758,34 +777,41 @@ void WorkspaceLattice::getActions(
     const double short_dist_mprims_thresh = 0.0;
     const bool use_multi_res_prims = false;
 
-    RobotState last_state(m_dof_count);
+    WorkspaceState cont_state;
+    stateCoordToWorkspace(entry.coord, cont_state);
 
-    for (const auto& prim : m_prims) {
+    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "create actions for state: " << cont_state);
+
+    for (size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
+        const auto& prim = m_prims[pidx];
+
         if (prim.type == MotionPrimitive::Type::LONG_DISTANCE) {
-            if (entry.h <= short_dist_mprims_thresh &&
-                use_multi_res_prims)
-            {
+            if ((entry.h <= short_dist_mprims_thresh) && use_multi_res_prims) {
+                ROS_DEBUG_NAMED(params()->expands_log, "    -> skipping long distance mprim");
                 continue;
             }
-        }
-        else if (prim.type == MotionPrimitive::Type::SHORT_DISTANCE) {
-            if (entry.h > short_dist_mprims_thresh &&
-                use_multi_res_prims)
-            {
+        } else if (prim.type == MotionPrimitive::Type::SHORT_DISTANCE) {
+            if ((entry.h > short_dist_mprims_thresh) && use_multi_res_prims) {
+                ROS_DEBUG_NAMED(params()->expands_log, "    -> skipping short distance mprim");
                 continue;
             }
         }
 
         Action action;
 
-        last_state = entry.state;
+        WorkspaceState final_state = cont_state;
         for (const RobotState& delta_state : prim.action) {
             // increment the state
             for (size_t d = 0; d < m_dof_count; ++d) {
-                last_state[d] += delta_state[d];
+                final_state[d] += delta_state[d];
             }
 
-            action.push_back(last_state);
+            // handle wrapping of euler angles
+//            Eigen::Matrix3d rot;
+//            angles::from_euler_zyx(final_state[5], final_state[4], final_state[3], rot);
+//            angles::get_euler_zyx(rot, final_state[5], final_state[4], final_state[3]);
+
+            action.push_back(final_state);
         }
 
         actions.push_back(action);
@@ -795,7 +821,8 @@ void WorkspaceLattice::getActions(
 bool WorkspaceLattice::checkAction(
     const RobotState& state,
     const Action& action,
-    double& dist)
+    double& dist,
+    RobotState* final_rstate)
 {
     std::vector<RobotState> wptraj;
     wptraj.reserve(action.size());
@@ -803,13 +830,13 @@ bool WorkspaceLattice::checkAction(
     std::uint32_t violation_mask = 0x00000000;
 
     // check waypoints for ik solutions and joint limits
-    for (size_t iidx = 0; iidx < action.size(); ++iidx) {
-        const WorkspaceState& istate = action[iidx];
+    for (size_t widx = 0; widx < action.size(); ++widx) {
+        const WorkspaceState& istate = action[widx];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", iidx, to_string(istate).c_str());
+        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
 
         RobotState irstate;
-        if (!stateWorkspaceToRobot(istate, irstate)) {
+        if (!stateWorkspaceToRobot(istate, state, irstate)) {
             ROS_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
@@ -842,9 +869,9 @@ bool WorkspaceLattice::checkAction(
         return false;
     }
 
-    for (size_t iidx = 1; iidx < wptraj.size(); ++iidx) {
-        const RobotState& prev_istate = wptraj[iidx - 1];
-        const RobotState& curr_istate = wptraj[iidx];
+    for (size_t widx = 1; widx < wptraj.size(); ++widx) {
+        const RobotState& prev_istate = wptraj[widx - 1];
+        const RobotState& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate, plen, nchecks, dist)) {
             ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
@@ -856,81 +883,13 @@ bool WorkspaceLattice::checkAction(
         return false;
     }
 
+    if (final_rstate) {
+        *final_rstate = wptraj.back();
+    }
     return true;
 }
 
 #if !BROKEN
-
-int WorkspaceLattice::computeMotionCost(
-    const RobotState& from,
-    const RobotState& to)
-{
-    double time = 0;
-    double time_max = 0;
-
-    for (size_t i = 0; i < from.size(); ++i) {
-        time = fabs(angles::normalize_angle(from[i] - to[i])) / prms_.joint_vel_[i];
-
-        ROS_DEBUG("%zu: from: %0.4f to: %0.4f dist: %0.4f vel:%0.4f time: %0.4f", i, from[i], to[i], fabs(angles::normalize_angle(from[i] - to[i])), prms_.joint_vel_[i], time);
-
-        if (time > time_max) {
-            time_max = time;
-        }
-    }
-
-    ROS_DEBUG("motion cost: %d  max_time:%0.4f", (int)(params()->cost_per_second_ * time_max), time_max);
-
-    return params()->cost_per_second_ * time_max;
-}
-
-int WorkspaceLattice::getJointAnglesForMotionPrimWaypoint(
-    const std::vector<double>& mp_point,
-    const WorkspaceState& init_wcoord,
-    const RobotState& pangles,
-    WorkspaceState& final_wcoord,
-    std::vector<RobotState>& states)
-{
-    int status = 0;
-    SixPose pose(6, 0);
-    RobotState seed = pangles;
-
-    for (size_t a = 0; a < 6; ++a) {
-        pose[a] = init_wcoord[a] + mp_point[a];
-    }
-
-    seed[m_free_angle_idx] = init_wcoord[6] + mp_point[6];
-    final_wcoord = pose;
-    final_wcoord.push_back(seed[m_free_angle_idx]);
-
-    // orientation solver - for rpy motion
-    if (mp_point[0] == 0 && mp_point[1] == 0 && mp_point[2] == 0 && mp_point[6] == 0) {
-        if (!rpysolver_->isOrientationFeasible(m_goal.rpy, seed, states)) {
-            status = -solver_types::ORIENTATION_SOLVER;
-        }
-        else {
-            return solver_types::ORIENTATION_SOLVER;
-        }
-    }
-
-    // analytical IK
-    states.resize(1, std::vector<double>(m_dof_count, 0));
-    if (!robot()->computeFastIK(pose, seed, states[0])) {
-        status = -solver_types::IK;
-
-        // IK search
-        if (!m_ik_iface->computeIK(pose, seed, states[0]))
-            status = -solver_types::IK_SEARCH;
-        else {
-            final_wcoord[6] = states[0][m_free_angle_idx];
-            return solver_types::IK_SEARCH;
-        }
-    }
-    else {
-        return solver_types::IK;
-    }
-
-    return status;
-}
 
 bool WorkspaceLattice::getMotionPrimitive(
     WorkspaceLatticeState* parent,
@@ -998,7 +957,7 @@ bool WorkspaceLattice::getMotionPrimitive(
     }
 
     if (all_equal(mp.coord.begin(), mp.coord.end(), 0)) {
-        ROS_DEBUG("Not using adaptive mprim cause its all zeros. We should be at goal??? (type: %s)", to_string(mp.type).c_str());
+        ROS_DEBUG_NAMED(params()->graph_log, "Not using adaptive mprim cause its all zeros. We should be at goal??? (type: %s)", to_string(mp.type).c_str());
         return false;
     }
 
@@ -1257,8 +1216,8 @@ void WorkspaceLattice::getVector(
             zout = 0;
         }
     }
-    ROS_DEBUG("xyz1: %d %d %d    xyz2: %d %d %d", x1, y1, z1, x2, y2, z2);
-    ROS_DEBUG("dx: %1.2f dy: %1.2f dz: %1.2f length: %1.2f multiplier: %d unit_double{%1.2f %1.2f %1.2f}  unit_int{%d %d %d}", dx, dy, dz, length, multiplier, dx / length, dy / length, dz / length, xout, yout, zout);
+    ROS_DEBUG_NAMED(params()->graph_log, "xyz1: %d %d %d    xyz2: %d %d %d", x1, y1, z1, x2, y2, z2);
+    ROS_DEBUG_NAMED(params()->graph_log, "dx: %1.2f dy: %1.2f dz: %1.2f length: %1.2f multiplier: %d unit_double{%1.2f %1.2f %1.2f}  unit_int{%d %d %d}", dx, dy, dz, length, multiplier, dx / length, dy / length, dz / length, xout, yout, zout);
 }
 
 bool WorkspaceLattice::getDistanceGradient(int& x, int& y, int& z)

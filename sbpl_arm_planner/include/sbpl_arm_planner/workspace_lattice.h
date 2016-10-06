@@ -76,6 +76,8 @@ struct WorkspaceLatticeState
     int h;
 };
 
+std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s);
+
 inline
 bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)
 {
@@ -133,7 +135,7 @@ public:
 
     ~WorkspaceLattice();
 
-    bool init(RobotModel* robot, const Params& params);
+    bool init(const Params& params);
     bool initialized() const;
 
     // TODO: add path extraction function that returns path in workspace rep
@@ -203,16 +205,10 @@ private:
 
     // Context Interfaces
     OccupancyGrid* m_grid;
-    RobotModel* m_robot;
-    CollisionChecker* m_cc;
 
     ForwardKinematicsInterface* m_fk_iface;
     InverseKinematicsInterface* m_ik_iface;
     RedundantManipulatorInterface* m_rm_iface;
-
-    PlanningParams* m_params;
-
-    GoalConstraint m_goal;
 
     WorkspaceLatticeState* m_goal_entry;
     int m_goal_state_id;
@@ -229,6 +225,8 @@ private:
     clock_t m_t_start;
     bool m_near_goal;
 
+    int m_goal_coord[6];
+
     /// \name State Space Configuration
     ///@{
 
@@ -236,7 +234,7 @@ private:
     std::vector<double> m_res;
     std::vector<int> m_val_count;
     int m_dof_count;
-    std::vector<size_t> m_fangle_indices;
+    std::vector<size_t> m_fangle_indices; // cached from robot model
 
     ///@}
 
@@ -247,7 +245,7 @@ private:
 
     ///@}
 
-    bool setGoalPose(const PoseGoal& goal);
+    bool setGoalPose(const GoalConstraint& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
 
     size_t freeAngleCount() const { return m_fangle_indices.size(); }
@@ -262,6 +260,9 @@ private:
     void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord);
     bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state);
     void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state);
+
+    bool stateWorkspaceToRobot(
+        const WorkspaceState& state, const RobotState& seed, RobotState& ostate);
 
     // TODO: variants of workspace -> robot that don't restrict redundant angles
     // TODO: variants of workspace -> robot that take in a full seed state
@@ -281,7 +282,8 @@ private:
     bool checkAction(
         const RobotState& state,
         const Action& action,
-        double& dist);
+        double& dist,
+        RobotState* final_rstate = nullptr);
 
     bool isGoal(const WorkspaceState& state);
 
@@ -292,15 +294,6 @@ private:
 #if !BROKEN
     std::vector<double> mp_gradient_;
     std::vector<double> mp_dist_;
-
-    int computeMotionCost(const RobotState& a, const RobotState& b);
-
-    int getJointAnglesForMotionPrimWaypoint(
-        const std::vector<double>& mp_point,
-        const WorkspaceState& wcoord,
-        const RobotState& pangles,
-        WorkspaceState& final_wcoord,
-        std::vector<RobotState>& angles);
 
     bool getMotionPrimitive(WorkspaceLatticeState* parent, MotionPrimitive& mp);
     void getAdaptiveMotionPrim(
