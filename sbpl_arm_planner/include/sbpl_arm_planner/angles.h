@@ -104,6 +104,15 @@ void get_euler_zyx(const Eigen::Matrix<T, 3, 3>& rot, T& y, T& p, T& r)
     r = atan2(rot(2, 1), rot(2, 2));
 }
 
+template <typename T>
+void from_euler_zyx(T y, T p, T r, Eigen::Matrix<T, 3, 3>& rot)
+{
+    // TODO: non-doubles
+    rot = Eigen::AngleAxisd(y, Eigen::Vector3d::UnitZ()) *
+        Eigen::AngleAxisd(p, Eigen::Vector3d::UnitY()) *
+        Eigen::AngleAxisd(r, Eigen::Vector3d::UnitX());
+}
+
 } // namespace angles
 } // namespace sbpl
 
