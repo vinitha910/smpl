@@ -943,6 +943,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 
     // initialize the planning space
     if (space_name == "manip") {
+        ROS_INFO_NAMED(PI_LOGGER, "Initialize Manip Lattice");
         m_pspace = std::make_shared<ManipLattice>(
                 m_robot, m_checker, &m_params, m_grid);
 
@@ -985,8 +986,26 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             return false;
         }
     } else if (space_name == "workspace") {
+        ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
         m_pspace = std::make_shared<WorkspaceLattice>(
                 m_robot, m_checker, &m_params, m_grid);
+        WorkspaceLattice* workspace_lattice = (WorkspaceLattice*)m_pspace.get();
+        WorkspaceLattice::Params wsp;
+        wsp.R_count = 360;
+        wsp.P_count = 180 + 1;
+        wsp.Y_count = 360;
+
+        RedundantManipulatorInterface* rmi =
+                m_robot->getExtension<RedundantManipulatorInterface>();
+        if (!rmi) {
+            ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
+            return false;
+        }
+        wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
+        if (!workspace_lattice->init(wsp)) {
+            ROS_ERROR("Failed to initialize Workspace Lattice");
+            return false;
+        }
     } else {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
         return false;
@@ -1016,7 +1035,6 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         m_pspace->insertHeuristic(heuristic);
         m_heur_vec.push_back(heuristic.get());
     }
-
 
     // initialize the search algorithm
     if (search_name == "arastar") {
@@ -1051,6 +1069,9 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         return false;
     } else if (search_name == "rstar") {
         ROS_ERROR("R* unimplemented");
+        return false;
+    } else {
+        ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
         return false;
     }
 
