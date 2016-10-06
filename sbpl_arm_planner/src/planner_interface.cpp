@@ -881,7 +881,7 @@ bool PlannerInterface::parsePlannerID(
     if (sm.size() < 2 || sm[1].str().empty()) {
         search_name = default_search_name;
     } else {
-        search_name = sm[0];
+        search_name = sm[1];
     }
 
     if (sm.size() < 3 || sm[2].str().empty()) {
