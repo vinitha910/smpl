@@ -409,6 +409,18 @@ bool PlannerInterface::setGoalPosition(
     ROS_INFO_NAMED(PI_LOGGER, "    offset: (%0.3f, %0.3f, %0.3f)", goal.xyz_offset[0], goal.xyz_offset[1], goal.xyz_offset[2]);
     ROS_INFO_NAMED(PI_LOGGER, "    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
 
+    // ...a lot more relies on this than I had hoped
+    Eigen::Affine3d target_pose = goal_pose * Eigen::Translation3d(offset);
+    goal.tgt_off_pose =
+    {
+        target_pose.translation()[0],
+        target_pose.translation()[1],
+        target_pose.translation()[2],
+        goal.pose[3],
+        goal.pose[4],
+        goal.pose[5]
+    };
+
     if (!m_pspace->setGoal(goal)) {
         ROS_ERROR("Failed to set goal state");
         return false;
