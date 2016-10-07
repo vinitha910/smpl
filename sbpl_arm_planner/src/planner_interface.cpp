@@ -314,7 +314,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 bool PlannerInterface::setGoalConfiguration(
     const moveit_msgs::Constraints& goal_constraints)
 {
-    ROS_INFO_NAMED(PI_LOGGER, "set goal configuration");
+    ROS_INFO_NAMED(PI_LOGGER, "Set goal configuration");
 
     std::vector<double> sbpl_angle_goal(m_robot->jointVariableCount(), 0);
     std::vector<double> sbpl_angle_tolerance(m_robot->jointVariableCount(), angles::to_radians(3.0));
@@ -343,6 +343,10 @@ bool PlannerInterface::setGoalConfiguration(
     goal.type = GoalType::JOINT_STATE_GOAL;
     goal.angles = sbpl_angle_goal;
     goal.angle_tolerances = sbpl_angle_tolerance;
+
+    // TODO: really need to reevaluate the necessity of the planning link
+    goal.pose.resize(6, 0.0);
+    goal.tgt_off_pose.resize(6, 0.0);
 
     // set sbpl environment goal
     if (!m_pspace->setGoal(goal)) {
