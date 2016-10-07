@@ -73,7 +73,6 @@ ManipLattice::ManipLattice(
     m_continuous(),
     m_near_goal(false),
     m_t_start(),
-    m_goal(),
     m_goal_entry(nullptr),
     m_start_entry(nullptr),
     m_states(),
@@ -165,7 +164,7 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(parent_entry->state).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  ee: (%3d, %3d, %3d)", parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]);
     ROS_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
-    ROS_DEBUG_NAMED(params()->expands_log, "  gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - parent_entry->xyz[0]), abs(m_goal.xyz[1] - parent_entry->xyz[1]), abs(m_goal.xyz[2] - parent_entry->xyz[2]));
+    ROS_DEBUG_NAMED(params()->expands_log, "  gdiff: (%3d, %3d, %3d)", abs(goal().xyz[0] - parent_entry->xyz[0]), abs(goal().xyz[1] - parent_entry->xyz[1]), abs(goal().xyz[2] - parent_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(params()->expands_log_, "  goal dist: %0.3f", m_grid->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
     SV_SHOW_INFO(getStateVisualization(parent_entry->state, "expansion"));
@@ -238,7 +237,7 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
         ROS_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - endeff[0]), abs(m_goal.xyz[1] - endeff[1]), abs(m_goal.xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(params()->expands_log, "        gdiff: (%3d, %3d, %3d)", abs(goal().xyz[0] - endeff[0]), abs(goal().xyz[1] - endeff[1]), abs(goal().xyz[2] - endeff[2]));
         ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
         ROS_DEBUG_NAMED(params()->expands_log, "        dist: %2d", (int)succ_entry->dist);
         ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
@@ -290,7 +289,7 @@ void ManipLattice::GetLazySuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(state_entry->state).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  ee: (%3d, %3d, %3d)", state_entry->xyz[0], state_entry->xyz[1], state_entry->xyz[2]);
     ROS_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(SourceStateID));
-    ROS_DEBUG_NAMED(params()->expands_log, "  gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - state_entry->xyz[0]), abs(m_goal.xyz[1] - state_entry->xyz[1]), abs(m_goal.xyz[2] - state_entry->xyz[2]));
+    ROS_DEBUG_NAMED(params()->expands_log, "  gdiff: (%3d, %3d, %3d)", abs(goal().xyz[0] - state_entry->xyz[0]), abs(goal().xyz[1] - state_entry->xyz[1]), abs(goal().xyz[2] - state_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(params()->expands_log_, "  goal dist: %0.3f", m_grid->getResolution() * bfs_->getDistance(state_entry->xyz[0], state_entry->xyz[1], state_entry->xyz[2]));
 
     const std::vector<double>& source_angles = state_entry->state;
@@ -347,7 +346,7 @@ void ManipLattice::GetLazySuccs(
         ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        ee: (%3d, %3d, %3d)", endeff[0], endeff[1], endeff[2]);
         ROS_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        gdiff: (%3d, %3d, %3d)", abs(m_goal.xyz[0] - endeff[0]), abs(m_goal.xyz[1] - endeff[1]), abs(m_goal.xyz[2] - endeff[2]));
+        ROS_DEBUG_NAMED(params()->expands_log, "        gdiff: (%3d, %3d, %3d)", abs(goal().xyz[0] - endeff[0]), abs(goal().xyz[1] - endeff[1]), abs(goal().xyz[2] - endeff[2]));
         ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
         ROS_DEBUG_NAMED(params()->expands_log, "        dist: %2d", (int)succ_entry->dist);
         ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
@@ -541,20 +540,7 @@ bool ManipLattice::computePlanningFrameFK(
         return false;
     }
 
-    // pose represents T_planning_eef
-    Eigen::Affine3d T_planning_tipoff =  // T_planning_eef * T_eef_tipoff
-            Eigen::Translation3d(pose[0], pose[1], pose[2]) *
-            Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()) *
-            Eigen::Translation3d(
-                    m_goal.xyz_offset[0],
-                    m_goal.xyz_offset[1],
-                    m_goal.xyz_offset[2]);
-    const Eigen::Vector3d voff(T_planning_tipoff.translation());
-    pose[0] = voff.x();
-    pose[1] = voff.y();
-    pose[2] = voff.z();
+    pose = getTargetOffsetPose(pose);
 
     assert(pose.size() == 6);
     return true;
@@ -572,11 +558,11 @@ bool ManipLattice::isGoal(
     const RobotState& state,
     const std::vector<double>& pose)
 {
-    switch (m_goal.type) {
+    switch (goal().type) {
     case GoalType::JOINT_STATE_GOAL:
     {
-        for (int i = 0; i < m_goal.angles.size(); i++) {
-            if (fabs(state[i] - m_goal.angles[i]) > m_goal.angle_tolerances[i]) {
+        for (int i = 0; i < goal().angles.size(); i++) {
+            if (fabs(state[i] - goal().angles[i]) > goal().angle_tolerances[i]) {
                 return false;
             }
         }
@@ -584,12 +570,12 @@ bool ManipLattice::isGoal(
     }   break;
     case GoalType::XYZ_RPY_GOAL:
     {
-        const double dx = fabs(pose[0] - m_goal.tgt_off_pose[0]);
-        const double dy = fabs(pose[1] - m_goal.tgt_off_pose[1]);
-        const double dz = fabs(pose[2] - m_goal.tgt_off_pose[2]);
-        if (dx <= m_goal.xyz_tolerance[0] &&
-            dy <= m_goal.xyz_tolerance[1] &&
-            dz <= m_goal.xyz_tolerance[2])
+        const double dx = fabs(pose[0] - goal().tgt_off_pose[0]);
+        const double dy = fabs(pose[1] - goal().tgt_off_pose[1]);
+        const double dz = fabs(pose[2] - goal().tgt_off_pose[2]);
+        if (dx <= goal().xyz_tolerance[0] &&
+            dy <= goal().xyz_tolerance[1] &&
+            dz <= goal().xyz_tolerance[2])
         {
             // log the amount of time required for the search to get close to the goal
             if (!m_near_goal) {
@@ -597,15 +583,15 @@ bool ManipLattice::isGoal(
                 m_near_goal = true;
                 ROS_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
                         pose[0], pose[1], pose[2],
-                        m_goal.xyz_tolerance[0],
-                        m_goal.tgt_off_pose[0], m_goal.tgt_off_pose[1], m_goal.tgt_off_pose[2],
+                        goal().xyz_tolerance[0],
+                        goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
                         time_to_goal_region,
                         m_expanded_states.size());
             }
             Eigen::Quaterniond qg(
-                    Eigen::AngleAxisd(m_goal.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(m_goal.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(m_goal.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+                    Eigen::AngleAxisd(goal().tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(goal().tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(goal().tgt_off_pose[3], Eigen::Vector3d::UnitX()));
             Eigen::Quaterniond q(
                     Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
@@ -613,16 +599,16 @@ bool ManipLattice::isGoal(
 
 //            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
             const double theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
-            if (theta < m_goal.rpy_tolerance[0]) {
+            if (theta < goal().rpy_tolerance[0]) {
                 return true;
             }
         }
     }   break;
     case GoalType::XYZ_GOAL:
     {
-        if (fabs(pose[0] - m_goal.tgt_off_pose[0]) <= m_goal.xyz_tolerance[0] &&
-            fabs(pose[1] - m_goal.tgt_off_pose[1]) <= m_goal.xyz_tolerance[1] &&
-            fabs(pose[2] - m_goal.tgt_off_pose[2]) <= m_goal.xyz_tolerance[2])
+        if (fabs(pose[0] - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
+            fabs(pose[1] - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
+            fabs(pose[2] - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2])
         {
             return true;
         }
@@ -802,21 +788,10 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
     switch (goal.type) {
     case GoalType::XYZ_GOAL:
     case GoalType::XYZ_RPY_GOAL: {
-        std::vector<std::vector<double>> goal_poses = { goal.pose };
-        goal_poses[0].push_back((double)goal.type);
-        std::vector<std::vector<double>> goal_offsets(1);
-        goal_offsets[0].assign(goal.xyz_offset, goal.xyz_offset + 3);
-        std::vector<std::vector<double>> goal_tolerances =
-        {
-            {
-                goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2],
-                goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]
-            }
-        };
-        return setGoalPosition(goal_poses, goal_offsets, goal_tolerances);
+        return setGoalPose(goal);
     }   break;
     case GoalType::JOINT_STATE_GOAL:
-        return setGoalConfiguration(goal.angles, goal.angle_tolerances);
+        return setGoalConfiguration(goal);
     default:
         return false;
     }
@@ -1088,7 +1063,7 @@ int ManipLattice::getStartStateID() const
 /// setGoalPosition(). If no goal has been set, the returned vector is empty.
 const std::vector<double>& ManipLattice::getGoal() const
 {
-    return m_goal.pose;
+    return goal().pose;
 }
 
 /// \brief Return the 6-dof goal pose for the offset from the tip link.
@@ -1102,9 +1077,9 @@ std::vector<double> ManipLattice::getTargetOffsetPose(
             Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
             Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
             Eigen::Translation3d(
-                    m_goal.xyz_offset[0],
-                    m_goal.xyz_offset[1],
-                    m_goal.xyz_offset[2]);
+                    goal().xyz_offset[0],
+                    goal().xyz_offset[1],
+                    goal().xyz_offset[2]);
     const Eigen::Vector3d voff(T_planning_tipoff.translation());
     return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
 }
@@ -1115,7 +1090,7 @@ std::vector<double> ManipLattice::getTargetOffsetPose(
 /// setGoalConfiguration().
 std::vector<double> ManipLattice::getGoalConfiguration() const
 {
-    return m_goal.angles;
+    return goal().angles;
 }
 
 /// \brief Get the (heuristic) distance from the planning frame position to the
@@ -1141,80 +1116,27 @@ visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
     return ma;
 }
 
-/// \brief Set a 6-dof goal pose for the tip link.
-///
-/// \param goals A list of goal poses/positions for offsets from the tip link.
-///     The format of each element is { x_i, y_i, z_i, R_i, P_i, Y_i, 6dof? }
-///     where the first 6 elements specify the goal pose of the end effector and
-///     the 7th element is a flag indicating whether orientation constraints are
-///     required.
-///
-/// \param offsets A list of offsets from the tip link corresponding to \p
-///     goals. The goal condition and the heuristic values will be computed
-///     relative to these offsets.
-///
-/// \param tolerances A list of goal pose/position tolerances corresponding to
-///     the \p goals. The format of each element is { dx_i, dy_i, dz_i, dR_i,
-///     dP_i, dY_i } in meters/radians.
-bool ManipLattice::setGoalPosition(
-    const std::vector<std::vector<double>>& goals,
-    const std::vector<std::vector<double>>& offsets,
-    const std::vector<std::vector<double>>& tolerances)
+/// Set a 6-dof goal pose for the planning link
+bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 {
     // check arguments
-
-    if (goals.empty()) {
-        ROS_ERROR_NAMED(params()->graph_log, "goals vector is empty");
+    if (gc.pose.size() != 6) {
+        ROS_ERROR_NAMED(params()->graph_log, "Goal pose has incorrect format");
         return false;
     }
 
-    for (const auto& goal : goals) {
-        if (goal.size() != 7) {
-            ROS_ERROR_NAMED(params()->graph_log, "goal element has incorrect format");
-            return false;
-        }
-    }
-
-    if (offsets.size() != goals.size()) {
-        ROS_ERROR_NAMED(params()->graph_log, "setGoalPosition requires as many offset elements as goal elements");
+    if (gc.tgt_off_pose.size() != 6) {
+        ROS_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
         return false;
     }
 
-    for (const auto& offset : offsets) {
-        if (offset.size() != 3) {
-            ROS_ERROR_NAMED(params()->graph_log, "offset element has incorrect format");
-            return false;
-        }
-    }
+    SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_grid->getReferenceFrame(), "target_goal"));
 
-    if (tolerances.size() != goals.size()) {
-        ROS_ERROR_NAMED(params()->graph_log, "setGoalPosition requires as many tolerance elements as goal elements");
-        return false;
-    }
+    // set the discrete goal position coordinates
+    GoalConstraint _goal = gc;
+    m_grid->worldToGrid(_goal.tgt_off_pose.data(), _goal.xyz);
 
-    for (const auto& tol : tolerances) {
-        if (tol.size() != 6) {
-            ROS_ERROR_NAMED(params()->graph_log, "tolerance element has incorrect format");
-            return false;
-        }
-    }
-
-    m_goal.pose = goals[0];
-
-    std::copy(offsets[0].begin(), offsets[0].end(), m_goal.xyz_offset);
-    std::copy(tolerances[0].begin(), tolerances[0].begin() + 3, m_goal.xyz_tolerance);
-    std::copy(tolerances[0].begin() + 3, tolerances[0].begin() + 6, m_goal.rpy_tolerance);
-
-    m_goal.type = (GoalType)((int)goals[0][6]);
-
-    std::vector<double> tgt_off_pose = getTargetOffsetPose(m_goal.pose);
-    m_goal.tgt_off_pose = tgt_off_pose;
-
-    SV_SHOW_INFO(::viz::getPosesMarkerArray({ tgt_off_pose }, m_grid->getReferenceFrame(), "target_goal"));
-
-    // set goal hash entry
-    m_grid->worldToGrid(tgt_off_pose.data(), m_goal.xyz);
-
+    // set the goal entry's coordinate (this may not be necessary anymore)
     for (int i = 0; i < robot()->jointVariableCount(); i++) {
         m_goal_entry->coord[i] = 0;
     }
@@ -1222,48 +1144,41 @@ bool ManipLattice::setGoalPosition(
     ROS_DEBUG_NAMED(params()->graph_log, "time: %f", clock() / (double)CLOCKS_PER_SEC);
     ROS_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
     ROS_DEBUG_NAMED(params()->graph_log, "    grid (cells): (%d, %d, %d)", m_goal_entry->xyz[0], m_goal_entry->xyz[1], m_goal_entry->xyz[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", m_goal.pose[0], m_goal.pose[1], m_goal.pose[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", m_goal.xyz_tolerance[0]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", m_goal.pose[3], m_goal.pose[4], m_goal.pose[5]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", m_goal.rpy_tolerance[0]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", _goal.pose[0], _goal.pose[1], _goal.pose[2]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", _goal.xyz_tolerance[0]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", _goal.pose[3], _goal.pose[4], _goal.pose[5]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", _goal.rpy_tolerance[0]);
 
     m_near_goal = false;
     m_t_start = clock();
 
-    return RobotPlanningSpace::setGoal(m_goal);
+    // set the (modified) goal
+    return RobotPlanningSpace::setGoal(_goal);
 }
 
 /// \brief Set a full joint configuration goal.
-bool ManipLattice::setGoalConfiguration(
-    const std::vector<double>& goal,
-    const std::vector<double>& goal_tolerances)
+bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 {
     // compute the goal pose
-    std::vector<std::vector<double>> goals_6dof;
     std::vector<double> pose;
-    if (!computePlanningFrameFK(goal, pose)) {
+    if (!computePlanningFrameFK(goal.angles, pose)) {
         SBPL_WARN("Could not compute planning link FK for given goal configuration!");
         return false;
     }
-    goals_6dof.push_back(pose);
 
-    std::vector<std::vector<double>> offsets_6dof(1, std::vector<double>(3, 0.0));
+    GoalConstraint _goal = goal;
+    m_grid->worldToGrid(_goal.tgt_off_pose.data(), _goal.xyz);
 
-    // made up goal tolerance (it should not be used in with 7dof goals anyways)
-    std::vector<std::vector<double>> tolerances_6dof(1, std::vector<double>(6, 0.05));
-
-    if (!setGoalPosition(goals_6dof, offsets_6dof, tolerances_6dof)) {
-       ROS_WARN("Failed to set goal position");
-       return false;
+    // set the goal entry's coordinate (this may not be necessary anymore)
+    for (int i = 0; i < robot()->jointVariableCount(); i++) {
+        m_goal_entry->coord[i] = 0;
     }
 
-    // fill in m_goal
-    m_goal.angles = goal;
-    m_goal.angle_tolerances = goal_tolerances;
-    m_goal.type = GoalType::JOINT_STATE_GOAL;
+    m_near_goal = false;
+    m_t_start = clock();
 
     // notify observers of updated goal
-    return RobotPlanningSpace::setGoal(m_goal);
+    return RobotPlanningSpace::setGoal(_goal);
 }
 
 bool ManipLattice::StateID2Angles(

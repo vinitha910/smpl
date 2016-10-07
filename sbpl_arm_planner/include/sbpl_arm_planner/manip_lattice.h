@@ -217,8 +217,6 @@ private:
     bool m_near_goal;
     clock_t m_t_start;
 
-    GoalConstraint m_goal;
-
     ManipLatticeState* m_goal_entry;
     ManipLatticeState* m_start_entry;
 
@@ -231,14 +229,8 @@ private:
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
 
-    bool setGoalPosition(
-        const std::vector<std::vector<double>>& goals,
-        const std::vector<std::vector<double>>& offsets,
-        const std::vector<std::vector<double>>& tolerances);
-
-    bool setGoalConfiguration(
-        const std::vector<double>& angles,
-        const std::vector<double>& angle_tolerances);
+    bool setGoalPose(const GoalConstraint& goal);
+    bool setGoalConfiguration(const GoalConstraint& goal);
 
     virtual bool StateID2Angles(int stateID, RobotState& angles) const;
 
