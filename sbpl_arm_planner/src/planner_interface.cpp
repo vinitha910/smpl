@@ -611,7 +611,7 @@ bool PlannerInterface::SupportsGoalConstraints(
     const bool has_pose_constraint =
             constraint.position_constraints.size() == 1 &&
             constraint.orientation_constraints.size() == 1;
-    const bool has_joint_constraints = constraint.joint_constraints.empty();
+    const bool has_joint_constraints = !constraint.joint_constraints.empty();
 
     if (has_joint_constraints) {
         if (has_pose_constraint) {
