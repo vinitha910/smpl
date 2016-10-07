@@ -160,7 +160,7 @@ public:
     /// \brief Convert world coords into grid cell coords
     /// \param wx A double array of size 3 containing the world coordinates
     /// \param gx An int array of size 3 for storing the grid cell coordinates
-    void worldToGrid(double* wx, int* gx) const;
+    void worldToGrid(const double* wx, int* gx) const;
 
     /// \brief Get the distance, in cells, to the nearest occupied cell
     unsigned char getCell(int x, int y, int z) const;
@@ -318,7 +318,7 @@ void OccupancyGrid::worldToGrid(
 }
 
 inline
-void OccupancyGrid::worldToGrid(double* wx, int* gx) const
+void OccupancyGrid::worldToGrid(const double* wx, int* gx) const
 {
     grid_->worldToGrid(wx[0], wx[1], wx[2], gx[0], gx[1], gx[2]);
 }
