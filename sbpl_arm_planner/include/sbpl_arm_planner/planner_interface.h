@@ -86,6 +86,11 @@ public:
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res);
 
+    static
+    bool SupportsGoalConstraints(
+        const std::vector<moveit_msgs::Constraints>& constraints,
+        std::string& why);
+
     bool canServiceRequest(
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res) const;

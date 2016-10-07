@@ -558,6 +558,85 @@ bool PlannerInterface::planToConfiguration(
     return true;
 }
 
+/// Test if a particular set of goal constraints it supported.
+///
+/// This tests whether, in general, any planning algorithm supported by this
+/// interface can support a particular set of constraints. Certain planning
+/// algorithms may not be able to handle a given set of constraints. This
+/// method also cannot check for validity of constraints against a particular
+/// robot model at this step. In particular, it cannot assert that the a set
+/// of joint constraints lists a constraint for each joint, which is currently
+/// required.
+bool PlannerInterface::SupportsGoalConstraints(
+    const std::vector<moveit_msgs::Constraints>& constraints,
+    std::string& why)
+{
+    if (constraints.empty()) {
+        return true;
+    }
+
+    if (constraints.size() > 1) {
+        why = "no planner currently supports more than one goal constraint";
+        return false;
+    }
+
+    const moveit_msgs::Constraints& constraint = constraints.front();
+
+    if (!constraint.visibility_constraints.empty()) {
+        why = "no planner currently supports goal visibility constraints";
+        return false;
+    }
+
+    // technically multiple goal position/orientation constraints can be
+    // solved for if there is one position/orientation volume that entirely
+    // bounds all other position/orientation volumes...ignoring for now
+
+    if (constraint.position_constraints.size() > 1) {
+        why = "no planner currently supports more than one position constraint";
+        return false;
+    }
+
+    if (constraint.orientation_constraints.size() > 1) {
+        why = "no planner currently supports more than one orientation constraint";
+        return false;
+    }
+
+    const bool no_pose_constraint =
+            constraint.position_constraints.empty() &&
+            constraint.orientation_constraints.empty();
+    const bool has_pose_constraint =
+            constraint.position_constraints.size() == 1 &&
+            constraint.orientation_constraints.size() == 1;
+    const bool has_joint_constraints = constraint.joint_constraints.empty();
+
+    if (has_joint_constraints) {
+        if (has_pose_constraint) {
+            why = "no planner currently supports both pose and joint constraints";
+            return false;
+        }
+    } else {
+        if (no_pose_constraint) {
+            // no constraints -> ok!
+            return true;
+        } else if (has_pose_constraint) {
+            if (constraint.position_constraints.front().link_name !=
+                constraint.orientation_constraints.front().link_name)
+            {
+                why = "pose constraint must be for a single link";
+                return false;
+            }
+            return true;
+        } else {
+            // pose constraint is invalid
+            why = "no planner supports only one position constraint or one orientation constraint";
+            return false;
+        }
+    }
+
+    // made it through the gauntlet
+    return true;
+}
+
 bool PlannerInterface::canServiceRequest(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res) const
