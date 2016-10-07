@@ -333,8 +333,9 @@ bool PlannerInterface::setGoalConfiguration(
     for (size_t i = 0; i < num_angle_constraints; i++) {
         const auto& joint_constraint = goal_constraints.joint_constraints[i];
         sbpl_angle_goal[i] = joint_constraint.position;
-        sbpl_angle_tolerance[i] =
-                0.5 * (fabs(joint_constraint.tolerance_above) + fabs(joint_constraint.tolerance_below));
+        sbpl_angle_tolerance[i] = std::min(
+                fabs(joint_constraint.tolerance_above),
+                fabs(joint_constraint.tolerance_below));
         ROS_INFO_NAMED(PI_LOGGER, "Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
     }
 
