@@ -861,6 +861,10 @@ bool ManipLattice::extractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
 {
+    if (idpath.empty()) {
+        return true;
+    }
+
     std::vector<RobotState> opath;
 
     // attempt to handle paths of length 1...do any of the sbpl planners still
@@ -887,6 +891,7 @@ bool ManipLattice::extractPath(
             opath.push_back(std::move(angles));
         }
 
+        SV_SHOW_INFO(getStateVisualization(opath.back(), "goal_state"));
         return true;
     }
 
@@ -986,6 +991,7 @@ bool ManipLattice::extractPath(
 
     // we made it!
     path = std::move(opath);
+    SV_SHOW_INFO(getStateVisualization(path.back(), "goal_state"));
     return true;
 }
 
