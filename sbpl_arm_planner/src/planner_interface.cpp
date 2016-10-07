@@ -570,12 +570,6 @@ bool PlannerInterface::canServiceRequest(
         return false;
     }
 
-    if (req.goal_constraints.empty()) {
-        ROS_ERROR("Goal constraints are empty. Expecting at least one goal constraints with pose and orientation constraints");
-        res.error_code.val = moveit_msgs::MoveItErrorCodes::INVALID_GOAL_CONSTRAINTS;
-        return false;
-    }
-
     // check if position & orientation constraints is empty
     const moveit_msgs::Constraints& goal_constraints =
             req.goal_constraints.front();
