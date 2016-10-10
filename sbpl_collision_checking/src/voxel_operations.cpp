@@ -24,33 +24,13 @@ std::vector<int> ConvertToVertexIndices(
     return triangle_indices;
 }
 
-bool VoxelizeObject(
-    const Object& object,
-    double res,
-    const Eigen::Vector3d& go,
-    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
-{
-    for (size_t i = 0; i < object.shapes_.size(); ++i) {
-        const shapes::ShapeConstPtr& shape = object.shapes_[i];
-        const Eigen::Affine3d& pose = object.shape_poses_[i];
-        std::vector<Eigen::Vector3d> voxels;
-        if (!VoxelizeShape(*shape, pose, res, go, voxels)) {
-            all_voxels.clear();
-            return false;
-        }
-        all_voxels.push_back(std::move(voxels));
-    }
-
-    return true;
-}
-
-bool VoxelizeCollisionObject(
+static
+bool VoxelizeSolidPrimitives(
     const moveit_msgs::CollisionObject& object,
     double res,
     const Eigen::Vector3d& go,
     std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
 {
-    // gather voxels from all primitives
     for (size_t i = 0; i < object.primitives.size(); ++i) {
         const shape_msgs::SolidPrimitive& prim = object.primitives[i];
         const geometry_msgs::Pose& pose = object.primitive_poses[i];
@@ -58,41 +38,84 @@ bool VoxelizeCollisionObject(
         std::vector<Eigen::Vector3d> voxels;
         if (!VoxelizeSolidPrimitive(prim, pose, res, go, voxels)) {
             ROS_ERROR("Failed to voxelize solid primitive of collision object '%s'", object.id.c_str());
-            all_voxels.clear();
             return false;
         }
         all_voxels.push_back(std::move(voxels));
     }
 
-    // gather voxels from all meshes
+    return true;
+}
+
+static
+bool VoxelizeMeshes(
+    const moveit_msgs::CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
     for (size_t i = 0; i < object.meshes.size(); ++i) {
         const shape_msgs::Mesh& mesh = object.meshes[i];
         const geometry_msgs::Pose& pose = object.mesh_poses[i];
         std::vector<Eigen::Vector3d> voxels;
         if (!VoxelizeMesh(mesh, pose, res, go, voxels)) {
             ROS_ERROR("Failed to voxelize mesh of collision object '%s'", object.id.c_str());
-            all_voxels.clear();
             return false;
         }
         all_voxels.push_back(std::move(voxels));
     }
 
-    // gather voxels from all planes
-    for (size_t i = 0; i < object.meshes.size(); ++i) {
+    return true;
+}
+
+static
+bool VoxelizePlanes(
+    const moveit_msgs::CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    for (size_t i = 0; i < object.planes.size(); ++i) {
         const shape_msgs::Plane& plane = object.planes[i];
         const geometry_msgs::Pose& pose = object.plane_poses[i];
         std::vector<Eigen::Vector3d> voxels;
-        if (!VoxelizePlane(plane, pose, res, go, voxels)) {
+        if (!VoxelizePlane(plane, pose, res, go, gmin, gmax, voxels)) {
             ROS_ERROR("Failed to voxelize plane of collision object '%s'", object.id.c_str());
-            all_voxels.clear();
             return false;
         }
+        all_voxels.push_back(std::move(voxels));
     }
 
     return true;
 }
 
-bool VoxelizeShape(
+static
+bool VoxelizePlane(
+    const shapes::Plane& plane,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    ROS_ERROR("Cannot voxelize plane without boundary information");
+    return false;
+}
+
+static
+bool VoxelizePlane(
+    const shape_msgs::Plane& plane,
+    const geometry_msgs::Pose& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    ROS_ERROR("Cannot voxelize planes without boundary information");
+    return false;
+}
+
+static
+bool VoxelizeNonPlaneShape(
     const shapes::Shape& shape,
     const Eigen::Affine3d& pose,
     double res,
@@ -157,6 +180,140 @@ bool VoxelizeShape(
     return false;
 }
 
+/// Voxelize an object composed of several shapes
+///
+/// This function disallows plane voxelization, which requires additional
+/// boundary information.
+bool VoxelizeObject(
+    const Object& object,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    for (size_t i = 0; i < object.shapes_.size(); ++i) {
+        const shapes::ShapeConstPtr& shape = object.shapes_[i];
+        const Eigen::Affine3d& pose = object.shape_poses_[i];
+        std::vector<Eigen::Vector3d> voxels;
+        if (!VoxelizeShape(*shape, pose, res, go, voxels)) {
+            all_voxels.clear();
+            return false;
+        }
+        all_voxels.push_back(std::move(voxels));
+    }
+
+    return true;
+}
+
+/// Voxelize an message object composed of several shapes
+///
+/// This function disallows plane voxelization, which requires additional
+/// boundary information.
+bool VoxelizeCollisionObject(
+    const moveit_msgs::CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    if (!object.planes.empty()) {
+        ROS_ERROR("Failed to voxelize plane of collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    if (!VoxelizeSolidPrimitives(object, res, go, all_voxels)) {
+        all_voxels.clear();
+        return false;
+    }
+
+    // gather voxels from all meshes
+    if (!VoxelizeMeshes(object, res, go, all_voxels)) {
+        all_voxels.clear();
+        return false;
+    }
+
+    return true;
+}
+
+bool VoxelizeObject(
+    const Object& object,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    for (size_t i = 0; i < object.shapes_.size(); ++i) {
+        const shapes::ShapeConstPtr& shape = object.shapes_[i];
+        const Eigen::Affine3d& pose = object.shape_poses_[i];
+        std::vector<Eigen::Vector3d> voxels;
+        if (!VoxelizeShape(*shape, pose, res, go, gmin, gmax, voxels)) {
+            all_voxels.clear();
+            return false;
+        }
+        all_voxels.push_back(std::move(voxels));
+    }
+
+    return true;
+}
+
+bool VoxelizeCollisionObject(
+    const moveit_msgs::CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    if (!VoxelizePlanes(object, res, go, gmin, gmax, all_voxels)) {
+        all_voxels.clear();
+        return false;
+    }
+
+    if (!VoxelizeSolidPrimitives(object, res, go, all_voxels)) {
+        all_voxels.clear();
+        return false;
+    }
+
+    // gather voxels from all meshes
+    if (!VoxelizeMeshes(object, res, go, all_voxels)) {
+        all_voxels.clear();
+        return false;
+    }
+
+    return true;
+}
+
+bool VoxelizeShape(
+    const shapes::Shape& shape,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    return VoxelizeNonPlaneShape(shape, pose, res, go, voxels);
+}
+
+bool VoxelizeShape(
+    const shapes::Shape& shape,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    if (shape.type != shapes::PLANE) {
+        return VoxelizeNonPlaneShape(shape, pose, res, go, voxels);
+    } else {
+        const shapes::Plane* plane = dynamic_cast<const shapes::Plane*>(&shape);
+        if (!plane) {
+            return false;
+        }
+        return VoxelizePlane(*plane, pose, res, go, gmin, gmax, voxels);
+    }
+
+    return false;
+}
+
 bool VoxelizeSphere(
     const shapes::Sphere& sphere,
     const Eigen::Affine3d& pose,
@@ -214,10 +371,14 @@ bool VoxelizePlane(
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    ROS_ERROR("Voxelization of planes is currently unsupported");
-    return false;
+    // TODO: incorporate pose
+    sbpl::VoxelizePlane(
+            plane.a, plane.b, plane.c, plane.d, gmin, gmax, res, go, voxels);
+    return true;
 }
 
 bool VoxelizeMesh(
@@ -251,8 +412,7 @@ bool VoxelizeOcTree(
         if (tree->isNodeOccupied(*lit)) {
             if (lit.getSize() <= res) {
                 voxels.push_back(Eigen::Vector3d(lit.getX(), lit.getY(), lit.getZ()));
-            }
-            else {
+            } else {
                 double ceil_val = ceil(lit.getSize() / res) * res;
                 for (double x = lit.getX() - ceil_val; x < lit.getX() + ceil_val; x += res) {
                 for (double y = lit.getY() - ceil_val; y < lit.getY() + ceil_val; y += res) {
@@ -421,9 +581,17 @@ bool VoxelizePlane(
     const geometry_msgs::Pose& pose,
     double res,
     const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    return false;
+    Eigen::Affine3d eigen_pose;
+    tf::poseMsgToEigen(pose, eigen_pose);
+
+    // TODO: incorporate pose
+    sbpl::VoxelizePlane(
+            plane.coef[0], plane.coef[1], plane.coef[2], plane.coef[3],
+            gmin, gmax, res, go, voxels);
 }
 
 } // namespace collision

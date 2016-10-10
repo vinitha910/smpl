@@ -63,6 +63,22 @@ bool VoxelizeCollisionObject(
     const Eigen::Vector3d& go,
     std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
 
+bool VoxelizeObject(
+    const Object& object,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
+
+bool VoxelizeCollisionObject(
+    const moveit_msgs::CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels);
+
 ///@}
 
 /// \name geometric_shapes::Shape Voxelization
@@ -75,6 +91,15 @@ bool VoxelizeShape(
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels);
+
+bool VoxelizeShape(
+    const shapes::Shape& shape,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
     std::vector<Eigen::Vector3d>& voxels);
 
 bool VoxelizeSphere(
@@ -110,6 +135,8 @@ bool VoxelizePlane(
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
     std::vector<Eigen::Vector3d>& voxels);
 
 bool VoxelizeMesh(
@@ -178,6 +205,8 @@ bool VoxelizePlane(
     const geometry_msgs::Pose& pose,
     double res,
     const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
     std::vector<Eigen::Vector3d>& voxels);
 
 ///@}

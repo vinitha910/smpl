@@ -202,12 +202,19 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
     assert(m_object_voxel_map.find(object->id_) == m_object_voxel_map.end());
 
     const double res = m_grid->getResolution();
-    double ox, oy, oz;
-    m_grid->getOrigin(ox, oy, oz);
-    const Eigen::Vector3d origin(ox, oy, oz);
+    const Eigen::Vector3d origin(
+            m_grid->originX(), m_grid->originY(), m_grid->originZ());
+
+    const Eigen::Vector3d gmin(
+            m_grid->originX(), m_grid->originY(), m_grid->originZ());
+
+    const Eigen::Vector3d gmax(
+            m_grid->originX() + m_grid->sizeX(),
+            m_grid->originY() + m_grid->sizeY(),
+            m_grid->originZ() + m_grid->sizeZ());
 
     std::vector<std::vector<Eigen::Vector3d>> all_voxels;
-    if (!VoxelizeObject(*object, res, origin, all_voxels)) {
+    if (!VoxelizeObject(*object, res, origin, gmin, gmax, all_voxels)) {
         ROS_ERROR_NAMED(WCM_LOGGER, "Failed to voxelize object '%s'", object->id_.c_str());
         return false;
     }
