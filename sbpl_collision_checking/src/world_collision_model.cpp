@@ -88,24 +88,24 @@ public:
     bool checkCollision(
         RobotCollisionState& state,
         const std::string& group_name,
-        double& dist);
+        double& dist) const;
 
     bool checkCollision(
         RobotCollisionState& state,
         const int gidx,
-        double& dist);
+        double& dist) const;
 
     bool checkCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
         const std::string& group_name,
-        double& dist);
+        double& dist) const;
 
     bool checkCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
         const int gidx,
-        double& dist);
+        double& dist) const;
 
 private:
 
@@ -120,15 +120,12 @@ private:
 
     double m_padding;
 
-    const RobotCollisionModel* m_model;
-    int m_gidx;
-    std::vector<SphereIndex> m_sphere_indices;
-
-    void updateSphereIndices(const RobotCollisionState& state, int gidx);
+    mutable std::vector<const CollisionSphereState*> m_vq;
 
     bool checkSpheresStateCollisions(
         RobotCollisionState& state,
-        double& dist);
+        int gidx,
+        double& dist) const;
 
     ////////////////////
     // Generic Shapes //
@@ -201,13 +198,11 @@ WorldCollisionModelImpl::WorldCollisionModelImpl(
 :
     m_grid(grid),
     m_object_voxel_map(o.m_object_voxel_map),
-    m_padding(o.m_padding),
-    m_model(o.m_model),                     // this seems dangerous
-    m_gidx(o.m_gidx),                       // this seems dangerous
-    m_sphere_indices(o.m_sphere_indices)    // this seems dangerous
+    m_padding(o.m_padding)
 {
-    // TODO: check for different voxel origin here...if they differ, need to do
-    // a deep copy + revoxelization of the objects over just a simple deep copy
+    // TODO: check for different voxel origin/resolution/etc here...if they
+    // differ, need to do a deep copy + revoxelization of the objects over just
+    // a simple deep copy
     *grid = *m_grid;
 }
 
@@ -404,7 +399,7 @@ void WorldCollisionModelImpl::setPadding(double padding)
 bool WorldCollisionModelImpl::checkCollision(
     RobotCollisionState& state,
     const std::string& group_name,
-    double& dist)
+    double& dist) const
 {
     ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, const std::string&, double&)");
     if (!state.model()->hasGroup(group_name)) {
@@ -413,14 +408,13 @@ bool WorldCollisionModelImpl::checkCollision(
     }
 
     const int gidx = state.model()->groupIndex(group_name);
-    updateSphereIndices(state, gidx);
-    return checkSpheresStateCollisions(state, dist);
+    return checkSpheresStateCollisions(state, gidx, dist);
 }
 
 bool WorldCollisionModelImpl::checkCollision(
     RobotCollisionState& state,
     const int gidx,
-    double& dist)
+    double& dist) const
 {
     ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState& state, const int, double&)");
     if (gidx < 0 || gidx >= state.model()->groupCount()) {
@@ -428,15 +422,14 @@ bool WorldCollisionModelImpl::checkCollision(
         return false;
     }
 
-    updateSphereIndices(state, gidx);
-    return checkSpheresStateCollisions(state, dist);
+    return checkSpheresStateCollisions(state, gidx, dist);
 }
 
 bool WorldCollisionModelImpl::checkCollision(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const std::string& group_name,
-    double& dist)
+    double& dist) const
 {
     ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const std::string&, double&)");
     return false;
@@ -446,42 +439,95 @@ bool WorldCollisionModelImpl::checkCollision(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const int gidx,
-    double& dist)
+    double& dist) const
 {
     ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const int, double&)");
     return false;
 }
 
-void WorldCollisionModelImpl::updateSphereIndices(
-    const RobotCollisionState& state,
-    int gidx)
-{
-    if (state.model() == m_model && gidx == m_gidx) {
-        return;
-    }
-
-    m_sphere_indices = GatherSphereIndices(state, gidx);
-}
-
+/// logical const, but not thread-safe, since it makes use of an internal
+/// stack to traverse the sphere tree hierarchy.
 bool WorldCollisionModelImpl::checkSpheresStateCollisions(
     RobotCollisionState& state,
-    double& dist)
+    int gidx,
+    double& dist) const
 {
-    // TODO: fix to use hierarchical check...worth it to move all voxel checking
-    // into the world collision model to avoid duplication
-    for (const auto& sidx : m_sphere_indices) {
-        double obs_dist;
-        if (!CheckSphereCollision(*m_grid, state, m_padding, sidx, obs_dist)) {
-            const CollisionSphereModel* sm = state.sphereState(sidx).model;
-            ROS_DEBUG_NAMED(WCM_LOGGER, "    *collision* idx: %s, name: %s, radius: %0.3fm, dist: %0.3fm", to_string(sidx).c_str(), sm->name.c_str(), sm->radius, obs_dist);
-            dist = obs_dist;
-            return false;
+    // TODO: refactor commonality with self collision model here
+    auto& q = m_vq;
+    q.clear();
+
+    for (const int ssidx : state.groupSpheresStateIndices(gidx)) {
+        const auto& ss = state.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+    }
+
+    while (!q.empty()) {
+        const CollisionSphereState* s = q.back();
+        q.pop_back();
+
+        // update non-meta states
+        if (s->parent_state->index != -1) {
+            state.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
         }
 
-        if (obs_dist < dist) {
-            dist = obs_dist;
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere '%s' with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->name.c_str(), s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+
+        double obs_dist;
+        if (CheckSphereCollision(*m_grid, *s, m_padding, obs_dist)) {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "  Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
+            continue; // no collision -> ok!
+        }
+
+        // collision -> not ok or recurse!
+
+        if (s->isLeaf()) {
+            if (s->parent_state->index == -1) {
+                // meta-leaf -> recurse on existing children of referenced
+                // sphere tree root state
+
+                // node connecting meta tree to kinematic tree
+                assert(s->left == s->right);
+                const CollisionSphereState* sl = s->left->left;
+                const CollisionSphereState* sr = s->right->right;
+
+                if (sl && sr) {
+                    if (sl->model->radius > sr->model->radius) {
+                        q.push_back(sr);
+                        q.push_back(sl);
+                    }
+                    else {
+                        q.push_back(sl);
+                        q.push_back(sr);
+                    }
+                }
+                else if (sl) {
+                    q.push_back(sl);
+                }
+                else if (sr) {
+                    q.push_back(sr);
+                }
+            }
+            else { // normal leaf
+                const CollisionSphereModel* sm = s->model;
+                ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* name: %s, pos: (%0.3f, %0.3f, %0.3f), radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), s->pos.x(), s->pos.y(), s->pos.z(), sm->radius, obs_dist);
+                dist = obs_dist;
+                return false; // collision -> not ok!
+            }
+        }
+        else { // recurse on both the children
+            if (s->left->model->radius > s->right->model->radius) {
+                q.push_back(s->right);
+                q.push_back(s->left);
+            }
+            else {
+                q.push_back(s->left);
+                q.push_back(s->right);
+            }
         }
     }
+
+    ROS_DEBUG_NAMED(SCM_LOGGER, "No voxels collisions");
     return true;
 }
 
@@ -886,7 +932,7 @@ void WorldCollisionModel::setPadding(double padding)
 bool WorldCollisionModel::checkCollision(
     RobotCollisionState& state,
     const std::string& group_name,
-    double& dist)
+    double& dist) const
 {
     return m_impl->checkCollision(state, group_name, dist);
 }
@@ -894,7 +940,7 @@ bool WorldCollisionModel::checkCollision(
 bool WorldCollisionModel::checkCollision(
     RobotCollisionState& state,
     const int gidx,
-    double& dist)
+    double& dist) const
 {
     return m_impl->checkCollision(state, gidx, dist);
 }
@@ -903,7 +949,7 @@ bool WorldCollisionModel::checkCollision(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const std::string& group_name,
-    double& dist)
+    double& dist) const
 {
     return m_impl->checkCollision(state, ab_state, group_name, dist);
 }
@@ -912,7 +958,7 @@ bool WorldCollisionModel::checkCollision(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const int gidx,
-    double& dist)
+    double& dist) const
 {
     return m_impl->checkCollision(state, ab_state, gidx, dist);
 }
