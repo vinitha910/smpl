@@ -63,6 +63,9 @@ class WorldCollisionModelImpl
 public:
 
     WorldCollisionModelImpl(OccupancyGrid* grid);
+    WorldCollisionModelImpl(
+        const WorldCollisionModelImpl& o,
+        OccupancyGrid* grid);
 
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
@@ -190,6 +193,22 @@ WorldCollisionModelImpl::WorldCollisionModelImpl(OccupancyGrid* grid) :
     m_object_voxel_map(),
     m_padding(0.0)
 {
+}
+
+WorldCollisionModelImpl::WorldCollisionModelImpl(
+    const WorldCollisionModelImpl& o,
+    OccupancyGrid* grid)
+:
+    m_grid(grid),
+    m_object_voxel_map(o.m_object_voxel_map),
+    m_padding(o.m_padding),
+    m_model(o.m_model),                     // this seems dangerous
+    m_gidx(o.m_gidx),                       // this seems dangerous
+    m_sphere_indices(o.m_sphere_indices)    // this seems dangerous
+{
+    // TODO: check for different voxel origin here...if they differ, need to do
+    // a deep copy + revoxelization of the objects over just a simple deep copy
+    *grid = *m_grid;
 }
 
 bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
@@ -785,6 +804,14 @@ visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArr
 
 WorldCollisionModel::WorldCollisionModel(OccupancyGrid* grid) :
     m_impl(new WorldCollisionModelImpl(grid))
+{
+}
+
+WorldCollisionModel::WorldCollisionModel(
+    const WorldCollisionModel& o,
+    OccupancyGrid* grid)
+:
+    m_impl(new WorldCollisionModelImpl(*o.m_impl, grid))
 {
 }
 

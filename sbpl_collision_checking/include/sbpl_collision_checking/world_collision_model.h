@@ -59,6 +59,7 @@ class WorldCollisionModel
 public:
 
     WorldCollisionModel(OccupancyGrid* grid);
+    WorldCollisionModel(const WorldCollisionModel& o, OccupancyGrid* grid);
 
     ~WorldCollisionModel();
 
