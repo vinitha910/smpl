@@ -32,12 +32,25 @@
 
 #include <sbpl_arm_planner/occupancy_grid.h>
 
+// standard includes
+#include <sstream>
+
  // system includes
 #include <ros/console.h>
 #include <leatherman/viz.h>
 
 namespace sbpl {
 
+/// \brief Construct an Occupancy Grid
+/// \param size_x Dimension of the grid along the X axis, in meters
+/// \param size_y Dimension of the grid along the Y axis, in meters
+/// \param size_z Dimension of the grid along the Z axis, in meters
+/// \param resolution Resolution of the grid, in meters
+/// \param origin_x X Coordinate of origin, in meters
+/// \param origin_y Y Coordinate of origin, in meters
+/// \param origin_z Z Coordinate of origin, in meters
+/// \param max_dist The maximum distance away from obstacles to propagate
+///     the distance field, in meters
 OccupancyGrid::OccupancyGrid(
     double size_x, double size_y, double size_z,
     double resolution,
@@ -47,14 +60,14 @@ OccupancyGrid::OccupancyGrid(
     bool ref_counted)
 :
     reference_frame_(),
-    grid_(std::make_shared<distance_field::PropagationDistanceField>(
+    m_grid(std::make_shared<distance_field::PropagationDistanceField>(
             size_x, size_y, size_z,
             resolution,
             origin_x, origin_y, origin_z,
             max_dist, propagate_negative_distances)),
     m_ref_counted(ref_counted),
-    m_x_stride(grid_->getYNumCells() * grid_->getZNumCells()),
-    m_y_stride(grid_->getZNumCells()),
+    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
+    m_y_stride(m_grid->getZNumCells()),
     m_counts()
 {
     // distance field guaranteed to be empty -> faster initialization
@@ -64,6 +77,7 @@ OccupancyGrid::OccupancyGrid(
     m_half_res = 0.5 * getResolution();
 }
 
+/// \sa distance_field::PropagationDistanceField::PropagationDistanceField(const octomap::OcTree&, const octomap::point3d&, const octomap::point3d&, double, bool);
 OccupancyGrid::OccupancyGrid(
     const octomap::OcTree& octree,
     const octomap::point3d& bbx_min,
@@ -73,17 +87,18 @@ OccupancyGrid::OccupancyGrid(
     bool ref_counted)
 :
     reference_frame_(),
-    grid_(std::make_shared<distance_field::PropagationDistanceField>(
+    m_grid(std::make_shared<distance_field::PropagationDistanceField>(
             octree, bbx_min, bby_min, max_distance, propagate_negative_distances)),
     m_ref_counted(ref_counted),
-    m_x_stride(grid_->getYNumCells() * grid_->getZNumCells()),
-    m_y_stride(grid_->getZNumCells()),
+    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
+    m_y_stride(m_grid->getZNumCells()),
     m_counts()
 {
     initRefCounts();
     m_half_res = 0.5 * getResolution();
 }
 
+/// \sa distance_field::PropagationDistanceField::PropagationDistanceField(std::istream&, double, bool);
 OccupancyGrid::OccupancyGrid(
     std::istream& stream,
     double max_distance,
@@ -91,30 +106,51 @@ OccupancyGrid::OccupancyGrid(
     bool ref_counted)
 :
     reference_frame_(),
-    grid_(std::make_shared<distance_field::PropagationDistanceField>(
+    m_grid(std::make_shared<distance_field::PropagationDistanceField>(
             stream, max_distance, propagate_negative_distances)),
     m_ref_counted(ref_counted),
-    m_x_stride(grid_->getYNumCells() * grid_->getZNumCells()),
-    m_y_stride(grid_->getZNumCells()),
+    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
+    m_y_stride(m_grid->getZNumCells()),
     m_counts()
 {
     initRefCounts();
     m_half_res = 0.5 * getResolution();
 }
 
+/// \brief Construct an OccupancyGrid from an existing distance field
 OccupancyGrid::OccupancyGrid(
     const PropagationDistanceFieldPtr& df,
     bool ref_counted)
 :
     reference_frame_(),
-    grid_(df),
+    m_grid(df),
     m_ref_counted(ref_counted),
-    m_x_stride(grid_->getYNumCells() * grid_->getZNumCells()),
-    m_y_stride(grid_->getZNumCells()),
+    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
+    m_y_stride(m_grid->getZNumCells()),
     m_counts()
 {
     initRefCounts();
     m_half_res = 0.5 * getResolution();
+}
+
+OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
+{
+    reference_frame_ = o.reference_frame_;
+    if (o.m_grid) {
+        std::stringstream ss;
+        o.m_grid->writeToStream(ss);
+        m_grid = std::make_shared<distance_field::PropagationDistanceField>(
+                ss,
+                // really, no other way to get the propagation distance?
+                o.m_grid->getUninitializedDistance(),
+                // really, no way to get this either?
+                false);
+    }
+    m_ref_counted = o.m_ref_counted;
+    m_x_stride = o.m_x_stride;
+    m_y_stride = o.m_y_stride;
+    m_counts = o.m_counts;
+    m_half_res = o.m_half_res;
 }
 
 OccupancyGrid::~OccupancyGrid()
@@ -123,26 +159,26 @@ OccupancyGrid::~OccupancyGrid()
 
 void OccupancyGrid::getGridSize(int& dim_x, int& dim_y, int& dim_z) const
 {
-    dim_x = grid_->getXNumCells();
-    dim_y = grid_->getYNumCells();
-    dim_z = grid_->getZNumCells();
+    dim_x = m_grid->getXNumCells();
+    dim_y = m_grid->getYNumCells();
+    dim_z = m_grid->getZNumCells();
 }
 
 void OccupancyGrid::getWorldSize(double& dim_x, double& dim_y, double& dim_z) const
 {
-    dim_x = grid_->getSizeX();
-    dim_y = grid_->getSizeY();
-    dim_z = grid_->getSizeZ();
+    dim_x = m_grid->getSizeX();
+    dim_y = m_grid->getSizeY();
+    dim_z = m_grid->getSizeZ();
 }
 
 void OccupancyGrid::reset()
 {
-    grid_->reset();
+    m_grid->reset();
 }
 
 void OccupancyGrid::getOrigin(double& wx, double& wy, double& wz) const
 {
-    grid_->gridToWorld(0, 0, 0, wx, wy, wz);
+    m_grid->gridToWorld(0, 0, 0, wx, wy, wz);
 }
 
 void OccupancyGrid::getOccupiedVoxels(
@@ -153,9 +189,9 @@ void OccupancyGrid::getOccupiedVoxels(
     Eigen::Vector3d vin, vout, v(pose.position.x, pose.position.y, pose.position.z);
     Eigen::Matrix3d m(Eigen::Quaterniond(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z));
 
-    for (double x = 0 - dim[0] / 2.0; x <= dim[0] / 2.0; x += grid_->getResolution()) {
-        for (double y = 0 - dim[1] / 2.0; y <= dim[1] / 2.0; y += grid_->getResolution()) {
-            for (double z = 0 - dim[2] / 2.0; z <= dim[2] / 2.0; z += grid_->getResolution()) {
+    for (double x = 0 - dim[0] / 2.0; x <= dim[0] / 2.0; x += m_grid->getResolution()) {
+        for (double y = 0 - dim[1] / 2.0; y <= dim[1] / 2.0; y += m_grid->getResolution()) {
+            for (double z = 0 - dim[2] / 2.0; z <= dim[2] / 2.0; z += m_grid->getResolution()) {
                 vin(0) = x;
                 vin(1) = y;
                 vin(2) = z;
@@ -200,7 +236,7 @@ size_t OccupancyGrid::getOccupiedVoxelCount() const
     size_t count = 0;
     iterateCells([&](int x, int y, int z)
     {
-        if (grid_->getDistance(x, y, z) == 0.0) {
+        if (m_grid->getDistance(x, y, z) == 0.0) {
             ++count;
         }
     });
@@ -212,9 +248,9 @@ void OccupancyGrid::getOccupiedVoxels(
 {
     iterateCells([&](int x, int y, int z)
     {
-        if (grid_->getDistance(x, y, z) == 0.0) {
+        if (m_grid->getDistance(x, y, z) == 0.0) {
             double wx, wy, wz;
-            grid_->gridToWorld(x, y, z, wx, wy, wz);
+            m_grid->gridToWorld(x, y, z, wx, wy, wz);
             voxels.emplace_back(wx, wy, wz);
         }
     });
@@ -252,62 +288,62 @@ OccupancyGrid::getBoundingBoxVisualization() const
     m.scale.x = m.scale.y = m.scale.z = getResolution();
     leatherman::msgHSVToRGB(10.0, 1.0, 1.0, m.color);
 
-    m.points.reserve(4 * (grid_->getXNumCells() + 2) + 4 * (grid_->getYNumCells()) + 4 * (grid_->getZNumCells()));
+    m.points.reserve(4 * (m_grid->getXNumCells() + 2) + 4 * (m_grid->getYNumCells()) + 4 * (m_grid->getZNumCells()));
 
     geometry_msgs::Point p;
     int x, y, z;
 
-    for (x = -1; x <= grid_->getXNumCells(); ++x) {
+    for (x = -1; x <= m_grid->getXNumCells(); ++x) {
         y = -1, z = -1;
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = grid_->getYNumCells(), z = -1;
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        y = m_grid->getYNumCells(), z = -1;
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = -1, z = grid_->getZNumCells();
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        y = -1, z = m_grid->getZNumCells();
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = grid_->getYNumCells(), z = grid_->getZNumCells();
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        y = m_grid->getYNumCells(), z = m_grid->getZNumCells();
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
     }
 
-    for (y = 0; y < grid_->getYNumCells(); ++y) {
+    for (y = 0; y < m_grid->getYNumCells(); ++y) {
         x = -1, z = -1;
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        x = grid_->getXNumCells(), z = -1;
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        x = m_grid->getXNumCells(), z = -1;
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        x = -1, z = grid_->getZNumCells();
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        x = -1, z = m_grid->getZNumCells();
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        x = grid_->getXNumCells(), z = grid_->getZNumCells();
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        x = m_grid->getXNumCells(), z = m_grid->getZNumCells();
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
     }
 
-    for (z = 0; z < grid_->getZNumCells(); ++z) {
+    for (z = 0; z < m_grid->getZNumCells(); ++z) {
         y = -1, x = -1;
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = grid_->getYNumCells(), x = -1;
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        y = m_grid->getYNumCells(), x = -1;
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = -1, x = grid_->getXNumCells();
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        y = -1, x = m_grid->getXNumCells();
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = grid_->getYNumCells(), x = grid_->getXNumCells();
-        grid_->gridToWorld(x, y, z, p.x, p.y, p.z);
+        y = m_grid->getYNumCells(), x = m_grid->getXNumCells();
+        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
     }
 
@@ -322,8 +358,8 @@ OccupancyGrid::getDistanceFieldVisualization() const
     visualization_msgs::MarkerArray ma;
 
     visualization_msgs::Marker m;
-    grid_->getIsoSurfaceMarkers(
-            grid_->getResolution(),
+    m_grid->getIsoSurfaceMarkers(
+            m_grid->getResolution(),
             getMaxDistance(),
             getReferenceFrame(),
             ros::Time(0),
@@ -351,9 +387,9 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration(0.0);
 
-    marker.scale.x = grid_->getResolution();
-    marker.scale.y = grid_->getResolution();
-    marker.scale.z = grid_->getResolution();
+    marker.scale.x = m_grid->getResolution();
+    marker.scale.y = m_grid->getResolution();
+    marker.scale.z = m_grid->getResolution();
 
     marker.color.r = 0.8f;
     marker.color.g = 0.3f;
@@ -400,7 +436,7 @@ void OccupancyGrid::addPointsToField(
         pts = toAlignedVector(points);
     }
 
-    grid_->addPointsToField(pts);
+    m_grid->addPointsToField(pts);
 }
 
 void OccupancyGrid::removePointsFromField(
@@ -430,7 +466,7 @@ void OccupancyGrid::removePointsFromField(
         pts = toAlignedVector(points);
     }
 
-    grid_->removePointsFromField(pts);
+    m_grid->removePointsFromField(pts);
 }
 
 void OccupancyGrid::updatePointsInField(
@@ -438,7 +474,7 @@ void OccupancyGrid::updatePointsInField(
     const std::vector<Eigen::Vector3d>& new_points)
 {
     // TODO: ref counting
-    grid_->updatePointsInField(toAlignedVector(old_points), toAlignedVector(new_points));
+    m_grid->updatePointsInField(toAlignedVector(old_points), toAlignedVector(new_points));
 }
 
 void OccupancyGrid::initRefCounts()
@@ -452,7 +488,7 @@ void OccupancyGrid::initRefCounts()
     m_counts.resize(getCellCount());
     iterateCells([&](int x, int y, int z)
     {
-        if (grid_->getDistance(x, y, z) <= 0.0) {
+        if (m_grid->getDistance(x, y, z) <= 0.0) {
             m_counts[gidx++] = 1;
         }
         else {
@@ -464,9 +500,9 @@ void OccupancyGrid::initRefCounts()
 template <typename CellFunction>
 void OccupancyGrid::iterateCells(CellFunction f) const
 {
-    for (int gx = 0; gx < grid_->getXNumCells(); ++gx) {
-        for (int gy = 0; gy < grid_->getYNumCells(); ++gy) {
-            for (int gz = 0; gz < grid_->getZNumCells(); ++gz) {
+    for (int gx = 0; gx < m_grid->getXNumCells(); ++gx) {
+        for (int gy = 0; gy < m_grid->getYNumCells(); ++gy) {
+            for (int gz = 0; gz < m_grid->getZNumCells(); ++gz) {
                 f(gx, gy, gz);
             }
         }

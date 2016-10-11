@@ -60,16 +60,6 @@ class OccupancyGrid
 {
 public:
 
-    /// \brief Construct an Occupancy Grid
-    /// \param size_x Dimension of the grid along the X axis, in meters
-    /// \param size_y Dimension of the grid along the Y axis, in meters
-    /// \param size_z Dimension of the grid along the Z axis, in meters
-    /// \param resolution Resolution of the grid, in meters
-    /// \param origin_x X Coordinate of origin, in meters
-    /// \param origin_y Y Coordinate of origin, in meters
-    /// \param origin_z Z Coordinate of origin, in meters
-    /// \param max_dist The maximum distance away from obstacles to propagate
-    ///     the distance field, in meters
     OccupancyGrid(
         double size_x, double size_y, double size_z,
         double resolution,
@@ -78,11 +68,6 @@ public:
         bool propagate_negative_distances = false,
         bool ref_counted = false);
 
-    /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(
-    ///         const octomap::OcTree&,
-    ///         const octomap::point3d&,
-    ///         const octomap::point3d&,
-    ///         double, bool);
     OccupancyGrid(
         const octomap::OcTree& octree,
         const octomap::point3d& bbx_min,
@@ -91,17 +76,15 @@ public:
         bool propagate_negative_distances = false,
         bool ref_counted = false);
 
-    /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(
-    //         std::istream&, double, bool);
     OccupancyGrid(
         std::istream& stream,
         double max_distance,
         bool propagate_negative_distances = false,
         bool ref_counted = false);
 
-    /// \brief Construct an OccupancyGrid with an unmanaged distance field
-    /// \param df A pointer to the unmanaged distance field
     OccupancyGrid(const PropagationDistanceFieldPtr& df, bool ref_counted = false);
+
+    OccupancyGrid(const OccupancyGrid& o);
 
     ~OccupancyGrid();
 
@@ -111,17 +94,17 @@ public:
     /// \name Attributes
     ///@{
 
-    int numCellsX() const { return grid_->getXNumCells(); }
-    int numCellsY() const { return grid_->getYNumCells(); }
-    int numCellsZ() const { return grid_->getZNumCells(); }
-    double originX() const { return grid_->getOriginX(); }
-    double originY() const { return grid_->getOriginY(); }
-    double originZ() const { return grid_->getOriginZ(); }
-    double sizeX() const { return grid_->getSizeX(); }
-    double sizeY() const { return grid_->getSizeY(); }
-    double sizeZ() const { return grid_->getSizeZ(); }
+    int numCellsX() const { return m_grid->getXNumCells(); }
+    int numCellsY() const { return m_grid->getYNumCells(); }
+    int numCellsZ() const { return m_grid->getZNumCells(); }
+    double originX() const { return m_grid->getOriginX(); }
+    double originY() const { return m_grid->getOriginY(); }
+    double originZ() const { return m_grid->getOriginZ(); }
+    double sizeX() const { return m_grid->getSizeX(); }
+    double sizeY() const { return m_grid->getSizeY(); }
+    double sizeZ() const { return m_grid->getSizeZ(); }
 
-    double resolution() const { return grid_->getResolution(); }
+    double resolution() const { return m_grid->getResolution(); }
 
     /// \brief Get the dimensions of the grid, in cells
     void getGridSize(int &dim_x, int &dim_y, int &dim_z) const;
@@ -249,7 +232,7 @@ public:
 private:
 
     std::string reference_frame_;
-    PropagationDistanceFieldPtr grid_;
+    PropagationDistanceFieldPtr m_grid;
 
     bool m_ref_counted;
     int m_x_stride;
@@ -279,13 +262,13 @@ private:
 inline
 const PropagationDistanceFieldPtr& OccupancyGrid::getDistanceField() const
 {
-    return grid_;
+    return m_grid;
 }
 
 inline
 double OccupancyGrid::getResolution() const
 {
-    return grid_->getResolution();
+    return m_grid->getResolution();
 }
 
 inline
@@ -298,7 +281,7 @@ inline
 double OccupancyGrid::getMaxDistance() const
 {
     // HACK: embedded knowledge of PropagationDistanceField here
-    return grid_->getUninitializedDistance();
+    return m_grid->getUninitializedDistance();
 }
 
 inline
@@ -306,7 +289,7 @@ void OccupancyGrid::gridToWorld(
     int x, int y, int z,
     double& wx, double& wy, double& wz) const
 {
-    grid_->gridToWorld(x, y, z, wx, wy, wz);
+    m_grid->gridToWorld(x, y, z, wx, wy, wz);
 }
 
 inline
@@ -314,13 +297,13 @@ void OccupancyGrid::worldToGrid(
     double wx, double wy, double wz,
     int& x, int& y, int& z) const
 {
-    grid_->worldToGrid(wx, wy, wz, x, y, z);
+    m_grid->worldToGrid(wx, wy, wz, x, y, z);
 }
 
 inline
 void OccupancyGrid::worldToGrid(const double* wx, int* gx) const
 {
-    grid_->worldToGrid(wx[0], wx[1], wx[2], gx[0], gx[1], gx[2]);
+    m_grid->worldToGrid(wx[0], wx[1], wx[2], gx[0], gx[1], gx[2]);
 }
 
 inline
@@ -338,25 +321,25 @@ void OccupancyGrid::setReferenceFrame(const std::string& frame)
 inline
 unsigned char OccupancyGrid::getCell(int x, int y, int z) const
 {
-    return (unsigned char)(grid_->getDistance(x,y,z) / grid_->getResolution());
+    return (unsigned char)(m_grid->getDistance(x,y,z) / m_grid->getResolution());
 }
 
 inline
 double OccupancyGrid::getCell(const int* xyz) const
 {
-    return grid_->getDistance(xyz[0], xyz[1], xyz[2]);
+    return m_grid->getDistance(xyz[0], xyz[1], xyz[2]);
 }
 
 inline
 double OccupancyGrid::getDistance(int x, int y, int z) const
 {
-    return grid_->getDistance(x, y, z);
+    return m_grid->getDistance(x, y, z);
 }
 
 inline
 double OccupancyGrid::getDistanceFromPoint(double x, double y, double z) const
 {
-    return grid_->getDistance(x, y, z);
+    return m_grid->getDistance(x, y, z);
 }
 
 inline
@@ -365,10 +348,10 @@ double OccupancyGrid::getDistanceToBorder(int x, int y, int z) const
     if (!isInBounds(x, y, z)) {
         return 0.0;
     }
-    int dx = std::min(grid_->getXNumCells() - x, x);
-    int dy = std::min(grid_->getYNumCells() - y, y);
-    int dz = std::min(grid_->getZNumCells() - z, z);
-    return grid_->getResolution() * std::min(dx, std::min(dy, dz));
+    int dx = std::min(m_grid->getXNumCells() - x, x);
+    int dy = std::min(m_grid->getYNumCells() - y, y);
+    int dz = std::min(m_grid->getZNumCells() - z, z);
+    return m_grid->getResolution() * std::min(dx, std::min(dy, dz));
 }
 
 inline
@@ -382,9 +365,9 @@ double OccupancyGrid::getDistanceToBorder(double x, double y, double z) const
 inline
 bool OccupancyGrid::isInBounds(int x, int y, int z) const
 {
-    return (x >= 0 && x < grid_->getXNumCells() &&
-            y >= 0 && y < grid_->getYNumCells() &&
-            z >= 0 && z < grid_->getZNumCells());
+    return (x >= 0 && x < m_grid->getXNumCells() &&
+            y >= 0 && y < m_grid->getYNumCells() &&
+            z >= 0 && z < m_grid->getZNumCells());
 }
 
 inline
@@ -404,7 +387,7 @@ int OccupancyGrid::coordToIndex(int x, int y, int z) const
 inline
 int OccupancyGrid::getCellCount() const
 {
-    return grid_->getXNumCells() * grid_->getYNumCells() * grid_->getZNumCells();
+    return m_grid->getXNumCells() * m_grid->getYNumCells() * m_grid->getZNumCells();
 }
 
 typedef std::shared_ptr<OccupancyGrid> OccupancyGridPtr;
