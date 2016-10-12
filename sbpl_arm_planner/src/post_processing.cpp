@@ -355,9 +355,25 @@ void ShortcutPath(
                 generators, generators + 1,
                 std::back_inserter(opvpath));
 
+        std::vector<RobotState> opvpath_dnc;
+        shortcut::DivideAndConquerShortcutPath(
+                pv_path.begin(), pv_path.end(),
+                costs.begin(), costs.end(),
+                generators, generators + 1,
+                std::back_inserter(opvpath_dnc));
+
         std::vector<double> new_costs;
         ComputePositionVelocityPathCosts(rm, opvpath, new_costs);
         next_cost = std::accumulate(new_costs.begin(), new_costs.end(), 0.0);
+
+        std::vector<double> new_costs_dnc;
+        ComputePositionVelocityPathCosts(rm, opvpath_dnc, new_costs_dnc);
+        double new_cost_dnc = std::accumulate(new_costs_dnc.begin(), new_costs_dnc.end(), 0.0);
+        if (new_cost_dnc < next_cost) {
+            ROS_INFO("Divide and Conquer Wins! (%0.3f < %0.3f)", new_cost_dnc, next_cost);
+            next_cost = new_cost_dnc;
+            opvpath = std::move(opvpath_dnc);
+        }
 
         ExtractPositionPath(rm, opvpath, pout);
     }   break;
