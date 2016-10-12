@@ -457,8 +457,16 @@ const RobotState& ManipLattice::extractState(int state_id)
 
 bool ManipLattice::projectToPoint(int state_id, Eigen::Vector3d& pos)
 {
+    if (state_id == getGoalStateID()) {
+        pos.x() = goal().tgt_off_pose[0];
+        pos.y() = goal().tgt_off_pose[1];
+        pos.z() = goal().tgt_off_pose[2];
+        return true;
+    }
+
     std::vector<double> pose;
     if (!computePlanningFrameFK(m_states[state_id]->state, pose)) {
+        ROS_WARN("Failed to compute fk for state %d", state_id);
         return false;
     }
 
@@ -1171,7 +1179,7 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
     // compute the goal pose
     std::vector<double> pose;
     if (!computePlanningFrameFK(goal.angles, pose)) {
-        SBPL_WARN("Could not compute planning link FK for given goal configuration!");
+        ROS_WARN("Could not compute planning link FK for given goal configuration!");
         return false;
     }
 
