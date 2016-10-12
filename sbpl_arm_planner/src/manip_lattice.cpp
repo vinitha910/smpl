@@ -596,6 +596,9 @@ bool ManipLattice::isGoal(
                     Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()));
+            if (q.dot(qg) < 0.0) {
+                qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
+            }
 
 //            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
             const double theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
