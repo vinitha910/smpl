@@ -58,6 +58,7 @@ add_library(
     src/euclid_dist_heuristic.cpp
     src/collision_checker.cpp
     src/robot_heuristic.cpp
+    src/joint_dist_heuristic.cpp
     src/manip_lattice.cpp
     src/manip_lattice_action_space.cpp
     src/multi_frame_bfs_heuristic.cpp

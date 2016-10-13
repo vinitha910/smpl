@@ -47,6 +47,7 @@
 #include <sbpl_arm_planner/angles.h>
 #include <sbpl_arm_planner/bfs_heuristic.h>
 #include <sbpl_arm_planner/euclid_dist_heuristic.h>
+#include <sbpl_arm_planner/joint_dist_heuristic.h>
 #include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_arm_planner/manip_lattice_action_space.h>
 #include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
@@ -1100,7 +1101,10 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     } else if (heuristic_name == "euclid") {
         auto h = std::make_shared<EuclidDistHeuristic>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("EUCLID", h));
-    } else {
+    } else if (heuristic_name == "joint_distance") {
+        auto h = std::make_shared<JointDistHeuristic>(m_pspace, m_grid);
+        m_heuristics.insert(std::make_pair("JOINT_DIST", h));
+    }else {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
         return false;
     }
