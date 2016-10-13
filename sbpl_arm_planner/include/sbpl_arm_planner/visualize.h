@@ -46,12 +46,12 @@ void visualize(
 } // namespace viz
 } // namespace sbpl
 
-#define SBPL_VISUALIZE_SEVERITY_DEBUG 0
-#define SBPL_VISUALIZE_SEVERITY_INFO 1
-#define SBPL_VISUALIZE_SEVERITY_WARN 2
-#define SBPL_VISUALIZE_SEVERITY_ERROR 3
-#define SBPL_VISUALIZE_SEVERITY_FATAL 4
-#define SBPL_VISUALIZE_SEVERITY_NONE 5
+#define SBPL_VISUALIZE_SEVERITY_DEBUG   0
+#define SBPL_VISUALIZE_SEVERITY_INFO    1
+#define SBPL_VISUALIZE_SEVERITY_WARN    2
+#define SBPL_VISUALIZE_SEVERITY_ERROR   3
+#define SBPL_VISUALIZE_SEVERITY_FATAL   4
+#define SBPL_VISUALIZE_SEVERITY_NONE    5
 
 #ifndef SBPL_VISUALIZE_MIN_SEVERITY
 #define SBPL_VISUALIZE_MIN_SEVERITY SBPL_VISUALIZE_SEVERITY_DEBUG
@@ -88,7 +88,7 @@ void visualize(
 
 #define SV_SHOW(level, markers) SV_SHOW_COND(true, level, markers)
 
-#if (SBPL_VISUALIZE_SEVERITY > SBPL_VISUALIZE_DEBUG)
+#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_DEBUG)
 #define SV_SHOW_DEBUG(markers)
 #define SV_SHOW_DEBUG_COND(cond, markers)
 #define SV_SHOW_DEBUG_THROTTLE(rate, markers)
@@ -100,7 +100,7 @@ void visualize(
 #define SV_SHOW_DEBUG_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Debug, markers)
 #endif
 
-#if (SBPL_VISUALIZE_SEVERITY > SBPL_VISUALIZE_INFO)
+#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_INFO)
 #define SV_SHOW_INFO(markers)
 #define SV_SHOW_INFO_COND(cond, markers)
 #define SV_SHOW_INFO_THROTTLE(rate, markers)
@@ -112,7 +112,7 @@ void visualize(
 #define SV_SHOW_INFO_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Info, markers)
 #endif
 
-#if (SBPL_VISUALIZE_SEVERITY > SBPL_VISUALIZE_WARN)
+#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_WARN)
 #define SV_SHOW_WARN(markers)
 #define SV_SHOW_WARN_COND(cond, markers)
 #define SV_SHOW_WARN_THROTTLE(rate, markers)
@@ -124,7 +124,7 @@ void visualize(
 #define SV_SHOW_WARN_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Warn, markers)
 #endif
 
-#if (SBPL_VISUALIZE_SEVERITY > SBPL_VISUALIZE_ERROR)
+#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_ERROR)
 #define SV_SHOW_ERROR(markers)
 #define SV_SHOW_ERROR_COND(cond, markers)
 #define SV_SHOW_ERROR_THROTTLE(rate, markers)
@@ -136,7 +136,7 @@ void visualize(
 #define SV_SHOW_ERROR_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Error, markers)
 #endif
 
-#if (SBPL_VISUALIZE_SEVERITY > SBPL_VISUALIZE_FATAL)
+#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_FATAL)
 #define SV_SHOW_FATAL(markers)
 #define SV_SHOW_FATAL_COND(cond, markers)
 #define SV_SHOW_FATAL_THROTTLE(rate, markers)
