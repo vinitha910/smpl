@@ -73,6 +73,19 @@ class CollisionSphereModelTree
 {
 public:
 
+    typedef std::vector<CollisionSphereModel>       container_type;
+
+    typedef container_type::value_type              value_type;
+    typedef container_type::allocator_type          allocator_type;
+
+    typedef container_type::size_type               size_type;
+    typedef container_type::difference_type         difference_type;
+
+    typedef container_type::const_reference         const_reference;
+
+    typedef container_type::const_iterator          const_iterator;
+    typedef container_type::const_reverse_iterator  const_reverse_iterator;
+
     void buildFrom(const std::vector<CollisionSphereConfig>& spheres);
     void buildFrom(const std::vector<CollisionSphereModel>& spheres);
 
@@ -80,11 +93,29 @@ public:
 
     const CollisionSphereModel* root() const { return &m_tree.back(); }
 
-    size_t size() const { return m_tree.size(); }
+    /// \name Vector-like Element Access
+    ///@{
+    const_reference at(size_type pos) const { return m_tree.at(pos); }
+    const_reference operator[](size_type pos) const { return m_tree[pos]; }
+    const_reference front() const { return m_tree.front(); }
+    const_reference back() const { return m_tree.back(); }
+    const CollisionSphereModel* data() const { return m_tree.data(); }
+    ///@}
 
-    const CollisionSphereModel& operator[](size_t idx) const {
-        return m_tree[idx];
-    }
+    /// \name Vector-like Iterators
+    ///@{
+    const_iterator begin() const { return m_tree.begin(); }
+    const_iterator cbegin() const { return m_tree.cbegin(); }
+    const_iterator end() const { return m_tree.end(); }
+    const_iterator cend() const { return m_tree.cend(); }
+    const_reverse_iterator rbegin() const { return m_tree.rbegin(); }
+    const_reverse_iterator crbegin() const { return m_tree.crbegin(); }
+    const_reverse_iterator rend() const { return m_tree.rend(); }
+    const_reverse_iterator crend() const { return m_tree.crend(); }
+    ///@}
+
+    bool empty() const { return m_tree.empty(); }
+    size_t size() const { return m_tree.size(); }
 
     double maxRadius() const;
     double maxLeafRadius() const;
@@ -113,7 +144,7 @@ private:
         typename std::vector<const Sphere*>::iterator mslast);
 
 public: // TODO: mimic iterators from CollisionSphereTree
-    std::vector<CollisionSphereModel> m_tree;
+    container_type m_tree;
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereModelTree& tree);
