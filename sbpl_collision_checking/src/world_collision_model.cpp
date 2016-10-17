@@ -471,11 +471,11 @@ bool WorldCollisionModelImpl::checkSpheresStateCollisions(
             state.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
         }
 
-        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere '%s' with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->name.c_str(), s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+        ROS_DEBUG_NAMED(WCM_LOGGER, "Checking sphere '%s' with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->name.c_str(), s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
 
         double obs_dist;
         if (CheckSphereCollision(*m_grid, *s, m_padding, obs_dist)) {
-            ROS_DEBUG_NAMED(SCM_LOGGER, "  Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
+            ROS_DEBUG_NAMED(WCM_LOGGER, "  Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
             continue; // no collision -> ok!
         }
 
@@ -510,7 +510,7 @@ bool WorldCollisionModelImpl::checkSpheresStateCollisions(
             }
             else { // normal leaf
                 const CollisionSphereModel* sm = s->model;
-                ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* name: %s, pos: (%0.3f, %0.3f, %0.3f), radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), s->pos.x(), s->pos.y(), s->pos.z(), sm->radius, obs_dist);
+                ROS_DEBUG_NAMED(WCM_LOGGER, "    *collision* name: %s, pos: (%0.3f, %0.3f, %0.3f), radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), s->pos.x(), s->pos.y(), s->pos.z(), sm->radius, obs_dist);
                 dist = obs_dist;
                 return false; // collision -> not ok!
             }
@@ -527,7 +527,7 @@ bool WorldCollisionModelImpl::checkSpheresStateCollisions(
         }
     }
 
-    ROS_DEBUG_NAMED(SCM_LOGGER, "No voxels collisions");
+    ROS_DEBUG_NAMED(WCM_LOGGER, "No voxels collisions");
     return true;
 }
 
