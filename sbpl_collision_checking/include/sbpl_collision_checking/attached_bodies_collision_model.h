@@ -75,6 +75,8 @@ public:
     auto   attachedBodyName(int abidx) const -> const std::string&;
     int    attachedBodyLinkIndex(int abidx) const;
 
+    void   attachedBodyIndices(std::vector<int>& indices) const;
+
     auto attachedBodyIndices(const std::string& link_name) const
             -> const std::vector<int>&;
     auto attachedBodyIndices(int lidx) const -> const std::vector<int>&;

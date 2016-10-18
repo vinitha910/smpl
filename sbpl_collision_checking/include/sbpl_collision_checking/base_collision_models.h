@@ -86,6 +86,15 @@ public:
     typedef container_type::const_iterator          const_iterator;
     typedef container_type::const_reverse_iterator  const_reverse_iterator;
 
+    // disallow copy/assign for now since the underyling tree structure is kept in a
+    // compact array with internal references
+    CollisionSphereModelTree() : m_tree() { }
+    CollisionSphereModelTree(const CollisionSphereModelTree& o) = delete;
+    CollisionSphereModelTree(CollisionSphereModelTree&& o);
+
+    CollisionSphereModelTree& operator=(const CollisionSphereModelTree&) = delete;
+    CollisionSphereModelTree& operator=(CollisionSphereModelTree&&) = delete;
+
     void buildFrom(const std::vector<CollisionSphereConfig>& spheres);
     void buildFrom(const std::vector<CollisionSphereModel>& spheres);
 
@@ -172,7 +181,7 @@ std::ostream& operator<<(std::ostream& o, const CollisionVoxelsModel& cvm);
 struct CollisionGroupModel
 {
     std::string name;
-    std::vector<int> link_indices;
+    std::vector<int> link_indices; // TODO: rename body_indices
 };
 
 std::ostream& operator<<(std::ostream& o, const CollisionGroupModel& cgm);
@@ -182,7 +191,7 @@ struct SphereIndex
     int ss;
     int s;
 
-    SphereIndex() { }
+    SphereIndex() : ss(), s() { }
     SphereIndex(int ss, int s) : ss(ss), s(s) { }
 };
 

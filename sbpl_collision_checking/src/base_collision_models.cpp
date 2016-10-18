@@ -176,6 +176,11 @@ std::ostream& operator<<(std::ostream& o, const CollisionSphereModel& csm)
     return o;
 }
 
+CollisionSphereModelTree::CollisionSphereModelTree(CollisionSphereModelTree&& o) :
+    m_tree(std::move(o.m_tree))
+{
+}
+
 void CollisionSphereModelTree::buildFrom(
     const std::vector<CollisionSphereConfig>& spheres)
 {

@@ -106,9 +106,6 @@ private:
     std::vector<CollisionVoxelsState>       m_voxels_states;
     std::vector<CollisionGroupState>        m_group_states;
 
-    hash_map<int, CollisionSpheresState*>   m_attached_body_spheres_states;
-    hash_map<int, CollisionVoxelsState*>    m_attached_body_voxels_states;
-
     int m_version;
 
     void reinitCollisionState() const;
@@ -128,8 +125,6 @@ AttachedBodiesCollisionStateImpl::AttachedBodiesCollisionStateImpl(
     m_dirty_voxels_states(),
     m_voxels_states(),
     m_group_states(),
-    m_attached_body_spheres_states(),
-    m_attached_body_voxels_states(),
     m_version(-1) // -1 to force first initial reinitialization
 {
 }
@@ -293,9 +288,11 @@ bool AttachedBodiesCollisionStateImpl::sphereStateDirty(
     const SphereIndex& sidx) const
 {
     reinitCollisionState();
-    const int idx = sphereIndex(sidx);
     ASSERT_VECTOR_RANGE(m_dirty_sphere_states, idx);
-    return m_dirty_sphere_states[idx];
+    const CollisionSpheresState& spheres_state = m_spheres_states[sidx.ss];
+    const int lidx = spheres_state.model->link_index;
+    int link_version = 0;
+    return m_state->linkTransformDirty(lidx) || spheres_state.spheres[sidx.s].version != link_version;
 }
 
 inline

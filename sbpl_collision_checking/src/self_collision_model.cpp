@@ -133,6 +133,7 @@ private:
     // group is made
     int                                     m_gidx;
     std::vector<int>                        m_voxels_indices;
+    std::vector<int>                        m_ab_voxels_indices;
     std::vector<SphereIndex>                m_sphere_indices;
 
     // set of spheres state pairs that should be checked for self collisions
@@ -219,6 +220,7 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_abcs(ab_model, &m_rcs),
     m_gidx(-1),
     m_voxels_indices(),
+    m_ab_voxels_indices(),
     m_sphere_indices(),
     m_acm(),
     m_padding(0.0)
@@ -593,6 +595,53 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
 
     m_voxels_indices = std::move(new_ov_indices);
 
+    std::vector<int> old_ab_ov_indices = m_ab_voxels_indices;
+    std::sort(old_ab_ov_indices.begin(), old_ab_ov_indices.end());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Old attached body outside voxels indices: %s", to_string(old_ab_ov_indices).c_str());
+
+    std::vector<int> new_ab_ov_indices = m_abcs.groupOutsideVoxelsStateIndices(gidx);
+    std::sort(new_ab_ov_indices.begin(), new_ab_ov_indices.end());
+    ROS_DEBUG_NAMED(SCM_LOGGER, "New attached body outside voxels indices: %s", to_string(new_ab_ov_indices).c_str());
+
+    std::vector<int> abovidx_rem;
+    std::set_difference(
+            old_ab_ov_indices.begin(), old_ab_ov_indices.end(),
+            new_ab_ov_indices.begin(), new_ab_ov_indices.end(),
+            std::back_inserter(abovidx_rem));
+    ROS_DEBUG_NAMED(SCM_LOGGER, "abovidx_rem: %s", to_string(abovidx_rem).c_str());
+
+    std::vector<int> abovidx_ins;
+    std::set_difference(
+            new_ab_ov_indices.begin(), new_ab_ov_indices.end(),
+            old_ab_ov_indices.begin(), old_ab_ov_indices.end(),
+            std::back_inserter(abovidx_ins));
+    ROS_DEBUG_NAMED(SCM_LOGGER, "ovidx_ins: %s", to_string(abovidx_ins).c_str());
+
+    v_rem.clear();
+    for (int vsidx : abovidx_rem) {
+        const CollisionVoxelsState& vs = m_abcs.voxelsState(vsidx);
+        v_rem.insert(v_rem.end(), vs.voxels.begin(), vs.voxels.end());
+    }
+
+    // gather the voxels to be inserted
+    v_ins.clear();
+    for (int vsidx : abovidx_ins) {
+        const CollisionVoxelsState& vs = m_abcs.voxelsState(vsidx);
+        v_ins.insert(v_ins.end(), vs.voxels.begin(), vs.voxels.end());
+    }
+
+    // insert/remove the voxels
+    if (!v_rem.empty()) {
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Remove %zu voxels from old voxels models", v_rem.size());
+        m_grid->removePointsFromField(v_rem);
+    }
+    if (!v_ins.empty()) {
+        ROS_DEBUG_NAMED(SCM_LOGGER, "  Insert %zu voxels from new voxels models", v_ins.size());
+        m_grid->addPointsToField(v_ins);
+    }
+
+    m_ab_voxels_indices = std::move(new_ab_ov_indices);
+
     // prepare sphere indices
 
     m_sphere_indices = GatherSphereIndices(m_rcs, gidx);
@@ -657,11 +706,11 @@ void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
 void SelfCollisionModelImpl::updateVoxelsStates()
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Update voxels states");
-    // update voxel groups; gather voxels before updating so as to impose only
-    // a single distance field update (TODO: does the distance field recompute
-    // with every call to insert/remove/update points?)
+    // gather all changed voxels before updating so as to impose only a single
+    // distance field update
     std::vector<Eigen::Vector3d> v_rem;
     std::vector<Eigen::Vector3d> v_ins;
+
     for (int vsidx : m_voxels_indices) {
         if (m_rcs.voxelsStateDirty(vsidx)) {
             const CollisionVoxelsState& voxels_state = m_rcs.voxelsState(vsidx);
@@ -686,7 +735,31 @@ void SelfCollisionModelImpl::updateVoxelsStates()
         }
     }
 
-    // TODO: check for voxel state updates from attached objects
+    // same method as above against attached bodies collision state
+    for (int vsidx : m_ab_voxels_indices) {
+        if (m_abcs.voxelsStateDirty(vsidx)) {
+            const CollisionVoxelsState& voxels_state =
+                    m_abcs.voxelsState(vsidx);
+
+            // copy over voxels to be removed before updating
+            const size_t prev_size = v_rem.size();
+            v_rem.insert(
+                    v_rem.end(),
+                    voxels_state.voxels.begin(),
+                    voxels_state.voxels.end());
+            const size_t curr_size = v_rem.size();
+
+            m_abcs.updateVoxelsState(vsidx);
+
+            // copy over voxels to be inserted
+            v_ins.insert(
+                    v_ins.end(),
+                    voxels_state.voxels.begin(),
+                    voxels_state.voxels.end());
+
+            ROS_DEBUG_NAMED(SCM_LOGGER, "  Update Occupancy Grid with change to Collision Voxels State (%zu displaced)", curr_size - prev_size);
+        }
+    }
 
     // update occupancy grid with new voxel data
     if (!v_rem.empty()) {

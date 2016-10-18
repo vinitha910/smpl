@@ -37,7 +37,7 @@
 namespace sbpl {
 namespace collision {
 
-static const char* RCM_LOGGER = "robot";
+static const char* ABM_LOGGER = "attached_bodies_model";
 
 class AttachedBodiesCollisionModelImpl
 {
@@ -60,6 +60,8 @@ public:
     int    attachedBodyIndex(const std::string& id) const;
     auto   attachedBodyName(int abidx) const -> const std::string&;
     int    attachedBodyLinkIndex(int abidx) const;
+
+    void attachedBodyIndices(std::vector<int>& indices) const;
 
     auto attachedBodyIndices(const std::string& link_name) const ->
             const std::vector<int>&;
@@ -95,47 +97,49 @@ private:
     {
         std::string id;
         int link_index;
+
+        CollisionSpheresModelConfig spheres_config;
+        CollisionVoxelModelConfig voxels_config;
+        CollisionSpheresModel* spheres_model;
+        CollisionVoxelsModel* voxels_model;
     };
 
     const RobotCollisionModel*                  m_model;
 
-    // Attached Body Information
+    // set of attached bodies
     hash_map<int, AttachedBodyModel>            m_attached_bodies;
+
+    // map attached body names to attached body indices
     hash_map<std::string, int>                  m_attached_body_name_to_index;
+
     int                                         m_attached_bodies_added;
 
-    // cached configuration for regenerating references (necessary still?)
-    hash_map<int, CollisionSpheresModelConfig>  m_attached_body_spheres_config;
-    hash_map<int, CollisionVoxelModelConfig>    m_attached_body_voxels_config;
-
-    // References to Robot Model
+    // map link indices to attached body indices
     std::vector<std::vector<int>>               m_link_attached_bodies;
 
     // Collision Model
-    std::vector<CollisionSpheresModel>          m_spheres_models;
-    std::vector<CollisionVoxelsModel>           m_voxels_models;
-    std::vector<CollisionGroupModel>            m_group_models;
-    hash_map<std::string, int>                  m_group_name_to_index;
-
-    // per-attached-body references to corresponding spheres and voxels models
-    hash_map<int, const CollisionSpheresModel*> m_attached_body_spheres_models;
-    hash_map<int, const CollisionVoxelsModel*>  m_attached_body_voxels_models;
+    std::vector<std::unique_ptr<CollisionSpheresModel>> m_spheres_models;
+    std::vector<std::unique_ptr<CollisionVoxelsModel>>  m_voxels_models;
+    std::vector<CollisionGroupModel>                    m_group_models;
+    hash_map<std::string, int>                          m_group_name_to_index;
 
     int m_version;
 
     int generateAttachedBodyIndex();
 
-    void createSpheresModel(
+    CollisionSpheresModel* createSpheresModel(
         int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms);
+        const Affine3dVector& transforms,
+        CollisionSpheresModelConfig& config);
 
-    void createVoxelsModel(
+    CollisionVoxelsModel* createVoxelsModel(
         int abidx,
         const std::string& id,
         const std::vector<shapes::ShapeConstPtr>& shapes,
-        const Affine3dVector& transforms);
+        const Affine3dVector& transforms,
+        CollisionVoxelModelConfig& config);
 
     void generateSpheresModel(
         const std::string& id,
@@ -162,18 +166,21 @@ AttachedBodiesCollisionModelImpl::AttachedBodiesCollisionModelImpl(
     m_attached_bodies(),
     m_attached_body_name_to_index(),
     m_attached_bodies_added(),
-    m_attached_body_spheres_config(),
-    m_attached_body_voxels_config(),
     m_link_attached_bodies(),
     m_spheres_models(),
     m_voxels_models(),
     m_group_models(),
     m_group_name_to_index(),
-    m_attached_body_spheres_models(),
-    m_attached_body_voxels_models(),
     m_version(0)
 {
     m_link_attached_bodies.resize(m_model->linkCount());
+
+    // use group names identical to robot model
+    m_group_models.resize(model->groupCount());
+    for (int gidx = 0; gidx < model->groupCount(); ++gidx) {
+        m_group_models[gidx].name = model->group(gidx).name;
+        m_group_name_to_index[model->group(gidx).name] = gidx;
+    }
 }
 
 AttachedBodiesCollisionModelImpl::~AttachedBodiesCollisionModelImpl()
@@ -190,25 +197,44 @@ bool AttachedBodiesCollisionModelImpl::attachBody(
     bool create_spheres_model)
 {
     if (hasAttachedBody(id)) {
-        ROS_WARN_NAMED(RCM_LOGGER, "Already have attached body '%s'", id.c_str());
+        ROS_WARN_NAMED(ABM_LOGGER, "Already have attached body '%s'", id.c_str());
         return false;
     }
 
     if (!m_model->hasLink(link_name)) {
-        ROS_WARN_NAMED(RCM_LOGGER, "Link '%s' does not exist in the Robot Collision Model", link_name.c_str());
+        ROS_WARN_NAMED(ABM_LOGGER, "Link '%s' does not exist in the Robot Collision Model", link_name.c_str());
         return false;
     }
 
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Attaching body '%s'", id.c_str());
+    ROS_DEBUG_NAMED(ABM_LOGGER, "Attach body '%s'", id.c_str());
+
+    const int abidx = generateAttachedBodyIndex();
+    ROS_DEBUG_NAMED(ABM_LOGGER, "  Body Index: %d", abidx);
 
     // create the attached body descriptor
     AttachedBodyModel ab;
     ab.id = id;
     ab.link_index = m_model->linkIndex(link_name);
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Link Index: %d", ab.link_index);
-    const int abidx = generateAttachedBodyIndex();
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Body Index: %d", abidx);
-    m_attached_bodies[abidx] = ab;
+
+    if (create_spheres_model) {
+        ab.spheres_model = createSpheresModel(
+                abidx, id, shapes, transforms, ab.spheres_config);
+    } else {
+        ab.spheres_model = nullptr;
+    }
+
+    if (create_voxels_model) {
+        ab.voxels_model = createVoxelsModel(
+                abidx, id, shapes, transforms, ab.voxels_config);
+    } else {
+        ab.voxels_model = nullptr;
+    }
+
+    ROS_DEBUG_NAMED(ABM_LOGGER, " -> Link Index: %d", ab.link_index);
+    ROS_DEBUG_NAMED(ABM_LOGGER, " -> Spheres Model: %p", ab.spheres_model);
+    ROS_DEBUG_NAMED(ABM_LOGGER, " -> Voxels Model: %p", ab.voxels_model);
+
+    m_attached_bodies[abidx] = std::move(ab);
 
     // map the id to the generated index
     m_attached_body_name_to_index[id] = abidx;
@@ -216,15 +242,7 @@ bool AttachedBodiesCollisionModelImpl::attachBody(
     // attach the body to its parent link
     m_link_attached_bodies[ab.link_index].push_back(abidx);
 
-    // create requested models
-    if (create_spheres_model) {
-        createSpheresModel(abidx, id, shapes, transforms);
-    }
-    if (create_voxels_model) {
-        createVoxelsModel(abidx, id, shapes, transforms);
-    }
-
-    ROS_DEBUG_NAMED(RCM_LOGGER, "Updating group model");
+    ROS_DEBUG_NAMED(ABM_LOGGER, "Updating group model");
 
     // add attached body to all groups whose corresponding robot model groups
     // contain its parent link
@@ -248,7 +266,7 @@ inline
 bool AttachedBodiesCollisionModelImpl::detachBody(const std::string& id)
 {
     if (!hasAttachedBody(id)) {
-        ROS_WARN_NAMED(RCM_LOGGER, "No attached body '%s' found in Robot Collision Model", id.c_str());
+        ROS_WARN_NAMED(ABM_LOGGER, "No attached body '%s' found in Robot Collision Model", id.c_str());
         return false;
     }
 
@@ -264,46 +282,29 @@ bool AttachedBodiesCollisionModelImpl::detachBody(const std::string& id)
         group_model.link_indices.erase(it, group_model.link_indices.end());
     }
 
-    // remove the voxels model
-    auto vsit = m_attached_body_voxels_models.find(abidx);
-    if (vsit != m_attached_body_voxels_models.end()) {
-        const CollisionVoxelsModel* voxels_model = vsit->second;
+    auto abit = m_attached_bodies.find(abidx);
 
-        // remove the per-body voxels model
-        m_attached_body_voxels_models.erase(abidx);
-
-        // remove the voxels model itself
-        const auto vmidx = std::distance(
-                const_cast<const CollisionVoxelsModel*>(m_voxels_models.data()),
-                voxels_model);
-        m_voxels_models.erase(m_voxels_models.begin() + vmidx);
-
-        // remove the stashed configuration
-        m_attached_body_voxels_config.erase(abidx);
+    if (abit->second.voxels_model) {
+        auto it = std::remove_if(m_voxels_models.begin(), m_voxels_models.end(),
+                [&](const std::unique_ptr<CollisionVoxelsModel>& vm)
+                {
+                    return vm.get() == abit->second.voxels_model;
+                });
+        m_voxels_models.erase(it, m_voxels_models.end());
     }
 
-
-    // remove the spheres model
-    auto ssit = m_attached_body_spheres_models.find(abidx);
-    if (ssit != m_attached_body_spheres_models.end()) {
-        const CollisionSpheresModel* spheres_model = ssit->second;
-
-        // remove the per-body spheres model
-        m_attached_body_spheres_models.erase(abidx);
-
-        // remove the spheres model itself
-        const auto smidx = std::distance(
-                const_cast<const CollisionSpheresModel*>(m_spheres_models.data()),
-                spheres_model);
-        m_spheres_models.erase(m_spheres_models.begin() + smidx);
-
-        // remove the stashed configuration
-        m_attached_body_spheres_config.erase(abidx);
+    if (abit->second.spheres_model) {
+        auto it = std::remove_if(m_spheres_models.begin(), m_spheres_models.end(),
+                [&](const std::unique_ptr<CollisionSpheresModel>& sm)
+                {
+                    return sm.get() == abit->second.spheres_model;
+                });
+        m_spheres_models.erase(it, m_spheres_models.end());
     }
 
     // remove the attached body from its attached link
     std::vector<int>& link_bodies =
-            m_link_attached_bodies[m_attached_bodies[abidx].link_index];
+            m_link_attached_bodies[abit->second.link_index];
     auto it = std::remove_if(link_bodies.begin(), link_bodies.end(),
             [abidx](int idx) { return idx == abidx; });
     link_bodies.erase(it, link_bodies.end());
@@ -315,8 +316,7 @@ bool AttachedBodiesCollisionModelImpl::detachBody(const std::string& id)
     assert(ret > 0);
 
     // remove the attached body
-    ret = m_attached_bodies.erase(abidx);
-    assert(ret > 0);
+    m_attached_bodies.erase(abit);
 
     ++m_version;
     return true;
@@ -372,6 +372,15 @@ const std::vector<int>& AttachedBodiesCollisionModelImpl::attachedBodyIndices(
 }
 
 inline
+void AttachedBodiesCollisionModelImpl::attachedBodyIndices(
+    std::vector<int>& indices) const
+{
+    for (const auto& entry : m_attached_bodies) {
+        indices.push_back(entry.first);
+    }
+}
+
+inline
 const std::vector<int>& AttachedBodiesCollisionModelImpl::attachedBodyIndices(
     int lidx) const
 {
@@ -390,7 +399,7 @@ size_t AttachedBodiesCollisionModelImpl::sphereModelCount() const
 {
     size_t total_sphere_count = 0;
     for (const auto& spheres_model : m_spheres_models) {
-        total_sphere_count += spheres_model.spheres.size();
+        total_sphere_count += spheres_model->spheres.size();
     }
     return total_sphere_count;
 }
@@ -401,9 +410,9 @@ bool AttachedBodiesCollisionModelImpl::hasSpheresModel(
 {
     auto it = m_attached_body_name_to_index.find(id);
     ASSERT_RANGE(it != m_attached_body_name_to_index.end());
-    assert(m_attached_bodies.find(it->second) != m_attached_bodies.end());
-    return m_attached_body_spheres_models.find(it->second) !=
-            m_attached_body_spheres_models.end();
+    auto abit = m_attached_bodies.find(it->second);
+    assert(abit != m_attached_bodies.end());
+    return abit->second.spheres_model;
 }
 
 inline
@@ -411,14 +420,13 @@ bool AttachedBodiesCollisionModelImpl::hasSpheresModel(int abidx) const
 {
     auto it = m_attached_bodies.find(abidx);
     ASSERT_RANGE(it != m_attached_bodies.end());
-    return m_attached_body_spheres_models.find(abidx) !=
-            m_attached_body_spheres_models.end();
+    return it->second.spheres_model;
 }
 
 inline
 size_t AttachedBodiesCollisionModelImpl::spheresModelCount() const
 {
-    return m_attached_body_spheres_models.size();
+    return m_spheres_models.size();
 }
 
 inline
@@ -426,7 +434,7 @@ const CollisionSpheresModel& AttachedBodiesCollisionModelImpl::spheresModel(
     int smidx) const
 {
     ASSERT_VECTOR_RANGE(m_spheres_models, smidx);
-    return m_spheres_models[smidx];
+    return *m_spheres_models[smidx];
 }
 
 inline
@@ -435,8 +443,9 @@ bool AttachedBodiesCollisionModelImpl::hasVoxelsModel(
 {
     auto it = m_attached_body_name_to_index.find(id);
     ASSERT_RANGE(it != m_attached_body_name_to_index.end());
-    auto vmit = m_attached_body_voxels_models.find(it->second);
-    return vmit != m_attached_body_voxels_models.end();
+    auto abit = m_attached_bodies.find(it->second);
+    assert(abit != m_attached_bodies.end());
+    return abit->second.voxels_model;
 }
 
 inline
@@ -444,8 +453,7 @@ bool AttachedBodiesCollisionModelImpl::hasVoxelsModel(int abidx) const
 {
     auto it = m_attached_bodies.find(abidx);
     ASSERT_RANGE(it != m_attached_bodies.end());
-    auto vmit = m_attached_body_voxels_models.find(abidx);
-    return vmit != m_attached_body_voxels_models.end();
+    return it->second.voxels_model;
 }
 
 inline
@@ -459,7 +467,7 @@ const CollisionVoxelsModel& AttachedBodiesCollisionModelImpl::voxelsModel(
     int vmidx) const
 {
     ASSERT_VECTOR_RANGE(m_voxels_models, vmidx);
-    return m_voxels_models[vmidx];
+    return *m_voxels_models[vmidx];
 }
 
 inline
@@ -506,7 +514,7 @@ const std::vector<int>& AttachedBodiesCollisionModelImpl::groupLinkIndices(
 {
     auto it = m_group_name_to_index.find(group_name);
     ASSERT_RANGE(it != m_group_name_to_index.end());
-    m_group_models[it->second].link_indices;
+    return m_group_models[it->second].link_indices;
 }
 
 inline
@@ -525,64 +533,54 @@ int AttachedBodiesCollisionModelImpl::generateAttachedBodyIndex()
     if (m_attached_bodies_added ==
             std::numeric_limits<decltype(m_attached_bodies_added)>::max())
     {
-        ROS_WARN_NAMED(RCM_LOGGER, "Oh god, it's happening");
+        ROS_WARN_NAMED(ABM_LOGGER, "Oh god, it's happening");
     }
     return m_attached_bodies_added++;
 }
 
 inline
-void AttachedBodiesCollisionModelImpl::createSpheresModel(
+CollisionSpheresModel* AttachedBodiesCollisionModelImpl::createSpheresModel(
     int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms)
+    const Affine3dVector& transforms,
+    CollisionSpheresModelConfig& config)
 {
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating spheres model");
+    ROS_DEBUG_NAMED(ABM_LOGGER, "  Generating spheres model");
 
     // create configuration spheres and a spheres model for this body
-    CollisionSpheresModelConfig spheres_config;
-    generateSpheresModel(id, shapes, transforms, spheres_config);
+    generateSpheresModel(id, shapes, transforms, config);
 
-    // stash the config for regenerating references
-    m_attached_body_spheres_config[abidx] = spheres_config;
+    // initialize a new spheres model
+    m_spheres_models.emplace_back(new CollisionSpheresModel);
+    ROS_DEBUG_NAMED(ABM_LOGGER, "  Spheres Model Count %zu -> %zu", m_spheres_models.size() - 1, m_spheres_models.size());
 
-    // append spheres models
-    m_spheres_models.resize(m_spheres_models.size() + 1);
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Model Count %zu -> %zu", m_spheres_models.size() - 1, m_spheres_models.size());
-    CollisionSpheresModel* spheres_model = &m_spheres_models.back();
+    CollisionSpheresModel* spheres_model = m_spheres_models.back().get();
 
-    // attach to the attached body
     spheres_model->link_index = abidx;
+    spheres_model->spheres.buildFrom(config.spheres);
+    ROS_DEBUG_NAMED(ABM_LOGGER, "  Spheres Model: %p", spheres_model);
 
-    spheres_model->spheres.buildFrom(spheres_config.spheres);
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Spheres Model: %p", spheres_model);
-
-    // map attached body -> collision spheres model
-    m_attached_body_spheres_models.clear();
-    for (const CollisionSpheresModel& sm : m_spheres_models) {
-        m_attached_body_spheres_models[sm.link_index] = &sm;
-    }
+    return spheres_model;
 }
 
 inline
-void AttachedBodiesCollisionModelImpl::createVoxelsModel(
+CollisionVoxelsModel* AttachedBodiesCollisionModelImpl::createVoxelsModel(
     int abidx,
     const std::string& id,
     const std::vector<shapes::ShapeConstPtr>& shapes,
-    const Affine3dVector& transforms)
+    const Affine3dVector& transforms,
+    CollisionVoxelModelConfig& config)
 {
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Generating voxels model");
+    ROS_DEBUG_NAMED(ABM_LOGGER, "  Generating voxels model");
     // create configuration voxels model for this body
-    CollisionVoxelModelConfig voxels_config;
-    generateVoxelsModel(id, shapes, transforms, voxels_config);
-
-    // stash the config perhaps for future use
-    m_attached_body_voxels_config[abidx] = voxels_config;
+    generateVoxelsModel(id, shapes, transforms, config);
 
     // append voxels models
-    m_voxels_models.resize(m_voxels_models.size() + 1);
-    ROS_DEBUG_NAMED(RCM_LOGGER, "  Voxels Model Count %zu -> %zu", m_voxels_models.size() - 1, m_voxels_models.size());
-    CollisionVoxelsModel* voxels_model = &m_voxels_models.back();
+    m_voxels_models.emplace_back(new CollisionVoxelsModel);
+    ROS_DEBUG_NAMED(ABM_LOGGER, "  Voxels Model Count %zu -> %zu", m_voxels_models.size() - 1, m_voxels_models.size());
+
+    CollisionVoxelsModel* voxels_model = m_voxels_models.back().get();
 
     // attach to the attached body
     voxels_model->link_index = abidx;
@@ -591,15 +589,11 @@ void AttachedBodiesCollisionModelImpl::createVoxelsModel(
     voxels_model->voxel_res = AB_VOXEL_RES;
 
     if (!voxelizeAttachedBody(shapes, transforms, *voxels_model)) {
-        ROS_ERROR_NAMED(RCM_LOGGER, "Failed to voxelize attached body '%s'", id.c_str());
+        ROS_ERROR_NAMED(ABM_LOGGER, "Failed to voxelize attached body '%s'", id.c_str());
         // TODO: anything to do in this case
     }
 
-    // map attached body -> collision voxels model
-    m_attached_body_voxels_models.clear();
-    for (const CollisionVoxelsModel& vm : m_voxels_models) {
-        m_attached_body_voxels_models[vm.link_index] = &vm;
-    }
+    return voxels_model;
 }
 
 inline
@@ -610,7 +604,7 @@ void AttachedBodiesCollisionModelImpl::generateSpheresModel(
     CollisionSpheresModelConfig& spheres_model)
 {
     assert(std::all_of(shapes.begin(), shapes.end(),
-            [](const shapes::ShapeConstPtr& shape) { return shape; }));
+            [](const shapes::ShapeConstPtr& shape) { return (bool)shape; }));
     assert(shapes.size() == transforms.size());
 
     // TODO: reserve a special character so as to guarantee sphere uniqueness
@@ -629,7 +623,7 @@ void AttachedBodiesCollisionModelImpl::generateSpheresModel(
                 Eigen::Vector3d::Zero(),
                 voxels))
         {
-            ROS_ERROR_NAMED(RCM_LOGGER, "Failed to voxelize attached body shape for sphere generation");
+            ROS_ERROR_NAMED(ABM_LOGGER, "Failed to voxelize attached body shape for sphere generation");
             return;
         }
     }
@@ -666,7 +660,7 @@ bool AttachedBodiesCollisionModelImpl::voxelizeAttachedBody(
     CollisionVoxelsModel& model) const
 {
     if (shapes.size() != transforms.size()) {
-        ROS_ERROR_NAMED(RCM_LOGGER, "shapes array and transforms array must have equal length");
+        ROS_ERROR_NAMED(ABM_LOGGER, "shapes array and transforms array must have equal length");
         return false;
     }
 
@@ -744,6 +738,12 @@ const std::string& AttachedBodiesCollisionModel::attachedBodyName(
 int AttachedBodiesCollisionModel::attachedBodyLinkIndex(int abidx) const
 {
     return m_impl->attachedBodyLinkIndex(abidx);
+}
+
+void AttachedBodiesCollisionModel::attachedBodyIndices(
+    std::vector<int>& indices) const
+{
+    return m_impl->attachedBodyIndices(indices);
 }
 
 const std::vector<int>& AttachedBodiesCollisionModel::attachedBodyIndices(
