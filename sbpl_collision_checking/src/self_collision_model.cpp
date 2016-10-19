@@ -160,20 +160,27 @@ private:
 
     // update the state of outside-group voxels and check for collisions between
     // spheres and occupied voxels
-    bool checkVoxelsStateCollisions(double& dist);
+    bool checkRobotVoxelsStateCollisions(double& dist);
     bool checkAttachedBodyVoxelsStateCollisions(double& dist);
 
     // check for collisions between inside-group spheres
-    bool checkSpheresStateCollisions(double& dist);
-    bool checkSpheresStateCollisions(
+    bool checkRobotSpheresStateCollisions(double& dist);
+    bool checkRobotSpheresStateCollisions(
         const AllowedCollisionsInterface& aci,
         double& dist);
     bool checkAttachedBodySpheresStateCollisions(double& dist);
     bool checkAttachedBodySpheresStateCollisions(
         const AllowedCollisionsInterface& aci,
         double& dist);
+    bool checkRobotAttachedBodySpheresStateCollisions(double& dist);
+    bool checkRobotAttachedBodySpheresStateCollisions(
+        const AllowedCollisionsInterface& aci,
+        double& dist);
 
+    template <typename StateTypeA, typename StateTypeB>
     bool checkSpheresStateCollision(
+        StateTypeA& stateA,
+        StateTypeB& stateB,
         const int ss1i, const int ss2i,
         const CollisionSpheresState& ss1,
         const CollisionSpheresState& ss2,
@@ -319,23 +326,23 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "checkCollision(RobotCollisionState& state, AttachedBodiesCollisionState&, const int, double&)");
     if (state.model() != m_rcm || ab_state.model() != m_abcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
         return false;
     }
 
-    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount())
-    {
+    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount()) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "self collision check is for non-existent group");
         return false;
     }
 
     updateGroup(gidx);
-
     copyState(state);
+    updateVoxelsStates();
 
-    if (!checkVoxelsStateCollisions(dist) ||
+    if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
-        !checkSpheresStateCollisions(dist) ||
+        !checkRobotSpheresStateCollisions(dist) ||
         !checkAttachedBodySpheresStateCollisions(dist))
     {
         return false;
@@ -366,12 +373,12 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     updateGroup(gidx);
-
     copyState(state);
+    updateVoxelsStates();
 
-    if (!checkVoxelsStateCollisions(dist) ||
+    if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
-        !checkSpheresStateCollisions(aci, dist) ||
+        !checkRobotSpheresStateCollisions(aci, dist) ||
         !checkAttachedBodySpheresStateCollisions(aci, dist))
     {
         return false;
@@ -397,6 +404,7 @@ double SelfCollisionModelImpl::collisionDistance(
 
     updateGroup(gidx);
     copyState(state);
+    updateVoxelsStates();
 
     // TODO: attached objects
 
@@ -429,15 +437,16 @@ bool SelfCollisionModelImpl::collisionDetails(
 
     updateGroup(gidx);
     copyState(state);
+    updateVoxelsStates();
 
     double dist;
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
-    if (!checkVoxelsStateCollisions(dist)) {
+    if (!checkRobotVoxelsStateCollisions(dist)) {
         details.voxels_collision_count = 1;
         return false;
     }
-    if (!checkSpheresStateCollisions(dist)) {
+    if (!checkRobotSpheresStateCollisions(dist)) {
         details.sphere_collision_count = 1;
         return false;
     }
@@ -693,9 +702,9 @@ void SelfCollisionModelImpl::updateVoxelsStates()
     }
 }
 
-bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
+bool SelfCollisionModelImpl::checkRobotVoxelsStateCollisions(double& dist)
 {
-    updateVoxelsStates();
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check robot links against voxels states");
 
 #if USE_META_TREE
     updateMetaSphereTrees();
@@ -720,7 +729,7 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
 bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against voxels states");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached bodies against voxels states");
 
     auto& q = m_vq;
     q.clear();
@@ -734,7 +743,7 @@ bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
     return CheckVoxelsCollisions(m_abcs, q, *m_grid, m_padding, dist);
 }
 
-bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
+bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(double& dist)
 {
     for (const auto& ss_pair : m_checked_spheres_states) {
         int ss1i = ss_pair.first;
@@ -742,7 +751,9 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
         const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
         const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
 
-        if (!checkSpheresStateCollision(ss1i, ss2i, ss1, ss2, dist)) {
+        if (!checkSpheresStateCollision(
+                m_rcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
+        {
             return false;
         }
     }
@@ -751,7 +762,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)
     return true;
 }
 
-bool SelfCollisionModelImpl::checkSpheresStateCollisions(
+bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(
     const AllowedCollisionsInterface& aci,
     double& dist)
 {
@@ -782,7 +793,9 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(
             const int ss2i = m_rcs.linkSpheresStateIndex(lidx2);
             const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
             const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
-            if (!checkSpheresStateCollision(ss1i, ss2i, ss1, ss2, dist)) {
+            if (!checkSpheresStateCollision(
+                    m_rcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
+            {
                 return false;
             }
         }
@@ -796,6 +809,11 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
     double& dist)
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against spheres states");
+
+    if (!checkRobotAttachedBodySpheresStateCollisions(dist)) {
+        return false;
+    }
+
     return true;
 }
 
@@ -803,7 +821,7 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
     const AllowedCollisionsInterface& aci,
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against sphere states");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached bodies vs attached bodies");
     const auto& group_body_indices = m_abcm->groupLinkIndices(m_gidx);
     for (int b1 = 0; b1 < group_body_indices.size(); ++b1) {
         const int bidx1 = group_body_indices[b1];
@@ -812,7 +830,7 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
         }
 
         const std::string& b1_name = m_abcm->attachedBodyName(bidx1);
-        for (int b2 = b1 + 1; b2 < group_body_indices.size(); ++b1) {
+        for (int b2 = b1 + 1; b2 < group_body_indices.size(); ++b2) {
             const int bidx2 = group_body_indices[b2];
             if (!m_abcm->hasSpheresModel(bidx2)) {
                 continue;
@@ -832,15 +850,76 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
             const int ss2i = m_abcs.attachedBodySpheresStateIndex(bidx2);
             const CollisionSpheresState& ss1 = m_abcs.spheresState(ss1i);
             const CollisionSpheresState& ss2 = m_abcs.spheresState(ss2i);
-            if (!checkSpheresStateCollision(ss1i, ss2i, ss1, ss2, dist)) {
+            if (!checkSpheresStateCollision(
+                    m_abcs, m_abcs, ss1i, ss2i, ss1, ss2, dist))
+            {
                 return false;
             }
         }
     }
+
+    if (!checkRobotAttachedBodySpheresStateCollisions(aci, dist)) {
+        return false;
+    }
+
     return true;
 }
 
+bool SelfCollisionModelImpl::checkRobotAttachedBodySpheresStateCollisions(
+    double& dist)
+{
+    return true;
+}
+
+bool SelfCollisionModelImpl::checkRobotAttachedBodySpheresStateCollisions(
+    const AllowedCollisionsInterface& aci,
+    double& dist)
+{
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached bodies vs robot links");
+    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
+    const auto& group_body_indices = m_abcm->groupLinkIndices(m_gidx);
+    for (int b1 = 0; b1 < group_body_indices.size(); ++b1) {
+        const int bidx = group_body_indices[b1];
+        if (!m_abcm->hasSpheresModel(bidx)) {
+            continue;
+        }
+
+        const std::string& body_name = m_abcm->attachedBodyName(bidx);
+        for (int l1 = 0; l1 < group_link_indices.size(); ++l1) {
+            const int lidx = group_link_indices[l1];
+            if (!m_rcm->hasSpheresModel(lidx)) {
+                continue;
+            }
+
+            const std::string& link_name = m_rcm->linkName(lidx);
+
+            AllowedCollision::Type type;
+            if (aci.getEntry(body_name, link_name, type) &&
+                type == AllowedCollision::Type::ALWAYS)
+            {
+                // collisions between this pair of links
+                continue;
+            }
+
+            const int ss1i = m_abcs.attachedBodySpheresStateIndex(bidx);
+            const int ss2i = m_rcs.linkSpheresStateIndex(lidx);
+            const CollisionSpheresState& ss1 = m_abcs.spheresState(ss1i);
+            const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
+            if (!checkSpheresStateCollision(
+                    m_abcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+template <typename StateA, typename StateB>
 bool SelfCollisionModelImpl::checkSpheresStateCollision(
+    StateA& stateA,
+    StateB& stateB,
     int ss1i,
     int ss2i,
     const CollisionSpheresState& ss1,
@@ -851,8 +930,8 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
     auto sqrd = [](double d) { return d * d; };
 
     // assertion: both collision spheres are updated when they are removed from the stack
-    m_rcs.updateSphereState(SphereIndex(ss1i, ss1.spheres.root()->index()));
-    m_rcs.updateSphereState(SphereIndex(ss2i, ss2.spheres.root()->index()));
+    stateA.updateSphereState(SphereIndex(ss1i, ss1.spheres.root()->index()));
+    stateB.updateSphereState(SphereIndex(ss2i, ss2.spheres.root()->index()));
 
     auto& q = m_q;
     q.clear();
@@ -885,8 +964,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
                     ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
                     return false;
                 }
-            }
-            else {
+            } else {
                 ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
                 return false;
             }
@@ -898,18 +976,15 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
         bool split1;
         if (s1s->isLeaf()) { // split sphere 2
             split1 = false;
-        }
-        else if (s2s->isLeaf()) { // split sphere 1
+        } else if (s2s->isLeaf()) { // split sphere 1
             split1 = true;
-        }
-        else { // choose a node to split
+        } else { // choose a node to split
             // heuristic -> split the larger sphere to obtain more
             // information about the underlying surface, assuming the leaf
             // spheres are often about the same size
             if (s1m->radius > s2m->radius) {
                 split1 = true;
-            }
-            else {
+            } else {
                 split1 = false;
             }
         }
@@ -919,8 +994,8 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
             const CollisionSphereState* sl = s1s->left;
             const CollisionSphereState* sr = s1s->right;
             // update children positions
-            m_rcs.updateSphereState(SphereIndex(ss1i, sl->index()));
-            m_rcs.updateSphereState(SphereIndex(ss1i, sr->index()));
+            stateA.updateSphereState(SphereIndex(ss1i, sl->index()));
+            stateA.updateSphereState(SphereIndex(ss1i, sr->index()));
 
             // heuristic -> examine the pair of spheres that are closer together
             // first for a better chance at detecting collision
@@ -934,21 +1009,19 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
                 // examine right child after the left child
                 q.push_back(std::make_pair(sr, s2s));
                 q.push_back(std::make_pair(sl, s2s));
-            }
-            else {
+            } else {
                 // examine the left child after the right child
                 q.push_back(std::make_pair(sl, s2s));
                 q.push_back(std::make_pair(sr, s2s));
             }
-        }
-        else {
+        } else {
             ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s2m->name.c_str());
             // equivalent comments from above
             const CollisionSphereState* sl = s2s->left;
             const CollisionSphereState* sr = s2s->right;
 
-            m_rcs.updateSphereState(SphereIndex(ss2i, sl->index()));
-            m_rcs.updateSphereState(SphereIndex(ss2i, sr->index()));
+            stateB.updateSphereState(SphereIndex(ss2i, sl->index()));
+            stateB.updateSphereState(SphereIndex(ss2i, sr->index()));
 
             double cd1l2 = (s1s->pos - sl->pos).squaredNorm();
             double cd1r2 = (s1s->pos - sr->pos).squaredNorm();
@@ -956,8 +1029,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
             if (cd1l2 < cd1r2) {
                 q.push_back(std::make_pair(s1s, sr));
                 q.push_back(std::make_pair(s1s, sl));
-            }
-            else {
+            } else {
                 q.push_back(std::make_pair(s1s, sl));
                 q.push_back(std::make_pair(s1s, sr));
             }
@@ -1057,8 +1129,6 @@ void SelfCollisionModelImpl::updateMetaSphereTrees()
 
 double SelfCollisionModelImpl::voxelsCollisionDistance()
 {
-    updateVoxelsStates();
-
     auto& q = m_vq;
     q.clear();
 
