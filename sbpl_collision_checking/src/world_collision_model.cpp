@@ -87,18 +87,7 @@ public:
 
     bool checkCollision(
         RobotCollisionState& state,
-        const std::string& group_name,
-        double& dist) const;
-
-    bool checkCollision(
-        RobotCollisionState& state,
         const int gidx,
-        double& dist) const;
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const std::string& group_name,
         double& dist) const;
 
     bool checkCollision(
@@ -122,8 +111,12 @@ private:
 
     mutable std::vector<const CollisionSphereState*> m_vq;
 
-    bool checkSpheresStateCollisions(
+    bool checkRobotSpheresStateCollisions(
         RobotCollisionState& state,
+        int gidx,
+        double& dist) const;
+    bool checkAttachedBodySpheresStateCollisions(
+        AttachedBodiesCollisionState& state,
         int gidx,
         double& dist) const;
 
@@ -398,41 +391,15 @@ void WorldCollisionModelImpl::setPadding(double padding)
 
 bool WorldCollisionModelImpl::checkCollision(
     RobotCollisionState& state,
-    const std::string& group_name,
-    double& dist) const
-{
-    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, const std::string&, double&)");
-    if (!state.model()->hasGroup(group_name)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
-        return false;
-    }
-
-    const int gidx = state.model()->groupIndex(group_name);
-    return checkSpheresStateCollisions(state, gidx, dist);
-}
-
-bool WorldCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
     const int gidx,
     double& dist) const
 {
-    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState& state, const int, double&)");
     if (gidx < 0 || gidx >= state.model()->groupCount()) {
         ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
         return false;
     }
 
-    return checkSpheresStateCollisions(state, gidx, dist);
-}
-
-bool WorldCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
-    const std::string& group_name,
-    double& dist) const
-{
-    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const std::string&, double&)");
-    return false;
+    return checkRobotSpheresStateCollisions(state, gidx, dist);
 }
 
 bool WorldCollisionModelImpl::checkCollision(
@@ -441,18 +408,43 @@ bool WorldCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist) const
 {
-    ROS_DEBUG_NAMED(WCM_LOGGER, "checkCollision(RobotCollisionState&, AttachedBodiesCollisionState&, const int, double&)");
-    return false;
+    if (gidx < 0 || gidx >= state.model()->groupCount() ||
+            gidx >= ab_state.model()->groupCount())
+    {
+        ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
+        return false;
+    }
+
+    return checkRobotSpheresStateCollisions(state, gidx, dist) &&
+            checkAttachedBodySpheresStateCollisions(ab_state, gidx, dist);
 }
 
 /// logical const, but not thread-safe, since it makes use of an internal
 /// stack to traverse the sphere tree hierarchy.
-bool WorldCollisionModelImpl::checkSpheresStateCollisions(
+bool WorldCollisionModelImpl::checkRobotSpheresStateCollisions(
     RobotCollisionState& state,
     int gidx,
     double& dist) const
 {
     // TODO: refactor commonality with self collision model here
+    auto& q = m_vq;
+    q.clear();
+
+    for (const int ssidx : state.groupSpheresStateIndices(gidx)) {
+        const auto& ss = state.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+    }
+
+    return CheckVoxelsCollisions(state, q, *m_grid, m_padding, dist);
+}
+
+bool WorldCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
+    AttachedBodiesCollisionState& state,
+    int gidx,
+    double& dist) const
+{
+    // TODO: see note in checkRobotSpheresStateCollisions()
     auto& q = m_vq;
     q.clear();
 
@@ -865,27 +857,10 @@ void WorldCollisionModel::setPadding(double padding)
 
 bool WorldCollisionModel::checkCollision(
     RobotCollisionState& state,
-    const std::string& group_name,
-    double& dist) const
-{
-    return m_impl->checkCollision(state, group_name, dist);
-}
-
-bool WorldCollisionModel::checkCollision(
-    RobotCollisionState& state,
     const int gidx,
     double& dist) const
 {
     return m_impl->checkCollision(state, gidx, dist);
-}
-
-bool WorldCollisionModel::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
-    const std::string& group_name,
-    double& dist) const
-{
-    return m_impl->checkCollision(state, ab_state, group_name, dist);
 }
 
 bool WorldCollisionModel::checkCollision(

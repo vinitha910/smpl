@@ -87,18 +87,7 @@ public:
 
     bool checkCollision(
         RobotCollisionState& state,
-        const std::string& group_name,
-        double& dist) const;
-
-    bool checkCollision(
-        RobotCollisionState& state,
         const int gidx,
-        double& dist) const;
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const std::string& group_name,
         double& dist) const;
 
     bool checkCollision(
