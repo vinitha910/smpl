@@ -65,18 +65,7 @@ public:
 
     bool checkCollision(
         RobotCollisionState& state,
-        const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        const AllowedCollisionsInterface& aci,
         const int gidx,
         double& dist);
 
@@ -89,11 +78,13 @@ public:
 
     double collisionDistance(
         RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
         const int gidx);
 
     double collisionDistance(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
         const int gidx);
 
     bool collisionDetails(
@@ -134,33 +125,27 @@ private:
     int                                     m_gidx;
     std::vector<int>                        m_voxels_indices;
     std::vector<int>                        m_ab_voxels_indices;
-    std::vector<SphereIndex>                m_sphere_indices;
 
     // set of spheres state pairs that should be checked for self collisions
     std::vector<std::pair<int, int>>        m_checked_spheres_states;
 
-    int                                     m_ab_gidx;
-    std::vector<int>                        m_ab_voxel_indices;
-    std::vector<int>                        m_ab_sphere_indices;
-
     AllowedCollisionMatrix                  m_acm;
     double                                  m_padding;
 
-    // cached group information for voxels checks
-    typedef hash_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
+    // queue storage for sphere hierarchy traversal
+    typedef std::pair<const CollisionSphereState*, const CollisionSphereState*> SpherePair;
+    std::vector<SpherePair> m_q;
+    std::vector<const CollisionSphereState*>    m_vq;
 
+#if USE_META_TREE
+    // cached group information for building meta trees
+    typedef hash_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
     ModelStateMap                               m_model_state_map;
     std::vector<CollisionSphereModel>           m_root_models;
     std::vector<const CollisionSphereModel*>    m_root_model_pointers;
-
     CollisionSpheresModel                       m_meta_model;
     CollisionSpheresState                       m_meta_state;
-    std::vector<const CollisionSphereState*>    m_vq;
-
-    // cached information for spheres checks
-    typedef std::pair<const CollisionSphereState*, const CollisionSphereState*>
-    SpherePair;
-    std::vector<SpherePair> m_q;
+#endif
 
     void initAllowedCollisionMatrix();
 
@@ -168,7 +153,6 @@ private:
     // that are inside the new collision group and add voxels that are outside
     // the new collision group
     void updateGroup(int gidx);
-    void updateAttachedBodyGroup(int ab_gidx);
 
     void copyState(const RobotCollisionState& state);
 
@@ -225,9 +209,18 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_gidx(-1),
     m_voxels_indices(),
     m_ab_voxels_indices(),
-    m_sphere_indices(),
+    m_checked_spheres_states(),
     m_acm(),
-    m_padding(0.0)
+    m_padding(0.0),
+#if USE_META_TREE
+    m_model_state_map(),
+    m_root_models(),
+    m_root_model_pointers(),
+    m_meta_model(),
+    m_meta_state(),
+#endif
+    m_q(),
+    m_vq()
 {
     initAllowedCollisionMatrix();
 //    m_acm.print(std::cout);
@@ -322,33 +315,6 @@ void SelfCollisionModelImpl::setWorldToModelTransform(
 
 bool SelfCollisionModelImpl::checkCollision(
     RobotCollisionState& state,
-    const int gidx,
-    double& dist)
-{
-    if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
-        return false;
-    }
-
-    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
-        return false;
-    }
-
-    updateGroup(gidx);
-    copyState(state);
-
-    if (!checkVoxelsStateCollisions(dist) ||
-        !checkSpheresStateCollisions(dist))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool SelfCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const int gidx,
     double& dist)
@@ -364,7 +330,6 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     updateGroup(gidx);
-    updateAttachedBodyGroup(gidx);
 
     copyState(state);
 
@@ -372,34 +337,6 @@ bool SelfCollisionModelImpl::checkCollision(
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
         !checkSpheresStateCollisions(dist) ||
         !checkAttachedBodySpheresStateCollisions(dist))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool SelfCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
-    const AllowedCollisionsInterface& aci,
-    const int gidx,
-    double& dist)
-{
-    if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
-        return false;
-    }
-
-    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
-        return false;
-    }
-
-    updateGroup(gidx);
-    copyState(state);
-
-    if (!checkVoxelsStateCollisions(dist) ||
-        !checkSpheresStateCollisions(aci, dist))
     {
         return false;
     }
@@ -429,7 +366,6 @@ bool SelfCollisionModelImpl::checkCollision(
     }
 
     updateGroup(gidx);
-    updateAttachedBodyGroup(gidx);
 
     copyState(state);
 
@@ -446,6 +382,7 @@ bool SelfCollisionModelImpl::checkCollision(
 
 double SelfCollisionModelImpl::collisionDistance(
     RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
     const int gidx)
 {
     if (state.model() != m_rcm) {
@@ -461,16 +398,18 @@ double SelfCollisionModelImpl::collisionDistance(
     updateGroup(gidx);
     copyState(state);
 
+    // TODO: attached objects
+
     return std::min(voxelsCollisionDistance(), spheresCollisionDistance());
 }
 
 double SelfCollisionModelImpl::collisionDistance(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
     const int gidx)
 {
-    // TODO: implement me
-    return 0.0;
+    return 0.0; // TODO: implement
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
@@ -646,17 +585,7 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
 
     m_ab_voxels_indices = std::move(new_ab_ov_indices);
 
-    // prepare sphere indices
-
-    m_sphere_indices = GatherSphereIndices(m_rcs, gidx);
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Sphere Indices: %s", to_string(m_sphere_indices).c_str());
-
-    /////////////////////////////////////////////////////////
-    // update group information for building the meta tree //
-    /////////////////////////////////////////////////////////
-
-    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
-
+#if USE_META_TREE
     // map from meta sphere leaf model to its corresponding collision sphere root state
     m_model_state_map.clear();
 
@@ -681,25 +610,13 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     // create a state for the model
     m_meta_state.model = &m_meta_model;
     m_meta_state.index = -1; // no position in the robot state
-
-    ////////////////////
-    // end that stuff //
-    ////////////////////
+#endif
 
     // activate the group
     m_gidx = gidx;
 
     // prepare the set of spheres states that should be checked for collision
     updateCheckedSpheresIndices();
-}
-
-void SelfCollisionModelImpl::updateAttachedBodyGroup(int ab_gidx)
-{
-    if (ab_gidx == m_ab_gidx) {
-        return;
-    }
-
-    // TODO:
 }
 
 void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
@@ -1101,6 +1018,7 @@ void SelfCollisionModelImpl::updateCheckedSpheresIndices()
 
 void SelfCollisionModelImpl::updateMetaSphereTrees()
 {
+#if USE_META_TREE
     // update the root collision sphere models
     const auto& spheres_state_indices = m_rcs.groupSpheresStateIndices(m_gidx);
     for (size_t i = 0; i < spheres_state_indices.size(); ++i) {
@@ -1134,6 +1052,7 @@ void SelfCollisionModelImpl::updateMetaSphereTrees()
             ss.right = m_model_state_map[ss.model->right];
         }
     }
+#endif
 }
 
 double SelfCollisionModelImpl::voxelsCollisionDistance()
@@ -1423,28 +1342,11 @@ void SelfCollisionModel::setWorldToModelTransform(const Eigen::Affine3d& transfo
 
 bool SelfCollisionModel::checkCollision(
     RobotCollisionState& state,
-    const int gidx,
-    double& dist)
-{
-    return m_impl->checkCollision(state, gidx, dist);
-}
-
-bool SelfCollisionModel::checkCollision(
-    RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const int gidx,
     double& dist)
 {
     return m_impl->checkCollision(state, ab_state, gidx, dist);
-}
-
-bool SelfCollisionModel::checkCollision(
-    RobotCollisionState& state,
-    const AllowedCollisionsInterface& aci,
-    const int gidx,
-    double& dist)
-{
-    return m_impl->checkCollision(state, aci, gidx, dist);
 }
 
 bool SelfCollisionModel::checkCollision(
@@ -1459,17 +1361,19 @@ bool SelfCollisionModel::checkCollision(
 
 double SelfCollisionModel::collisionDistance(
     RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
     const int gidx)
 {
-    return m_impl->collisionDistance(state, gidx);
+    return m_impl->collisionDistance(state, ab_state, gidx);
 }
 
 double SelfCollisionModel::collisionDistance(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
     const int gidx)
 {
-    return m_impl->collisionDistance(state, ab_state, gidx);
+    return m_impl->collisionDistance(state, ab_state, aci, gidx);
 }
 
 bool SelfCollisionModel::collisionDetails(

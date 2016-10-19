@@ -73,18 +73,7 @@ public:
 
     bool checkCollision(
         RobotCollisionState& state,
-        const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        double& dist);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        const AllowedCollisionsInterface& aci,
         const int gidx,
         double& dist);
 
@@ -97,11 +86,13 @@ public:
 
     double collisionDistance(
         RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
         const int gidx);
 
     double collisionDistance(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
         const int gidx);
 
     bool collisionDetails(
