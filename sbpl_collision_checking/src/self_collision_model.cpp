@@ -184,12 +184,16 @@ private:
     bool checkSpheresStateCollisions(
         const AllowedCollisionsInterface& aci,
         double& dist);
+    bool checkAttachedBodySpheresStateCollisions(double& dist);
+    bool checkAttachedBodySpheresStateCollisions(
+        const AllowedCollisionsInterface& aci,
+        double& dist);
+
     bool checkSpheresStateCollision(
         const int ss1i, const int ss2i,
         const CollisionSpheresState& ss1,
         const CollisionSpheresState& ss2,
         double& dist);
-    bool checkAttachedBodySpheresStateCollisions(double& dist);
 
     void updateCheckedSpheresIndices();
 
@@ -431,8 +435,8 @@ bool SelfCollisionModelImpl::checkCollision(
 
     if (!checkVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
-        !checkSpheresStateCollisions(dist) ||
-        !checkAttachedBodySpheresStateCollisions(dist))
+        !checkSpheresStateCollisions(aci, dist) ||
+        !checkAttachedBodySpheresStateCollisions(aci, dist))
     {
         return false;
     }
@@ -871,6 +875,54 @@ bool SelfCollisionModelImpl::checkSpheresStateCollisions(
     return true;
 }
 
+bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
+    double& dist)
+{
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against spheres states");
+    return true;
+}
+
+bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
+    const AllowedCollisionsInterface& aci,
+    double& dist)
+{
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against sphere states");
+    const auto& group_body_indices = m_abcm->groupLinkIndices(m_gidx);
+    for (int b1 = 0; b1 < group_body_indices.size(); ++b1) {
+        const int bidx1 = group_body_indices[b1];
+        if (!m_abcm->hasSpheresModel(bidx1)) {
+            continue;
+        }
+
+        const std::string& b1_name = m_abcm->attachedBodyName(bidx1);
+        for (int b2 = b1 + 1; b2 < group_body_indices.size(); ++b1) {
+            const int bidx2 = group_body_indices[b2];
+            if (!m_abcm->hasSpheresModel(bidx2)) {
+                continue;
+            }
+
+            const std::string& b2_name = m_abcm->attachedBodyName(bidx2);
+
+            AllowedCollision::Type type;
+            if (aci.getEntry(b1_name, b2_name, type) &&
+                type == AllowedCollision::Type::ALWAYS)
+            {
+                // collisions between this pair of links
+                continue;
+            }
+
+            const int ss1i = m_abcs.attachedBodySpheresStateIndex(bidx1);
+            const int ss2i = m_abcs.attachedBodySpheresStateIndex(bidx2);
+            const CollisionSpheresState& ss1 = m_abcs.spheresState(ss1i);
+            const CollisionSpheresState& ss2 = m_abcs.spheresState(ss2i);
+            if (!checkSpheresStateCollision(ss1i, ss2i, ss1, ss2, dist)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool SelfCollisionModelImpl::checkSpheresStateCollision(
     int ss1i,
     int ss2i,
@@ -997,13 +1049,6 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
     ROS_DEBUG_NAMED(SCM_LOGGER, "queue exhaused");
 
     // queue exhaused = no collision found
-    return true;
-}
-
-bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
-    double& dist)
-{
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against spheres states");
     return true;
 }
 

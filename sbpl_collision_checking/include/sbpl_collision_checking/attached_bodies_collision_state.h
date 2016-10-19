@@ -84,6 +84,8 @@ public:
     bool updateVoxelsStates();
     bool updateVoxelsState(int vsidx);
 
+    int attachedBodySpheresStateIndex(int abidx) const;
+
     auto spheresState(int ssidx) const -> const CollisionSpheresState&;
 
     auto sphereState(const SphereIndex& sidx) const
@@ -247,6 +249,19 @@ bool AttachedBodiesCollisionState::updateVoxelsStates()
         updated |= updateVoxelsState(vsidx);
     }
     return updated;
+}
+
+inline
+int AttachedBodiesCollisionState::attachedBodySpheresStateIndex(int abidx) const
+{
+    reinitCollisionState();
+    const CollisionSpheresState* ss =
+            m_attached_bodies_states.at(abidx).spheres_state;
+    if (ss) {
+        return std::distance(m_spheres_states.data(), ss);
+    } else {
+        return -1;
+    }
 }
 
 inline

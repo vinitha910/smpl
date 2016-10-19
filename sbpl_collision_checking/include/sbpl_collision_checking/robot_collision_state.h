@@ -225,8 +225,7 @@ bool RobotCollisionState::setWorldToModelTransform(
         ++m_link_transform_versions[0];
         std::fill(m_dirty_voxels_states.begin(), m_dirty_voxels_states.end(), true);
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -426,8 +425,7 @@ int RobotCollisionState::linkSpheresStateIndex(int lidx) const
     const CollisionSpheresState* ss = m_link_spheres_states[lidx];
     if (ss) {
         return std::distance(m_spheres_states.data(), ss);
-    }
-    else {
+    } else {
         return -1;
     }
 }
