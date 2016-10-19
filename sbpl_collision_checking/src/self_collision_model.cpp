@@ -129,6 +129,9 @@ private:
     std::vector<SpherePair> m_q;
     std::vector<const CollisionSphereState*>    m_vq;
 
+    std::vector<Eigen::Vector3d> m_v_rem;
+    std::vector<Eigen::Vector3d> m_v_ins;
+
 #if USE_META_TREE
     // cached group information for building meta trees
     typedef hash_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
@@ -180,11 +183,19 @@ private:
         double& dist);
 
     void updateCheckedSpheresIndices();
+    void updateRobotCheckedSphereIndices();
+    void updateRobotAttachedBodyCheckedSphereIndices();
+    void updateAttachedBodyCheckedSphereIndices();
 
     void updateMetaSphereTrees();
 
-    double voxelsCollisionDistance();
-    double spheresCollisionDistance();
+    double robotVoxelsCollisionDistance();
+    double robotSpheresCollisionDistance();
+    double robotSpheresCollisionDistance(const AllowedCollisionsInterface& aci);
+
+    double attachedBodyVoxelsCollisionDistance();
+    double attachedBodySpheresCollisionDistance();
+    double attachedBodySpheresCollisionDistance(const AllowedCollisionsInterface& aci);
 
     double spheresStateCollisionDistance(
         const int ss1i, const int ss2i,
@@ -411,9 +422,23 @@ double SelfCollisionModelImpl::collisionDistance(
 
     prepareState(gidx, state);
 
-    // TODO: attached objects
+    double tmp;
 
-    return std::min(voxelsCollisionDistance(), spheresCollisionDistance());
+    double d = robotVoxelsCollisionDistance();
+    tmp = attachedBodyVoxelsCollisionDistance();
+    if (tmp < d) {
+        d = tmp;
+    }
+    tmp = robotSpheresCollisionDistance();
+    if (tmp < d) {
+        d = tmp;
+    }
+    tmp = attachedBodySpheresCollisionDistance();
+    if (tmp < d) {
+        d = tmp;
+    }
+
+    return d;
 }
 
 double SelfCollisionModelImpl::collisionDistance(
@@ -428,7 +453,23 @@ double SelfCollisionModelImpl::collisionDistance(
 
     prepareState(gidx, state);
 
-    return 0.0; // TODO: implement
+    double tmp;
+
+    double d = robotVoxelsCollisionDistance();
+    tmp = attachedBodyVoxelsCollisionDistance();
+    if (tmp < d) {
+        d = tmp;
+    }
+    tmp = robotSpheresCollisionDistance(aci);
+    if (tmp < d) {
+        d = tmp;
+    }
+    tmp = attachedBodySpheresCollisionDistance(aci);
+    if (tmp < d) {
+        d = tmp;
+    }
+
+    return d;
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
@@ -447,15 +488,19 @@ bool SelfCollisionModelImpl::collisionDetails(
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
     if (!checkRobotVoxelsStateCollisions(dist)) {
-        details.voxels_collision_count = 1;
-        return false;
+        ++details.voxels_collision_count;
+    }
+    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
+        ++details.voxels_collision_count;
     }
     if (!checkRobotSpheresStateCollisions(dist)) {
-        details.sphere_collision_count = 1;
-        return false;
+        ++details.sphere_collision_count;
+    }
+    if (!checkAttachedBodySpheresStateCollisions(dist)) {
+        ++details.sphere_collision_count;
     }
 
-    return true;
+    return !(details.voxels_collision_count | details.sphere_collision_count);
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
@@ -471,12 +516,31 @@ bool SelfCollisionModelImpl::collisionDetails(
 
     prepareState(gidx, state);
 
-    return false; // TODO: implement me
+    double dist;
+    details.voxels_collision_count = 0;
+    details.sphere_collision_count = 0;
+    if (!checkRobotVoxelsStateCollisions(dist)) {
+        ++details.voxels_collision_count;
+    }
+    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
+        ++details.voxels_collision_count;
+    }
+    if (!checkRobotSpheresStateCollisions(aci, dist)) {
+        ++details.sphere_collision_count;
+    }
+    if (!checkAttachedBodySpheresStateCollisions(aci, dist)) {
+        ++details.sphere_collision_count;
+    }
+
+    return !(details.voxels_collision_count | details.sphere_collision_count);
 }
 
-/// switch to checking for a new collision group; removes voxels from groups
-/// that are inside the new collision group and add voxels that are outside the
-/// new collision group
+/// Switch to checking for a new collision group
+///
+/// Removes voxels from groups that are inside the new collision group and add
+/// voxels that are outside the new collision group. Also updates the cached
+/// set of checked sphere indices for checking against the default collision
+/// matrix
 void SelfCollisionModelImpl::updateGroup(int gidx)
 {
     if (gidx == m_gidx) {
@@ -628,13 +692,16 @@ void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
     m_rcs.setJointVarPositions(state.getJointVarPositions());
 }
 
+/// Lazily update the state of the occupancy grid, representing areas filled by
+/// voxels models, when voxels state changes are detected in the robot collision
+/// state (and attached bodies collision state)
 void SelfCollisionModelImpl::updateVoxelsStates()
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Update voxels states");
     // gather all changed voxels before updating so as to impose only a single
     // distance field update
-    std::vector<Eigen::Vector3d> v_rem;
-    std::vector<Eigen::Vector3d> v_ins;
+    auto& v_rem = m_v_rem; v_rem.clear();
+    auto& v_ins = m_v_ins; v_ins.clear();
 
     for (int vsidx : m_voxels_indices) {
         if (m_rcs.voxelsStateDirty(vsidx)) {
@@ -740,6 +807,8 @@ bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
 
 bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check robot links vs robot links");
+
     for (const auto& ss_pair : m_checked_spheres_states) {
         int ss1i = ss_pair.first;
         int ss2i = ss_pair.second;
@@ -761,6 +830,8 @@ bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(
     const AllowedCollisionsInterface& aci,
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check robot links vs robot links");
+
     const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
     for (int l1 = 0; l1 < group_link_indices.size(); ++l1) {
         const int lidx1 = group_link_indices[l1];
@@ -803,7 +874,20 @@ bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(
 bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against spheres states");
+    ROS_DEBUG(SCM_LOGGER, "Check attached bodies vs attached bodies");
+
+    for (const auto& ss_pair : m_checked_attached_body_spheres_states) {
+        int ss1i = ss_pair.first;
+        int ss2i = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_abcs.spheresState(ss1i);
+        const CollisionSpheresState& ss2 = m_abcs.spheresState(ss2i);
+
+        if (!checkSpheresStateCollision(
+                m_abcs, m_abcs, ss1i, ss2i, ss1, ss2, dist))
+        {
+            return false;
+        }
+    }
 
     if (!checkRobotAttachedBodySpheresStateCollisions(dist)) {
         return false;
@@ -863,6 +947,21 @@ bool SelfCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
 bool SelfCollisionModelImpl::checkRobotAttachedBodySpheresStateCollisions(
     double& dist)
 {
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached bodies vs robot links");
+
+    for (const auto& ss_pair : m_checked_attached_body_robot_spheres_states) {
+        int ss1i = ss_pair.first;
+        int ss2i = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_abcs.spheresState(ss1i);
+        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
+
+        if (!checkSpheresStateCollision(
+                m_abcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
+        {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -1039,45 +1138,125 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
 void SelfCollisionModelImpl::updateCheckedSpheresIndices()
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Update checked sphere indices");
-    m_checked_spheres_states.clear();
 
     if (m_gidx == -1) {
         return;
     }
 
-    const std::vector<int>& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
-    for (int l1 = 0; l1 < m_rcm->linkCount(); ++l1) {
-        bool l1_in_group = std::find(
-                group_link_indices.begin(),
-                group_link_indices.end(),
-                l1) != group_link_indices.end();
-        bool l1_has_spheres = m_rcm->hasSpheresModel(l1);
-        if (!l1_in_group || !l1_has_spheres) {
+    updateRobotCheckedSphereIndices();
+    updateAttachedBodyCheckedSphereIndices();
+    updateRobotAttachedBodyCheckedSphereIndices();
+}
+
+void SelfCollisionModelImpl::updateRobotCheckedSphereIndices()
+{
+    m_checked_spheres_states.clear();
+
+    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
+    for (int l1 = 0; l1 < group_link_indices.size(); ++l1) {
+        const int lidx1 = group_link_indices[l1];
+        const bool l1_has_spheres = m_rcm->hasSpheresModel(lidx1);
+        if (!l1_has_spheres) {
             continue;
         }
-        const std::string& l1_name = m_rcm->linkName(l1);
-        for (int l2 = l1 + 1; l2 < m_rcm->linkCount(); ++l2) {
-            const bool l2_in_group = std::find(
-                    group_link_indices.begin(),
-                    group_link_indices.end(), l2) != group_link_indices.end();
-            const bool l2_has_spheres = m_rcm->hasSpheresModel(l2);
-            if (!l2_in_group || !l2_has_spheres) {
+        const std::string& l1_name = m_rcm->linkName(lidx1);
+        for (int l2 = l1 + 1; l2 < group_link_indices.size(); ++l2) {
+            const int lidx2 = group_link_indices[l2];
+            const bool l2_has_spheres = m_rcm->hasSpheresModel(lidx2);
+            if (!l2_has_spheres) {
                 continue;
             }
-            const std::string& l2_name = m_rcm->linkName(l2);
+            const std::string& l2_name = m_rcm->linkName(lidx2);
 
             collision_detection::AllowedCollision::Type type;
             if (m_acm.getEntry(l1_name, l2_name, type)) {
                 if (type != collision_detection::AllowedCollision::ALWAYS) {
                     m_checked_spheres_states.emplace_back(
-                            m_rcs.linkSpheresStateIndex(l1),
-                            m_rcs.linkSpheresStateIndex(l2));
+                            m_rcs.linkSpheresStateIndex(lidx1),
+                            m_rcs.linkSpheresStateIndex(lidx2));
                 }
             }
             else {
                 m_checked_spheres_states.emplace_back(
-                        m_rcs.linkSpheresStateIndex(l1),
-                        m_rcs.linkSpheresStateIndex(l2));
+                        m_rcs.linkSpheresStateIndex(lidx1),
+                        m_rcs.linkSpheresStateIndex(lidx2));
+            }
+        }
+    }
+}
+
+void SelfCollisionModelImpl::updateRobotAttachedBodyCheckedSphereIndices()
+{
+    // TODO: see note in updateAttachedBodyCheckedSphereIndices()
+    m_checked_attached_body_robot_spheres_states.clear();
+
+    const auto& group_body_indices = m_abcm->groupLinkIndices(m_gidx);
+    const auto& group_link_indices = m_rcm->groupLinkIndices(m_gidx);
+    for (int b1 = 0; b1 < group_body_indices.size(); ++b1) {
+        const int bidx1 = group_body_indices[b1];
+        const bool b1_has_spheres = m_abcm->hasSpheresModel(bidx1);
+        if (!b1_has_spheres) {
+            continue;
+        }
+        const std::string& b1_name = m_abcm->attachedBodyName(bidx1);
+        for (int l1 = 0; l1 < group_link_indices.size(); ++l1) {
+            const int lidx = group_link_indices[l1];
+            const bool l1_has_spheres = m_rcm->hasSpheresModel(lidx);
+            if (!l1_has_spheres) {
+                continue;
+            }
+            const std::string& l1_name = m_rcm->linkName(lidx);
+
+            collision_detection::AllowedCollision::Type type;
+            if (m_acm.getEntry(b1_name, l1_name, type)) {
+                if (type != collision_detection::AllowedCollision::ALWAYS) {
+                    m_checked_attached_body_robot_spheres_states.emplace_back(
+                            m_abcs.attachedBodySpheresStateIndex(bidx1),
+                            m_rcs.linkSpheresStateIndex(lidx));
+                }
+            }
+            else {
+                m_checked_attached_body_robot_spheres_states.emplace_back(
+                        m_abcs.attachedBodySpheresStateIndex(bidx1),
+                        m_rcs.linkSpheresStateIndex(lidx));
+            }
+        }
+    }
+}
+
+void SelfCollisionModelImpl::updateAttachedBodyCheckedSphereIndices()
+{
+    // TODO: need to call this function whenever the attached bodies model has
+    // a body added or removed from it
+    m_checked_attached_body_spheres_states.clear();
+    const auto& group_body_indices = m_abcm->groupLinkIndices(m_gidx);
+    for (int b1 = 0; b1 < group_body_indices.size(); ++b1) {
+        const int bidx1 = group_body_indices[b1];
+        bool b1_has_spheres = m_abcm->hasSpheresModel(bidx1);
+        if (!b1_has_spheres) {
+            continue;
+        }
+        const std::string& b1_name = m_abcm->attachedBodyName(bidx1);
+        for (int b2 = b1 + 1; b2 < group_body_indices.size(); ++b2) {
+            const int bidx2 = group_body_indices[b2];
+            const bool b2_has_spheres = m_abcm->hasSpheresModel(bidx2);
+            if (!b2_has_spheres) {
+                continue;
+            }
+            const std::string& b2_name = m_abcm->attachedBodyName(bidx2);
+
+            collision_detection::AllowedCollision::Type type;
+            if (m_acm.getEntry(b1_name, b2_name, type)) {
+                if (type != collision_detection::AllowedCollision::ALWAYS) {
+                    m_checked_attached_body_spheres_states.emplace_back(
+                            m_abcs.attachedBodySpheresStateIndex(bidx1),
+                            m_abcs.attachedBodySpheresStateIndex(bidx2));
+                }
+            }
+            else {
+                m_checked_attached_body_spheres_states.emplace_back(
+                        m_abcs.attachedBodySpheresStateIndex(bidx1),
+                        m_abcs.attachedBodySpheresStateIndex(bidx2));
             }
         }
     }
@@ -1122,7 +1301,7 @@ void SelfCollisionModelImpl::updateMetaSphereTrees()
 #endif
 }
 
-double SelfCollisionModelImpl::voxelsCollisionDistance()
+double SelfCollisionModelImpl::robotVoxelsCollisionDistance()
 {
     auto& q = m_vq;
     q.clear();
@@ -1206,7 +1385,7 @@ double SelfCollisionModelImpl::voxelsCollisionDistance()
     return d;
 }
 
-double SelfCollisionModelImpl::spheresCollisionDistance()
+double SelfCollisionModelImpl::robotSpheresCollisionDistance()
 {
     double dmin = std::numeric_limits<double>::infinity();
     for (const auto& ss_pair: m_checked_spheres_states) {
@@ -1221,6 +1400,28 @@ double SelfCollisionModelImpl::spheresCollisionDistance()
         }
     }
     return dmin;
+}
+
+double SelfCollisionModelImpl::robotSpheresCollisionDistance(
+    const AllowedCollisionsInterface& aci)
+{
+    return std::numeric_limits<double>::infinity();
+}
+
+double SelfCollisionModelImpl::attachedBodyVoxelsCollisionDistance()
+{
+    return std::numeric_limits<double>::infinity();
+}
+
+double SelfCollisionModelImpl::attachedBodySpheresCollisionDistance()
+{
+    return std::numeric_limits<double>::infinity();
+}
+
+double SelfCollisionModelImpl::attachedBodySpheresCollisionDistance(
+    const AllowedCollisionsInterface& aci)
+{
+    return std::numeric_limits<double>::infinity();
 }
 
 double SelfCollisionModelImpl::spheresStateCollisionDistance(
