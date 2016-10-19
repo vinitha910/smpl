@@ -60,7 +60,7 @@ public:
         const AttachedBodiesCollisionModel* model,
         RobotCollisionState* state);
 
-    const AttachedBodiesCollisionModel* model();
+    const AttachedBodiesCollisionModel* model() const;
     RobotCollisionState* state();
 
     ///\name Attached Bodies State
@@ -147,7 +147,7 @@ typedef std::shared_ptr<AttachedBodiesCollisionState> AttachedBodiesCollisionSta
 typedef std::shared_ptr<const AttachedBodiesCollisionState> AttachedBodiesCollisionStateConstPtr;
 
 inline
-const AttachedBodiesCollisionModel* AttachedBodiesCollisionState::model()
+const AttachedBodiesCollisionModel* AttachedBodiesCollisionState::model() const
 {
     return m_model;
 }
