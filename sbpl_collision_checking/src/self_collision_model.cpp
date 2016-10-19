@@ -793,80 +793,24 @@ bool SelfCollisionModelImpl::checkVoxelsStateCollisions(double& dist)
     }
 #endif
 
-    while (!q.empty()) {
-        const CollisionSphereState* s = q.back();
-        q.pop_back();
-
-        // update non-meta states
-        if (s->parent_state->index != -1) {
-            m_rcs.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
-        }
-
-        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking sphere '%s' with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->name.c_str(), s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
-
-        double obs_dist;
-        if (CheckSphereCollision(*m_grid, *s, m_padding, obs_dist)) {
-            ROS_DEBUG_NAMED(SCM_LOGGER, "  Sphere is %0.3f away vs radius %0.3f", obs_dist, s->model->radius);
-            continue; // no collision -> ok!
-        }
-
-        // collision -> not ok or recurse!
-
-        if (s->isLeaf()) {
-            if (s->parent_state->index == -1) {
-                // meta-leaf -> recurse on existing children of referenced
-                // sphere tree root state
-
-                // node connecting meta tree to kinematic tree
-                assert(s->left == s->right);
-                const CollisionSphereState* sl = s->left->left;
-                const CollisionSphereState* sr = s->right->right;
-
-                if (sl && sr) {
-                    if (sl->model->radius > sr->model->radius) {
-                        q.push_back(sr);
-                        q.push_back(sl);
-                    }
-                    else {
-                        q.push_back(sl);
-                        q.push_back(sr);
-                    }
-                }
-                else if (sl) {
-                    q.push_back(sl);
-                }
-                else if (sr) {
-                    q.push_back(sr);
-                }
-            }
-            else { // normal leaf
-                const CollisionSphereModel* sm = s->model;
-                ROS_DEBUG_NAMED(SCM_LOGGER, "    *collision* name: %s, pos: (%0.3f, %0.3f, %0.3f), radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), s->pos.x(), s->pos.y(), s->pos.z(), sm->radius, obs_dist);
-                dist = obs_dist;
-                return false; // collision -> not ok!
-            }
-        }
-        else { // recurse on both the children
-            if (s->left->model->radius > s->right->model->radius) {
-                q.push_back(s->right);
-                q.push_back(s->left);
-            }
-            else {
-                q.push_back(s->left);
-                q.push_back(s->right);
-            }
-        }
-    }
-
-    ROS_DEBUG_NAMED(SCM_LOGGER, "No voxels collisions");
-    return true;
+    return CheckVoxelsCollisions(m_rcs, q, *m_grid, m_padding, dist);
 }
 
 bool SelfCollisionModelImpl::checkAttachedBodyVoxelsStateCollisions(
     double& dist)
 {
     ROS_DEBUG_NAMED(SCM_LOGGER, "Check attached body self collisions against voxels states");
-    return true;
+
+    auto& q = m_vq;
+    q.clear();
+
+    for (const int ssidx : m_abcs.groupSpheresStateIndices(m_gidx)) {
+        const auto& ss = m_abcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+    }
+
+    return CheckVoxelsCollisions(m_abcs, q, *m_grid, m_padding, dist);
 }
 
 bool SelfCollisionModelImpl::checkSpheresStateCollisions(double& dist)

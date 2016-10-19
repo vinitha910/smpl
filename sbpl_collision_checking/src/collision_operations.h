@@ -32,18 +32,15 @@
 #ifndef sbpl_collision_collision_operations_h
 #define sbpl_collision_collision_operations_h
 
+// system includes
+#include <ros/console.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
+
+// project includes
 #include <sbpl_collision_checking/robot_collision_state.h>
 
 namespace sbpl {
 namespace collision {
-
-bool CheckSphereCollision(
-    const OccupancyGrid& grid,
-    RobotCollisionState& state,
-    double padding,
-    const SphereIndex& sidx,
-    double& dist);
 
 bool CheckSphereCollision(
     const OccupancyGrid& grid,
@@ -56,28 +53,17 @@ double SphereCollisionDistance(
     const CollisionSphereState& s,
     double padding);
 
-inline
-bool CheckSphereCollision(
-    const OccupancyGrid& grid,
-    RobotCollisionState& state,
+template <typename StateType>
+bool CheckVoxelsCollisions(
+    StateType& state,
+    std::vector<const CollisionSphereState*>& q,
+    const OccupancyGrid* grid,
     double padding,
-    const SphereIndex& sidx,
-    double& dist)
-{
-    state.updateSphereState(sidx);
-    const CollisionSphereState& ss = state.sphereState(sidx);
+    double& dist);
 
-    // NOTE: no need to check bounds since getDistance will return the maximum
-    // value for invalid cells
+static const char* COP_LOGGER = "collision_operations";
 
-    // check for collision with world
-    dist = grid.getDistanceFromPoint(ss.pos.x(), ss.pos.y(), ss.pos.z());
-    const double effective_radius =
-            ss.model->radius + grid.getHalfResolution() + padding;
-
-    return dist > effective_radius;
-}
-
+/// Check a single sphere against an occupancy grid
 inline
 bool CheckSphereCollision(
     const OccupancyGrid& grid,
@@ -93,6 +79,7 @@ bool CheckSphereCollision(
     return dist > effective_radius;
 }
 
+/// Compute the closest distance between a sphere and an occupied voxel
 inline
 double SphereCollisionDistance(
     const OccupancyGrid& grid,
@@ -107,6 +94,78 @@ double SphereCollisionDistance(
 
 std::vector<SphereIndex> GatherSphereIndices(
     const RobotCollisionState& state, int gidx);
+
+/// Check sphere hierarchies for collisions against an occupancy grid
+///
+/// \param state The aggregate state of the collision trees. Must have a method
+///     updateSphereState(const SphereIndex&)
+/// \param q A queue for maintaining the list of remaining spheres to check,
+///     preseeded with the roots of all collision sphere trees to check
+/// \param grid The distance map to check spheres against
+/// \param padding Padding to be applied to each sphere
+/// \param dist The distance to the occupancy grid that caused the check to
+///     fail, if any
+template <typename StateType>
+bool CheckVoxelsCollisions(
+    StateType& state,
+    std::vector<const CollisionSphereState*>& q,
+    const OccupancyGrid& grid,
+    double padding,
+    double& dist)
+{
+    while (!q.empty()) {
+        const CollisionSphereState* s = q.back();
+        q.pop_back();
+
+        if (s->parent_state->index != -1) {
+            state.updateSphereState(SphereIndex(s->parent_state->index, s->index()));
+        }
+
+        ROS_DEBUG_NAMED(COP_LOGGER, "Checking sphere '%s' with radius %0.3f at (%0.3f, %0.3f, %0.3f)", s->model->name.c_str(), s->model->radius, s->pos.x(), s->pos.y(), s->pos.z());
+
+        double obs_dist;
+        if (CheckSphereCollision(grid, *s, padding, obs_dist)) {
+            continue; // no collision -> ok!
+        }
+
+        if (s->isLeaf()) {
+            if (s->parent_state->index == -1) { // meta-leaf
+                const CollisionSphereState* sl = s->left->left;
+                const CollisionSphereState* sr = s->right->right;
+
+                if (sl && sr) {
+                    if (sl->model->radius > sr->model->radius) {
+                        q.push_back(sr);
+                        q.push_back(sl);
+                    } else {
+                        q.push_back(sl);
+                        q.push_back(sr);
+                    }
+                } else if (sl) {
+                    q.push_back(sl);
+                } else if (sr) {
+                    q.push_back(sr);
+                }
+            } else { // normal leaf
+                const CollisionSphereModel* sm = s->model;
+                dist = obs_dist;
+                ROS_DEBUG_NAMED(COP_LOGGER, "    *collision* name: %s, pos: (%0.3f, %0.3f, %0.3f), radius: %0.3fm, dist: %0.3fm", sm->name.c_str(), s->pos.x(), s->pos.y(), s->pos.z(), sm->radius, obs_dist);
+                return false;
+            }
+        } else { // recurse on both children
+            if (s->left->model->radius > s->right->model->radius) {
+                q.push_back(s->right);
+                q.push_back(s->left);
+            } else {
+                q.push_back(s->left);
+                q.push_back(s->right);
+            }
+        }
+    }
+
+    ROS_DEBUG_NAMED(COP_LOGGER, "No voxels collisions");
+    return true;
+}
 
 } // namespace collision
 } // namespace sbpl

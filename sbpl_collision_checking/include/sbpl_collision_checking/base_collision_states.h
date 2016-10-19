@@ -93,7 +93,9 @@ public:
 
     CollisionSphereStateTree() : m_tree() { }
     CollisionSphereStateTree(const CollisionSphereStateTree&);
+    CollisionSphereStateTree(CollisionSphereStateTree&&);
     CollisionSphereStateTree& operator=(const CollisionSphereStateTree&);
+    CollisionSphereStateTree& operator=(CollisionSphereStateTree&&);
 
     CollisionSphereState* root() { return &m_tree.back(); }
     const CollisionSphereState* root() const { return &m_tree.back(); }

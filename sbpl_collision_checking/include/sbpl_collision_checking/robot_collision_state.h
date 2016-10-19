@@ -95,6 +95,8 @@ public:
     bool   updateLinkTransform(const std::string& link_name);
     ///@}
 
+    int linkTransformVersion(int lidx) const;
+
     /// \name CollisionState
     ///@{
     auto voxelsState(int vsidx) const -> const CollisionVoxelsState&;
@@ -150,7 +152,7 @@ private:
     /// \name Collision State
     ///@{
     // per spheres state sphere indices offset
-    std::vector<int>                        m_sphere_offsets;
+    std::vector<int>                        m_sphere_offsets; // TODO: remove
 
     // per spheres model
     std::vector<CollisionSpheresState>      m_spheres_states;
@@ -349,6 +351,13 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
     m_dirty_link_transforms[lidx] = false;
     ++m_link_transform_versions[lidx];
     return true;
+}
+
+inline
+int RobotCollisionState::linkTransformVersion(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_transform_versions, lidx);
+    return m_link_transform_versions[lidx];
 }
 
 inline

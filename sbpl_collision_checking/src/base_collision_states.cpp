@@ -58,12 +58,18 @@ void CollisionSphereStateTree::buildFrom(CollisionSpheresState* parent_state)
         if (sm.isLeaf()) {
             state.left = nullptr;
             state.right = nullptr;
-        }
-        else {
+        } else {
             state.left = &m_tree[0] + sm.left->index();
             state.right = &m_tree[0] + sm.right->index();
         }
     }
+}
+
+CollisionSphereStateTree::CollisionSphereStateTree(
+    CollisionSphereStateTree&& o)
+:
+    m_tree(std::move(o.m_tree))
+{
 }
 
 CollisionSphereStateTree::CollisionSphereStateTree(
@@ -72,12 +78,13 @@ CollisionSphereStateTree::CollisionSphereStateTree(
     m_tree = o.m_tree;
     for (size_t i = 0; i < m_tree.size(); ++i) {
         if (o.m_tree[i].isLeaf()) {
-            m_tree[i].left = &m_tree[0] + std::distance(
+            const auto ldiff = std::distance(
                     o.root(), (const CollisionSphereState*)o.m_tree[i].left);
-            m_tree[i].right = &m_tree[0] + std::distance(
+            const auto rdiff = std::distance(
                     o.root(), (const CollisionSphereState*)o.m_tree[i].right);
-        }
-        else {
+            m_tree[i].left = &m_tree[0] + ldiff;
+            m_tree[i].right = &m_tree[0] + rdiff;
+        } else {
             m_tree[i].left = nullptr;
             m_tree[i].right = nullptr;
         }
@@ -101,6 +108,15 @@ CollisionSphereStateTree& CollisionSphereStateTree::operator=(
                 m_tree[i].right = nullptr;
             }
         }
+    }
+    return *this;
+}
+
+CollisionSphereStateTree& CollisionSphereStateTree::operator=(
+    CollisionSphereStateTree&& rhs)
+{
+    if (this != &rhs) {
+        m_tree = std::move(rhs.m_tree);
     }
     return *this;
 }

@@ -59,7 +59,13 @@ struct CollisionSphereModel
     const CollisionSphereModel *left, *right;
 
     CollisionSphereModel() :
-        name(), center(), radius(), priority(), left(nullptr), right(nullptr)
+        name(),
+        center(),
+        radius(),
+        priority(),
+        parent(nullptr),
+        left(nullptr),
+        right(nullptr)
     { }
 
     // nodes can either have 0 or 2 children
