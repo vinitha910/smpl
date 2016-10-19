@@ -443,85 +443,51 @@ CollisionSpace::getOccupiedVoxelsVisualization() const
 }
 
 bool CollisionSpace::checkCollision(
-    const std::vector<double>& vars,
+    const std::vector<double>& state,
     const AllowedCollisionsInterface& aci,
     bool verbose,
     bool visualize,
     double& dist)
 {
-    // allow subroutines to update minimum distance
+    // see note in checkCollision(const std::vector<double>&, double&)
+    updateState(state);
     dist = std::numeric_limits<double>::max();
-
-    updateState(vars);
-
-    // NOTE: see comment in isStateValid
-
-    bool robot_robot_valid = m_scm->checkCollision(*m_rcs, aci, m_gidx, dist);
-    if (!visualize && !robot_robot_valid) {
-        return false;
-    }
-
-    bool attached_object_world_valid = checkAttachedObjectCollision(
-            verbose, visualize, dist);
-    if (!visualize && !attached_object_world_valid) {
-        return false;
-    }
-
-    return attached_object_world_valid && robot_robot_valid;
+    return m_scm->checkCollision(*m_rcs, *m_abcs, aci, m_gidx, dist);
 }
 
 bool CollisionSpace::checkCollision(
-    const std::vector<double>& vars,
+    const std::vector<double>& state,
     double& dist)
 {
-    updateState(vars);
-    return m_scm->checkCollision(*m_rcs, m_gidx, dist);
+    // NOTE: world collisions are implicitly checked via the self collision
+    // model since the two models share the same occupancy grid, which the
+    // self collision model uses to check for collisions against voxels groups
+    updateState(state);
+    return m_scm->checkCollision(*m_rcs, *m_abcs, m_gidx, dist);
 }
 
-double CollisionSpace::collisionDistance(const std::vector<double>& vars)
+double CollisionSpace::collisionDistance(const std::vector<double>& state)
 {
-    updateState(vars);
-    return m_scm->collisionDistance(*m_rcs, m_gidx);
+    updateState(state);
+    return m_scm->collisionDistance(*m_rcs, *m_abcs, m_gidx);
 }
 
 bool CollisionSpace::collisionDetails(
-    const std::vector<double>& vars,
+    const std::vector<double>& state,
     CollisionDetails& details)
 {
-    updateState(vars);
+    updateState(state);
     return m_scm->collisionDetails(*m_rcs, m_gidx, details);
 }
 
 bool CollisionSpace::isStateValid(
-    const std::vector<double>& angles,
+    const std::vector<double>& state,
     bool verbose,
     bool visualize,
     double& dist)
 {
-    // allow subroutines to update minimum distance
     dist = std::numeric_limits<double>::max();
-
-    updateState(angles);
-
-    // world collisions are implicitly checked via the self collision model
-    // since the two models share the same occupancy grid
-//    bool robot_world_vlaid = return m_wcm->checkCollision(*m_rcs, m_gidx, dist);
-//    if (!visualize && !robot_world_valid) {
-//        return false;
-//    }
-
-    bool robot_robot_valid = m_scm->checkCollision(*m_rcs, m_gidx, dist);
-    if (!visualize && !robot_robot_valid) {
-        return false;
-    }
-
-    bool attached_object_world_valid = checkAttachedObjectCollision(
-            verbose, visualize, dist);
-    if (!visualize && !attached_object_world_valid) {
-        return false;
-    }
-
-    return attached_object_world_valid && robot_robot_valid;
+    return checkCollision(state, dist);
 }
 
 bool CollisionSpace::isStateToStateValid(

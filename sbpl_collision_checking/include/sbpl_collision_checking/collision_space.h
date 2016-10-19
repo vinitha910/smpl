@@ -141,24 +141,24 @@ public:
     ///@}
 
     bool checkCollision(
-        const std::vector<double>& vars,
+        const std::vector<double>& state,
         const AllowedCollisionsInterface& aci,
         bool verbose,
         bool visualize,
         double& dist);
 
-    bool checkCollision(const std::vector<double>& vars, double& dist);
+    bool checkCollision(const std::vector<double>& state, double& dist);
 
-    double collisionDistance(const std::vector<double>& vars);
+    double collisionDistance(const std::vector<double>& state);
 
     bool collisionDetails(
-        const std::vector<double>& vars,
+        const std::vector<double>& state,
         CollisionDetails& details);
 
     /// \name Reimplemented Public Functions
     ///@{
     bool isStateValid(
-        const std::vector<double>& angles,
+        const std::vector<double>& state,
         bool verbose,
         bool visualize,
         double& dist) override;
