@@ -151,9 +151,6 @@ private:
 
     /// \name Collision State
     ///@{
-    // per spheres state sphere indices offset
-    std::vector<int>                        m_sphere_offsets; // TODO: remove
-
     // per spheres model
     std::vector<CollisionSpheresState>      m_spheres_states;
 
@@ -190,7 +187,6 @@ RobotCollisionState::RobotCollisionState(
     m_dirty_link_transforms(),
     m_link_transforms(),
     m_link_transform_versions(),
-    m_sphere_offsets(),
     m_spheres_states(),
     m_dirty_voxels_states(),
     m_voxels_states(),

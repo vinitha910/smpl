@@ -276,11 +276,8 @@ void RobotCollisionState::initRobotState()
 void RobotCollisionState::initCollisionState()
 {
     // initialize sphere and spheres states
-    m_sphere_offsets.assign(m_model->spheresModelCount(), 0);
     m_spheres_states.assign(m_model->spheresModelCount(), CollisionSpheresState());
-    int offset = 0;
     for (size_t i = 0; i < m_model->spheresModelCount(); ++i) {
-        m_sphere_offsets[i] = offset;
         const CollisionSpheresModel& spheres_model = m_model->spheresModel(i);
         CollisionSpheresState& spheres_state = m_spheres_states[i];
 
@@ -290,8 +287,6 @@ void RobotCollisionState::initCollisionState()
         spheres_state.spheres.buildFrom(&spheres_state);
 
         spheres_state.index = i;
-
-        offset += spheres_model.spheres.size();
     }
 
     // initialize voxels states
