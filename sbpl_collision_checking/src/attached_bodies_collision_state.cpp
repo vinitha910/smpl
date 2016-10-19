@@ -111,7 +111,7 @@ void AttachedBodiesCollisionState::reinitCollisionState()
         return;
     }
 
-    ROS_INFO_NAMED(ABS_LOGGER, "Update Attached Bodies Collision State to version %d", m_model->version());
+    ROS_DEBUG_NAMED(ABS_LOGGER, "Update Attached Bodies Collision State to version %d", m_model->version());
 
     // initialize spheres states
     m_spheres_states.assign(
