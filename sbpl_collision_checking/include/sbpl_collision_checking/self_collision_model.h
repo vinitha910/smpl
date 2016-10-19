@@ -37,6 +37,7 @@
 #include <string>
 
 // system includes
+#include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 
 // project includes
@@ -52,6 +53,7 @@ namespace collision {
 
 class SelfCollisionModelImpl;
 
+SBPL_CLASS_FORWARD(SelfCollisionModel)
 class SelfCollisionModel
 {
 public:
@@ -97,18 +99,7 @@ public:
 
     bool collisionDetails(
         RobotCollisionState& state,
-        const int gidx,
-        CollisionDetails& details);
-
-    bool collisionDetails(
-        RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        CollisionDetails& details);
-
-    bool collisionDetails(
-        RobotCollisionState& state,
-        const AllowedCollisionsInterface& aci,
         const int gidx,
         CollisionDetails& details);
 
@@ -126,9 +117,6 @@ private:
 
     std::unique_ptr<SelfCollisionModelImpl> m_impl;
 };
-
-typedef std::shared_ptr<SelfCollisionModel> SelfCollisionModelPtr;
-typedef std::shared_ptr<const SelfCollisionModel> SelfCollisionModelConstPtr;
 
 } // namespace collision
 } // namespace sbpl

@@ -477,7 +477,7 @@ bool CollisionSpace::collisionDetails(
     CollisionDetails& details)
 {
     updateState(state);
-    return m_scm->collisionDetails(*m_rcs, m_gidx, details);
+    return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
 }
 
 bool CollisionSpace::isStateValid(

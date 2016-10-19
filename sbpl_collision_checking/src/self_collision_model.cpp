@@ -89,18 +89,7 @@ public:
 
     bool collisionDetails(
         RobotCollisionState& state,
-        const int gidx,
-        CollisionDetails& details);
-
-    bool collisionDetails(
-        RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        CollisionDetails& details);
-
-    bool collisionDetails(
-        RobotCollisionState& state,
-        const AllowedCollisionsInterface& aci,
         const int gidx,
         CollisionDetails& details);
 
@@ -126,8 +115,11 @@ private:
     std::vector<int>                        m_voxels_indices;
     std::vector<int>                        m_ab_voxels_indices;
 
-    // set of spheres state pairs that should be checked for self collisions
+    // cached set of spheres state pairs that should be checked for self
+    // collisions when using the internal allowed collision matrix
     std::vector<std::pair<int, int>>        m_checked_spheres_states;
+    std::vector<std::pair<int, int>>        m_checked_attached_body_spheres_states;
+    std::vector<std::pair<int, int>>        m_checked_attached_body_robot_spheres_states;
 
     AllowedCollisionMatrix                  m_acm;
     double                                  m_padding;
@@ -149,13 +141,14 @@ private:
 
     void initAllowedCollisionMatrix();
 
-    // switch to checking for a new collision group; removes voxels from groups
-    // that are inside the new collision group and add voxels that are outside
-    // the new collision group
+    bool checkCommonInputs(
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
+        const int gidx) const;
+
+    void prepareState(int gidx, const RobotCollisionState& state);
     void updateGroup(int gidx);
-
     void copyState(const RobotCollisionState& state);
-
     void updateVoxelsStates();
 
     // update the state of outside-group voxels and check for collisions between
@@ -217,6 +210,8 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_voxels_indices(),
     m_ab_voxels_indices(),
     m_checked_spheres_states(),
+    m_checked_attached_body_spheres_states(),
+    m_checked_attached_body_robot_spheres_states(),
     m_acm(),
     m_padding(0.0),
 #if USE_META_TREE
@@ -230,12 +225,12 @@ SelfCollisionModelImpl::SelfCollisionModelImpl(
     m_vq()
 {
     initAllowedCollisionMatrix();
-//    m_acm.print(std::cout);
 }
 
+/// Seed the allowed collision matrix with pairs of adjacent links.
 void SelfCollisionModelImpl::initAllowedCollisionMatrix()
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Creating adjacent link entries in the allowed collision matrix");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Create adjacent link entries in the allowed collision matrix");
     for (size_t lidx = 0; lidx < m_rcm->linkCount(); ++lidx) {
         const std::string& link_name = m_rcm->linkName(lidx);
         if (!m_acm.hasEntry(link_name)) {
@@ -265,6 +260,40 @@ void SelfCollisionModelImpl::initAllowedCollisionMatrix()
     }
 }
 
+/// Check that the input states are related to the collision models passed to
+/// the constructor.
+bool SelfCollisionModelImpl::checkCommonInputs(
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
+    const int gidx) const
+{
+    if (state.model() != m_rcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
+        return false;
+    }
+    if (ab_state.model() != m_abcm) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "Attached Bodies Collision State is for another Attached Bodies Collision Model");
+        return false;
+    }
+
+    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount()) {
+        ROS_ERROR_NAMED(SCM_LOGGER, "self collision check is for non-existent group");
+        return false;
+    }
+
+    return true;
+}
+
+/// Prepare internal collision states with a query state and group
+void SelfCollisionModelImpl::prepareState(
+    int gidx,
+    const RobotCollisionState& state)
+{
+    updateGroup(gidx);
+    copyState(state);
+    updateVoxelsStates();
+}
+
 SelfCollisionModelImpl::~SelfCollisionModelImpl()
 {
 }
@@ -275,6 +304,8 @@ SelfCollisionModelImpl::allowedCollisionMatrix() const
     return m_acm;
 }
 
+/// Update the allowed collision matrix, removing entries specified as NEVER and
+/// adding entries specified as ALWAYS in the input matrix
 void SelfCollisionModelImpl::updateAllowedCollisionMatrix(
     const AllowedCollisionMatrix& acm)
 {
@@ -309,6 +340,8 @@ void SelfCollisionModelImpl::setAllowedCollisionMatrix(
     updateCheckedSpheresIndices();
 }
 
+/// Set the padding to be applied to spheres. No padding is applied to voxels
+/// models.
 void SelfCollisionModelImpl::setPadding(double padding)
 {
     m_padding = padding;
@@ -326,19 +359,11 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    if (state.model() != m_rcm || ab_state.model() != m_abcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
+    if (!checkCommonInputs(state, ab_state, gidx)) {
         return false;
     }
 
-    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "self collision check is for non-existent group");
-        return false;
-    }
-
-    updateGroup(gidx);
-    copyState(state);
-    updateVoxelsStates();
+    prepareState(gidx, state);
 
     if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -358,23 +383,11 @@ bool SelfCollisionModelImpl::checkCollision(
     const int gidx,
     double& dist)
 {
-    if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
-        return false;
-    }
-    if (ab_state.model() != m_abcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Attached Bodies Collision State is for another Attached Bodies Collision Model");
+    if (!checkCommonInputs(state, ab_state, gidx)) {
         return false;
     }
 
-    if (gidx < 0 || gidx >= m_rcm->groupCount() || gidx >= m_abcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "self collision check is for non-existent group");
-        return false;
-    }
-
-    updateGroup(gidx);
-    copyState(state);
-    updateVoxelsStates();
+    prepareState(gidx, state);
 
     if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -392,19 +405,11 @@ double SelfCollisionModelImpl::collisionDistance(
     AttachedBodiesCollisionState& ab_state,
     const int gidx)
 {
-    if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
-        return std::numeric_limits<double>::quiet_NaN();
+    if (!checkCommonInputs(state, ab_state, gidx)) {
+        return false;
     }
 
-    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    updateGroup(gidx);
-    copyState(state);
-    updateVoxelsStates();
+    prepareState(gidx, state);
 
     // TODO: attached objects
 
@@ -417,27 +422,26 @@ double SelfCollisionModelImpl::collisionDistance(
     const AllowedCollisionsInterface& aci,
     const int gidx)
 {
+    if (!checkCommonInputs(state, ab_state, gidx)) {
+        return false;
+    }
+
+    prepareState(gidx, state);
+
     return 0.0; // TODO: implement
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
     RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
     const int gidx,
     CollisionDetails& details)
 {
-    if (state.model() != m_rcm) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Robot Collision State is for another Robot Collision Model");
+    if (!checkCommonInputs(state, ab_state, gidx)) {
         return false;
     }
 
-    if (gidx < 0 || gidx >= m_rcm->groupCount()) {
-        ROS_ERROR_NAMED(SCM_LOGGER, "Self collision check is for non-existent group");
-        return false;
-    }
-
-    updateGroup(gidx);
-    copyState(state);
-    updateVoxelsStates();
+    prepareState(gidx, state);
 
     double dist;
     details.voxels_collision_count = 0;
@@ -457,31 +461,22 @@ bool SelfCollisionModelImpl::collisionDetails(
 bool SelfCollisionModelImpl::collisionDetails(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
-    const int gidx,
-    CollisionDetails& details)
-{
-    return false; // TODO: implement me
-}
-
-bool SelfCollisionModelImpl::collisionDetails(
-    RobotCollisionState& state,
     const AllowedCollisionsInterface& aci,
     const int gidx,
     CollisionDetails& details)
 {
+    if (!checkCommonInputs(state, ab_state, gidx)) {
+        return false;
+    }
+
+    prepareState(gidx, state);
+
     return false; // TODO: implement me
 }
 
-bool SelfCollisionModelImpl::collisionDetails(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
-    const AllowedCollisionsInterface& aci,
-    const int gidx,
-    CollisionDetails& details)
-{
-    return false; // TODO: implement me
-}
-
+/// switch to checking for a new collision group; removes voxels from groups
+/// that are inside the new collision group and add voxels that are outside the
+/// new collision group
 void SelfCollisionModelImpl::updateGroup(int gidx)
 {
     if (gidx == m_gidx) {
@@ -926,7 +921,7 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
     const CollisionSpheresState& ss2,
     double& dist)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking spheres state collision");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check spheres state collision");
     auto sqrd = [](double d) { return d * d; };
 
     // assertion: both collision spheres are updated when they are removed from the stack
@@ -1233,7 +1228,7 @@ double SelfCollisionModelImpl::spheresStateCollisionDistance(
     const CollisionSpheresState& ss1,
     const CollisionSpheresState& ss2)
 {
-    ROS_DEBUG_NAMED(SCM_LOGGER, "Checking spheres state collision");
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check spheres state collision");
 
     double dp = std::numeric_limits<double>::infinity();
 
@@ -1448,28 +1443,11 @@ double SelfCollisionModel::collisionDistance(
 
 bool SelfCollisionModel::collisionDetails(
     RobotCollisionState& state,
-    const int gidx,
-    CollisionDetails& details)
-{
-    return m_impl->collisionDetails(state, gidx, details);
-}
-
-bool SelfCollisionModel::collisionDetails(
-    RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
     const int gidx,
     CollisionDetails& details)
 {
     return m_impl->collisionDetails(state, ab_state, gidx, details);
-}
-
-bool SelfCollisionModel::collisionDetails(
-    RobotCollisionState& state,
-    const AllowedCollisionsInterface& aci,
-    const int gidx,
-    CollisionDetails& details)
-{
-    return m_impl->collisionDetails(state, aci, gidx, details);
 }
 
 bool SelfCollisionModel::collisionDetails(
