@@ -694,21 +694,19 @@ bool RobotCollisionModel::generateSpheresModel(
         return true;
     }
 
-    if (link->collision) {
-        if (!generateBoundingSpheres(*link->collision, radius, spheres)) {
-            ROS_ERROR_NAMED(RCM_LOGGER, "Failed to sphere bound collision element for link '%s'", link_name.c_str());
-            return false;
-        }
-    }
-    else if (!link->collision_array.empty()) {
+    if (!link->collision_array.empty()) {
         for (auto collision : link->collision_array) {
             if (!generateBoundingSpheres(*collision, radius, spheres)) {
                 ROS_ERROR_NAMED(RCM_LOGGER, "Failed to sphere bound collision element for link '%s'", link_name.c_str());
                 return false;
             }
         }
-    }
-    else {
+    } else if (link->collision) {
+        if (!generateBoundingSpheres(*link->collision, radius, spheres)) {
+            ROS_ERROR_NAMED(RCM_LOGGER, "Failed to sphere bound collision element for link '%s'", link_name.c_str());
+            return false;
+        }
+    } else {
         ROS_ERROR_NAMED(RCM_LOGGER, "Hmm");
         return false;
     }
@@ -739,6 +737,7 @@ bool RobotCollisionModel::generateBoundingSpheres(
     Eigen::Quaterniond rotation;
     collision.origin.rotation.getQuaternion(
             rotation.x(), rotation.y(), rotation.z(), rotation.w());
+
     Eigen::Affine3d pose = translation * rotation;
 
     return generateBoundingSpheres(*geom, pose, radius, spheres);
