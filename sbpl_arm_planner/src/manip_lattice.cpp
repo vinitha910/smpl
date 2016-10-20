@@ -42,6 +42,7 @@
 
 #include <sbpl_arm_planner/angles.h>
 #include <sbpl_arm_planner/robot_heuristic.h>
+#define SBPL_VISUALIZE_MIN_SEVERITY SBPL_VISUALIZE_SEVERITY_INFO
 #include <sbpl_arm_planner/visualize.h>
 #include "profiling.h"
 
@@ -167,7 +168,7 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  gdiff: (%3d, %3d, %3d)", abs(goal().xyz[0] - parent_entry->xyz[0]), abs(goal().xyz[1] - parent_entry->xyz[1]), abs(goal().xyz[2] - parent_entry->xyz[2]));
 //    ROS_DEBUG_NAMED(params()->expands_log_, "  goal dist: %0.3f", m_grid->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
-    SV_SHOW_INFO(getStateVisualization(parent_entry->state, "expansion"));
+    SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
 
     int goal_succ_count = 0;
 
