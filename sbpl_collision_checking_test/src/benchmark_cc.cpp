@@ -59,7 +59,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     }
 
     if (wcm_config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
-        !wcm_config.hasMember("frame") ||
+        !wcm_config.hasMember("frame_id") ||
         !wcm_config.hasMember("size_x") ||
         !wcm_config.hasMember("size_y") ||
         !wcm_config.hasMember("size_z") ||
@@ -69,6 +69,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         !wcm_config.hasMember("res_m"))
     {
         ROS_ERROR("'%s' param is malformed", world_collision_model_param);
+        ROS_ERROR_STREAM("has frame_id member " << wcm_config.hasMember("frame_id"));
         ROS_ERROR_STREAM("has size_x member " << wcm_config.hasMember("size_x"));
         ROS_ERROR_STREAM("has size_y member " << wcm_config.hasMember("size_y"));
         ROS_ERROR_STREAM("has size_z member " << wcm_config.hasMember("size_z"));
@@ -79,7 +80,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         return sbpl::OccupancyGridPtr();
     }
 
-    const std::string world_frame = "odom_combined";
+    const std::string world_frame = wcm_config["frame_id"];
     const double size_x = wcm_config["size_x"];
     const double size_y = wcm_config["size_y"];
     const double size_z = wcm_config["size_z"];
