@@ -1,6 +1,6 @@
-#include <sbpl_arm_planner/robot_planning_space.h>
+#include <sbpl_arm_planner/graph/robot_planning_space.h>
 
-#include <sbpl_arm_planner/robot_heuristic.h>
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace manip {

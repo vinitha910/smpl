@@ -52,24 +52,24 @@ include_directories(include)
 add_library(
     sbpl_arm_planner
     src/bfs3d.cpp
-    src/action_space.cpp
     src/planner_interface.cpp
-    src/bfs_heuristic.cpp
-    src/euclid_dist_heuristic.cpp
     src/collision_checker.cpp
-    src/robot_heuristic.cpp
-    src/joint_dist_heuristic.cpp
-    src/manip_lattice.cpp
-    src/manip_lattice_action_space.cpp
-    src/multi_frame_bfs_heuristic.cpp
     src/occupancy_grid.cpp
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
-    src/robot_planning_space.cpp
-    src/workspace_lattice.cpp
-    src/visualize.cpp
-    src/visualizer_ros.cpp)
+    src/debug/visualize.cpp
+    src/debug/visualizer_ros.cpp
+    src/graph/action_space.cpp
+    src/graph/manip_lattice.cpp
+    src/graph/manip_lattice_action_space.cpp
+    src/graph/robot_planning_space.cpp
+    src/graph/workspace_lattice.cpp
+    src/heuristic/bfs_heuristic.cpp
+    src/heuristic/euclid_dist_heuristic.cpp
+    src/heuristic/robot_heuristic.cpp
+    src/heuristic/joint_dist_heuristic.cpp
+    src/heuristic/multi_frame_bfs_heuristic.cpp)
 
 target_link_libraries(
     sbpl_arm_planner

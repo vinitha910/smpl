@@ -29,38 +29,59 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_joint_dist_heuristic_h
-#define sbpl_manip_joint_dist_heuristic_h
+#ifndef sbpl_manip_bfs_heuristic_h
+#define sbpl_manip_bfs_heuristic_h
 
-#include <sbpl_arm_planner/robot_heuristic.h>
+// standard includes
+#include <memory>
+
+// system includes
+#include <visualization_msgs/MarkerArray.h>
+
+// project includes
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace manip {
 
-class JointDistHeuristic : public RobotHeuristic
+class BFS_3D;
+
+class BfsHeuristic : public RobotHeuristic
 {
 public:
 
-    JointDistHeuristic(
-        const RobotPlanningSpacePtr& ps,
-        const OccupancyGrid* grid);
+    BfsHeuristic(const RobotPlanningSpacePtr& pspace, const OccupancyGrid* grid);
+
+    virtual ~BfsHeuristic();
+
+    visualization_msgs::MarkerArray getWallsVisualization() const;
+    visualization_msgs::MarkerArray getValuesVisualization() const;
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
+    double getMetricStartDistance(double x, double y, double z);
+    double getMetricGoalDistance(double x, double y, double z);
+    ///@}
+
+    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
+    ///@{
+    void updateGoal(const GoalConstraint& goal);
     ///@}
 
     /// \name Required Public Functions from Heuristic
     ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    int GetGoalHeuristic(int state_id);
+    int GetStartHeuristic(int state_id);
+    int GetFromToHeuristic(int from_id, int to_id);
     ///@}
 
 private:
 
-    ExtractRobotStateExtension* m_ers;
+    std::unique_ptr<BFS_3D> m_bfs;
+    PointProjectionExtension* m_pp;
+
+    void syncGridAndBfs();
+    int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
 };
 
 } // namespace manip

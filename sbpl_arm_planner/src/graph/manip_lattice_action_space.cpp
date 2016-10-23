@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/manip_lattice_action_space.h>
+#include <sbpl_arm_planner/graph/manip_lattice_action_space.h>
 
 // standard includes
 #include <limits>
@@ -39,9 +39,9 @@
 #include <leatherman/print.h>
 
 // project includes
-#include <sbpl_arm_planner/manip_lattice.h>
 #include <sbpl_arm_planner/angles.h>
-#include <sbpl_arm_planner/robot_heuristic.h>
+#include <sbpl_arm_planner/graph/manip_lattice.h>
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 #define VERIFY_KINEMATICS 0
 

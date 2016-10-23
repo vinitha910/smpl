@@ -47,11 +47,11 @@
 
 // project includes
 #include <sbpl_arm_planner/forward.h>
-#include <sbpl_arm_planner/motion_primitive.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
-#include <sbpl_arm_planner/robot_planning_space_observer.h>
-#include <sbpl_arm_planner/action_space.h>
+#include <sbpl_arm_planner/graph/action_space.h>
+#include <sbpl_arm_planner/graph/motion_primitive.h>
+#include <sbpl_arm_planner/graph/robot_planning_space_observer.h>
 
 namespace sbpl {
 namespace manip {

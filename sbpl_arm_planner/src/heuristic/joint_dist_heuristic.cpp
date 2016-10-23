@@ -29,63 +29,63 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_bfs_heuristic_h
-#define sbpl_manip_bfs_heuristic_h
+#include <sbpl_arm_planner/heuristic/joint_dist_heuristic.h>
 
-// standard includes
-#include <memory>
-
-// system includes
-#include <visualization_msgs/MarkerArray.h>
-
-// project includes
-#include <sbpl_arm_planner/robot_heuristic.h>
-#include <sbpl_arm_planner/robot_planning_space.h>
+#include <cmath>
 
 namespace sbpl {
 namespace manip {
 
-class BFS_3D;
-
-class BfsHeuristic : public RobotHeuristic
+JointDistHeuristic::JointDistHeuristic(
+    const RobotPlanningSpacePtr& ps,
+    const OccupancyGrid* grid)
+:
+    RobotHeuristic(ps, grid)
 {
-public:
+    m_ers = ps->getExtension<ExtractRobotStateExtension>();
+}
 
-    BfsHeuristic(const RobotPlanningSpacePtr& pspace, const OccupancyGrid* grid);
+double JointDistHeuristic::getMetricGoalDistance(double x, double y, double z)
+{
+    return 0.0;
+}
 
-    virtual ~BfsHeuristic();
+double JointDistHeuristic::getMetricStartDistance(double x, double y, double z)
+{
+    return 0.0;
+}
 
-    visualization_msgs::MarkerArray getWallsVisualization() const;
-    visualization_msgs::MarkerArray getValuesVisualization() const;
+int JointDistHeuristic::GetGoalHeuristic(int state_id)
+{
+    if (!m_ers) {
+        return 0;
+    }
+    if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
+        return 0;
+    }
 
-    /// \name Required Public Functions from RobotHeuristic
-    ///@{
-    double getMetricStartDistance(double x, double y, double z);
-    double getMetricGoalDistance(double x, double y, double z);
-    ///@}
+    const RobotState& goal_state = planningSpace()->goal().angles;
+    const RobotState& state = m_ers->extractState(state_id);
+    assert(goal_state.size() == state.size());
 
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
-    ///@{
-    void updateGoal(const GoalConstraint& goal);
-    ///@}
+    double dsum = 0.0;
+    for (size_t i = 0; i < state.size(); ++i) {
+        double dj = (state[i] - goal_state[i]);
+        dsum += dj * dj;
+    }
+    dsum = 1000.0 * std::sqrt(dsum);
+    return (int)dsum;
+}
 
-    /// \name Required Public Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id);
-    int GetStartHeuristic(int state_id);
-    int GetFromToHeuristic(int from_id, int to_id);
-    ///@}
+int JointDistHeuristic::GetStartHeuristic(int state_id)
+{
+    return 0;
+}
 
-private:
-
-    std::unique_ptr<BFS_3D> m_bfs;
-    PointProjectionExtension* m_pp;
-
-    void syncGridAndBfs();
-    int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
-};
+int JointDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
+{
+    return 0;
+}
 
 } // namespace manip
 } // namespace sbpl
-
-#endif

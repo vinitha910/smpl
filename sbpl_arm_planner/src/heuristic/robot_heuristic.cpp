@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/robot_heuristic.h>
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace manip {

@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/multi_frame_bfs_heuristic.h>
+#include <sbpl_arm_planner/heuristic/multi_frame_bfs_heuristic.h>
 
 // system includes
 #include <leatherman/viz.h>

@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/graph/manip_lattice.h>
 
 // standard includes
 #include <sstream>
@@ -41,10 +41,10 @@
 #include <leatherman/print.h>
 
 #include <sbpl_arm_planner/angles.h>
-#include <sbpl_arm_planner/robot_heuristic.h>
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 #define SBPL_VISUALIZE_MIN_SEVERITY SBPL_VISUALIZE_SEVERITY_INFO
-#include <sbpl_arm_planner/visualize.h>
-#include "profiling.h"
+#include <sbpl_arm_planner/debug/visualize.h>
+#include "../profiling.h"
 
 auto std::hash<sbpl::manip::ManipLatticeState>::operator()(
     const argument_type& s) const -> result_type

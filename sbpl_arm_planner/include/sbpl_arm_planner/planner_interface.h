@@ -50,13 +50,13 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <sbpl_arm_planner/action_space.h>
 #include <sbpl_arm_planner/collision_checker.h>
 #include <sbpl_arm_planner/forward.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
-#include <sbpl_arm_planner/robot_heuristic.h>
 #include <sbpl_arm_planner/robot_model.h>
+#include <sbpl_arm_planner/graph/action_space.h>
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 SBPL_CLASS_FORWARD(Heuristic);
 SBPL_CLASS_FORWARD(SBPLPlanner);

@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/workspace_lattice.h>
+#include <sbpl_arm_planner/graph/workspace_lattice.h>
 
 // system includes
 #include <boost/functional/hash.hpp>
@@ -38,7 +38,7 @@
 
 // project includes
 #include <sbpl_arm_planner/angles.h>
-#include <sbpl_arm_planner/visualize.h>
+#include <sbpl_arm_planner/debug/visualize.h>
 
 auto std::hash<sbpl::manip::WorkspaceLatticeState>::operator()(
     const argument_type& s) const -> result_type

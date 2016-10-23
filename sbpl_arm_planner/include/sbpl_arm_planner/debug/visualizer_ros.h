@@ -9,7 +9,7 @@
 #include <ros/ros.h>
 
 // project includes
-#include <sbpl_arm_planner/visualize.h>
+#include <sbpl_arm_planner/debug/visualize.h>
 
 namespace sbpl {
 

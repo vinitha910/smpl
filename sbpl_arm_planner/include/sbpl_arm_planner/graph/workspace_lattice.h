@@ -42,12 +42,12 @@
 
 // project includes
 #include <sbpl_arm_planner/collision_checker.h>
-#include <sbpl_arm_planner/motion_primitive.h>
 #include <sbpl_arm_planner/occupancy_grid.h>
 #include <sbpl_arm_planner/planning_params.h>
 #include <sbpl_arm_planner/robot_model.h>
-#include <sbpl_arm_planner/robot_planning_space.h>
 #include <sbpl_arm_planner/types.h>
+#include <sbpl_arm_planner/graph/motion_primitive.h>
+#include <sbpl_arm_planner/graph/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {

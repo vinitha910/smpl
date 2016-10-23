@@ -29,39 +29,70 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_euclid_dist_heuristic_h
-#define sbpl_manip_euclid_dist_heuristic_h
+#ifndef sbpl_manip_robot_heuristic_h
+#define sbpl_manip_robot_heuristic_h
 
-#include <sbpl_arm_planner/robot_heuristic.h>
-#include <sbpl_arm_planner/manip_lattice.h>
+// standard includes
+#include <stdint.h>
+#include <limits>
+
+// system includes
+#include <sbpl/heuristics/heuristic.h>
+
+// project includes
+#include <sbpl_arm_planner/forward.h>
+#include <sbpl_arm_planner/occupancy_grid.h>
+#include <sbpl_arm_planner/planning_params.h>
+#include <sbpl_arm_planner/graph/robot_planning_space_observer.h>
+#include <sbpl_arm_planner/graph/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {
 
-class EuclidDistHeuristic : public RobotHeuristic
+class RobotHeuristic : public Heuristic, public RobotPlanningSpaceObserver
 {
 public:
 
-    EuclidDistHeuristic(
+    static const int Infinity = std::numeric_limits<int16_t>::max();
+
+    RobotHeuristic(
         const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
-    /// \name Required Public Functions from RobotHeuristic
-    ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
-    ///@}
+    virtual ~RobotHeuristic();
 
-    /// \name Required Public Functions from Heuristic
+    /// \brief Return the heuristic distance of the planning link to the start.
+    ///
+    /// This distance is used by the manipulation lattice to determine whether
+    /// to activate context-aware actions.
+    virtual double getMetricStartDistance(double x, double y, double z) = 0;
+
+    /// \brief Return the heuristic distance of the planning link to the goal.
+    ///
+    /// This distance is used by the manipulation lattice to determine whether
+    /// to activate context-aware actions.
+    virtual double getMetricGoalDistance(double x, double y, double z) = 0;
+
+    virtual bool setGoal(const GoalConstraint& goal);
+
+    RobotPlanningSpacePtr planningSpace() { return m_pspace; }
+    RobotPlanningSpaceConstPtr planningSpace() const { return m_pspace; }
+
+    const PlanningParams* params() const { return m_pspace->params(); }
+
+    const OccupancyGrid* grid() const { return m_grid; }
+
+    /// \name Restate Required Public Functions from Heuristic
     ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    virtual int GetGoalHeuristic(int state_id) = 0;
+    virtual int GetStartHeuristic(int state_id) = 0;
+    virtual int GetFromToHeuristic(int from_id, int to_id) = 0;
     ///@}
 
 private:
 
-    PointProjectionExtension* m_pp;
+    RobotPlanningSpacePtr m_pspace;
+    const OccupancyGrid* m_grid;
 };
 
 } // namespace manip

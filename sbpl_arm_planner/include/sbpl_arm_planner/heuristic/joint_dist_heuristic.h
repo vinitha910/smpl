@@ -29,34 +29,39 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_action_space_h
-#define sbpl_manip_action_space_h
+#ifndef sbpl_manip_joint_dist_heuristic_h
+#define sbpl_manip_joint_dist_heuristic_h
 
-#include <sbpl_arm_planner/forward.h>
-#include <sbpl_arm_planner/robot_planning_space_observer.h>
+// project includes
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace manip {
 
-SBPL_CLASS_FORWARD(RobotPlanningSpace);
-
-SBPL_CLASS_FORWARD(ActionSpace);
-class ActionSpace : public RobotPlanningSpaceObserver
+class JointDistHeuristic : public RobotHeuristic
 {
 public:
 
-    ActionSpace(const RobotPlanningSpacePtr& pspace);
+    JointDistHeuristic(
+        const RobotPlanningSpacePtr& ps,
+        const OccupancyGrid* grid);
 
-    virtual ~ActionSpace();
+    /// \name Required Public Functions from RobotHeuristic
+    ///@{
+    double getMetricGoalDistance(double x, double y, double z) override;
+    double getMetricStartDistance(double x, double y, double z) override;
+    ///@}
 
-    virtual bool apply(const RobotState& parent, std::vector<Action>& actions) = 0;
-
-    RobotPlanningSpacePtr planningSpace() { return m_pspace; }
-    RobotPlanningSpaceConstPtr planningSpace() const { return m_pspace; }
+    /// \name Required Public Functions from Heuristic
+    ///@{
+    int GetGoalHeuristic(int state_id) override;
+    int GetStartHeuristic(int state_id) override;
+    int GetFromToHeuristic(int from_id, int to_id) override;
+    ///@}
 
 private:
 
-    RobotPlanningSpacePtr m_pspace;
+    ExtractRobotStateExtension* m_ers;
 };
 
 } // namespace manip

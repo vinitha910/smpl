@@ -1,4 +1,4 @@
-#include <sbpl_arm_planner/visualizer_ros.h>
+#include <sbpl_arm_planner/debug/visualizer_ros.h>
 
 namespace sbpl {
 

@@ -29,63 +29,37 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/joint_dist_heuristic.h>
+#ifndef sbpl_manip_action_space_h
+#define sbpl_manip_action_space_h
 
-#include <cmath>
+#include <sbpl_arm_planner/forward.h>
+#include <sbpl_arm_planner/graph/robot_planning_space_observer.h>
 
 namespace sbpl {
 namespace manip {
 
-JointDistHeuristic::JointDistHeuristic(
-    const RobotPlanningSpacePtr& ps,
-    const OccupancyGrid* grid)
-:
-    RobotHeuristic(ps, grid)
+SBPL_CLASS_FORWARD(RobotPlanningSpace);
+
+SBPL_CLASS_FORWARD(ActionSpace);
+class ActionSpace : public RobotPlanningSpaceObserver
 {
-    m_ers = ps->getExtension<ExtractRobotStateExtension>();
-}
+public:
 
-double JointDistHeuristic::getMetricGoalDistance(double x, double y, double z)
-{
-    return 0.0;
-}
+    ActionSpace(const RobotPlanningSpacePtr& pspace);
 
-double JointDistHeuristic::getMetricStartDistance(double x, double y, double z)
-{
-    return 0.0;
-}
+    virtual ~ActionSpace();
 
-int JointDistHeuristic::GetGoalHeuristic(int state_id)
-{
-    if (!m_ers) {
-        return 0;
-    }
-    if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
-        return 0;
-    }
+    virtual bool apply(const RobotState& parent, std::vector<Action>& actions) = 0;
 
-    const RobotState& goal_state = planningSpace()->goal().angles;
-    const RobotState& state = m_ers->extractState(state_id);
-    assert(goal_state.size() == state.size());
+    RobotPlanningSpacePtr planningSpace() { return m_pspace; }
+    RobotPlanningSpaceConstPtr planningSpace() const { return m_pspace; }
 
-    double dsum = 0.0;
-    for (size_t i = 0; i < state.size(); ++i) {
-        double dj = (state[i] - goal_state[i]);
-        dsum += dj * dj;
-    }
-    dsum = 1000.0 * std::sqrt(dsum);
-    return (int)dsum;
-}
+private:
 
-int JointDistHeuristic::GetStartHeuristic(int state_id)
-{
-    return 0;
-}
-
-int JointDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
-{
-    return 0;
-}
+    RobotPlanningSpacePtr m_pspace;
+};
 
 } // namespace manip
 } // namespace sbpl
+
+#endif

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015, Benjamin Cohen, Andrew Dornbush
+// Copyright (c) 2016, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,88 +27,73 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-/// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_motion_primitive_h
-#define sbpl_manip_motion_primitive_h
+#ifndef sbpl_manip_multi_frame_bfs_heuristic_h
+#define sbpl_manip_multi_frame_bfs_heuristic_h
 
 // standard includes
-#include <vector>
-#include <sstream>
+#include <memory>
 
 // system includes
-#include <ros/console.h>
-#include <leatherman/print.h>
+#include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <sbpl_arm_planner/types.h>
+#include <sbpl_arm_planner/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace manip {
 
-struct MotionPrimitive
+class BFS_3D;
+
+class MultiFrameBfsHeuristic : public RobotHeuristic
 {
-    enum Type
-    {
-        LONG_DISTANCE = -1,
-        SNAP_TO_RPY = 0, // NOTE: start at 0 to use successive types as indices
-        SNAP_TO_XYZ,
-        SNAP_TO_XYZ_RPY,
-        SHORT_DISTANCE,
-        NUMBER_OF_MPRIM_TYPES
-    };
+public:
 
-    Type type;
-    Action action;
+    MultiFrameBfsHeuristic(
+        const RobotPlanningSpacePtr& pspace,
+        const OccupancyGrid* grid);
 
-    void print() const;
+    virtual ~MultiFrameBfsHeuristic();
+
+    visualization_msgs::MarkerArray getWallsVisualization() const;
+    visualization_msgs::MarkerArray getValuesVisualization() const;
+
+    /// \name Required Public Functions from RobotHeuristic
+    ///@{
+    double getMetricStartDistance(double x, double y, double z);
+    double getMetricGoalDistance(double x, double y, double z);
+    ///@}
+
+    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
+    ///@{
+    void updateGoal(const GoalConstraint& goal) override;
+    ///@}
+
+    /// \name Required Public Functions from Heuristic
+    ///@{
+    int GetGoalHeuristic(int state_id);
+    int GetStartHeuristic(int state_id);
+    int GetFromToHeuristic(int from_id, int to_id);
+    ///@}
+
+private:
+
+    PointProjectionExtension* m_pp;
+    ExtractRobotStateExtension* m_ers;
+    ForwardKinematicsInterface* m_fk_iface;
+
+    std::unique_ptr<BFS_3D> m_bfs;
+    std::unique_ptr<BFS_3D> m_ee_bfs;
+
+    int getGoalHeuristic(int state_id, bool use_ee) const;
+
+    void syncGridAndBfs();
+    int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
+
+    inline
+    int combine_costs(int c1, int c2) const;
 };
-
-inline std::ostream& operator<<(std::ostream& o, MotionPrimitive::Type type)
-{
-    switch (type) {
-    case MotionPrimitive::LONG_DISTANCE:
-        o << "LONG_DISTANCE";
-        break;
-    case MotionPrimitive::SNAP_TO_RPY:
-        o << "SNAP_TO_RPY";
-        break;
-    case MotionPrimitive::SNAP_TO_XYZ:
-        o << "SNAP_TO_XYZ";
-        break;
-    case MotionPrimitive::SNAP_TO_XYZ_RPY:
-        o << "SNAP_TO_XYZ_RPY";
-        break;
-    case MotionPrimitive::SHORT_DISTANCE:
-        o << "SHORT_DISTANCE";
-        break;
-    }
-    return o;
-}
-
-inline
-std::string to_string(MotionPrimitive::Type type)
-{
-    std::stringstream ss;
-    ss << type;
-    return ss.str();
-}
-
-inline
-void MotionPrimitive::print() const
-{
-    ROS_INFO("type: %d  nsteps: %d ", type, int(action.size()));
-    std::stringstream os;
-    for (std::size_t j = 0; j < action.size(); ++j) {
-        os.str("");
-        os << "[step: " << int(j+1) << "/" << int(action.size()) << "] ";
-        for (std::size_t k = 0; k < action[j].size(); ++k) {
-            os << std::setw(4) << std::setprecision(3) << std::fixed << action[j][k] << " ";
-        }
-        ROS_INFO_STREAM(os.str());
-    }
-}
 
 } // namespace manip
 } // namespace sbpl

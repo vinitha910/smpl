@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 // system includes
-#include <sbpl_arm_planner/visualize.h>
+#include <sbpl_arm_planner/debug/visualize.h>
 
 class TextVisualizer : public sbpl::viz::VisualizerBase
 {

@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/soft_bfs_heuristic.h>
+#include <sbpl_arm_planner/heuristic/soft_bfs_heuristic.h>
 
 namespace sbpl {
 namespace manip {

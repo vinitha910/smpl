@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_arm_planner/euclid_dist_heuristic.h>
+#include <sbpl_arm_planner/heuristic/euclid_dist_heuristic.h>
 
 // standard includes
 #include <math.h>

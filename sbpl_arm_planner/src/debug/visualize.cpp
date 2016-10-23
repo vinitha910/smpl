@@ -1,4 +1,4 @@
-#include <sbpl_arm_planner/visualize.h>
+#include <sbpl_arm_planner/debug/visualize.h>
 
 #include <mutex>
 

@@ -29,74 +29,25 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_multi_frame_bfs_heuristic_h
-#define sbpl_manip_multi_frame_bfs_heuristic_h
-
-// standard includes
-#include <memory>
-
-// system includes
-#include <visualization_msgs/MarkerArray.h>
+#include <sbpl_arm_planner/graph/action_space.h>
 
 // project includes
-#include <sbpl_arm_planner/robot_heuristic.h>
-#include <sbpl_arm_planner/manip_lattice.h>
+#include <sbpl_arm_planner/graph/robot_planning_space.h>
 
 namespace sbpl {
 namespace manip {
 
-class BFS_3D;
-
-class MultiFrameBfsHeuristic : public RobotHeuristic
+ActionSpace::ActionSpace(const RobotPlanningSpacePtr& pspace) :
+    RobotPlanningSpaceObserver(),
+    m_pspace(pspace)
 {
-public:
+    m_pspace->insertObserver(this);
+}
 
-    MultiFrameBfsHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid* grid);
-
-    virtual ~MultiFrameBfsHeuristic();
-
-    visualization_msgs::MarkerArray getWallsVisualization() const;
-    visualization_msgs::MarkerArray getValuesVisualization() const;
-
-    /// \name Required Public Functions from RobotHeuristic
-    ///@{
-    double getMetricStartDistance(double x, double y, double z);
-    double getMetricGoalDistance(double x, double y, double z);
-    ///@}
-
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
-    ///@{
-    void updateGoal(const GoalConstraint& goal) override;
-    ///@}
-
-    /// \name Required Public Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id);
-    int GetStartHeuristic(int state_id);
-    int GetFromToHeuristic(int from_id, int to_id);
-    ///@}
-
-private:
-
-    PointProjectionExtension* m_pp;
-    ExtractRobotStateExtension* m_ers;
-    ForwardKinematicsInterface* m_fk_iface;
-
-    std::unique_ptr<BFS_3D> m_bfs;
-    std::unique_ptr<BFS_3D> m_ee_bfs;
-
-    int getGoalHeuristic(int state_id, bool use_ee) const;
-
-    void syncGridAndBfs();
-    int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
-
-    inline
-    int combine_costs(int c1, int c2) const;
-};
+ActionSpace::~ActionSpace()
+{
+    m_pspace->eraseObserver(this);
+}
 
 } // namespace manip
 } // namespace sbpl
-
-#endif
