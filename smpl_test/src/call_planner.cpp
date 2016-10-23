@@ -286,7 +286,7 @@ bool ParsePlanningJointGroup(
     return true;
 }
 
-std::unique_ptr<sbpl::manip::RobotModel>
+std::unique_ptr<sbpl::motion::RobotModel>
 SetupRobotModel(
     const ros::NodeHandle& nh,
     const std::string& urdf,
@@ -295,12 +295,12 @@ SetupRobotModel(
     const std::string& planning_link,
     const std::string& planning_frame)
 {
-    std::unique_ptr<sbpl::manip::RobotModel> rm_ptr;
+    std::unique_ptr<sbpl::motion::RobotModel> rm_ptr;
 
-    sbpl::manip::KDLRobotModel* rm = nullptr;
+    sbpl::motion::KDLRobotModel* rm = nullptr;
     KDL::Frame f;
     if (group_name == "right_arm") {
-        sbpl::manip::PR2KDLRobotModel* pr2_rm = new sbpl::manip::PR2KDLRobotModel();
+        sbpl::motion::PR2KDLRobotModel* pr2_rm = new sbpl::motion::PR2KDLRobotModel();
         // Set the current transform from the planning frame to the kinematics frame
         f.p.x(-0.05);
         f.p.y(1.0);
@@ -310,7 +310,7 @@ SetupRobotModel(
         rm = pr2_rm;
     }
     else if (group_name == "arm") {
-        sbpl::manip::UBR1KDLRobotModel* ubr1_rm = new sbpl::manip::UBR1KDLRobotModel();
+        sbpl::motion::UBR1KDLRobotModel* ubr1_rm = new sbpl::motion::UBR1KDLRobotModel();
         // Set the current transform from the planning frame to the kinematics frame
         f.p.x(-0.05);
         f.p.y(0.0);
@@ -327,7 +327,7 @@ SetupRobotModel(
             ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
             return false;
         }
-        rm  = new sbpl::manip::KDLRobotModel(kinematics_frame, chain_tip_link);
+        rm  = new sbpl::motion::KDLRobotModel(kinematics_frame, chain_tip_link);
     }
 
     if (!rm->init(urdf, planning_joints)) {
@@ -455,9 +455,9 @@ int main(int argc, char* argv[])
     ////////////////////////
 
     // planner interface
-    sbpl::manip::PlannerInterface planner(rm.get(), cc.get(), &grid);
+    sbpl::motion::PlannerInterface planner(rm.get(), cc.get(), &grid);
 
-    sbpl::manip::PlanningParams params;
+    sbpl::motion::PlanningParams params;
     params.action_filename = action_set_filename;
     if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Arm Planner Interface");

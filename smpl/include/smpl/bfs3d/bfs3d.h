@@ -42,7 +42,7 @@
 #include <boost/thread.hpp>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class BFS_3D
 {
@@ -250,7 +250,7 @@ inline int BFS_3D::neighbor(int node, int neighbor) const
     return node + m_neighbor_offsets[neighbor];
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

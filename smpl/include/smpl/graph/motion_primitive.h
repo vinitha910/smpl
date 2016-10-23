@@ -44,7 +44,7 @@
 #include <smpl/types.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 struct MotionPrimitive
 {
@@ -109,7 +109,7 @@ void MotionPrimitive::print() const
     }
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

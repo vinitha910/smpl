@@ -54,7 +54,7 @@
 #include <smpl/graph/robot_planning_space_observer.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class RobotPlanningSpace;
 
@@ -161,7 +161,7 @@ protected:
         MotionPrimitive::Type type) const;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

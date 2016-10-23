@@ -36,7 +36,7 @@
 #include <ros/console.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 namespace ik_option {
 
@@ -85,5 +85,5 @@ InverseKinematicsInterface::~InverseKinematicsInterface()
 {
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

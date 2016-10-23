@@ -49,7 +49,7 @@
 #include <smpl/graph/robot_planning_space_observer.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 SBPL_CLASS_FORWARD(RobotHeuristic);
 SBPL_CLASS_FORWARD(RobotPlanningSpace);
@@ -208,7 +208,7 @@ RobotHeuristicConstPtr RobotPlanningSpace::heuristic(size_t i) const
     return m_heuristics[i];
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

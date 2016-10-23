@@ -41,7 +41,7 @@
 #include <vector>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class RPYSolver
 {
@@ -96,7 +96,7 @@ class RPYSolver
         int attempt) const;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

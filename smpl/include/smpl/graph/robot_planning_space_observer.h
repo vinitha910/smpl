@@ -36,7 +36,7 @@
 #include <smpl/types.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class RobotPlanningSpaceObserver
 {
@@ -48,7 +48,7 @@ public:
     virtual void updateGoal(const GoalConstraint& goal) { }
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

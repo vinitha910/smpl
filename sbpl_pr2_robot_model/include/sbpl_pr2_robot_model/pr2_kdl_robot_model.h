@@ -54,7 +54,7 @@
 #include <sbpl_pr2_robot_model/orientation_solver.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class PR2KDLRobotModel : public KDLRobotModel
 {
@@ -95,7 +95,7 @@ private:
     std::string end_effector_link_name_;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

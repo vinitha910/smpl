@@ -38,7 +38,7 @@
 #include <smpl/bfs3d/bfs3d.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
     const RobotPlanningSpacePtr& ps,
@@ -369,5 +369,5 @@ int MultiFrameBfsHeuristic::combine_costs(int c1, int c2) const
     return c1 + c2;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

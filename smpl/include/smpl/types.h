@@ -37,7 +37,7 @@
 #include <vector>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 template <
     class Key,
@@ -78,7 +78,7 @@ struct GoalConstraint
     GoalType type;                      // type of goal constraint
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

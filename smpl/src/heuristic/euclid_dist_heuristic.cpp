@@ -35,7 +35,7 @@
 #include <math.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 static inline
 double EuclideanDistance(
@@ -121,5 +121,5 @@ int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
     return h;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

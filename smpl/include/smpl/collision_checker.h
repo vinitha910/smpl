@@ -44,7 +44,7 @@
 #include <smpl/types.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class CollisionChecker
 {
@@ -108,7 +108,7 @@ public:
     ///@}
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

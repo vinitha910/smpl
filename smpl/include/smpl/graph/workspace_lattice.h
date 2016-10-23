@@ -50,7 +50,7 @@
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 #define BROKEN 1
 
@@ -84,15 +84,15 @@ bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)
     return a.coord == b.coord;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 namespace std {
 
 template <>
-struct hash<sbpl::manip::WorkspaceLatticeState>
+struct hash<sbpl::motion::WorkspaceLatticeState>
 {
-    typedef sbpl::manip::WorkspaceLatticeState argument_type;
+    typedef sbpl::motion::WorkspaceLatticeState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };
@@ -100,7 +100,7 @@ struct hash<sbpl::manip::WorkspaceLatticeState>
 } // namespace std
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
@@ -310,7 +310,7 @@ private:
 #endif
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

@@ -35,7 +35,7 @@
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 ActionSpace::ActionSpace(const RobotPlanningSpacePtr& pspace) :
     RobotPlanningSpaceObserver(),
@@ -49,5 +49,5 @@ ActionSpace::~ActionSpace()
     m_pspace->eraseObserver(this);
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

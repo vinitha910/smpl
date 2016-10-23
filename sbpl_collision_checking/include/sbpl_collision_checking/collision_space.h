@@ -64,7 +64,7 @@ namespace collision {
 
 class CollisionSpaceBuilder;
 
-class CollisionSpace : public manip::CollisionChecker
+class CollisionSpace : public motion::CollisionChecker
 {
 public:
 

@@ -40,7 +40,7 @@
 #include <smpl/angles.h>
 #include <smpl/debug/visualize.h>
 
-auto std::hash<sbpl::manip::WorkspaceLatticeState>::operator()(
+auto std::hash<sbpl::motion::WorkspaceLatticeState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -49,7 +49,7 @@ auto std::hash<sbpl::manip::WorkspaceLatticeState>::operator()(
 }
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s)
 {
@@ -1253,5 +1253,5 @@ bool WorkspaceLattice::getDistanceGradient(int& x, int& y, int& z)
 
 #endif // BROKEN
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

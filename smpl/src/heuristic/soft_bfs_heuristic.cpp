@@ -32,7 +32,7 @@
 #include <smpl/heuristic/soft_bfs_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 SoftBfsHeuristic::SoftBfsHeuristic(
     EnvironmentROBARM3D* env,
@@ -141,5 +141,5 @@ void SoftBfsHeuristic::syncGridAndBfs()
     ROS_INFO("%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

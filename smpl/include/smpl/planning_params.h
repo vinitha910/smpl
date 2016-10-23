@@ -44,7 +44,7 @@
 #include <ros/ros.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 enum ShortcutType
 {
@@ -257,7 +257,7 @@ PlanningParameter::~PlanningParameter()
 }
 #endif
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

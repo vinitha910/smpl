@@ -42,7 +42,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class BFS_3D;
 
@@ -95,7 +95,7 @@ private:
     int combine_costs(int c1, int c2) const;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

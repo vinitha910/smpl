@@ -38,7 +38,7 @@
 #include <smpl/bfs3d/bfs3d.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 BfsHeuristic::BfsHeuristic(
     const RobotPlanningSpacePtr& ps,
@@ -253,5 +253,5 @@ int BfsHeuristic::getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const
     }
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

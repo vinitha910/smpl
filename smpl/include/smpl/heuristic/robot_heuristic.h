@@ -47,7 +47,7 @@
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class RobotHeuristic : public Heuristic, public RobotPlanningSpaceObserver
 {
@@ -95,7 +95,7 @@ private:
     const OccupancyGrid* m_grid;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

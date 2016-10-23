@@ -36,7 +36,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class EuclidDistHeuristic : public RobotHeuristic
 {
@@ -64,7 +64,7 @@ private:
     PointProjectionExtension* m_pp;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

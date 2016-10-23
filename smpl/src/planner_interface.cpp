@@ -57,7 +57,7 @@
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 const char* PI_LOGGER = "simple";
 
@@ -1040,20 +1040,20 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
         for (auto ait = manip_actions->begin(); ait != manip_actions->end(); ++ait) {
             ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_string(ait->type).c_str());
-            if (ait->type == sbpl::manip::MotionPrimitive::SNAP_TO_RPY) {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_RPY));
+            if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_RPY) {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY));
             }
-            else if (ait->type == sbpl::manip::MotionPrimitive::SNAP_TO_XYZ) {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ));
+            else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ));
             }
-            else if (ait->type == sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY) {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY));
+            else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) {
+                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY));
             }
-            else if (ait->type == sbpl::manip::MotionPrimitive::LONG_DISTANCE ||
-                ait->type == sbpl::manip::MotionPrimitive::SHORT_DISTANCE)
+            else if (ait->type == sbpl::motion::MotionPrimitive::LONG_DISTANCE ||
+                ait->type == sbpl::motion::MotionPrimitive::SHORT_DISTANCE)
             {
                 ROS_DEBUG_NAMED(PI_LOGGER, "    action: %s", to_string(ait->action).c_str());
             }
@@ -1301,5 +1301,5 @@ void PlannerInterface::visualizePath(
     SV_SHOW_INFO(getCollisionModelTrajectoryVisualization(traj_start, traj));
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

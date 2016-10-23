@@ -42,7 +42,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class BFS_3D;
 
@@ -84,7 +84,7 @@ private:
     int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

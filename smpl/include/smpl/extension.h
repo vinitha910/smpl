@@ -35,7 +35,7 @@
 #include <typeinfo>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 template <typename T>
 size_t GetClassCode()
@@ -59,7 +59,7 @@ public:
     virtual Extension* getExtension(size_t class_code) = 0;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

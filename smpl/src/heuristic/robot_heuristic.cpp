@@ -32,7 +32,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 RobotHeuristic::RobotHeuristic(
     const RobotPlanningSpacePtr& pspace,
@@ -56,5 +56,5 @@ bool RobotHeuristic::setGoal(const GoalConstraint& goal)
     return true;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

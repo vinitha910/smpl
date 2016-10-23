@@ -42,7 +42,7 @@
 using namespace std;
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 KDLRobotModel::KDLRobotModel() :
     initialized_(false),
@@ -578,5 +578,5 @@ bool KDLRobotModel::getCount(
     }
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

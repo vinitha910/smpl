@@ -34,7 +34,7 @@
 #include <cmath>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 JointDistHeuristic::JointDistHeuristic(
     const RobotPlanningSpacePtr& ps,
@@ -87,5 +87,5 @@ int JointDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
     return 0;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

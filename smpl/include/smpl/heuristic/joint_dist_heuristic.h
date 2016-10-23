@@ -36,7 +36,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class JointDistHeuristic : public RobotHeuristic
 {
@@ -64,7 +64,7 @@ private:
     ExtractRobotStateExtension* m_ers;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

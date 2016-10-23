@@ -43,7 +43,7 @@
 #include <smpl/extension.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 /// \brief The root interface defining the basic requirements for a robot model
 class RobotModel : public Extension
@@ -186,7 +186,7 @@ private:
     RobotModel* m_parent;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

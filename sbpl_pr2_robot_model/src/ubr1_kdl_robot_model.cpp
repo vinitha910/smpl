@@ -38,7 +38,7 @@
 using namespace std;
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 UBR1KDLRobotModel::UBR1KDLRobotModel() :
     rpy_solver_(NULL)
@@ -135,5 +135,5 @@ bool UBR1KDLRobotModel::computeIK(
     return true;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

@@ -40,7 +40,7 @@
 using namespace std;
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 PR2KDLRobotModel::PR2KDLRobotModel() :
     pr2_ik_solver_(NULL),
@@ -318,5 +318,5 @@ void PR2KDLRobotModel::printRobotModelInformation()
     }
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

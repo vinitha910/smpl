@@ -37,7 +37,7 @@
 #include <leatherman/print.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 const std::string PlanningParams::DefaultRobotModelLog = "robot";
 const std::string PlanningParams::DefaultGraphLog = "graph";
@@ -120,5 +120,5 @@ void PlanningParams::printParams(const std::string& stream) const
     ROS_INFO_NAMED(stream, " ");
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

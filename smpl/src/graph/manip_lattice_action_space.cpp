@@ -46,7 +46,7 @@
 #define VERIFY_KINEMATICS 0
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 // Action Set File Format
 
@@ -421,14 +421,14 @@ bool ManipLatticeActionSpace::getAction(
 
 bool ManipLatticeActionSpace::readParameters(const PlanningParams& p)
 {
-    useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ, p.use_xyz_snap_mprim);
-    useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_RPY, p.use_rpy_snap_mprim);
-    useAmp(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY, p.use_xyzrpy_snap_mprim);
-    useAmp(sbpl::manip::MotionPrimitive::SHORT_DISTANCE, p.use_short_dist_mprims);
-    ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ, p.xyz_snap_thresh);
-    ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_RPY, p.rpy_snap_thresh);
-    ampThresh(sbpl::manip::MotionPrimitive::SNAP_TO_XYZ_RPY, p.xyzrpy_snap_thresh);
-    ampThresh(sbpl::manip::MotionPrimitive::SHORT_DISTANCE, p.short_dist_mprims_thresh);
+    useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ, p.use_xyz_snap_mprim);
+    useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY, p.use_rpy_snap_mprim);
+    useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY, p.use_xyzrpy_snap_mprim);
+    useAmp(sbpl::motion::MotionPrimitive::SHORT_DISTANCE, p.use_short_dist_mprims);
+    ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ, p.xyz_snap_thresh);
+    ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY, p.rpy_snap_thresh);
+    ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY, p.xyzrpy_snap_thresh);
+    ampThresh(sbpl::motion::MotionPrimitive::SHORT_DISTANCE, p.short_dist_mprims_thresh);
     return true;
 }
 
@@ -508,5 +508,5 @@ bool ManipLatticeActionSpace::mprimActive(
     }
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

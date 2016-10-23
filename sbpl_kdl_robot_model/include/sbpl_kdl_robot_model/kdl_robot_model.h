@@ -52,7 +52,7 @@
 #include <urdf/model.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class KDLRobotModel : public RobotModel
 {
@@ -203,7 +203,7 @@ protected:
     bool getCount(int& count, const int& max_count, const int& min_count);
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

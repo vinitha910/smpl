@@ -33,7 +33,7 @@
 #include <smpl/bfs3d/bfs3d.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 BFS_3D::BFS_3D(int width, int height, int length) :
     m_search_thread(),
@@ -597,5 +597,5 @@ void BFS_3D::search(
 
 #undef EXPAND_NEIGHBOR_FRONTIER
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

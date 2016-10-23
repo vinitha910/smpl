@@ -3,7 +3,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 RobotPlanningSpace::RobotPlanningSpace(
     RobotModel* robot,
@@ -160,5 +160,5 @@ int RobotPlanningSpace::GetTrueCost(int parent_id, int child_id)
     return costs[std::distance(succs.begin(), sit)];
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

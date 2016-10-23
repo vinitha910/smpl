@@ -62,7 +62,7 @@ SBPL_CLASS_FORWARD(Heuristic);
 SBPL_CLASS_FORWARD(SBPLPlanner);
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class ManipLattice;
 
@@ -218,7 +218,7 @@ protected:
         const moveit_msgs::RobotTrajectory& traj) const;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

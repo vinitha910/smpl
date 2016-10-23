@@ -44,7 +44,7 @@
 #include <smpl/angles.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 double distance(
     const RobotModel& robot,
@@ -581,5 +581,5 @@ bool InterpolateTrajectory(
     return true;
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

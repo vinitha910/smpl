@@ -43,7 +43,7 @@ int main(int argc, char **argv)
   sleep(1);
   ros::spinOnce();
 
-  sbpl::manip::KDLRobotModel rm("torso_lift_link", "r_gripper_palm_link");
+  sbpl::motion::KDLRobotModel rm("torso_lift_link", "r_gripper_palm_link");
 
   std::string urdf;
   nh.param<std::string>("robot_description", urdf, " ");

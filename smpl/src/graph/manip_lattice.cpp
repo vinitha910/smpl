@@ -46,7 +46,7 @@
 #include <smpl/debug/visualize.h>
 #include "../profiling.h"
 
-auto std::hash<sbpl::manip::ManipLatticeState>::operator()(
+auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -55,7 +55,7 @@ auto std::hash<sbpl::manip::ManipLatticeState>::operator()(
 }
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 ManipLattice::ManipLattice(
     RobotModel* robot_model,
@@ -1260,5 +1260,5 @@ void ManipLattice::anglesToCoord(
     }
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

@@ -36,7 +36,7 @@
 #include <smpl/graph/robot_planning_space_observer.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 SBPL_CLASS_FORWARD(RobotPlanningSpace);
 
@@ -59,7 +59,7 @@ private:
     RobotPlanningSpacePtr m_pspace;
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif

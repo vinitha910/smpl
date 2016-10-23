@@ -2,7 +2,7 @@
 #define sbpl_manip_cost_function_h
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 class CostFunction
 {
@@ -16,6 +16,6 @@ public:
 private:
 };
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 #endif

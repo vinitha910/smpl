@@ -36,7 +36,7 @@
 #include <ros/console.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 CollisionChecker::CollisionChecker()
 {
@@ -61,5 +61,5 @@ visualization_msgs::MarkerArray CollisionChecker::getVisualization(
     return visualization_msgs::MarkerArray();
 }
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl

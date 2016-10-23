@@ -46,7 +46,7 @@
 #include <smpl/types.h>
 
 namespace sbpl {
-namespace manip {
+namespace motion {
 
 void ShortcutPath(
     RobotModel* rm,
@@ -87,7 +87,7 @@ bool ComputePositionVelocityPathCosts(
     const std::vector<RobotState>& pv_path,
     std::vector<double>& costs);
 
-} // namespace manip
+} // namespace motion
 } // namespace sbpl
 
 #endif
