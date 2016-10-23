@@ -481,7 +481,7 @@ bool CollisionSpace::collisionDetails(
 }
 
 bool CollisionSpace::isStateValid(
-    const std::vector<double>& state,
+    const motion::RobotState& state,
     bool verbose,
     bool visualize,
     double& dist)
@@ -491,8 +491,8 @@ bool CollisionSpace::isStateValid(
 }
 
 bool CollisionSpace::isStateToStateValid(
-    const std::vector<double>& start,
-    const std::vector<double>& finish,
+    const motion::RobotState& start,
+    const motion::RobotState& finish,
     int& path_length,
     int& num_checks,
     double &dist)
@@ -501,9 +501,9 @@ bool CollisionSpace::isStateToStateValid(
 
     int inc_cc = 5;
     double dist_temp = 0;
-    std::vector<double> start_norm(start);
-    std::vector<double> end_norm(finish);
-    std::vector<std::vector<double>> path;
+    motion::RobotState start_norm(start);
+    motion::RobotState end_norm(finish);
+    std::vector<motion::RobotState> path;
     dist = 100;
     num_checks = 0;
 
@@ -558,9 +558,9 @@ bool CollisionSpace::isStateToStateValid(
 }
 
 bool CollisionSpace::interpolatePath(
-    const std::vector<double>& start,
-    const std::vector<double>& finish,
-    std::vector<std::vector<double>>& opath)
+    const motion::RobotState& start,
+    const motion::RobotState& finish,
+    std::vector<motion::RobotState>& opath)
 {
     assert(start.size() == m_planning_joint_to_collision_model_indices.size() &&
             finish.size() == m_planning_joint_to_collision_model_indices.size());
@@ -593,9 +593,9 @@ bool CollisionSpace::interpolatePath(
     waypoint_count = std::max(waypoint_count, 2);
 
     // fill intermediate waypoints
-    std::vector<std::vector<double>> path(
+    std::vector<motion::RobotState> path(
             waypoint_count,
-            std::vector<double>(planningVariableCount(), 0.0));
+            motion::RobotState(planningVariableCount(), 0.0));
     for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
         for (size_t widx = 0; widx < waypoint_count; ++widx) {
             double alpha = (double)widx / (double)(waypoint_count - 1);
@@ -618,7 +618,7 @@ bool CollisionSpace::interpolatePath(
 }
 
 visualization_msgs::MarkerArray
-CollisionSpace::getCollisionModelVisualization(const std::vector<double>& vals)
+CollisionSpace::getCollisionModelVisualization(const motion::RobotState& vals)
 {
     return getCollisionRobotVisualization(vals);
 }
@@ -644,8 +644,7 @@ CollisionSpace::getCollisionModelVisualization(const std::vector<double>& vals)
 /// \param type The type of visualization to get
 /// \return The visualization
 visualization_msgs::MarkerArray
-CollisionSpace::getVisualization(
-    const std::string& type)
+CollisionSpace::getVisualization(const std::string& type)
 {
     if (type == "world") {
         return getWorldVisualization();

@@ -158,28 +158,28 @@ public:
     /// \name Reimplemented Public Functions
     ///@{
     bool isStateValid(
-        const std::vector<double>& state,
+        const motion::RobotState& state,
         bool verbose,
         bool visualize,
         double& dist) override;
 
     bool isStateToStateValid(
-        const std::vector<double>& start,
-        const std::vector<double>& finish,
+        const motion::RobotState& start,
+        const motion::RobotState& finish,
         int& path_length,
         int& num_checks,
         double& dist) override;
 
     bool interpolatePath(
-        const std::vector<double>& start,
-        const std::vector<double>& finish,
-        std::vector<std::vector<double>>& path) override;
+        const motion::RobotState& start,
+        const motion::RobotState& finish,
+        std::vector<motion::RobotState>& path) override;
 
-    visualization_msgs::MarkerArray getCollisionModelVisualization(
-        const std::vector<double>& vals) override;
+    visualization_msgs::MarkerArray
+    getCollisionModelVisualization(const motion::RobotState& vals) override;
 
-    visualization_msgs::MarkerArray getVisualization(
-        const std::string& type) override;
+    visualization_msgs::MarkerArray
+    getVisualization(const std::string& type) override;
     ///@}
 
 private:

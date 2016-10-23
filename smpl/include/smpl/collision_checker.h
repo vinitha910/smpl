@@ -96,12 +96,12 @@ public:
     virtual bool interpolatePath(
         const RobotState& start,
         const RobotState& finish,
-        std::vector<std::vector<double>>& path) = 0;
+        std::vector<RobotState>& path) = 0;
 
     /// \name Visualization
     ///@{
     virtual visualization_msgs::MarkerArray getCollisionModelVisualization(
-        const std::vector<double>& angles);
+        const RobotState& state);
 
     virtual visualization_msgs::MarkerArray getVisualization(
         const std::string& type);

@@ -131,8 +131,7 @@ public:
     double getGoalDistance(double x, double y, double z);
     double getGoalDistance(const std::vector<double>& pose);
 
-    virtual void getExpandedStates(
-        std::vector<std::vector<double>>& ara_states) const;
+    virtual void getExpandedStates(std::vector<RobotState>& states) const;
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{

@@ -847,20 +847,15 @@ void ManipLattice::printJointArray(
     }
 }
 
-void ManipLattice::getExpandedStates(
-    std::vector<std::vector<double>>& states) const
+void ManipLattice::getExpandedStates(std::vector<RobotState>& states) const
 {
-    std::vector<double> angles(robot()->jointVariableCount(),0);
-    std::vector<double> state(7, 0); // { x, y, z, r, p, y, heur }
+    RobotState state(robot()->jointVariableCount(), 0);
 
     for (size_t i = 0; i < m_expanded_states.size(); ++i) {
-        if (!StateID2Angles(m_expanded_states[i], angles)) {
+        if (!StateID2Angles(m_expanded_states[i], state)) {
             continue;
         }
-        computePlanningFrameFK(angles, state);
-        state[6] = 0.0;
         states.push_back(state);
-        ROS_DEBUG_NAMED(params()->graph_log, "[%d] id: %d  xyz: %s", int(i), m_expanded_states[i], to_string(state).c_str());
     }
 }
 
@@ -1201,7 +1196,7 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 
 bool ManipLattice::StateID2Angles(
     int stateID,
-    std::vector<double>& angles) const
+    RobotState& state) const
 {
     if (stateID < 0 || stateID >= m_states.size()) {
         return false;
@@ -1214,7 +1209,7 @@ bool ManipLattice::StateID2Angles(
     ManipLatticeState* entry = m_states[stateID];
     assert(entry);
 
-    angles = entry->state;
+    state = entry->state;
     return true;
 }
 
