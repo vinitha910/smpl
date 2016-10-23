@@ -40,7 +40,7 @@
 // system includes
 #include <moveit_msgs/CollisionObject.h>
 #include <octomap_msgs/OctomapWithPose.h>
-#include <sbpl_arm_planner/occupancy_grid.h>
+#include <smpl/occupancy_grid.h>
 #include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 

@@ -10,7 +10,7 @@ find_package(catkin
         angles
         leatherman
         roscpp
-        sbpl_arm_planner
+        smpl
         sbpl_geometry_utils
         urdf)
 
@@ -25,7 +25,7 @@ catkin_package(
         angles
         leatherman
         roscpp
-        sbpl_arm_planner
+        smpl
         sbpl_geometry_utils
         urdf
     DEPENDS

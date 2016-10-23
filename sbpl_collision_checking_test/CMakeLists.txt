@@ -12,7 +12,7 @@ find_package(catkin
         leatherman
         moveit_msgs
         roscpp
-        sbpl_arm_planner
+        smpl
         sbpl_collision_checking
         urdf
         visualization_msgs)

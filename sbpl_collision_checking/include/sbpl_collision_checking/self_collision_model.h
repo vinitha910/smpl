@@ -37,8 +37,8 @@
 #include <string>
 
 // system includes
-#include <sbpl_arm_planner/forward.h>
-#include <sbpl_arm_planner/occupancy_grid.h>
+#include <smpl/forward.h>
+#include <smpl/occupancy_grid.h>
 
 // project includes
 #include <sbpl_collision_checking/allowed_collisions_interface.h>

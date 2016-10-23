@@ -48,7 +48,7 @@
 #include <kdl/jntarray.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <ros/console.h>
-#include <sbpl_arm_planner/robot_model.h>
+#include <smpl/robot_model.h>
 #include <urdf/model.h>
 
 namespace sbpl {

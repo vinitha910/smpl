@@ -37,7 +37,7 @@
 #include <geometry_msgs/Transform.h>
 #include <ros/ros.h>
 #include <moveit_msgs/PlanningScene.h>
-#include <sbpl_arm_planner/occupancy_grid.h>
+#include <smpl/occupancy_grid.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <visualization_msgs/MarkerArray.h>
 

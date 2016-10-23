@@ -19,7 +19,7 @@ find_package(catkin
         moveit_msgs
         octomap_msgs
         roscpp
-        sbpl_arm_planner
+        smpl
         sbpl_geometry_utils
         sensor_msgs
         shape_msgs
@@ -45,7 +45,7 @@ catkin_package(
         moveit_msgs
         octomap_msgs
         roscpp
-        sbpl_arm_planner
+        smpl
         sbpl_geometry_utils
         sensor_msgs
         shape_msgs

@@ -1,0 +1,17 @@
+<launch>
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
+
+    <node pkg="smpl_test" type="callPlanner" name="call_planner" output="screen">
+        <!-- robot -->
+        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
+        <rosparam command="load" file="$(find sbpl_collision_checking)/config/pr2_right_arm_model.yaml"/>
+        <param name="action_set_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+
+        <!-- scene -->
+        <param name="object_filename" value="$(find smpl_test)/env/tabletop.env"/>
+
+        <!-- scenario -->
+        <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
+    </node>
+</launch>
+

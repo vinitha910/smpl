@@ -112,7 +112,7 @@ bool TestSBPLCollisionSpace::init()
   ROS_INFO("[test] Initializing the collision space for the %s.", arm_name_.c_str());
   cspace_->init(arm_name_);
 
-  aviz_ = new sbpl_arm_planner::VisualizeArm(arm_name_);
+  aviz_ = new smpl::VisualizeArm(arm_name_);
   aviz_->setReferenceFrame(reference_frame_);
 
   collision_map_filter_ = new tf::MessageFilter<moveit_msgs::CollisionMap>(collision_map_subscriber_,tf_,reference_frame_,1);

@@ -34,7 +34,7 @@
 
 // system includes
 #include <ros/console.h>
-#include <sbpl_arm_planner/occupancy_grid.h>
+#include <smpl/occupancy_grid.h>
 
 // project includes
 #include <sbpl_collision_checking/robot_collision_state.h>

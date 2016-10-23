@@ -49,7 +49,7 @@
 #include <moveit_msgs/CollisionObject.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 #include <ros/ros.h>
-#include <sbpl_arm_planner/occupancy_grid.h>
+#include <smpl/occupancy_grid.h>
 #include <tf/message_filter.h>
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
@@ -127,7 +127,7 @@ private:
     double resolution_;
     CollisionSpace* cspace_;
     OccupancyGrid* grid_;
-    sbpl_arm_planner::VisualizeArm* aviz_;
+    smpl::VisualizeArm* aviz_;
     KDL::Frame kdl_transform_;
 
     boost::mutex colmap_mutex_;
