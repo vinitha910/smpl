@@ -144,6 +144,8 @@ public:
     size_t voxelsModelCount() const;
     auto   voxelsModel(int vmidx) const -> const CollisionVoxelsModel&;
 
+    int    linkSpheresModelIndex(int lidx) const;
+
     size_t groupCount() const;
     auto   group(int gidx) const -> const CollisionGroupModel&;
     bool   hasGroup(const std::string& group_name) const;
@@ -536,6 +538,17 @@ const CollisionVoxelsModel& RobotCollisionModel::voxelsModel(int vmidx) const
     return m_voxels_models[vmidx];
 }
 
+inline
+int RobotCollisionModel::linkSpheresModelIndex(int lidx) const
+{
+    ASSERT_VECTOR_RANGE(m_link_spheres_states, lidx);
+    const CollisionSpheresModel* ss = m_link_spheres_models[lidx];
+    if (ss) {
+        return std::distance(m_spheres_models.data(), ss);
+    } else {
+        return -1;
+    }
+}
 inline
 size_t RobotCollisionModel::groupCount() const
 {
