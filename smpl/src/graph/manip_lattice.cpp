@@ -42,7 +42,6 @@
 
 #include <smpl/angles.h>
 #include <smpl/heuristic/robot_heuristic.h>
-#define SBPL_VISUALIZE_MIN_SEVERITY SBPL_VISUALIZE_SEVERITY_INFO
 #include <smpl/debug/visualize.h>
 #include "../profiling.h"
 
