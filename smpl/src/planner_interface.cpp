@@ -69,6 +69,7 @@ PlannerInterface::PlannerInterface(
     m_robot(robot),
     m_checker(checker),
     m_grid(grid),
+    m_fk_iface(nullptr),
     m_params(),
     m_initialized(false),
     m_pspace(),
@@ -81,6 +82,9 @@ PlannerInterface::PlannerInterface(
     m_req(),
     m_res()
 {
+    if (m_robot) {
+        m_fk_iface = m_robot->getExtension<ForwardKinematicsInterface>();
+    }
 }
 
 PlannerInterface::~PlannerInterface()
@@ -346,8 +350,13 @@ bool PlannerInterface::setGoalConfiguration(
     goal.angle_tolerances = sbpl_angle_tolerance;
 
     // TODO: really need to reevaluate the necessity of the planning link
-    goal.pose.resize(6, 0.0);
-    goal.tgt_off_pose.resize(6, 0.0);
+    if (m_fk_iface) {
+        m_fk_iface->computePlanningLinkFK(goal.angles, goal.pose);
+        goal.tgt_off_pose = goal.pose;
+    } else {
+        goal.pose.resize(6, 0.0);
+        goal.tgt_off_pose.resize(6, 0.0);
+    }
 
     // set sbpl environment goal
     if (!m_pspace->setGoal(goal)) {

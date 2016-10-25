@@ -129,6 +129,8 @@ protected:
     CollisionChecker* m_checker;
     OccupancyGrid* m_grid;
 
+    ForwardKinematicsInterface* m_fk_iface;
+
     PlanningParams m_params;
 
     // params

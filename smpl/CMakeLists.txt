@@ -73,10 +73,7 @@ add_library(
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp)
 
-target_link_libraries(
-    smpl
-    ${catkin_LIBRARIES}
-    ${sbpl_LIBRARIES})
+target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})
 
 install(
     TARGETS smpl
