@@ -4,9 +4,9 @@
 
 A set of packages implementing sbpl algorithms for generic robotic motion planning. Includes the following packages:
 
-* sbpl_arm_planner - Provides a library of discrete graph representations of robot configuration spaces, heuristics defined over those representations, and an interface to cleanly integrate them into the sbpl planning framework. Also provides library interfaces to extend the framework to use arbitrary robot representations and collision checking.
-* sbpl_arm_planner_test - Provides self-contained examples to illustrate usage of the interfaces provided in the sbpl_arm_planner package.
-* sbpl_collision_checking - Provides a library for collision checking of robot states against themselves and the environment using an approximate model implemented as a hierarchy of bounding spheres. Implements the collision checking interface defined in the sbpl_arm_planner package.
+* smpl - Provides a library of discrete graph representations of robot configuration spaces, heuristics defined over those representations, and an interface to cleanly integrate them into the sbpl planning framework. Also provides library interfaces to extend the framework to use arbitrary robot representations and collision checking.
+* smpl_test - Provides self-contained examples to illustrate usage of the interfaces provided in the smpl package.
+* sbpl_collision_checking - Provides a library for collision checking of robot states against themselves and the environment using an approximate model implemented as a hierarchy of bounding spheres. Implements the collision checking interface defined in the smpl package.
 * sbpl_kdl_robot_model - Provides a library for integration of robot models, specified via URDF, with kinematics implemented using the KDL library.
 * sbpl_pr2_robot_model - Provides a library for integration of the PR2 and UBR1 robot models, specified via URDF, with kinematics implemented using custom analytical IK solvers.
 
@@ -32,8 +32,8 @@ sbpl_manipulation requires the latest sbpl to be installed. Because of catkin's 
 
 ### Install additional dependencies via rosdep
 
-	rosdep install -i -y sbpl_arm_planner
-	rosdep install -i -y sbpl_arm_planner_test
+	rosdep install -i -y smpl
+	rosdep install -i -y smpl_test
 	rosdep install -i -y sbpl_collision_checking
 	rosdep install -i -y sbpl_collision_checking_test
 	rosdep install -i -y sbpl_kdl_robot_model
