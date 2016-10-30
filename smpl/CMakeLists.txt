@@ -54,6 +54,7 @@ include_directories(include)
 add_library(
     smpl
     src/bfs3d.cpp
+    src/csv_parser.cpp
     src/planner_interface.cpp
     src/collision_checker.cpp
     src/occupancy_grid.cpp
@@ -68,6 +69,7 @@ add_library(
     src/graph/robot_planning_space.cpp
     src/graph/workspace_lattice.cpp
     src/heuristic/bfs_heuristic.cpp
+    src/heuristic/egraph_bfs_heuristic.cpp
     src/heuristic/euclid_dist_heuristic.cpp
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
