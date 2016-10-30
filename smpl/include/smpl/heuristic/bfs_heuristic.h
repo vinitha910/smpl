@@ -50,7 +50,9 @@ class BfsHeuristic : public RobotHeuristic
 {
 public:
 
-    BfsHeuristic(const RobotPlanningSpacePtr& pspace, const OccupancyGrid* grid);
+    BfsHeuristic(
+        const RobotPlanningSpacePtr& pspace,
+        const OccupancyGrid* grid);
 
     virtual ~BfsHeuristic();
 
