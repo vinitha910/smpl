@@ -31,6 +31,9 @@
 
 #include <smpl/csv_parser.h>
 
+// standard includes
+#include <stdexcept>
+
 #define CSV_DEBUG 0
 #if CSV_DEBUG
 #include <ros/console.h>
@@ -40,16 +43,6 @@
 #endif
 
 namespace sbpl {
-
-bool CSVParser::parseFile(const std::string& path, bool has_header)
-{
-    return false;
-}
-
-bool CSVParser::parseFile(FILE* f, bool has_header)
-{
-    return false;
-}
 
 bool CSVParser::parseStream(std::istream& s, bool has_header)
 {
@@ -102,6 +95,22 @@ bool CSVParser::parseStream(std::istream& s, bool has_header)
 
     m_field_count = fields_per_record;
     return true;
+}
+
+const std::string& CSVParser::nameAt(size_t ni) const
+{
+    if (!m_has_header) {
+        throw std::out_of_range("Invalid index for csv header name");
+    }
+    return m_fields[ni];
+}
+
+const std::string& CSVParser::fieldAt(size_t ri, size_t fi) const
+{
+    if ((ri + 1) * m_field_count + fi >= m_fields.size()) {
+        throw std::out_of_range("Invalid indices for csv field");
+    }
+    return m_fields[(ri + 1) * m_field_count + fi];
 }
 
 bool CSVParser::parseRecord(

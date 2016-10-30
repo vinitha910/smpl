@@ -40,20 +40,24 @@ class CSVParser
 {
 public:
 
-    bool parseFile(const std::string& path, bool has_header = false);
-    bool parseFile(FILE* f, bool has_header = false);
-
     bool parseStream(std::istream& is, bool has_header = false);
 
-    bool hasHeader() const;
+    size_t fieldCount() const { return m_field_count; }
+    size_t recordCount() const { return m_fields.size() / m_field_count; }
 
-    size_t record_size() const { return m_field_count; }
-    const std::vector<std::string>& fields() const { return m_fields; }
+    size_t totalFieldCount() const { return m_fields.size() - m_field_count; }
+
+    bool hasHeader() const { return m_has_header; }
+    const std::string& nameAt(size_t ni) const;
+
+    const std::string& fieldAt(size_t ri, size_t fi) const;
 
 private:
 
     bool m_has_header;
     size_t m_field_count;
+
+    /// storage for all header names and fields
     std::vector<std::string> m_fields;
 
     bool parseRecord(
