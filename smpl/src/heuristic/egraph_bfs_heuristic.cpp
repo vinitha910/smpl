@@ -31,8 +31,8 @@
 
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
-// system includes
-#include <boost/regex.hpp>
+// project includes
+#include <smpl/csv_parser.h>
 
 namespace sbpl {
 namespace motion {
@@ -45,26 +45,75 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     m_pp(nullptr)
 {
     m_pp = ps->getExtension<PointProjectionExtension>();
+    m_num_cells_x = grid->numCellsX() + 2;
+    m_num_cells_y = grid->numCellsY() + 2;
+    m_num_cells_z = grid->numCellsZ() + 2;
+    const int num_cells = m_num_cells_x * m_num_cells_y * m_num_cells_z;
+    m_dist_grid.resize(num_cells);
+
+    auto add_wall = [&](int x, int y, int z) {
+        m_dist_grid[cellToIndex(x, y, z)] = std::numeric_limits<int>::max();
+    };
+
+    for (int y = 0; y < m_num_cells_y; ++y) {
+        for (int z = 0; z < m_num_cells_z; ++z) {
+            add_wall(0, y, z);
+            add_wall(m_num_cells_x - 1, y, z);
+        }
+    }
+    for (int x = 1; x < m_num_cells_x - 1; ++x) {
+        for (int z = 0; z < m_num_cells_z; ++z) {
+            add_wall(x, 0, z);
+            add_wall(x, m_num_cells_y - 1, z);
+        }
+    }
+    for (int x = 1; x < m_num_cells_x - 1; ++x) {
+        for (int y = 1; y < m_num_cells_y - 1; ++y) {
+            add_wall(x, y, 0);
+            add_wall(x, y, m_num_cells_z - 1);
+        }
+    }
 }
 
 bool EgraphBfsHeuristic::loadExperienceGraph(const std::string& path)
 {
     std::ifstream fin(path);
     if (!fin.is_open()) {
+        ROS_ERROR("Failed to open '%s' for reading", path.c_str());
         return false;
     }
 
-    std::string line;
-    std::getline(fin, line);
+    CSVParser parser;
+    const bool with_header = true;
+    if (!parser.parseStream(fin, with_header)) {
+        ROS_ERROR("Failed to parse experience graph file '%s'", path.c_str());
+        return false;
+    }
 
-    // The experience graphs file format is a csv format with the expected lines
-    // 1. optionally, the first line specifies the order of the joint variables
-    // listed on successive lines
-    // 2. if the joint variable line is not there, the joint variables are
-    // assumed to be in the order listed in the RobotModel
-    // 3. each successive line consists of a sequence of doubles
+    size_t jvar_count = planningSpace()->robot()->getPlanningJoints().size();
+    if (parser.fieldCount() != jvar_count) {
+        ROS_ERROR("Parsed experience graph contains insufficient number of joint variables");
+        return false;
+    }
 
-    planningSpace()->robot()->getPlanningJoints();
+    std::vector<double> egraph_states;
+    egraph_states.reserve(parser.totalFieldCount());
+    for (size_t i = 0; i < parser.recordCount(); ++i) {
+        for (size_t j = 0; j < parser.fieldCount(); ++j) {
+            try {
+                double var = std::stod(parser.fieldAt(i, j));
+                egraph_states.push_back(var);
+            } catch (const std::invalid_argument& ex) {
+                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
+                return false;
+            } catch (const std::out_of_range& ex) {
+                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
+                return false;
+            }
+        }
+    }
+
+//    m_pp->projectToPoint();
 
     return true;
 }
@@ -96,6 +145,12 @@ int EgraphBfsHeuristic::GetStartHeuristic(int state_id)
 int EgraphBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
     return 0;
+}
+
+inline
+int EgraphBfsHeuristic::cellToIndex(int x, int y, int z) const
+{
+    return x * m_num_cells_y * m_num_cells_z + y * m_num_cells_z + z;
 }
 
 } // namespace motion

@@ -32,6 +32,10 @@
 #ifndef SMPL_EGRAPH_BFS_HEURISTIC_H
 #define SMPL_EGRAPH_BFS_HEURISTIC_H
 
+// standard includes
+#include <vector>
+
+// project includes
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
@@ -67,7 +71,14 @@ public:
 
 private:
 
+    int m_num_cells_x;
+    int m_num_cells_y;
+    int m_num_cells_z;
+    std::vector<int> m_dist_grid;
+
     PointProjectionExtension* m_pp;
+
+    int cellToIndex(int x, int y, int z) const;
 };
 
 } // namespace motion
