@@ -22,9 +22,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    for (size_t j = 0; j < parser.fields().size() / parser.record_size(); ++j) {
-        for (size_t i = 0; i < parser.record_size(); ++i) {
-            std::cout << parser.fields()[j * parser.record_size() + i] << ", ";
+    for (size_t i = 0; i < parser.recordCount(); ++i) {
+        for (size_t j = 0; j < parser.fieldCount(); ++j) {
+            std::cout << parser.fieldAt(i, j) << ", ";
         }
         std::cout << '\n';
     }
