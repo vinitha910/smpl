@@ -48,7 +48,8 @@ private:
 
     int m_heap_index;
 
-    template <typename Compare> friend class intrusive_heap<Compare>;
+    template <typename Compare>
+    friend class intrusive_heap;
 };
 
 template <typename Compare>
@@ -70,8 +71,6 @@ public:
     intrusive_heap(const intrusive_heap&) = delete;
     intrusive_heap(intrusive_heap&& o);
 
-    ~intrusive_heap();
-
     intrusive_heap& operator=(const intrusive_heap&) = delete;
     intrusive_heap& operator=(intrusive_heap&& rhs);
 
@@ -86,7 +85,7 @@ public:
     void reserve(size_type new_cap);
 
     void clear();
-    heap_element* push(heap_element* e);
+    void push(heap_element* e);
     void pop();
     bool contains(heap_element* e);
     void update(heap_element* e);
@@ -110,8 +109,15 @@ private:
         const container_type& elements,
         size_type root, size_type start, size_type end);
 
+    size_type parent(size_type index) const;
     size_type right_child(size_type index) const;
     size_type left_child(size_type index) const;
+
+    void percolate_down(size_type pivot);
+    void percolate_up(size_type pivot);
+
+    bool is_internal(size_type index) const;
+    bool is_external(size_type index) const;
 };
 
 } // namespace sbpl
