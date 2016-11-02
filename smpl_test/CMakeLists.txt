@@ -4,7 +4,7 @@ project(smpl_test)
 set(CMAKE_BUILD_TYPE Release)
 list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
 find_package(catkin
     REQUIRED
@@ -45,7 +45,7 @@ add_executable(csv_parser_test src/csv_parser_test.cpp)
 target_link_libraries(csv_parser_test ${catkin_LIBRARIES})
 
 add_executable(heap_test src/heap_test.cpp)
-target_link_libraries(heap_test ${catkin_LIBRARIES})
+target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
 install(
     TARGETS callPlanner
