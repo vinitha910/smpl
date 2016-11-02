@@ -65,10 +65,16 @@ public:
     typedef container_type::iterator iterator;
     typedef container_type::const_iterator const_iterator;
 
-    intrusive_heap(
-        const compare& comp = compare(),
-        const container_type& elements = container_type());
+    intrusive_heap(const compare& comp = compare());
+
+    template <typename InputIt>
+    intrusive_heap(InputIt first, InputIt last);
+
+    template <typename InputIt>
+    intrusive_heap(const compare& comp, InputIt first, InputIt last);
+
     intrusive_heap(const intrusive_heap&) = delete;
+
     intrusive_heap(intrusive_heap&& o);
 
     intrusive_heap& operator=(const intrusive_heap&) = delete;
@@ -93,6 +99,8 @@ public:
     void decrease(heap_element* e);
     void erase(heap_element* e);
 
+    void make();
+
     void swap(intrusive_heap& o);
 
 private:
@@ -104,10 +112,11 @@ private:
     size_type ilog2(size_type i);
     bool ispow2(size_type val);
 
-    void make_heap(const container_type& elements);
-    void make_heap(
-        const container_type& elements,
-        size_type root, size_type start, size_type end);
+    template <typename InputIt>
+    void make_heap(InputIt first, InputIt last);
+
+    template <typename InputIt>
+    void make_heap(InputIt first, InputIt last, size_type root);
 
     size_type parent(size_type index) const;
     size_type right_child(size_type index) const;

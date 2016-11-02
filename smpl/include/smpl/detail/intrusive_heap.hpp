@@ -37,27 +37,49 @@
 namespace sbpl {
 
 template <typename Compare>
+intrusive_heap<Compare>::intrusive_heap(const compare& comp) :
+    m_data(1, nullptr),
+    m_comp(comp)
+{
+}
+
+template <typename Compare>
+template <typename InputIt>
 intrusive_heap<Compare>::intrusive_heap(
     const compare& comp,
-    const container_type& elements)
+    InputIt first,
+    InputIt last)
 :
     m_data(),
     m_comp(comp)
 {
-    make_heap(elements);
+    make_heap(first, last);
 }
 
 template <typename Compare>
-intrusive_heap<Compare>::intrusive_heap(intrusive_heap&& o)
+template <typename InputIt>
+intrusive_heap<Compare>::intrusive_heap(InputIt first, InputIt last) :
+    m_data(),
+    m_comp()
 {
-    // TODO: implement
+    make_heap(first, last);
+}
+
+template <typename Compare>
+intrusive_heap<Compare>::intrusive_heap(intrusive_heap&& o) :
+    m_data(std::move(o.m_data)),
+    m_comp(std::move(o.m_comp))
+{
 }
 
 template <typename Compare>
 intrusive_heap<Compare>&
 intrusive_heap<Compare>::operator=(intrusive_heap&& rhs)
 {
-    // TODO: implement
+    if (this != &rhs) {
+        m_data = std::move(rhs.m_data);
+        m_comp = std::move(rhs.m_comp);
+    }
     return *this;
 }
 
@@ -113,7 +135,7 @@ void intrusive_heap<Compare>::clear()
     for (size_t i = 1; i < m_data.size(); ++i) {
         m_data[i]->m_heap_index = 0;
     }
-    make_heap({});
+    m_data.resize(1);
 }
 
 template <typename Compare>
@@ -127,11 +149,13 @@ void intrusive_heap<Compare>::push(heap_element* e)
 template <typename Compare>
 void intrusive_heap<Compare>::pop()
 {
-    m_data[1]->m_heap_index = 0;
-    m_data[1] = m_data.back();
-    m_data[1]->m_heap_index = 1;
-    m_data.pop_back();
-    percolate_down(1);
+    if (!empty()) {
+        m_data[1]->m_heap_index = 0;
+        m_data[1] = m_data.back();
+        m_data[1]->m_heap_index = 1;
+        m_data.pop_back();
+        percolate_down(1);
+    }
 }
 
 template <typename Compare>
@@ -171,6 +195,11 @@ void intrusive_heap<Compare>::erase(heap_element* e)
 }
 
 template <typename Compare>
+void intrusive_heap<Compare>::make()
+{
+}
+
+template <typename Compare>
 void intrusive_heap<Compare>::swap(intrusive_heap& o)
 {
     // TODO: implement
@@ -205,23 +234,30 @@ bool intrusive_heap<Compare>::ispow2(size_type val)
 }
 
 template <typename Compare>
-void intrusive_heap<Compare>::make_heap(const container_type& elements)
+template <typename InputIt>
+void intrusive_heap<Compare>::make_heap(InputIt first, InputIt last)
 {
-    m_data.resize(elements.size() + 1);
-    make_heap(elements, 1, 0, elements.size());
+    m_data.resize(std::distance(first, last) + 1);
+    make_heap(first, last, 1);
 }
 
 template <typename Compare>
+template <typename InputIt>
 void intrusive_heap<Compare>::make_heap(
-    const container_type& elements,
-    size_type root, size_type start, size_type end)
+    InputIt first,
+    InputIt last,
+    size_type root)
 {
-    const size_type n = end - start;
+    const size_type n = std::distance(first, last);
     if (n <= 0) {
         return;
     }
 
-    m_data[root] = elements[start];
+//    typedef typename std::iterator_traits<InputIt>::value_type pointer_type;
+//    typedef typename std::remove_pointer<pointer_type>::type derived_element;
+//    static_assert(std::is_base_of<heap_element, derived_element>::value, "Input element type must derive from sbpl::heap_element");
+
+    m_data[root] = *first;
     m_data[root]->m_heap_index = root;
 
     if (n == 1) {
@@ -236,11 +272,14 @@ void intrusive_heap<Compare>::make_heap(
     size_type l = f2 - 1 + std::min(n - 2 * f2 + 1, f2);
     size_type r = n - 1 - l;
 
-    size_type new_start = start + 1;
-    size_type mid = new_start + l;
+    InputIt new_start = first;
+    std::advance(new_start, 1);
 
-    make_heap(elements, left, new_start, mid);
-    make_heap(elements, right, mid, end);
+    InputIt mid = new_start;
+    std::advance(mid, l);
+
+    make_heap(new_start, mid, left);
+    make_heap(mid, last, right);
     percolate_down(root);
 }
 
