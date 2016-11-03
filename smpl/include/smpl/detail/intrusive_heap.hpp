@@ -197,6 +197,10 @@ void intrusive_heap<Compare>::erase(heap_element* e)
 template <typename Compare>
 void intrusive_heap<Compare>::make()
 {
+    auto b = m_data.begin();
+    ++b;
+    auto e = m_data.end();
+    make_heap(b, e, 1);
 }
 
 template <typename Compare>
@@ -252,10 +256,6 @@ void intrusive_heap<Compare>::make_heap(
     if (n <= 0) {
         return;
     }
-
-//    typedef typename std::iterator_traits<InputIt>::value_type pointer_type;
-//    typedef typename std::remove_pointer<pointer_type>::type derived_element;
-//    static_assert(std::is_base_of<heap_element, derived_element>::value, "Input element type must derive from sbpl::heap_element");
 
     m_data[root] = *first;
     m_data[root]->m_heap_index = root;
@@ -348,7 +348,7 @@ void intrusive_heap<Compare>::percolate_up(size_type pivot)
     heap_element* tmp = m_data[pivot];
     while (pivot != 1) {
         size_type p = parent(pivot);
-        if (m_comp(m_data[p]), tmp) {
+        if (m_comp(m_data[p], tmp)) {
             break;
         }
         m_data[pivot] = m_data[p];
