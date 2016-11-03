@@ -200,7 +200,7 @@ void intrusive_heap<Compare>::make()
     auto b = m_data.begin();
     ++b;
     auto e = m_data.end();
-    make_heap(b, e, 1);
+    make_heap(b, e);
 }
 
 template <typename Compare>
@@ -214,7 +214,15 @@ inline
 typename intrusive_heap<Compare>::size_type
 intrusive_heap<Compare>::ipow2(size_type exp)
 {
-    return (exp == 0) ? 1 : ((exp % 2) ? 2 : 1) * ipow2(exp >> 1) * ipow2(exp >> 1);
+    if (exp == 0) {
+        return 1;
+    }
+
+    size_type res = ipow2(exp >> 1) * ipow2(exp >> 1);
+    if (exp % 2) {
+        res *= 2;
+    }
+    return res;
 }
 
 template <typename Compare>
@@ -241,8 +249,13 @@ template <typename Compare>
 template <typename InputIt>
 void intrusive_heap<Compare>::make_heap(InputIt first, InputIt last)
 {
-    m_data.resize(std::distance(first, last) + 1);
-    make_heap(first, last, 1);
+    clear();
+    for (auto it = first; it != last; ++it) {
+        push(*it);
+    }
+
+//    m_data.resize(std::distance(first, last) + 1);
+//    make_heap(first, last, 1);
 }
 
 template <typename Compare>
@@ -252,11 +265,15 @@ void intrusive_heap<Compare>::make_heap(
     InputIt last,
     size_type root)
 {
-    const size_type n = std::distance(first, last);
+    const auto n = std::distance(first, last);
+    printf("make heap from %d elements from %zu\n", n, root);
+    print();
+
     if (n <= 0) {
         return;
     }
 
+    printf(" -> data[%zu] = %p\n", root, *first);
     m_data[root] = *first;
     m_data[root]->m_heap_index = root;
 
@@ -267,16 +284,13 @@ void intrusive_heap<Compare>::make_heap(
     const size_type left = left_child(root);
     const size_type right = right_child(root);
 
-    size_type f = ilog2(n) - 1;
+    auto f = ilog2(n) - 1;
     size_type f2 = ipow2(f);
     size_type l = f2 - 1 + std::min(n - 2 * f2 + 1, f2);
     size_type r = n - 1 - l;
 
-    InputIt new_start = first;
-    std::advance(new_start, 1);
-
-    InputIt mid = new_start;
-    std::advance(mid, l);
+    InputIt new_start = std::next(first);
+    InputIt mid = std::next(new_start, l);
 
     make_heap(new_start, mid, left);
     make_heap(mid, last, right);
@@ -318,8 +332,7 @@ void intrusive_heap<Compare>::percolate_down(size_type pivot)
     size_type left = left_child(pivot);
     size_type right = right_child(pivot);
 
-    size_type start = pivot;
-    heap_element* tmp = m_data[start];
+    heap_element* tmp = m_data[pivot];
     while (is_internal(left)) {
         size_type s = right;
         if (is_external(right) || m_comp(m_data[left], m_data[right])) {
@@ -371,6 +384,21 @@ inline
 bool intrusive_heap<Compare>::is_external(size_type index) const
 {
     return index >= m_data.size();
+}
+
+template <typename Compare>
+void intrusive_heap<Compare>::print() const
+{
+    printf("[ null, ");
+    for (int i = 1; i < m_data.size(); ++i) {
+        printf(" %p", m_data[i]);
+        if (i == m_data.size() - 1) {
+            printf(" ");
+        } else {
+            printf(", ");
+        }
+    }
+    printf("]\n");
 }
 
 } // namespace sbpl

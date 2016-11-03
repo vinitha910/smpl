@@ -362,8 +362,8 @@ BOOST_AUTO_TEST_CASE(MakeTest)
 
         bool operator()(const sbpl::heap_element* a, const sbpl::heap_element* b)
         {
-            return static_cast<const state*>(a)->g + *m_w * static_cast<const state*>(a)->h <
-                    static_cast<const state*>(b)->g + *m_w * static_cast<const state*>(b)->h;
+            return static_cast<const state*>(a)->g + (*m_w) * static_cast<const state*>(a)->h <
+                    static_cast<const state*>(b)->g + (*m_w) * static_cast<const state*>(b)->h;
         }
     };
 
@@ -401,6 +401,17 @@ BOOST_AUTO_TEST_CASE(MakeTest)
     // elements[3] =  2 + 3 * 3 = 11
     // elements[4] = 12 + 3 * 0 = 12
     open.make();
+
+//    int last_key = ((state*)open.min())->g + w * ((state*)open.min())->h;
+//    printf("%p\n", open.min());
+//    while (!open.empty()) {
+//        open.pop();
+//        printf("%p\n", open.min());
+//        int min_key = ((state*)open.min())->g + w * ((state*)open.min())->h;
+//        BOOST_CHECK(min_key >= last_key);
+//        printf("%d >= %d\n", min_key, last_key);
+//        last_key = min_key;
+//    }
 
     BOOST_CHECK(open.min() == &elements[3]);
     open.pop();

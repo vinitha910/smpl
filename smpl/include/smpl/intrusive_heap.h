@@ -127,6 +127,8 @@ private:
 
     bool is_internal(size_type index) const;
     bool is_external(size_type index) const;
+
+    void print() const;
 };
 
 } // namespace sbpl
