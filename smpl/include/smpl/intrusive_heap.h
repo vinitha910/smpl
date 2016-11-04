@@ -131,6 +131,9 @@ private:
     void print() const;
 };
 
+template <typename Compare>
+void swap(intrusive_heap<Compare>& lhs, intrusive_heap<Compare>& rhs);
+
 } // namespace sbpl
 
 #include "detail/intrusive_heap.hpp"

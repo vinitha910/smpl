@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #define BOOST_TEST_MODULE HeapTest
@@ -180,6 +181,16 @@ BOOST_AUTO_TEST_CASE(ElementConstructorTest)
     BOOST_CHECK(!h2.empty());
     BOOST_CHECK(h2.size() == std::distance(few_element_ptrs_begin, few_element_ptrs_end));
     BOOST_CHECK(h2.min() == &few_elements[3]);
+}
+
+BOOST_AUTO_TEST_CASE(MoveConstructorTest)
+{
+    BOOST_CHECK(false);
+}
+
+BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
+{
+    BOOST_CHECK(false);
 }
 
 BOOST_AUTO_TEST_CASE(PointerIteratorTest)
@@ -426,8 +437,45 @@ BOOST_AUTO_TEST_CASE(MakeTest)
     BOOST_CHECK(open.empty());
 }
 
-BOOST_AUTO_TEST_CASE(InvalidIteratorTest)
+BOOST_AUTO_TEST_CASE(UpdateTest)
 {
-    std::vector<int> ints;
-    *ints.end();
+    BOOST_CHECK(false);
+}
+
+BOOST_AUTO_TEST_CASE(IncreaseTest)
+{
+    BOOST_CHECK(false);
+}
+
+BOOST_AUTO_TEST_CASE(DecreaseTest)
+{
+    BOOST_CHECK(false);
+}
+
+BOOST_AUTO_TEST_CASE(IteratorTest)
+{
+    BOOST_CHECK(false);
+}
+
+BOOST_AUTO_TEST_CASE(SwapTest)
+{
+    boost::container::stable_vector<open_element> e1;
+    boost::container::stable_vector<open_element> e2;
+    e1.push_back(open_element(8));
+    e1.push_back(open_element(10));
+    e1.push_back(open_element(4));
+    e1.push_back(open_element(2));
+    e1.push_back(open_element(12));
+
+    e2.push_back(open_element(8));
+    e2.push_back(open_element(11));
+    e2.push_back(open_element(5));
+    e2.push_back(open_element(3));
+    e2.push_back(open_element(13));
+
+    heap_type h1(pointer_it(e1.begin()), pointer_it(e1.end()));
+    heap_type h2(pointer_it(e2.begin()), pointer_it(e2.end()));
+
+    swap(h1, h2);
+    BOOST_CHECK(false);
 }

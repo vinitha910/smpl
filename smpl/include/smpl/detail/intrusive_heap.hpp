@@ -205,7 +205,11 @@ void intrusive_heap<Compare>::make()
 template <typename Compare>
 void intrusive_heap<Compare>::swap(intrusive_heap& o)
 {
-    // TODO: implement
+    if (this != &o) {
+        using std::swap;
+        swap(m_data, o.m_data);
+        swap(m_comp, o.m_comp);
+    }
 }
 
 template <typename Compare>
@@ -401,6 +405,12 @@ void intrusive_heap<Compare>::print() const
         }
     }
     printf("]\n");
+}
+
+template <typename Compare>
+void swap(intrusive_heap<Compare>& lhs, intrusive_heap<Compare>& rhs)
+{
+    lhs.swap(rhs);
 }
 
 } // namespace sbpl
