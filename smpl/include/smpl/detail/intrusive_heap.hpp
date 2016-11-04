@@ -197,10 +197,9 @@ void intrusive_heap<Compare>::erase(heap_element* e)
 template <typename Compare>
 void intrusive_heap<Compare>::make()
 {
-    auto b = m_data.begin();
-    ++b;
-    auto e = m_data.end();
-    make_heap(b, e);
+    for (auto i = (m_data.size() - 1) >> 1; i >= 1; --i) {
+        percolate_down(i);
+    }
 }
 
 template <typename Compare>
@@ -249,13 +248,16 @@ template <typename Compare>
 template <typename InputIt>
 void intrusive_heap<Compare>::make_heap(InputIt first, InputIt last)
 {
-    clear();
-    for (auto it = first; it != last; ++it) {
-        push(*it);
-    }
+    auto n = std::distance(first, last);
 
-//    m_data.resize(std::distance(first, last) + 1);
-//    make_heap(first, last, 1);
+    m_data.clear();
+    m_data.reserve(n + 1);
+    m_data.push_back(nullptr);
+    m_data.insert(m_data.end(), first, last);
+
+    for (auto i = n >> 1; i >= 1; --i) {
+        percolate_down(i);
+    }
 }
 
 template <typename Compare>
