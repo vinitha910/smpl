@@ -341,11 +341,11 @@ void intrusive_heap<T, Compare>::percolate_down(size_type pivot)
     T* tmp = m_data[pivot];
     while (is_internal(left)) {
         size_type s = right;
-        if (is_external(right) || m_comp(m_data[left], m_data[right])) {
+        if (is_external(right) || m_comp(*m_data[left], *m_data[right])) {
             s = left;
         }
 
-        if (m_comp(m_data[s], tmp)) {
+        if (m_comp(*m_data[s], *tmp)) {
             m_data[pivot] = m_data[s];
             m_data[pivot]->m_heap_index = pivot;
             pivot = s;
@@ -367,7 +367,7 @@ void intrusive_heap<T, Compare>::percolate_up(size_type pivot)
     T* tmp = m_data[pivot];
     while (pivot != 1) {
         size_type p = parent(pivot);
-        if (m_comp(m_data[p], tmp)) {
+        if (m_comp(*m_data[p], *tmp)) {
             break;
         }
         m_data[pivot] = m_data[p];
