@@ -606,12 +606,11 @@ BOOST_AUTO_TEST_CASE(SwapTest)
     BOOST_CHECK(h2.size() == e1.size());
 }
 
-BOOST_AUTO_TEST_CASE(TestMutability)
+BOOST_AUTO_TEST_CASE(MutabilityTest)
 {
-    // Test a variety of increases, decreases, and updates to ensure
-    // that the heap invariant is updated
+    // Test a variety of increases, decreases, and updates
 
-    std::vector<open_element> elements = { 8, 10, 4, 2, 12 };
+    std::vector<open_element> elements = { 8, 10, 4, 2, 12, 6, 3, 6, 10 };
     heap_type h(pointer_it(elements.begin()), pointer_it(elements.end()));
 
     std::default_random_engine rng;
@@ -658,5 +657,52 @@ BOOST_AUTO_TEST_CASE(TestMutability)
         min = std::min_element(elements.begin(), elements.end(), comp);
         pmin = &elements[0] + std::distance(elements.begin(), min);
         BOOST_CHECK(!comp(*h.min(), *pmin) && !comp(*pmin, *h.min()));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(PushEraseTest)
+{
+    // Test a variety of interleaved push and pops
+
+    std::vector<open_element> elements = { 8, 10, 4, 2, 12, 6, 3, 6, 10 };
+    heap_type h(pointer_it(elements.begin()), pointer_it(elements.end()));
+    std::vector<bool> inheap(elements.size(), true);
+
+    // keep track of which elements should be in the heap
+
+    std::default_random_engine rng;
+    std::uniform_int_distribution<int> dist(0, elements.size() - 1);
+
+    open_element_compare comp;
+
+    int num_trials = 100;
+    for (int i = 0; i < num_trials; ++i) {
+        int r = dist(rng);
+        if (inheap[r]) {
+            h.erase(&elements[r]);
+        } else {
+            h.push(&elements[r]);
+        }
+        inheap[r] = !inheap[r];
+
+        auto is_true = [](bool b) { return b; };
+        if (std::any_of(inheap.begin(), inheap.end(), is_true)) {
+            // find min priority element of elements that should be in the heap
+            open_element* emin = nullptr;
+            int min_priority = std::numeric_limits<int>::max();
+            for (size_t ei = 0; ei < elements.size(); ++ei) {
+                if (inheap[ei]) {
+                    if (elements[ei].priority < min_priority) {
+                        min_priority = elements[ei].priority;
+                        emin = &elements[ei];
+                    }
+                }
+            }
+
+            assert(emin);
+
+            // check equivalent to the min element in the heap
+            BOOST_CHECK(!comp(*h.min(), *emin) && !comp(*emin, *h.min()));
+        }
     }
 }
