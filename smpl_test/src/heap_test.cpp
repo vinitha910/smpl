@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <random>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -603,4 +604,59 @@ BOOST_AUTO_TEST_CASE(SwapTest)
     BOOST_CHECK(h2.min() == &e1[3]);
     BOOST_CHECK(h1.size() == e2.size());
     BOOST_CHECK(h2.size() == e1.size());
+}
+
+BOOST_AUTO_TEST_CASE(TestMutability)
+{
+    // Test a variety of increases, decreases, and updates to ensure
+    // that the heap invariant is updated
+
+    std::vector<open_element> elements = { 8, 10, 4, 2, 12 };
+    heap_type h(pointer_it(elements.begin()), pointer_it(elements.end()));
+
+    std::default_random_engine rng;
+    std::uniform_int_distribution<int> dist(0, elements.size() - 1);
+
+    std::uniform_int_distribution<int> mod_dist(-10, 10);
+
+    auto comp = [](const open_element& e1, const open_element& e2) {
+        return e1.priority < e2.priority;
+    };
+
+    int num_trials = 100;
+    for (int i = 0; i < num_trials; ++i) {
+        // choose random element, increase priority by random amount, check min
+        int r = dist(rng);
+        int mod = abs(mod_dist(rng));
+
+        LOG("increase %d from %d to %d\n", r, elements[r].priority, elements[r].priority + mod);
+        elements[r].priority += mod;
+        h.increase(&elements[r]);
+
+        auto min = std::min_element(elements.begin(), elements.end(), comp);
+        open_element* pmin = &elements[0] + std::distance(elements.begin(), min);
+        BOOST_CHECK(!comp(*h.min(), *pmin) && !comp(*pmin, *h.min()));
+
+        r = dist(rng);
+        mod = abs(mod_dist(rng));
+
+        LOG("decrease %d from %d to %d\n", r, elements[r].priority, elements[r].priority - mod);
+        elements[r].priority -= mod;
+        h.decrease(&elements[r]);
+
+        min = std::min_element(elements.begin(), elements.end(), comp);
+        pmin = &elements[0] + std::distance(elements.begin(), min);
+        BOOST_CHECK(!comp(*h.min(), *pmin) && !comp(*pmin, *h.min()));
+
+        r = dist(rng);
+        mod = mod_dist(rng);
+
+        LOG("update %d from %d to %d\n", r, elements[r].priority, elements[r].priority + mod);
+        elements[r].priority += mod;
+        h.update(&elements[r]);
+
+        min = std::min_element(elements.begin(), elements.end(), comp);
+        pmin = &elements[0] + std::distance(elements.begin(), min);
+        BOOST_CHECK(!comp(*h.min(), *pmin) && !comp(*pmin, *h.min()));
+    }
 }
