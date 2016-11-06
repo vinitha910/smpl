@@ -28,14 +28,13 @@ struct open_element : sbpl::heap_element
 
 struct open_element_compare
 {
-    bool operator()(const sbpl::heap_element* a, const sbpl::heap_element* b)
+    bool operator()(const open_element* a, const open_element* b)
     {
-        return static_cast<const open_element*>(a)->priority <
-                static_cast<const open_element*>(b)->priority;
+        return a->priority < b->priority;
     }
 };
 
-typedef sbpl::intrusive_heap<open_element_compare> heap_type;
+typedef sbpl::intrusive_heap<open_element, open_element_compare> heap_type;
 
 template <typename Iterator>
 class pointer_iterator :
@@ -371,14 +370,13 @@ BOOST_AUTO_TEST_CASE(MakeTest)
         state_compare(const int* w) : m_w(w) { }
         const int* m_w;
 
-        bool operator()(const sbpl::heap_element* a, const sbpl::heap_element* b)
+        bool operator()(const state* a, const state* b)
         {
-            return static_cast<const state*>(a)->g + (*m_w) * static_cast<const state*>(a)->h <
-                    static_cast<const state*>(b)->g + (*m_w) * static_cast<const state*>(b)->h;
+            return a->g + *m_w * a->h < b->g + *m_w * b->h;
         }
     };
 
-    typedef sbpl::intrusive_heap<state_compare> state_heap;
+    typedef sbpl::intrusive_heap<state, state_compare> state_heap;
 
     std::vector<state> elements;
     elements.push_back(state(8, 2));    // 10
@@ -413,17 +411,6 @@ BOOST_AUTO_TEST_CASE(MakeTest)
     // elements[4] = 12 + 3 * 0 = 12
     open.make();
 
-//    int last_key = ((state*)open.min())->g + w * ((state*)open.min())->h;
-//    printf("%p\n", open.min());
-//    while (!open.empty()) {
-//        open.pop();
-//        printf("%p\n", open.min());
-//        int min_key = ((state*)open.min())->g + w * ((state*)open.min())->h;
-//        BOOST_CHECK(min_key >= last_key);
-//        printf("%d >= %d\n", min_key, last_key);
-//        last_key = min_key;
-//    }
-
     BOOST_CHECK(open.min() == &elements[3]);
     open.pop();
     BOOST_CHECK(open.min() == &elements[4]);
@@ -439,22 +426,91 @@ BOOST_AUTO_TEST_CASE(MakeTest)
 
 BOOST_AUTO_TEST_CASE(UpdateTest)
 {
-    BOOST_CHECK(false);
+    std::vector<open_element> elements;
+    elements.push_back(open_element(8));
+    elements.push_back(open_element(10));
+    elements.push_back(open_element(4));
+    elements.push_back(open_element(2));
+    elements.push_back(open_element(12));
+
+    heap_type h;
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+
+    BOOST_CHECK(h.min() == &elements[3]);
+    elements[3].priority = 6;
+    h.update(&elements[3]);
+    BOOST_CHECK(h.min() == &elements[2]);
+
+    elements[3].priority = 2;
+    h.update(&elements[3]);
+    BOOST_CHECK(h.min() == &elements[3]);
 }
 
 BOOST_AUTO_TEST_CASE(IncreaseTest)
 {
-    BOOST_CHECK(false);
+    std::vector<open_element> elements;
+    elements.push_back(open_element(8));
+    elements.push_back(open_element(10));
+    elements.push_back(open_element(4));
+    elements.push_back(open_element(2));
+    elements.push_back(open_element(12));
+
+    heap_type h;
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+
+    elements[3].priority = 6;
+    h.increase(&elements[3]);
+    BOOST_CHECK(h.min() == &elements[2]);
 }
 
 BOOST_AUTO_TEST_CASE(DecreaseTest)
 {
-    BOOST_CHECK(false);
+    std::vector<open_element> elements;
+    elements.push_back(open_element(8));
+    elements.push_back(open_element(10));
+    elements.push_back(open_element(4));
+    elements.push_back(open_element(2));
+    elements.push_back(open_element(12));
+
+    heap_type h;
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+
+    elements[4].priority = 1;
+    h.decrease(&elements[4]);
+    BOOST_CHECK(h.min() == &elements[4]);
 }
 
 BOOST_AUTO_TEST_CASE(IteratorTest)
 {
-    BOOST_CHECK(false);
+    std::vector<open_element> elements;
+    elements.push_back(open_element(8));
+    elements.push_back(open_element(10));
+    elements.push_back(open_element(4));
+    elements.push_back(open_element(2));
+    elements.push_back(open_element(12));
+
+    heap_type h;
+    BOOST_CHECK(h.begin() == h.end());
+
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+    BOOST_CHECK(h.begin() != h.end());
+    BOOST_CHECK(std::distance(h.begin(), h.end()) == 5);
 }
 
 BOOST_AUTO_TEST_CASE(SwapTest)
@@ -471,11 +527,14 @@ BOOST_AUTO_TEST_CASE(SwapTest)
     e2.push_back(open_element(11));
     e2.push_back(open_element(5));
     e2.push_back(open_element(3));
-    e2.push_back(open_element(13));
+//    e2.push_back(open_element(13));
 
     heap_type h1(pointer_it(e1.begin()), pointer_it(e1.end()));
     heap_type h2(pointer_it(e2.begin()), pointer_it(e2.end()));
 
     swap(h1, h2);
-    BOOST_CHECK(false);
+    BOOST_CHECK(h1.min() == &e2[3]);
+    BOOST_CHECK(h2.min() == &e1[3]);
+    BOOST_CHECK(h1.size() == e2.size());
+    BOOST_CHECK(h2.size() == e1.size());
 }

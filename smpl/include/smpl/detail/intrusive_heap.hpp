@@ -36,16 +36,16 @@
 
 namespace sbpl {
 
-template <typename Compare>
-intrusive_heap<Compare>::intrusive_heap(const compare& comp) :
+template <class T, class Compare>
+intrusive_heap<T, Compare>::intrusive_heap(const compare& comp) :
     m_data(1, nullptr),
     m_comp(comp)
 {
 }
 
-template <typename Compare>
-template <typename InputIt>
-intrusive_heap<Compare>::intrusive_heap(
+template <class T, class Compare>
+template <class InputIt>
+intrusive_heap<T, Compare>::intrusive_heap(
     const compare& comp,
     InputIt first,
     InputIt last)
@@ -56,25 +56,25 @@ intrusive_heap<Compare>::intrusive_heap(
     make_heap(first, last);
 }
 
-template <typename Compare>
-template <typename InputIt>
-intrusive_heap<Compare>::intrusive_heap(InputIt first, InputIt last) :
+template <class T, class Compare>
+template <class InputIt>
+intrusive_heap<T, Compare>::intrusive_heap(InputIt first, InputIt last) :
     m_data(),
     m_comp()
 {
     make_heap(first, last);
 }
 
-template <typename Compare>
-intrusive_heap<Compare>::intrusive_heap(intrusive_heap&& o) :
+template <class T, class Compare>
+intrusive_heap<T, Compare>::intrusive_heap(intrusive_heap&& o) :
     m_data(std::move(o.m_data)),
     m_comp(std::move(o.m_comp))
 {
 }
 
-template <typename Compare>
-intrusive_heap<Compare>&
-intrusive_heap<Compare>::operator=(intrusive_heap&& rhs)
+template <class T, class Compare>
+intrusive_heap<T, Compare>&
+intrusive_heap<T, Compare>::operator=(intrusive_heap&& rhs)
 {
     if (this != &rhs) {
         m_data = std::move(rhs.m_data);
@@ -83,54 +83,54 @@ intrusive_heap<Compare>::operator=(intrusive_heap&& rhs)
     return *this;
 }
 
-template <typename Compare>
-heap_element* intrusive_heap<Compare>::min() const
+template <class T, class Compare>
+T* intrusive_heap<T, Compare>::min() const
 {
     return m_data[1];
 }
 
-template <typename Compare>
-typename intrusive_heap<Compare>::const_iterator
-intrusive_heap<Compare>::begin() const
+template <class T, class Compare>
+class intrusive_heap<T, Compare>::const_iterator
+intrusive_heap<T, Compare>::begin() const
 {
     return m_data.begin() + 1;
 }
 
-template <typename Compare>
-typename intrusive_heap<Compare>::const_iterator
-intrusive_heap<Compare>::end() const
+template <class T, class Compare>
+typename intrusive_heap<T, Compare>::const_iterator
+intrusive_heap<T, Compare>::end() const
 {
     return m_data.end();
 }
 
-template <typename Compare>
-bool intrusive_heap<Compare>::empty() const
+template <class T, class Compare>
+bool intrusive_heap<T, Compare>::empty() const
 {
     return m_data.size() == 1;
 }
 
-template <typename Compare>
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::size() const
+template <class T, class Compare>
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::size() const
 {
     return m_data.size() - 1;
 }
 
-template <typename Compare>
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::max_size() const
+template <class T, class Compare>
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::max_size() const
 {
     return m_data.max_size() - 1;
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::reserve(size_type new_cap)
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::reserve(size_type new_cap)
 {
     m_data.reserve(new_cap + 1);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::clear()
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::clear()
 {
     for (size_t i = 1; i < m_data.size(); ++i) {
         m_data[i]->m_heap_index = 0;
@@ -138,16 +138,16 @@ void intrusive_heap<Compare>::clear()
     m_data.resize(1);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::push(heap_element* e)
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::push(T* e)
 {
     e->m_heap_index = m_data.size();
     m_data.push_back(e);
     percolate_up(m_data.size() - 1);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::pop()
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::pop()
 {
     if (!empty()) {
         m_data[1]->m_heap_index = 0;
@@ -158,33 +158,33 @@ void intrusive_heap<Compare>::pop()
     }
 }
 
-template <typename Compare>
-bool intrusive_heap<Compare>::contains(heap_element* e)
+template <class T, class Compare>
+bool intrusive_heap<T, Compare>::contains(T* e)
 {
     return e->m_heap_index != 0;
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::update(heap_element* e)
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::update(T* e)
 {
     erase(e);
     push(e);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::increase(heap_element* e)
+template <typename T, class Compare>
+void intrusive_heap<T, Compare>::increase(T* e)
 {
     percolate_down(e->m_heap_index);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::decrease(heap_element* e)
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::decrease(T* e)
 {
     percolate_up(e->m_heap_index);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::erase(heap_element* e)
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::erase(T* e)
 {
     size_type pos = e->m_heap_index;
     m_data[pos] = m_data.back();
@@ -194,16 +194,16 @@ void intrusive_heap<Compare>::erase(heap_element* e)
     percolate_down(pos);
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::make()
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::make()
 {
     for (auto i = (m_data.size() - 1) >> 1; i >= 1; --i) {
         percolate_down(i);
     }
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::swap(intrusive_heap& o)
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::swap(intrusive_heap& o)
 {
     if (this != &o) {
         using std::swap;
@@ -212,10 +212,10 @@ void intrusive_heap<Compare>::swap(intrusive_heap& o)
     }
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::ipow2(size_type exp)
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::ipow2(size_type exp)
 {
     if (exp == 0) {
         return 1;
@@ -228,10 +228,10 @@ intrusive_heap<Compare>::ipow2(size_type exp)
     return res;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::ilog2(size_type i)
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::ilog2(size_type i)
 {
     std::size_t r = 0;
     while (i >>= 1) {
@@ -240,17 +240,17 @@ intrusive_heap<Compare>::ilog2(size_type i)
     return r;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-bool intrusive_heap<Compare>::ispow2(size_type val)
+bool intrusive_heap<T, Compare>::ispow2(size_type val)
 {
     // does not check for val == 0
     return !(val & (val - 1));
 }
 
-template <typename Compare>
-template <typename InputIt>
-void intrusive_heap<Compare>::make_heap(InputIt first, InputIt last)
+template <class T, class Compare>
+template <class InputIt>
+void intrusive_heap<T, Compare>::make_heap(InputIt first, InputIt last)
 {
     auto n = std::distance(first, last);
 
@@ -264,9 +264,9 @@ void intrusive_heap<Compare>::make_heap(InputIt first, InputIt last)
     }
 }
 
-template <typename Compare>
-template <typename InputIt>
-void intrusive_heap<Compare>::make_heap(
+template <class T, class Compare>
+template <class InputIt>
+void intrusive_heap<T, Compare>::make_heap(
     InputIt first,
     InputIt last,
     size_type root)
@@ -303,33 +303,33 @@ void intrusive_heap<Compare>::make_heap(
     percolate_down(root);
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::parent(size_type index) const
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::parent(size_type index) const
 {
     return index >> 1;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::right_child(size_type index) const
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::right_child(size_type index) const
 {
     return (index << 1) + 1;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-typename intrusive_heap<Compare>::size_type
-intrusive_heap<Compare>::left_child(size_type index) const
+typename intrusive_heap<T, Compare>::size_type
+intrusive_heap<T, Compare>::left_child(size_type index) const
 {
     return index << 1;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-void intrusive_heap<Compare>::percolate_down(size_type pivot)
+void intrusive_heap<T, Compare>::percolate_down(size_type pivot)
 {
     if (is_external(pivot)) {
         return;
@@ -338,7 +338,7 @@ void intrusive_heap<Compare>::percolate_down(size_type pivot)
     size_type left = left_child(pivot);
     size_type right = right_child(pivot);
 
-    heap_element* tmp = m_data[pivot];
+    T* tmp = m_data[pivot];
     while (is_internal(left)) {
         size_type s = right;
         if (is_external(right) || m_comp(m_data[left], m_data[right])) {
@@ -360,11 +360,11 @@ void intrusive_heap<Compare>::percolate_down(size_type pivot)
     m_data[pivot]->m_heap_index = pivot;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-void intrusive_heap<Compare>::percolate_up(size_type pivot)
+void intrusive_heap<T, Compare>::percolate_up(size_type pivot)
 {
-    heap_element* tmp = m_data[pivot];
+    T* tmp = m_data[pivot];
     while (pivot != 1) {
         size_type p = parent(pivot);
         if (m_comp(m_data[p], tmp)) {
@@ -378,22 +378,22 @@ void intrusive_heap<Compare>::percolate_up(size_type pivot)
     m_data[pivot]->m_heap_index = pivot;
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-bool intrusive_heap<Compare>::is_internal(size_type index) const
+bool intrusive_heap<T, Compare>::is_internal(size_type index) const
 {
     return index < m_data.size();
 }
 
-template <typename Compare>
+template <class T, class Compare>
 inline
-bool intrusive_heap<Compare>::is_external(size_type index) const
+bool intrusive_heap<T, Compare>::is_external(size_type index) const
 {
     return index >= m_data.size();
 }
 
-template <typename Compare>
-void intrusive_heap<Compare>::print() const
+template <class T, class Compare>
+void intrusive_heap<T, Compare>::print() const
 {
     printf("[ null, ");
     for (int i = 1; i < m_data.size(); ++i) {
@@ -407,8 +407,8 @@ void intrusive_heap<Compare>::print() const
     printf("]\n");
 }
 
-template <typename Compare>
-void swap(intrusive_heap<Compare>& lhs, intrusive_heap<Compare>& rhs)
+template <class T, class Compare>
+void swap(intrusive_heap<T, Compare>& lhs, intrusive_heap<T, Compare>& rhs)
 {
     lhs.swap(rhs);
 }

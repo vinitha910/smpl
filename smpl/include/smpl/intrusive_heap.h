@@ -36,7 +36,7 @@
 
 namespace sbpl {
 
-template <typename Compare>
+template <class T, class Compare>
 class intrusive_heap;
 
 struct heap_element
@@ -48,29 +48,31 @@ private:
 
     int m_heap_index;
 
-    template <typename Compare>
+    template <class T, class Compare>
     friend class intrusive_heap;
 };
 
-template <typename Compare>
+template <class T, class Compare>
 class intrusive_heap
 {
 public:
 
+    static_assert(std::is_base_of<heap_element, T>::value, "T must extend heap_element");
+
     typedef Compare compare;
 
-    typedef std::vector<heap_element*> container_type;
+    typedef std::vector<T*> container_type;
     typedef typename container_type::size_type size_type;
 
-    typedef container_type::iterator iterator;
-    typedef container_type::const_iterator const_iterator;
+    typedef typename container_type::iterator iterator;
+    typedef typename container_type::const_iterator const_iterator;
 
     intrusive_heap(const compare& comp = compare());
 
-    template <typename InputIt>
+    template <class InputIt>
     intrusive_heap(InputIt first, InputIt last);
 
-    template <typename InputIt>
+    template <class InputIt>
     intrusive_heap(const compare& comp, InputIt first, InputIt last);
 
     intrusive_heap(const intrusive_heap&) = delete;
@@ -80,7 +82,7 @@ public:
     intrusive_heap& operator=(const intrusive_heap&) = delete;
     intrusive_heap& operator=(intrusive_heap&& rhs);
 
-    heap_element* min() const;
+    T* min() const;
 
     const_iterator begin() const;
     const_iterator end() const;
@@ -91,13 +93,13 @@ public:
     void reserve(size_type new_cap);
 
     void clear();
-    void push(heap_element* e);
+    void push(T* e);
     void pop();
-    bool contains(heap_element* e);
-    void update(heap_element* e);
-    void increase(heap_element* e);
-    void decrease(heap_element* e);
-    void erase(heap_element* e);
+    bool contains(T* e);
+    void update(T* e);
+    void increase(T* e);
+    void decrease(T* e);
+    void erase(T* e);
 
     void make();
 
@@ -112,10 +114,10 @@ private:
     size_type ilog2(size_type i);
     bool ispow2(size_type val);
 
-    template <typename InputIt>
+    template <class InputIt>
     void make_heap(InputIt first, InputIt last);
 
-    template <typename InputIt>
+    template <class InputIt>
     void make_heap(InputIt first, InputIt last, size_type root);
 
     size_type parent(size_type index) const;
@@ -131,8 +133,8 @@ private:
     void print() const;
 };
 
-template <typename Compare>
-void swap(intrusive_heap<Compare>& lhs, intrusive_heap<Compare>& rhs);
+template <class T, class Compare>
+void swap(intrusive_heap<T, Compare>& lhs, intrusive_heap<T, Compare>& rhs);
 
 } // namespace sbpl
 
