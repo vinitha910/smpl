@@ -52,6 +52,22 @@ private:
     friend class intrusive_heap;
 };
 
+/// Provides an intrusive binary heap implementation. Objects inserted into the
+/// heap must derive from the \p heap_element class to implement efficient
+/// mutability. The implementation stores pointers to inserted objects, which
+/// must remain valid throughout the lifetime of the heap.
+///
+/// The binary heap data structure provides constant time access to the minimum
+/// element of the heap, logarithmic insertion and erasure of elements,
+/// logarithmic updates of element priorities, and linear time construction from
+/// a new set of elements. All times are proportional to the number of elements
+/// in the heap.
+///
+/// Priorities of elements in the heap are not explicitly stored, but determined
+/// from the result of calling the \p Compare function object on two elements.
+/// If the priorities of multiple elements are implicitly changed (via external
+/// modification of the function object), the heap may be reordered in-place
+/// in linear time by calling the make() member function.
 template <class T, class Compare>
 class intrusive_heap
 {
