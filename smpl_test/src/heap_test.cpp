@@ -182,16 +182,6 @@ BOOST_AUTO_TEST_CASE(ElementConstructorTest)
     BOOST_CHECK(h2.min() == &few_elements[3]);
 }
 
-BOOST_AUTO_TEST_CASE(MoveConstructorTest)
-{
-    BOOST_CHECK(false);
-}
-
-BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
-{
-    BOOST_CHECK(false);
-}
-
 BOOST_AUTO_TEST_CASE(PointerIteratorTest)
 {
     boost::container::stable_vector<open_element> elements;
@@ -241,6 +231,51 @@ BOOST_AUTO_TEST_CASE(PushTest)
     BOOST_CHECK(!h.empty());
     BOOST_CHECK(h.size() == 5);
     BOOST_CHECK(h.min() == &elements[3]);
+}
+
+BOOST_AUTO_TEST_CASE(MoveConstructorTest)
+{
+    BOOST_CHECK(std::is_move_constructible<heap_type>::value);
+    std::vector<open_element> elements;
+    elements.push_back(open_element(8));
+    elements.push_back(open_element(10));
+    elements.push_back(open_element(4));
+    elements.push_back(open_element(2));
+    elements.push_back(open_element(12));
+
+    heap_type h;
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+
+    heap_type h2(std::move(h));
+    BOOST_CHECK(h2.size() == 5);
+    BOOST_CHECK(h2.min() == &elements[3]);
+}
+
+BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
+{
+    BOOST_CHECK(std::is_move_assignable<heap_type>::value);
+    std::vector<open_element> elements;
+    elements.push_back(open_element(8));
+    elements.push_back(open_element(10));
+    elements.push_back(open_element(4));
+    elements.push_back(open_element(2));
+    elements.push_back(open_element(12));
+
+    heap_type h;
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+
+    heap_type h2;
+    h2 = std::move(h);
+    BOOST_CHECK(h2.size() == 5);
+    BOOST_CHECK(h2.min() == &elements[3]);
 }
 
 BOOST_AUTO_TEST_CASE(ClearTest)
