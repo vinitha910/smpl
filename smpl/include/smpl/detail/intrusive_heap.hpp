@@ -34,6 +34,8 @@
 
 #include "../intrusive_heap.h"
 
+#include <assert.h>
+
 namespace sbpl {
 
 template <class T, class Compare>
@@ -86,6 +88,7 @@ intrusive_heap<T, Compare>::operator=(intrusive_heap&& rhs)
 template <class T, class Compare>
 T* intrusive_heap<T, Compare>::min() const
 {
+    assert(m_data.size() > 1);
     return m_data[1];
 }
 
@@ -141,6 +144,7 @@ void intrusive_heap<T, Compare>::clear()
 template <class T, class Compare>
 void intrusive_heap<T, Compare>::push(T* e)
 {
+    assert(e);
     e->m_heap_index = m_data.size();
     m_data.push_back(e);
     percolate_up(m_data.size() - 1);
@@ -149,24 +153,25 @@ void intrusive_heap<T, Compare>::push(T* e)
 template <class T, class Compare>
 void intrusive_heap<T, Compare>::pop()
 {
-    if (!empty()) {
-        m_data[1]->m_heap_index = 0;
-        m_data[1] = m_data.back();
-        m_data[1]->m_heap_index = 1;
-        m_data.pop_back();
-        percolate_down(1);
-    }
+    assert(!empty());
+    m_data[1]->m_heap_index = 0;
+    m_data[1] = m_data.back();
+    m_data[1]->m_heap_index = 1;
+    m_data.pop_back();
+    percolate_down(1);
 }
 
 template <class T, class Compare>
 bool intrusive_heap<T, Compare>::contains(T* e)
 {
+    assert(e);
     return e->m_heap_index != 0;
 }
 
 template <class T, class Compare>
 void intrusive_heap<T, Compare>::update(T* e)
 {
+    assert(e && contains(e));
     erase(e);
     push(e);
 }
@@ -174,18 +179,21 @@ void intrusive_heap<T, Compare>::update(T* e)
 template <typename T, class Compare>
 void intrusive_heap<T, Compare>::increase(T* e)
 {
+    assert(e && contains(e));
     percolate_down(e->m_heap_index);
 }
 
 template <class T, class Compare>
 void intrusive_heap<T, Compare>::decrease(T* e)
 {
+    assert(e && contains(e));
     percolate_up(e->m_heap_index);
 }
 
 template <class T, class Compare>
 void intrusive_heap<T, Compare>::erase(T* e)
 {
+    assert(e && contains(e));
     size_type pos = e->m_heap_index;
     m_data[pos] = m_data.back();
     m_data[pos]->m_heap_index = pos;

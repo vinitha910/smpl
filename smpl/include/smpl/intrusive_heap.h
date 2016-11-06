@@ -46,7 +46,7 @@ struct heap_element
 
 private:
 
-    int m_heap_index;
+    std::size_t m_heap_index;
 
     template <class T, class Compare>
     friend class intrusive_heap;
