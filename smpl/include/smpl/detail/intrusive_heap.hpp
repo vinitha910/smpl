@@ -259,6 +259,10 @@ void intrusive_heap<T, Compare>::make_heap(InputIt first, InputIt last)
     m_data.push_back(nullptr);
     m_data.insert(m_data.end(), first, last);
 
+    for (size_type i = 1; i < m_data.size(); ++i) {
+        m_data[i]->m_heap_index = i;
+    }
+
     for (auto i = n >> 1; i >= 1; --i) {
         percolate_down(i);
     }
@@ -397,7 +401,7 @@ void intrusive_heap<T, Compare>::print() const
 {
     printf("[ null, ");
     for (int i = 1; i < m_data.size(); ++i) {
-        printf(" %p", m_data[i]);
+        printf(" (%d, %p)", m_data[i]->m_heap_index, m_data[i]);
         if (i == m_data.size() - 1) {
             printf(" ");
         } else {
