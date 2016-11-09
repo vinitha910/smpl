@@ -47,6 +47,9 @@ target_link_libraries(csv_parser_test ${catkin_LIBRARIES})
 add_executable(heap_test src/heap_test.cpp)
 target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(egraph_test src/egraph_test.cpp)
+target_link_libraries(egraph_test ${catkin_LIBRARIES})
+
 install(
     TARGETS callPlanner
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
