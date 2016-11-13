@@ -197,6 +197,8 @@ private:
 
     std::vector<Node> m_nodes;
     std::vector<Edge> m_edges;
+
+    void insert_incident_edge(edge_id eid, node_id uid, node_id vid);
 };
 
 inline

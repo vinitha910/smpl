@@ -123,12 +123,7 @@ ExperienceGraph::edge_id ExperienceGraph::insert_edge(node_id uid, node_id vid)
 
     m_edges.emplace_back(uid, vid);
     ExperienceGraph::edge_id eid = m_edges.size() - 1;
-    if (vid != uid) {
-        m_nodes[uid].edges.emplace_back(eid, vid);
-        m_nodes[vid].edges.emplace_back(eid, uid);
-    } else {
-        m_nodes[uid].edges.emplace_back(eid, vid);
-    }
+    insert_incident_edge(eid, uid, vid);
     return eid;
 }
 
@@ -143,15 +138,14 @@ ExperienceGraph::edge_id ExperienceGraph::insert_edge(
 
     m_edges.emplace_back(path, uid, vid);
     ExperienceGraph::edge_id eid = m_edges.size() - 1;
-    if (vid != uid) {
-        m_nodes[uid].edges.emplace_back(eid, vid);
-        m_nodes[vid].edges.emplace_back(eid, uid);
-    } else {
-        m_nodes[uid].edges.emplace_back(eid, vid);
-    }
+    insert_incident_edge(eid, uid, vid);
     return eid;
 }
 
+/// Erase the edge between two nodes, if one exists. All incident edge and
+/// adjacent node iterators for the source and target nodes, edge iterators
+/// pointing to edges after the erased edge, and edge ids greater than the
+/// erased edge id are invalidated. TODO: erase all parallel edges?
 void ExperienceGraph::erase_edge(node_id uid, node_id vid)
 {
     if (uid >= m_nodes.size() || vid >= m_nodes.size()) {
@@ -159,19 +153,85 @@ void ExperienceGraph::erase_edge(node_id uid, node_id vid)
     }
 
     // search through the smaller of the two adjacency lists for the edge id
-    auto& out_edges = m_nodes[uid].edges.size() < m_nodes[vid].edges.size() ?
-            m_nodes[uid].edges : m_nodes[vid].edges;
-
-    for (const Node::adjacency& a : out_edges) {
-        if (m_edges[a.first].snode == uid || m_edges[a.first].snode == vid) {
-            // TODO: remove edge
+    // and call erase_edge on it when found
+    if (m_nodes[uid].edges.size() < m_nodes[vid].edges.size()) {
+        auto& out_edges = m_nodes[uid].edges;
+        auto it = std::find_if(
+                out_edges.begin(),
+                out_edges.end(),
+                [&](const Node::adjacency& a) {
+                    return a.second == vid;
+                });
+        if (it != out_edges.end()) {
+            erase_edge(it->first);
+        }
+    } else {
+        auto& out_edges = m_nodes[vid].edges;
+        auto it = std::find_if(
+                out_edges.begin(),
+                out_edges.end(),
+                [&](const Node::adjacency& a) {
+                    return a.second == uid;
+                });
+        if (it != out_edges.end()) {
+            erase_edge(it->first);
         }
     }
 }
 
+/// Erase an edge. All incident edge and adjacent node iterators for the source
+/// and target nodes, edge iterators pointing to edges after the erased edge,
+/// and edge ids greater than the erased edge id are invalidated.
 void ExperienceGraph::erase_edge(edge_id id)
 {
+    if (id >= m_edges.size()) {
+        throw std::out_of_range("ExperienceGraph::erase_edge called with invalid edge id");
+    }
 
+    const Edge& e = m_edges[id];
+
+    // remove incident edge from source node and update edge ids
+    auto ait = std::remove_if(
+            m_nodes[e.snode].edges.begin(),
+            m_nodes[e.snode].edges.end(),
+            [&](Node::adjacency& a) {
+                bool rem = a.first == id;
+                if (a.first > id) {
+                    --id;
+                }
+                return rem;
+            });
+    m_nodes[e.snode].edges.erase(ait, m_nodes[e.snode].edges.end());
+
+    // for non-self-loops, remove incident edge from target node and update edge
+    // ids
+    if (e.tnode != e.snode) {
+        ait = std::remove_if(
+                m_nodes[e.tnode].edges.begin(),
+                m_nodes[e.tnode].edges.end(),
+                [&](Node::adjacency& a) {
+                    bool rem = a.first == id;
+                    if (a.first > id) {
+                        --id;
+                    }
+                    return rem;
+                });
+        m_nodes[e.tnode].edges.erase(ait, m_nodes[e.tnode].edges.end());
+    }
+
+    // remove the edge
+    m_edges.erase(m_edges.begin() + id);
+}
+
+inline
+void ExperienceGraph::insert_incident_edge(edge_id eid, node_id uid, node_id vid)
+{
+    if (vid != uid) {
+        m_nodes[uid].edges.emplace_back(eid, vid);
+        m_nodes[vid].edges.emplace_back(eid, uid);
+    } else {
+        m_nodes[uid].edges.emplace_back(eid, vid);
+    }
 }
 
 } // namespace motion

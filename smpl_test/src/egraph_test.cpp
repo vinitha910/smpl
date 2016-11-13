@@ -115,51 +115,190 @@ BOOST_AUTO_TEST_CASE(InsertEdgesTest)
     BOOST_CHECK_EQUAL(eg.num_edges(), 1);
     BOOST_CHECK_EQUAL(std::distance(eg.edges().first, eg.edges().second), 1);
     BOOST_CHECK(IteratedAllEdges(eg));
-    BOOST_CHECK_EQUAL(std::distance(eg.adjacent_nodes(n1).first, eg.adjacent_nodes(n1).second), 1);
-    BOOST_CHECK_EQUAL(std::distance(eg.adjacent_nodes(n2).first, eg.adjacent_nodes(n2).second), 1);
-    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n1).first, n2);
-    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n2).first, n1);
 
+    // test existence (and inexistence) of indicident edges
     BOOST_CHECK_EQUAL(std::distance(eg.edges(n1).first, eg.edges(n1).second), 1);
     BOOST_CHECK_EQUAL(std::distance(eg.edges(n2).first, eg.edges(n2).second), 1);
     BOOST_CHECK_EQUAL(*eg.edges(n1).first, e12);
     BOOST_CHECK_EQUAL(*eg.edges(n2).first, e12);
     BOOST_CHECK(eg.edges(n3).first == eg.edges(n3).second);
+
+    // test existence of adjacent nodes
+    BOOST_CHECK_EQUAL(std::distance(eg.adjacent_nodes(n1).first, eg.adjacent_nodes(n1).second), 1);
+    BOOST_CHECK_EQUAL(std::distance(eg.adjacent_nodes(n2).first, eg.adjacent_nodes(n2).second), 1);
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n1).first, n2);
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n2).first, n1);
+
+    BOOST_CHECK_EQUAL(eg.degree(n1), 1);
+    BOOST_CHECK_EQUAL(eg.degree(n2), 1);
+    BOOST_CHECK_EQUAL(eg.degree(n3), 0);
+
+    BOOST_CHECK((eg.source(e12) == n1 && eg.target(e12) == n2) ||
+                (eg.source(e12) == n2 && eg.target(e12) == n1));
 }
 
-BOOST_AUTO_TEST_CASE(DumpTest)
+BOOST_AUTO_TEST_CASE(RemoveNodesTest)
 {
     smpl::ExperienceGraph eg;
-
     smpl::RobotState zero_state;
 
-    auto u = eg.insert_node(zero_state);
-    std::cout << "inserted node " << u << std::endl;
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n2 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n3 = eg.insert_node(zero_state);
 
-    auto v = eg.insert_node(zero_state);
-    std::cout << "inserted node " << v << std::endl;
+    smpl::ExperienceGraph::edge_id e12 = eg.insert_edge(n1, n2);
 
-    auto uv = eg.insert_edge(u, v);
-    std::cout << "inserted edge " << uv << std::endl;
+    // remove a node that has no edges
+    eg.erase_node(n3);
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 2);
 
-    auto nits = eg.nodes();
-    for (auto it = nits.first; it != nits.second; ++it) {
-        std::cout << eg.degree(*it) << " edges" << std::endl;
-    }
+    BOOST_CHECK_EQUAL(eg.num_edges(), 1);
+    BOOST_CHECK_EQUAL(*eg.edges(n1).first, e12);
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n1).first, n2);
+    BOOST_CHECK_EQUAL(*eg.edges(n2).first, e12);
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n2).first, n1);
 
-    auto anits = eg.adjacent_nodes(u);
-    std::cout << "adjacent(" << u << "): ";
-    for (auto it = anits.first; it != anits.second; ++it) {
-        std::cout << *it << ' ';
-    }
-    std::cout << std::endl;
+    BOOST_CHECK((eg.source(e12) == n1 && eg.target(e12) == n2) ||
+                (eg.source(e12) == n2 && eg.target(e12) == n1));
 
-    anits = eg.adjacent_nodes(v);
-    std::cout << "adjacent(" << v << "): ";
-    for (auto it = anits.first; it != anits.second; ++it) {
-        std::cout << *it << ' ';
-    }
-    std::cout << std::endl;
+    // remove a node that has an edge
+    eg.erase_node(n2);
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 1);
+    BOOST_CHECK_EQUAL(eg.num_edges(), 0);
+    BOOST_CHECK(eg.edges().first == eg.edges().second);
+    BOOST_CHECK(eg.edges(n1).first == eg.edges(n1).second);
+    BOOST_CHECK(eg.adjacent_nodes(n1).first == eg.adjacent_nodes(n1).second);
+    BOOST_CHECK_EQUAL(eg.degree(n1), 0);
+}
 
-    eg.erase_edge(u, v);
+BOOST_AUTO_TEST_CASE(RemoveInteriorNodesTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n2 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n3 = eg.insert_node(zero_state);
+
+    smpl::ExperienceGraph::edge_id e12 = eg.insert_edge(n1, n2);
+
+    eg.erase_node(n1);
+
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 2);
+    BOOST_CHECK_EQUAL(eg.num_edges(), 0);
+
+    auto nit = eg.nodes();
+    n2 = *nit.first++;
+    n3 = *nit.first++;
+    BOOST_CHECK(nit.first == nit.second);
+
+    BOOST_CHECK(eg.edges(n2).first == eg.edges(n2).second);
+    BOOST_CHECK(eg.edges(n3).first == eg.edges(n3).second);
+    BOOST_CHECK(eg.adjacent_nodes(n2).first == eg.adjacent_nodes(n2).second);
+    BOOST_CHECK(eg.adjacent_nodes(n3).first == eg.adjacent_nodes(n3).second);
+
+    // TODO: test case where some edges remain, to ensure edge ids updated
+}
+
+BOOST_AUTO_TEST_CASE(RemoveEdgeByIdTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n2 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n3 = eg.insert_node(zero_state);
+
+    smpl::ExperienceGraph::edge_id e12 = eg.insert_edge(n1, n2);
+
+    eg.erase_edge(e12);
+
+    BOOST_CHECK_EQUAL(eg.num_edges(), 0);
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 3);
+    BOOST_CHECK(eg.edges(n1).first == eg.edges(n1).second);
+    BOOST_CHECK(eg.edges(n2).first == eg.edges(n2).second);
+    BOOST_CHECK(eg.edges(n3).first == eg.edges(n3).second);
+    BOOST_CHECK(eg.adjacent_nodes(n1).first == eg.adjacent_nodes(n1).second);
+    BOOST_CHECK(eg.adjacent_nodes(n2).first == eg.adjacent_nodes(n2).second);
+    BOOST_CHECK(eg.adjacent_nodes(n3).first == eg.adjacent_nodes(n3).second);
+    BOOST_CHECK_EQUAL(eg.degree(n1), 0);
+    BOOST_CHECK_EQUAL(eg.degree(n2), 0);
+    BOOST_CHECK_EQUAL(eg.degree(n3), 0);
+}
+
+BOOST_AUTO_TEST_CASE(RemoveEdgeByNodeIdsTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n2 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n3 = eg.insert_node(zero_state);
+
+    smpl::ExperienceGraph::edge_id e12 = eg.insert_edge(n1, n2);
+
+    eg.erase_edge(n1, n2);
+
+    BOOST_CHECK_EQUAL(eg.num_edges(), 0);
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 3);
+    BOOST_CHECK(eg.edges(n1).first == eg.edges(n1).second);
+    BOOST_CHECK(eg.edges(n2).first == eg.edges(n2).second);
+    BOOST_CHECK(eg.edges(n3).first == eg.edges(n3).second);
+    BOOST_CHECK(eg.adjacent_nodes(n1).first == eg.adjacent_nodes(n1).second);
+    BOOST_CHECK(eg.adjacent_nodes(n2).first == eg.adjacent_nodes(n2).second);
+    BOOST_CHECK(eg.adjacent_nodes(n3).first == eg.adjacent_nodes(n3).second);
+    BOOST_CHECK_EQUAL(eg.degree(n1), 0);
+    BOOST_CHECK_EQUAL(eg.degree(n2), 0);
+    BOOST_CHECK_EQUAL(eg.degree(n3), 0);
+}
+
+BOOST_AUTO_TEST_CASE(InsertSelfLoopTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::edge_id e11 = eg.insert_edge(n1, n1);
+    BOOST_CHECK_EQUAL(*eg.edges(n1).first, e11);
+    BOOST_CHECK_EQUAL(std::distance(eg.edges(n1).first, eg.edges(n1).second), 1);
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n1).first, n1);
+    BOOST_CHECK_EQUAL(std::distance(eg.adjacent_nodes(n1).first, eg.adjacent_nodes(n1).second), 1);
+    BOOST_CHECK_EQUAL(eg.degree(n1), 1);
+    BOOST_CHECK_EQUAL(eg.source(e11), n1);
+    BOOST_CHECK_EQUAL(eg.target(e11), n1);
+}
+
+BOOST_AUTO_TEST_CASE(RemoveSelfLoopNodeTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::edge_id e11 = eg.insert_edge(n1, n1);
+    eg.erase_node(n1);
+
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 0);
+    BOOST_CHECK_EQUAL(eg.num_edges(), 0);
+    BOOST_CHECK(eg.nodes().first == eg.nodes().second);
+    BOOST_CHECK(eg.edges().first == eg.edges().second);
+}
+
+BOOST_AUTO_TEST_CASE(RemoveSelfLoopEdgeTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::edge_id e11 = eg.insert_edge(n1, n1);
+    eg.erase_edge(e11);
+
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 1);
+    BOOST_CHECK_EQUAL(eg.num_edges(), 0);
+    BOOST_CHECK_EQUAL(*eg.nodes().first, n1);
+    BOOST_CHECK(eg.edges().first == eg.edges().second);
+    BOOST_CHECK(eg.edges(n1).first == eg.edges(n1).second);
+    BOOST_CHECK(eg.adjacent_nodes(n1).first == eg.adjacent_nodes(n1).second);
+    BOOST_CHECK_EQUAL(eg.degree(n1), 0);
+}
+
+BOOST_AUTO_TEST_CASE(ParallelEdgeTest)
+{
+
 }
