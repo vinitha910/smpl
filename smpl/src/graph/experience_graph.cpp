@@ -11,26 +11,33 @@ ExperienceGraph::ExperienceGraph()
 }
 
 std::pair<
+    ExperienceGraph::node_iterator,
+    ExperienceGraph::node_iterator>
+ExperienceGraph::nodes() const
+{
+    return std::make_pair(
+            node_iterator(0),
+            node_iterator(m_nodes.size()));
+}
+
+std::pair<
+    ExperienceGraph::edge_iterator,
+    ExperienceGraph::edge_iterator>
+ExperienceGraph::edges() const
+{
+    return std::make_pair(
+            edge_iterator(0),
+            edge_iterator(m_edges.size()));
+}
+
+std::pair<
     ExperienceGraph::incident_edge_iterator,
     ExperienceGraph::incident_edge_iterator>
 ExperienceGraph::edges(node_id id) const
 {
-    return std::make_pair(m_nodes[id].edges.begin(), m_nodes[id].edges.end());
-}
-
-ExperienceGraph::node_id ExperienceGraph::source(edge_id id) const
-{
-    return m_edges[id].snode;
-}
-
-ExperienceGraph::node_id ExperienceGraph::target(edge_id id) const
-{
-    return m_edges[id].tnode;
-}
-
-ExperienceGraph::degree_size_type ExperienceGraph::degree(node_id id) const
-{
-    return m_nodes[id].edges.size();
+    return std::make_pair(
+            incident_edge_iterator(m_nodes[id].edges.begin()),
+            incident_edge_iterator(m_nodes[id].edges.end()));
 }
 
 std::pair<
@@ -43,20 +50,19 @@ ExperienceGraph::adjacent_nodes(node_id id) const
             adjacency_iterator(m_nodes[id].edges.end()));
 }
 
-std::pair<
-    ExperienceGraph::node_iterator,
-    ExperienceGraph::node_iterator>
-ExperienceGraph::nodes() const
+ExperienceGraph::degree_size_type ExperienceGraph::degree(node_id id) const
 {
-    return std::make_pair(0, m_nodes.size());
+    return m_nodes[id].edges.size();
 }
 
-std::pair<
-    ExperienceGraph::edge_iterator,
-    ExperienceGraph::edge_iterator>
-ExperienceGraph::edges() const
+ExperienceGraph::node_id ExperienceGraph::source(edge_id id) const
 {
-    return std::make_pair(0, m_edges.size());
+    return m_edges[id].snode;
+}
+
+ExperienceGraph::node_id ExperienceGraph::target(edge_id id) const
+{
+    return m_edges[id].tnode;
 }
 
 ExperienceGraph::node_id ExperienceGraph::insert_node(const RobotState& state)
