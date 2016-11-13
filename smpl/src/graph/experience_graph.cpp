@@ -39,8 +39,8 @@ std::pair<
 ExperienceGraph::adjacent_nodes(node_id id) const
 {
     return std::make_pair(
-            adjacency_iterator(m_edges, m_nodes[id].edges.begin()),
-            adjacency_iterator(m_edges, m_nodes[id].edges.end()));
+            adjacency_iterator(m_nodes[id].edges.begin()),
+            adjacency_iterator(m_nodes[id].edges.end()));
 }
 
 std::pair<
@@ -85,12 +85,12 @@ void ExperienceGraph::erase_node(node_id id)
         // remove adjacency edges that will be removed
         auto it = std::remove_if(
                 node.edges.begin(), node.edges.end(),
-                [&](edge_id eid) { return will_remove(m_edges[eid]); });
+                [&](const Node::adjacency& a) { return will_remove(m_edges[a.first]); });
         node.edges.resize(std::distance(node.edges.begin(), it));
 
         // update edge ids of remaining adjacency edges
-        for (edge_id& eid : node.edges) {
-            eid -= rem_edge_count;
+        for (Node::adjacency& a : node.edges) {
+            a.first -= rem_edge_count;
         }
     }
 
@@ -117,8 +117,12 @@ ExperienceGraph::edge_id ExperienceGraph::insert_edge(node_id uid, node_id vid)
 
     m_edges.emplace_back(uid, vid);
     ExperienceGraph::edge_id eid = m_edges.size() - 1;
-    m_nodes[uid].edges.emplace_back(eid);
-    m_nodes[vid].edges.emplace_back(eid);
+    if (vid != uid) {
+        m_nodes[uid].edges.emplace_back(eid, vid);
+        m_nodes[vid].edges.emplace_back(eid, uid);
+    } else {
+        m_nodes[uid].edges.emplace_back(eid, vid);
+    }
     return eid;
 }
 
@@ -133,8 +137,12 @@ ExperienceGraph::edge_id ExperienceGraph::insert_edge(
 
     m_edges.emplace_back(path, uid, vid);
     ExperienceGraph::edge_id eid = m_edges.size() - 1;
-    m_nodes[uid].edges.emplace_back(eid);
-    m_nodes[vid].edges.emplace_back(eid);
+    if (vid != uid) {
+        m_nodes[uid].edges.emplace_back(eid, vid);
+        m_nodes[vid].edges.emplace_back(eid, uid);
+    } else {
+        m_nodes[uid].edges.emplace_back(eid, vid);
+    }
     return eid;
 }
 
@@ -148,8 +156,8 @@ void ExperienceGraph::erase_edge(node_id uid, node_id vid)
     auto& out_edges = m_nodes[uid].edges.size() < m_nodes[vid].edges.size() ?
             m_nodes[uid].edges : m_nodes[vid].edges;
 
-    for (const edge_id eid : out_edges) {
-        if (m_edges[eid].snode == uid || m_edges[eid].snode == vid) {
+    for (const Node::adjacency& a : out_edges) {
+        if (m_edges[a.first].snode == uid || m_edges[a.first].snode == vid) {
             // TODO: remove edge
         }
     }

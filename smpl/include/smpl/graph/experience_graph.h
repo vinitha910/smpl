@@ -52,7 +52,8 @@ private:
 
     struct Node
     {
-        typedef std::vector<edge_id> adjacent_edge_container;
+        typedef std::pair<edge_id, node_id> adjacency;
+        typedef std::vector<adjacency> adjacent_edge_container;
 
         RobotState state;
         adjacent_edge_container edges;
@@ -116,13 +117,30 @@ public:
         edge_id m_id;
     };
 
-    typedef Node::adjacent_edge_container::const_iterator incident_edge_iterator;
+    typedef Node::adjacent_edge_container::const_iterator adjacent_edge_iterator;
+
+    struct incident_edge_iterator : std::iterator<std::random_access_iterator_tag, edge_id>
+    {
+        incident_edge_iterator(adjacent_edge_iterator it);
+
+        const value_type operator*() const;
+        incident_edge_iterator operator++(int);
+        incident_edge_iterator& operator++();
+
+        incident_edge_iterator& operator+=(difference_type n);
+        incident_edge_iterator& operator-=(difference_type n);
+        difference_type operator-(incident_edge_iterator it);
+        bool operator==(incident_edge_iterator it) const;
+        bool operator!=(incident_edge_iterator it) const;
+
+    private:
+
+        adjacent_edge_iterator m_it;
+    };
 
     struct adjacency_iterator : std::iterator<std::random_access_iterator_tag, node_id>
     {
-        adjacency_iterator(
-            const edge_container& edges_ref,
-            incident_edge_iterator it);
+        adjacency_iterator(adjacent_edge_iterator it);
 
         const value_type operator*() const;
         adjacency_iterator operator++(int);
@@ -136,9 +154,7 @@ public:
 
     private:
 
-        node_id m_node;
-        const edge_container* m_edges_ref;
-        incident_edge_iterator m_it;
+        adjacent_edge_iterator m_it;
     };
 
     ExperienceGraph();
@@ -184,11 +200,77 @@ private:
 };
 
 inline
-ExperienceGraph::adjacency_iterator::adjacency_iterator(
-    const edge_container& edges_ref,
-    incident_edge_iterator it)
+ExperienceGraph::incident_edge_iterator::incident_edge_iterator(
+    adjacent_edge_iterator it)
 :
-    m_edges_ref(&edges_ref),
+    m_it(it)
+{
+}
+
+inline
+const ExperienceGraph::incident_edge_iterator::value_type
+ExperienceGraph::incident_edge_iterator::operator*() const
+{
+    return m_it->first;
+}
+
+inline
+ExperienceGraph::incident_edge_iterator
+ExperienceGraph::incident_edge_iterator::operator++(int)
+{
+    incident_edge_iterator it(m_it);
+    ++m_it;
+    return it;
+}
+
+inline
+ExperienceGraph::incident_edge_iterator&
+ExperienceGraph::incident_edge_iterator::operator++()
+{
+    ++m_it;
+    return *this;
+}
+
+inline
+ExperienceGraph::incident_edge_iterator&
+ExperienceGraph::incident_edge_iterator::operator+=(difference_type n)
+{
+    m_it += n;
+    return *this;
+}
+
+inline
+ExperienceGraph::incident_edge_iterator&
+ExperienceGraph::incident_edge_iterator::operator-=(difference_type n)
+{
+    return operator+=(-n);
+}
+
+inline
+ExperienceGraph::incident_edge_iterator::difference_type
+ExperienceGraph::incident_edge_iterator::operator-(incident_edge_iterator it)
+{
+    return m_it - it.m_it;
+}
+
+inline
+bool
+ExperienceGraph::incident_edge_iterator::operator==(incident_edge_iterator it) const
+{
+    return it.m_it == m_it;
+}
+
+inline
+bool
+ExperienceGraph::incident_edge_iterator::operator!=(incident_edge_iterator it) const
+{
+    return it.m_it != m_it;
+}
+
+inline
+ExperienceGraph::adjacency_iterator::adjacency_iterator(
+    adjacent_edge_iterator it)
+:
     m_it(it)
 {
 }
@@ -197,14 +279,14 @@ inline
 const ExperienceGraph::adjacency_iterator::value_type
 ExperienceGraph::adjacency_iterator::operator*() const
 {
-    return (*m_edges_ref)[*m_it].tnode;
+    return m_it->second;
 }
 
 inline
 ExperienceGraph::adjacency_iterator
 ExperienceGraph::adjacency_iterator::operator++(int)
 {
-    adjacency_iterator it(*m_edges_ref, m_it);
+    adjacency_iterator it(m_it);
     ++m_it;
     return it;
 }
