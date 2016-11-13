@@ -56,6 +56,8 @@ private:
 
         RobotState state;
         adjacent_edge_container edges;
+
+        Node(const RobotState& state) : state(state) { }
     };
 
     struct Edge
@@ -72,34 +74,55 @@ private:
 
 public:
 
-    ExperienceGraph(/*const RobotPlanningSpacePtr& pspace*/);
-
-    /// \name IncidenceGraph Interface
-    ///@{
+    typedef node_container::size_type nodes_size_type;
+    typedef edge_container::size_type edges_size_type;
     typedef Node::adjacent_edge_container::size_type degree_size_type;
-    typedef Node::adjacent_edge_container::const_iterator out_edge_iterator;
-    std::pair<out_edge_iterator, out_edge_iterator> out_edges(node_id id);
-    node_id source(edge_id id) const;
-    node_id target(edge_id id) const;
-    degree_size_type out_degree(node_id id) const;
-    ///@}
 
-    /// \name BidirectionalGraph Interface
-    ///@{
-    typedef Node::adjacent_edge_container::const_iterator in_edge_iterator;
-    std::pair<in_edge_iterator, in_edge_iterator> in_edges(node_id id);
-    degree_size_type in_degree(node_id id);
-    degree_size_type degree(node_id id);
-    ///@}
+    struct node_iterator : std::iterator<std::random_access_iterator_tag, node_id>
+    {
+        node_iterator(node_id id);
 
-    /// \name AdjacencyGraph Interface
-    ///@{
-    struct adjacency_iterator :
-        std::iterator<std::random_access_iterator_tag, node_id>
+        const value_type operator*() const;
+        node_iterator operator++(int);
+        node_iterator& operator++();
+
+        node_iterator& operator+=(difference_type n);
+        node_iterator& operator-=(difference_type n);
+        difference_type operator-(node_iterator it);
+        bool operator==(node_iterator it) const;
+        bool operator!=(node_iterator it) const;
+
+    private:
+
+        node_id m_id;
+    };
+
+    struct edge_iterator : std::iterator<std::random_access_iterator_tag, edge_id>
+    {
+        edge_iterator(edge_id id);
+
+        const value_type operator*() const;
+        edge_iterator operator++(int);
+        edge_iterator& operator++();
+
+        edge_iterator& operator+=(difference_type n);
+        edge_iterator& operator-=(difference_type n);
+        difference_type operator-(edge_iterator it);
+        bool operator==(edge_iterator it) const;
+        bool operator!=(edge_iterator it) const;
+
+    private:
+
+        edge_id m_id;
+    };
+
+    typedef Node::adjacent_edge_container::const_iterator incident_edge_iterator;
+
+    struct adjacency_iterator : std::iterator<std::random_access_iterator_tag, node_id>
     {
         adjacency_iterator(
             const edge_container& edges_ref,
-            out_edge_iterator it);
+            incident_edge_iterator it);
 
         const value_type operator*() const;
         adjacency_iterator operator++(int);
@@ -115,46 +138,44 @@ public:
 
         node_id m_node;
         const edge_container* m_edges_ref;
-        out_edge_iterator m_it;
+        incident_edge_iterator m_it;
     };
 
-//    typedef Node::adjacent_edge_container::iterator adjacency_iterator;
-    std::pair<adjacency_iterator, adjacency_iterator> adjacent_nodes(node_id id);
-    ///@}
+    ExperienceGraph();
 
-    /// \name VertexListGraph Interface
-    ///@{
-    typedef std::vector<Node>::iterator node_iterator;
-    typedef std::vector<Node>::const_iterator const_node_iterator;
-    typedef node_container::size_type nodes_size_type;
+    std::pair<node_iterator, node_iterator> nodes() const;
+    std::pair<edge_iterator, edge_iterator> edges() const;
+    std::pair<incident_edge_iterator, incident_edge_iterator> edges(node_id id) const;
+    std::pair<adjacency_iterator, adjacency_iterator> adjacent_nodes(node_id id) const;
+
+    degree_size_type degree(node_id id) const;
+    node_id source(edge_id id) const;
+    node_id target(edge_id id) const;
+
     nodes_size_type num_nodes() const { return m_nodes.size(); }
-    std::pair<node_iterator, node_iterator> nodes();
-    std::pair<const_node_iterator, const_node_iterator> nodes() const;
-    ///@}
-
-    /// \name EdgeListGraph Interface
-    ///@{
-    typedef std::vector<Edge>::iterator edge_iterator;
-    typedef std::vector<Edge>::const_iterator const_edge_iterator;
-    typedef edge_container::size_type edges_size_type;
     edges_size_type num_edges() const { return m_edges.size(); }
-    std::pair<edge_iterator, edge_iterator> edges();
-    std::pair<const_edge_iterator, const_edge_iterator> edges() const;
-    ///@}
 
-    /// \name MutableGraph Interface
-    node_id insert_node();
+    node_id insert_node(const RobotState& state);
     void erase_node(node_id id);
 
     edge_id insert_edge(node_id uid, node_id vid);
+    edge_id insert_edge(
+        node_id uid,
+        node_id vid,
+        const std::vector<RobotState>& path);
+
     void erase_edge(node_id uid, node_id vid);
     void erase_edge(edge_id id);
-    ///@}
 
-    node_id get_id(const_node_iterator it) const;
-    edge_id get_id(const_edge_iterator it) const;
+    const RobotState& state(node_id id) const { return m_nodes[id].state; }
+    RobotState& state(node_id id) { return m_nodes[id].state; }
 
-    void insert_path(const std::vector<RobotState>& path);
+    const std::vector<RobotState>& waypoints(edge_id id) const {
+        return m_edges[id].waypoints;
+    }
+    std::vector<RobotState>& waypoints(edge_id id) {
+        return m_edges[id].waypoints;
+    }
 
 private:
 
@@ -165,7 +186,7 @@ private:
 inline
 ExperienceGraph::adjacency_iterator::adjacency_iterator(
     const edge_container& edges_ref,
-    out_edge_iterator it)
+    incident_edge_iterator it)
 :
     m_edges_ref(&edges_ref),
     m_it(it)
@@ -230,6 +251,132 @@ bool
 ExperienceGraph::adjacency_iterator::operator!=(adjacency_iterator it) const
 {
     return it.m_it != m_it;
+}
+
+inline
+ExperienceGraph::node_iterator::node_iterator(node_id id) :
+    m_id(id)
+{
+}
+
+inline
+const ExperienceGraph::node_iterator::value_type
+ExperienceGraph::node_iterator::operator*() const
+{
+    return m_id;
+}
+
+inline
+ExperienceGraph::node_iterator
+ExperienceGraph::node_iterator::operator++(int)
+{
+    return node_iterator(m_id++);
+}
+
+inline
+ExperienceGraph::node_iterator&
+ExperienceGraph::node_iterator::operator++()
+{
+    ++m_id;
+    return *this;
+}
+
+inline
+ExperienceGraph::node_iterator&
+ExperienceGraph::node_iterator::operator+=(difference_type n)
+{
+    m_id += n;
+    return *this;
+}
+
+inline
+ExperienceGraph::node_iterator&
+ExperienceGraph::node_iterator::operator-=(difference_type n)
+{
+    m_id -= n;
+    return *this;
+}
+
+inline
+ExperienceGraph::node_iterator::difference_type
+ExperienceGraph::node_iterator::operator-(node_iterator it)
+{
+    return (difference_type)m_id - (difference_type)it.m_id;
+}
+
+inline
+bool ExperienceGraph::node_iterator::operator==(node_iterator it) const
+{
+    return m_id == it.m_id;
+}
+
+inline
+bool ExperienceGraph::node_iterator::operator!=(node_iterator it) const
+{
+    return m_id != it.m_id;
+}
+
+inline
+ExperienceGraph::edge_iterator::edge_iterator(edge_id id) :
+    m_id(id)
+{
+}
+
+inline
+const ExperienceGraph::edge_iterator::value_type
+ExperienceGraph::edge_iterator::operator*() const
+{
+    return m_id;
+}
+
+inline
+ExperienceGraph::edge_iterator
+ExperienceGraph::edge_iterator::operator++(int)
+{
+    return edge_iterator(m_id++);
+}
+
+inline
+ExperienceGraph::edge_iterator&
+ExperienceGraph::edge_iterator::operator++()
+{
+    ++m_id;
+    return *this;
+}
+
+inline
+ExperienceGraph::edge_iterator&
+ExperienceGraph::edge_iterator::operator+=(difference_type n)
+{
+    m_id += n;
+    return *this;
+}
+
+inline
+ExperienceGraph::edge_iterator&
+ExperienceGraph::edge_iterator::operator-=(difference_type n)
+{
+    m_id -= n;
+    return *this;
+}
+
+inline
+ExperienceGraph::edge_iterator::difference_type
+ExperienceGraph::edge_iterator::operator-(edge_iterator it)
+{
+    return (difference_type)m_id - (difference_type)it.m_id;
+}
+
+inline
+bool ExperienceGraph::edge_iterator::operator==(edge_iterator it) const
+{
+    return m_id == it.m_id;
+}
+
+inline
+bool ExperienceGraph::edge_iterator::operator!=(edge_iterator it) const
+{
+    return m_id != it.m_id;
 }
 
 } // namespace motion
