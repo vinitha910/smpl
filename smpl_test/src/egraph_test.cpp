@@ -200,6 +200,59 @@ BOOST_AUTO_TEST_CASE(RemoveInteriorNodesTest)
     // TODO: test case where some edges remain, to ensure edge ids updated
 }
 
+BOOST_AUTO_TEST_CASE(RemoveInteriorNodesWithEdgeUpdatesTest)
+{
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n2 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n3 = eg.insert_node(zero_state);
+
+    smpl::ExperienceGraph::edge_id e1 = eg.insert_edge(n1, n2);
+    smpl::ExperienceGraph::edge_id e2 = eg.insert_edge(n1, n3);
+    smpl::ExperienceGraph::edge_id e3 = eg.insert_edge(n2, n3);
+    smpl::ExperienceGraph::edge_id e4 = eg.insert_edge(n1, n3);
+    smpl::ExperienceGraph::edge_id e5 = eg.insert_edge(n2, n3);
+
+    eg.erase_node(n1);
+
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 2);
+    BOOST_CHECK_EQUAL(eg.num_edges(), 2);
+
+    // refresh node ids
+    auto nit = eg.nodes();
+    n2 = *nit.first++;
+    n3 = *nit.first++;
+
+    auto eit = eg.edges();
+    e3 = *eit.first++;
+    e5 = *eit.first++;
+
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n2).first, n3);
+    BOOST_CHECK_EQUAL(*eg.adjacent_nodes(n3).first, n2);
+
+    // all edges go between the two nodes, assert that
+    std::vector<bool> found(eg.num_edges(), false);
+    for (auto it = eg.edges(n2).first; it != eg.edges(n2).second; ++it) {
+        found[*it] = true;
+    }
+    BOOST_CHECK_EQUAL(std::count(found.begin(), found.end(), true), found.size());
+
+    found.assign(eg.num_edges(), false);
+    for (auto it = eg.edges(n3).first; it != eg.edges(n3).second; ++it) {
+        found[*it] = true;
+    }
+    BOOST_CHECK_EQUAL(std::count(found.begin(), found.end(), true), found.size());
+
+    BOOST_CHECK(eg.source(e3) == n2 && eg.target(e3) == n3 ||
+                eg.source(e3) == n3 && eg.target(e3) == n2);
+    BOOST_CHECK(eg.source(e5) == n2 && eg.target(e5) == n3 ||
+                eg.source(e5) == n3 && eg.target(e5) == n2);
+
+    BOOST_CHECK_EQUAL(eg.degree(n2), 2);
+    BOOST_CHECK_EQUAL(eg.degree(n3), 2);
+}
+
 BOOST_AUTO_TEST_CASE(RemoveEdgeByIdTest)
 {
     smpl::ExperienceGraph eg;

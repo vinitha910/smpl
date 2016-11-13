@@ -198,6 +198,10 @@ private:
     std::vector<Node> m_nodes;
     std::vector<Edge> m_edges;
 
+    // cached storage for mapping edge ids to their id adjustments during node
+    // removal
+    std::vector<std::ptrdiff_t> m_shift;
+
     void insert_incident_edge(edge_id eid, node_id uid, node_id vid);
 };
 
