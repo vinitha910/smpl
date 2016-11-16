@@ -66,6 +66,7 @@ add_library(
     src/graph/action_space.cpp
     src/graph/experience_graph.cpp
     src/graph/manip_lattice.cpp
+    src/graph/manip_lattice_egraph.cpp
     src/graph/manip_lattice_action_space.cpp
     src/graph/robot_planning_space.cpp
     src/graph/workspace_lattice.cpp
