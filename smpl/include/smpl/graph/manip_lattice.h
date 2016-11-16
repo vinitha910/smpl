@@ -63,8 +63,6 @@ class RobotHeuristic;
 struct ManipLatticeState
 {
     int stateID;                // hash entry ID number
-    int xyz[3];                 // planning frame cell (x, y, z)
-    double dist;
     std::vector<int> coord;     // discrete coordinate
     RobotState state;           // corresponding continuous coordinate
 };
@@ -111,8 +109,6 @@ public:
 
     ~ManipLattice();
 
-    const ManipLatticeState* getHashEntry(int state_id) const;
-
     bool computePlanningFrameFK(
         const std::vector<double>& state,
         std::vector<double>& pose) const;
@@ -131,7 +127,7 @@ public:
     double getGoalDistance(double x, double y, double z);
     double getGoalDistance(const std::vector<double>& pose);
 
-    virtual void getExpandedStates(std::vector<RobotState>& states) const;
+    void getExpandedStates(std::vector<RobotState>& states) const;
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
@@ -231,33 +227,28 @@ private:
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalConfiguration(const GoalConstraint& goal);
 
-    virtual bool StateID2Angles(int stateID, RobotState& angles) const;
-
+    const ManipLatticeState* getHashEntry(int state_id) const;
     ManipLatticeState* getHashEntry(const std::vector<int>& coord);
     ManipLatticeState* createHashEntry(
         const std::vector<int>& coord,
-        const RobotState& state,
-        double dist,
-        int endeff[3]);
+        const RobotState& state);
     ManipLatticeState* getOrCreateState(
         const std::vector<int>& coord,
-        const RobotState& state,
-        double dist,
-        int endeff[3]);
+        const RobotState& state);
 
     /// \name coordinate frame/angle functions
     ///@{
-    virtual void coordToAngles(
+    void coordToAngles(
         const std::vector<int>& coord,
         std::vector<double>& angles) const;
-    virtual void anglesToCoord(
-        const std::vector<double>& angle,
+    void stateToCoord(
+        const RobotState& state,
         std::vector<int>& coord) const;
     ///@}
 
     /// \name planning
     ///@{
-    virtual bool isGoal(
+    bool isGoal(
         const RobotState& state,
         const std::vector<double>& pose);
     ///@}
@@ -268,7 +259,7 @@ private:
         ManipLatticeState* HashEntry1,
         ManipLatticeState* HashEntry2,
         bool bState2IsGoal);
-    virtual void computeCostPerCell();
+    void computeCostPerCell();
     int getActionCost(
         const std::vector<double>& from_config,
         const std::vector<double>& to_config,
@@ -278,14 +269,6 @@ private:
         const RobotState& state,
         const Action& action,
         double& dist);
-    ///@}
-
-    /// \name output
-    ///@{
-    void printJointArray(
-        FILE* fOut,
-        ManipLatticeState* HashEntry,
-        bool bVerbose);
     ///@}
 
     visualization_msgs::MarkerArray getStateVisualization(
