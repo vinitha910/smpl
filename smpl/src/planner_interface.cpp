@@ -337,11 +337,21 @@ bool PlannerInterface::setGoalConfiguration(
             goal_constraints.joint_constraints.size(), sbpl_angle_goal.size());
     for (size_t i = 0; i < num_angle_constraints; i++) {
         const auto& joint_constraint = goal_constraints.joint_constraints[i];
-        sbpl_angle_goal[i] = joint_constraint.position;
-        sbpl_angle_tolerance[i] = std::min(
+        const std::string& joint_name = joint_constraint.joint_name;
+        auto jit = std::find(
+                m_robot->getPlanningJoints().begin(),
+                m_robot->getPlanningJoints().end(),
+                joint_name);
+        if (jit == m_robot->getPlanningJoints().end()) {
+            ROS_ERROR("Failed to find goal constraint for joint '%s'", joint_name.c_str());
+            return false;
+        }
+        int jidx = std::distance(m_robot->getPlanningJoints().begin(), jit);
+        sbpl_angle_goal[jidx] = joint_constraint.position;
+        sbpl_angle_tolerance[jidx] = std::min(
                 fabs(joint_constraint.tolerance_above),
                 fabs(joint_constraint.tolerance_below));
-        ROS_INFO_NAMED(PI_LOGGER, "Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, goal_constraints.joint_constraints[i].joint_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
+        ROS_INFO_NAMED(PI_LOGGER, "Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, joint_name.c_str(), sbpl_angle_goal[jidx], sbpl_angle_tolerance[jidx]);
     }
 
     GoalConstraint goal;
