@@ -43,6 +43,12 @@ class ManipLatticeEgraph : public ManipLattice, public ExperienceGraphExtension
 {
 public:
 
+    ManipLatticeEgraph(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        PlanningParams* params,
+        OccupancyGrid* grid);
+
     bool loadExperienceGraph(const std::string& path);
 
     void getShortcutSuccPath(
@@ -62,6 +68,15 @@ public:
 
 private:
 
+    struct ivec_hash
+    {
+        typedef std::vector<int> argument_type;
+        typedef std::size_t result_type;
+
+        result_type operator()(const argument_type& s) const;
+    };
+
+    hash_map<RobotCoord, ExperienceGraph::node_id, ivec_hash> m_coord_to_id;
     ExperienceGraph m_egraph;
 };
 

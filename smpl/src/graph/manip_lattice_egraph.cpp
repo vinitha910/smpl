@@ -36,8 +36,65 @@
 namespace sbpl {
 namespace motion {
 
+auto ManipLatticeEgraph::ivec_hash::operator()(const argument_type& s) const ->
+    result_type
+{
+    std::size_t seed = 0;
+    boost::hash_combine(seed, boost::hash_range(s.begin(), s.end()));
+    return seed;
+}
+
+ManipLatticeEgraph::ManipLatticeEgraph(
+    RobotModel* robot,
+    CollisionChecker* checker,
+    PlanningParams* params,
+    OccupancyGrid* grid)
+:
+    ManipLattice(robot, checker, params, grid),
+    m_coord_to_id(),
+    m_egraph()
+{
+}
+
+// Strategies for building experience graphs from continuous path data:
+//
+// 1. The path data comes in the form as a set of continuous states
+//
+// discretize every state in the set of continuous states
+// remove any duplicate discrete states
+// for each pair of discrete points
+//     if there exists an action that transitions between the two points
+//         add the transition path to the experience graph
+//
+// 2. The path data comes in the form as a set of paths (sequences of continuous
+//    states). The intention is to reuse the input paths verbatim with little
+//    discretization error.
+//
+// for each path, p
+//     dp0 = discretize(p0)
+//     dpf = discretize(p0)
+//     edge <- [ p0 ]
+//     for each point pi in path \ p0
+//         dpf = discretize(pi)
+//         if dpf != dp0
+//             add edge (dp0, dpf, edge)
+//         else
+//             edge = edge + [ pi ]
+//
+// TODO: Considerations:
+//
+// (1) What should be done about about context-specific actions, such as IK
+// motions to the current goal?
+// (2) Should effort be made to explicitly connect two states with the same
+// discrete coordinate but differing continuous coordinates?
+// (2a) One method might be to allow discontinuous jumps, denoted by either the
+// the discretization or an explicit tolerance
+// (3a) Intersections between paths can be tested and a new state at the
+// intersection can be created
 bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 {
+    ROS_INFO("Load Experience Graph at %s", path.c_str());
+
     std::ifstream fin(path);
     if (!fin.is_open()) {
         ROS_ERROR("Failed to open '%s' for reading", path.c_str());
@@ -51,19 +108,19 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         return false;
     }
 
-    size_t jvar_count = robot()->getPlanningJoints().size();
+    const size_t jvar_count = robot()->getPlanningJoints().size();
     if (parser.fieldCount() != jvar_count) {
         ROS_ERROR("Parsed experience graph contains insufficient number of joint variables");
         return false;
     }
 
-    std::vector<double> egraph_states;
+    std::vector<RobotState> egraph_states;
     egraph_states.reserve(parser.totalFieldCount());
     for (size_t i = 0; i < parser.recordCount(); ++i) {
+        RobotState state(jvar_count);
         for (size_t j = 0; j < parser.fieldCount(); ++j) {
             try {
-                double var = std::stod(parser.fieldAt(i, j));
-                egraph_states.push_back(var);
+                state[j] = std::stod(parser.fieldAt(i, j));
             } catch (const std::invalid_argument& ex) {
                 ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
                 return false;
@@ -72,10 +129,51 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
                 return false;
             }
         }
+        egraph_states.push_back(std::move(state));
     }
 
-    ActionSpacePtr actions = actionSpace();
-//    std::vector<std::vector<int>>
+    ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
+
+    std::vector<RobotCoord> egraph_coords;
+    for (const RobotState& state : egraph_states) {
+        RobotCoord coord;
+        stateToCoord(state, coord);
+        egraph_coords.push_back(std::move(coord));
+
+        createHashEntry(coord, state);
+    }
+
+    auto it = std::unique(egraph_coords.begin(), egraph_coords.end());
+    egraph_coords.erase(it, egraph_coords.end());
+
+    ROS_INFO("Experience contains %zu discrete states", egraph_coords.size());
+
+    // insert all coords into egraph and initialize coord -> egraph node mapping
+    RobotState state;
+    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
+        coordToState(*it, state);
+        m_coord_to_id[*it] = m_egraph.insert_node(state);
+    }
+
+    int edge_count = 0;
+    ActionSpacePtr aspace = actionSpace();
+    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
+        const ExperienceGraph::node_id n = m_coord_to_id[*it];
+        RobotState source;
+        coordToState(*it, source);
+        std::vector<Action> actions;
+        aspace->apply(source, actions);
+        for (const Action& action : actions) {
+            RobotCoord last;
+            stateToCoord(action.back(), last);
+            auto iit = m_coord_to_id.find(last);
+            if (iit != m_coord_to_id.end() && !m_egraph.edge(n, iit->second)) {
+                m_egraph.insert_edge(n, iit->second);
+                ++edge_count;
+            }
+        }
+    }
+    ROS_INFO("Experience graph contains %d edges", edge_count);
 
     return true;
 }

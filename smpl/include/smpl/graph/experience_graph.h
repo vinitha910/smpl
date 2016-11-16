@@ -11,29 +11,6 @@
 namespace sbpl {
 namespace motion {
 
-// Strategies for building experience graphs from continuous path data:
-//
-// 1. The path data comes in the form as a set of continuous states
-//
-// * discretize every state in the set of continuous states
-// * remove any duplicate discrete states
-// * for each pair of discrete points
-// *     if there exists an action that transitions between the two points
-// *         add the transition path to the experience graph
-//
-// 2. The path data comes in the form as a set of paths (sequences of continuous states)
-//
-// * for each path, p
-// *     dp0 = discretize(p0)
-// *     dpf = discretize(p0)
-// *     edge <- [ p0 ]
-// *     for each point pi in path \ p0
-// *         dpf = discretize(pi)
-// *         if dpf != dp0
-// *             add edge (dp0, dpf, edge)
-// *         else
-// *             edge = edge + [ pi ]
-
 // undirected
 class ExperienceGraph
 {
