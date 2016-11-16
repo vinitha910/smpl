@@ -171,6 +171,8 @@ public:
     nodes_size_type num_nodes() const { return m_nodes.size(); }
     edges_size_type num_edges() const { return m_edges.size(); }
 
+    bool edge(node_id uid, node_id vid) const;
+
     node_id insert_node(const RobotState& state);
     void erase_node(node_id id);
 

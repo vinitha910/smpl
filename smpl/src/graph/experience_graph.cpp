@@ -73,6 +73,29 @@ ExperienceGraph::node_id ExperienceGraph::target(edge_id id) const
     return m_edges[id].tnode;
 }
 
+/// Test if an edge exists between two nodes.
+bool ExperienceGraph::edge(node_id uid, node_id vid) const
+{
+    if (uid >= m_nodes.size() || vid >= m_nodes.size()) {
+        throw std::out_of_range("ExperienceGraph::edge called with invalid node ids");
+    }
+
+    if (m_nodes[uid].edges.size() < m_nodes[vid].edges.size()) {
+        for (const auto& adj : m_nodes[uid].edges) {
+            if (adj.second == vid) {
+                return true;
+            }
+        }
+    } else {
+        for (const auto& adj : m_nodes[vid].edges) {
+            if (adj.second == uid) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 /// Insert a node.
 ExperienceGraph::node_id ExperienceGraph::insert_node(const RobotState& state)
 {
