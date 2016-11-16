@@ -1,5 +1,6 @@
 #include <smpl/graph/experience_graph.h>
 
+#include <assert.h>
 #include <algorithm>
 #include <stdexcept>
 
@@ -241,13 +242,14 @@ void ExperienceGraph::erase_edge(edge_id id)
     const Edge& e = m_edges[id];
 
     // remove incident edge from source node and update edge ids
+    assert(e.snode < m_nodes.size());
     auto ait = std::remove_if(
             m_nodes[e.snode].edges.begin(),
             m_nodes[e.snode].edges.end(),
             [&](Node::adjacency& a) {
                 bool rem = a.first == id;
                 if (a.first > id) {
-                    --id;
+                    --a.first;
                 }
                 return rem;
             });
@@ -256,13 +258,14 @@ void ExperienceGraph::erase_edge(edge_id id)
     // for non-self-loops, remove incident edge from target node and update edge
     // ids
     if (e.tnode != e.snode) {
+        assert(e.tnode < m_nodes.size());
         ait = std::remove_if(
                 m_nodes[e.tnode].edges.begin(),
                 m_nodes[e.tnode].edges.end(),
                 [&](Node::adjacency& a) {
                     bool rem = a.first == id;
                     if (a.first > id) {
-                        --id;
+                        --a.first;
                     }
                     return rem;
                 });
@@ -270,7 +273,7 @@ void ExperienceGraph::erase_edge(edge_id id)
     }
 
     // remove the edge
-    m_edges.erase(m_edges.begin() + id);
+    m_edges.erase(std::next(m_edges.begin(), id));
 }
 
 inline

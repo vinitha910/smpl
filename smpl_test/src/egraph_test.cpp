@@ -31,7 +31,6 @@
 
 // standard includes
 #include <algorithm>
-#include <iostream>
 
 #define BOOST_TEST_MODULE ExperienceGraphTest
 #define BOOST_TEST_DYN_LINK
@@ -196,8 +195,6 @@ BOOST_AUTO_TEST_CASE(RemoveInteriorNodesTest)
     BOOST_CHECK(eg.edges(n3).first == eg.edges(n3).second);
     BOOST_CHECK(eg.adjacent_nodes(n2).first == eg.adjacent_nodes(n2).second);
     BOOST_CHECK(eg.adjacent_nodes(n3).first == eg.adjacent_nodes(n3).second);
-
-    // TODO: test case where some edges remain, to ensure edge ids updated
 }
 
 BOOST_AUTO_TEST_CASE(RemoveInteriorNodesWithEdgeUpdatesTest)
@@ -353,5 +350,26 @@ BOOST_AUTO_TEST_CASE(RemoveSelfLoopEdgeTest)
 
 BOOST_AUTO_TEST_CASE(ParallelEdgeTest)
 {
+    smpl::ExperienceGraph eg;
+    smpl::RobotState zero_state;
+    smpl::ExperienceGraph::node_id n1 = eg.insert_node(zero_state);
+    smpl::ExperienceGraph::node_id n2 = eg.insert_node(zero_state);
 
+    smpl::ExperienceGraph::edge_id e121 = eg.insert_edge(n1, n2);
+    smpl::ExperienceGraph::edge_id e122 = eg.insert_edge(n1, n2);
+
+    BOOST_CHECK_EQUAL(eg.num_nodes(), 2);
+    BOOST_CHECK_EQUAL(eg.num_edges(), 2);
+    BOOST_CHECK_EQUAL(eg.degree(n1), 2);
+
+    auto adjacent_nodes = eg.adjacent_nodes(n1);
+    BOOST_CHECK_EQUAL(*adjacent_nodes.first, n2);
+    BOOST_CHECK_EQUAL(*++adjacent_nodes.first, n2);
+
+    eg.erase_edge(e121);
+//
+//    adjacent_nodes = eg.adjacent_nodes(n1);
+//    BOOST_CHECK_EQUAL(*adjacent_nodes.first, n2);
+//
+//    BOOST_CHECK_EQUAL(eg.degree(n1), 1);
 }
