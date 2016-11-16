@@ -47,12 +47,13 @@
 #include <trajectory_msgs/JointTrajectory.h>
 
 // project includes
-#include <smpl/bfs3d/bfs3d.h>
+#include <smpl/angles.h>
 #include <smpl/collision_checker.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/types.h>
+#include <smpl/bfs3d/bfs3d.h>
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
@@ -170,6 +171,18 @@ public:
         std::vector<int>* costs) override;
     ///@}
 
+protected:
+
+    /// \name coordinate frame/angle functions
+    ///@{
+    void coordToState(const RobotCoord& coord, RobotState& state) const;
+    void stateToCoord(const RobotState& state, RobotCoord& coord) const;
+    ///@}
+
+    ManipLatticeState* createHashEntry(
+        const RobotCoord& coord,
+        const RobotState& state);
+
 private:
 
     struct StateHash
@@ -220,9 +233,6 @@ private:
 
     const ManipLatticeState* getHashEntry(int state_id) const;
     ManipLatticeState* getHashEntry(const RobotCoord& coord);
-    ManipLatticeState* createHashEntry(
-        const RobotCoord& coord,
-        const RobotState& state);
     ManipLatticeState* getOrCreateState(
         const RobotCoord& coord,
         const RobotState& state);
@@ -235,12 +245,6 @@ private:
 
     std::vector<double> getTargetOffsetPose(
         const std::vector<double>& tip_pose) const;
-
-    /// \name coordinate frame/angle functions
-    ///@{
-    void coordToState(const RobotCoord& coord, RobotState& state) const;
-    void stateToCoord(const RobotState& state, RobotCoord& coord) const;
-    ///@}
 
     /// \name planning
     ///@{
@@ -269,6 +273,47 @@ private:
         const RobotState& vars,
         const std::string& ns);
 };
+
+// angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
+// 0, ...
+inline
+void ManipLattice::coordToState(
+    const RobotCoord& coord,
+    RobotState& state) const
+{
+    state.resize(coord.size());
+    for (size_t i = 0; i < coord.size(); ++i) {
+        if (m_continuous[i]) {
+            state[i] = coord[i] * params()->coord_delta[i];
+        } else {
+            state[i] = m_min_limits[i] + coord[i] * params()->coord_delta[i];
+        }
+    }
+}
+
+inline
+void ManipLattice::stateToCoord(
+    const RobotState& state,
+    RobotCoord& coord) const
+{
+    assert((int)state.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
+
+    for (size_t i = 0; i < state.size(); ++i) {
+        if (m_continuous[i]) {
+            double pos_angle = angles::normalize_angle_positive(state[i]);
+
+            coord[i] = (int)((pos_angle + params()->coord_delta[i] * 0.5) / params()->coord_delta[i]);
+
+            if (coord[i] == params()->coord_vals[i]) {
+                coord[i] = 0;
+            }
+        }
+        else {
+            coord[i] = (int)(((state[i] - m_min_limits[i]) / params()->coord_delta[i]) + 0.5);
+        }
+    }
+}
 
 } // namespace motion
 } // namespace sbpl

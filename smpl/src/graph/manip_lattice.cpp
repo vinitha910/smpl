@@ -1129,46 +1129,5 @@ std::vector<double> ManipLattice::getTargetOffsetPose(
     return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
 }
 
-// angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
-// 0, ...
-inline
-void ManipLattice::coordToState(
-    const RobotCoord& coord,
-    RobotState& state) const
-{
-    state.resize(coord.size());
-    for (size_t i = 0; i < coord.size(); ++i) {
-        if (m_continuous[i]) {
-            state[i] = coord[i] * params()->coord_delta[i];
-        } else {
-            state[i] = m_min_limits[i] + coord[i] * params()->coord_delta[i];
-        }
-    }
-}
-
-inline
-void ManipLattice::stateToCoord(
-    const RobotState& state,
-    RobotCoord& coord) const
-{
-    assert((int)state.size() == robot()->jointVariableCount() &&
-            (int)coord.size() == robot()->jointVariableCount());
-
-    for (size_t i = 0; i < state.size(); ++i) {
-        if (m_continuous[i]) {
-            double pos_angle = angles::normalize_angle_positive(state[i]);
-
-            coord[i] = (int)((pos_angle + params()->coord_delta[i] * 0.5) / params()->coord_delta[i]);
-
-            if (coord[i] == params()->coord_vals[i]) {
-                coord[i] = 0;
-            }
-        }
-        else {
-            coord[i] = (int)(((state[i] - m_min_limits[i]) / params()->coord_delta[i]) + 0.5);
-        }
-    }
-}
-
 } // namespace motion
 } // namespace sbpl
