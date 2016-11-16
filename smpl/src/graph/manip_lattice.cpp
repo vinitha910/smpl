@@ -297,7 +297,7 @@ void ManipLattice::GetLazySuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(state_entry->state).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(SourceStateID));
 
-    const std::vector<double>& source_angles = state_entry->state;
+    const RobotState& source_angles = state_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(source_angles, "expansion"));
 
     std::vector<Action> actions;
@@ -375,7 +375,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     assert(parent_entry && parent_entry->coord.size() >= robot()->jointVariableCount());
     assert(child_entry && child_entry->coord.size() >= robot()->jointVariableCount());
 
-    const std::vector<double>& parent_angles = parent_entry->state;
+    const RobotState& parent_angles = parent_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(parent_angles, "expansion"));
 
     ActionSpacePtr action_space = actionSpace();
@@ -636,7 +636,7 @@ int ManipLattice::getActionCost(
     num_prims = max_diff / params()->max_mprim_offset + 0.5;
     cost = num_prims * params()->cost_multiplier;
 
-    std::vector<double> from_config_norm(first.size());
+    RobotState from_config_norm(first.size());
     for (size_t i = 0; i < first.size(); ++i) {
         from_config_norm[i] = angles::normalize_angle(first[i]);
     }
