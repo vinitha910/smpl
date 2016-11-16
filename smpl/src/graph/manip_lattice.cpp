@@ -97,7 +97,7 @@ ManipLattice::ManipLattice(
     // moment since it requires all non-continuous joints to be at their minimum
     // values and all continuous joints to be at their zero positions, but that
     // case will likely produce a bug in the current state
-    std::vector<int> coord(robot()->jointVariableCount(), 0);
+    RobotCoord coord(robot()->jointVariableCount(), 0);
     m_start_entry = nullptr;
     m_goal_entry = createHashEntry(coord, {});
     ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_entry->stateID);
@@ -198,7 +198,7 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     // check actions for validity
-    std::vector<int> succ_coord(robot()->jointVariableCount(), 0);
+    RobotCoord succ_coord(robot()->jointVariableCount(), 0);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
@@ -309,7 +309,7 @@ void ManipLattice::GetLazySuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     int goal_succ_count = 0;
-    std::vector<int> succ_coord(robot()->jointVariableCount());
+    RobotCoord succ_coord(robot()->jointVariableCount());
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
@@ -394,7 +394,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     size_t num_actions = 0;
 
     // check actions for validity and find the valid action with the least cost
-    std::vector<int> succ_coord(robot()->jointVariableCount());
+    RobotCoord succ_coord(robot()->jointVariableCount());
     int best_cost = std::numeric_limits<int>::max();
     for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
         const Action& action = actions[aidx];
@@ -483,8 +483,7 @@ void ManipLattice::GetPreds(
     ROS_WARN("GetPreds unimplemented");
 }
 
-ManipLatticeState* ManipLattice::getHashEntry(
-    const std::vector<int>& coord)
+ManipLatticeState* ManipLattice::getHashEntry(const RobotCoord& coord)
 {
     ManipLatticeState state;
     state.coord = coord;
@@ -496,7 +495,7 @@ ManipLatticeState* ManipLattice::getHashEntry(
 }
 
 ManipLatticeState* ManipLattice::createHashEntry(
-    const std::vector<int>& coord,
+    const RobotCoord& coord,
     const RobotState& state)
 {
     ManipLatticeState* entry = new ManipLatticeState;
@@ -519,7 +518,7 @@ ManipLatticeState* ManipLattice::createHashEntry(
 }
 
 ManipLatticeState* ManipLattice::getOrCreateState(
-    const std::vector<int>& coord,
+    const RobotCoord& coord,
     const RobotState& state)
 {
     ManipLatticeState* entry = getHashEntry(coord);
@@ -751,7 +750,7 @@ bool ManipLattice::setStart(const RobotState& state)
     SV_SHOW_INFO(getStateVisualization(state, "start_config"));
 
     // get arm position in environment
-    std::vector<int> start_coord(robot()->jointVariableCount());
+    RobotCoord start_coord(robot()->jointVariableCount());
     stateToCoord(state, start_coord);
     ROS_DEBUG_NAMED(params()->graph_log, "  coord: %s", to_string(start_coord).c_str());
 
@@ -876,7 +875,7 @@ bool ManipLattice::extractPath(
             }
 
             ManipLatticeState* best_goal_state = nullptr;
-            std::vector<int> succ_coord(robot()->jointVariableCount());
+            RobotCoord succ_coord(robot()->jointVariableCount());
             int best_cost = std::numeric_limits<int>::max();
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
                 const Action& action = actions[aidx];
@@ -1134,7 +1133,7 @@ std::vector<double> ManipLattice::getTargetOffsetPose(
 // 0, ...
 inline
 void ManipLattice::coordToState(
-    const std::vector<int>& coord,
+    const RobotCoord& coord,
     RobotState& state) const
 {
     state.resize(coord.size());
@@ -1150,7 +1149,7 @@ void ManipLattice::coordToState(
 inline
 void ManipLattice::stateToCoord(
     const RobotState& state,
-    std::vector<int>& coord) const
+    RobotCoord& coord) const
 {
     assert((int)state.size() == robot()->jointVariableCount() &&
             (int)coord.size() == robot()->jointVariableCount());

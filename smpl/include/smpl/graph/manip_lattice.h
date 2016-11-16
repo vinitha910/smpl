@@ -60,11 +60,13 @@ namespace motion {
 
 class RobotHeuristic;
 
+typedef std::vector<int> RobotCoord;
+
 struct ManipLatticeState
 {
-    int stateID;                // hash entry ID number
-    std::vector<int> coord;     // discrete coordinate
-    RobotState state;           // corresponding continuous coordinate
+    int stateID;        // hash entry ID number
+    RobotCoord coord;   // discrete coordinate
+    RobotState state;   // corresponding continuous coordinate
 };
 
 inline
@@ -217,12 +219,12 @@ private:
     bool setGoalConfiguration(const GoalConstraint& goal);
 
     const ManipLatticeState* getHashEntry(int state_id) const;
-    ManipLatticeState* getHashEntry(const std::vector<int>& coord);
+    ManipLatticeState* getHashEntry(const RobotCoord& coord);
     ManipLatticeState* createHashEntry(
-        const std::vector<int>& coord,
+        const RobotCoord& coord,
         const RobotState& state);
     ManipLatticeState* getOrCreateState(
-        const std::vector<int>& coord,
+        const RobotCoord& coord,
         const RobotState& state);
 
     void startNewSearch();
@@ -236,19 +238,13 @@ private:
 
     /// \name coordinate frame/angle functions
     ///@{
-    void coordToState(
-        const std::vector<int>& coord,
-        RobotState& state) const;
-    void stateToCoord(
-        const RobotState& state,
-        std::vector<int>& coord) const;
+    void coordToState(const RobotCoord& coord, RobotState& state) const;
+    void stateToCoord(const RobotState& state, RobotCoord& coord) const;
     ///@}
 
     /// \name planning
     ///@{
-    bool isGoal(
-        const RobotState& state,
-        const std::vector<double>& pose);
+    bool isGoal(const RobotState& state, const std::vector<double>& pose);
     ///@}
 
     /// \name costs
