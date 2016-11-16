@@ -109,17 +109,7 @@ public:
 
     ~ManipLattice();
 
-    bool computePlanningFrameFK(
-        const std::vector<double>& state,
-        std::vector<double>& pose) const;
-
-    const std::vector<double>& getGoal() const;
-
-    std::vector<double> getTargetOffsetPose(
-        const std::vector<double>& tip_pose) const;
-
-    std::vector<double> getStartConfiguration() const;
-    std::vector<double> getGoalConfiguration() const;
+    RobotState getStartConfiguration() const;
 
     double getStartDistance(double x, double y, double z);
     double getStartDistance(const std::vector<double>& pose);
@@ -209,9 +199,6 @@ private:
     std::vector<double> m_max_limits;
     std::vector<bool> m_continuous;
 
-    bool m_near_goal;
-    clock_t m_t_start;
-
     ManipLatticeState* m_goal_entry;
     ManipLatticeState* m_start_entry;
 
@@ -223,6 +210,8 @@ private:
 
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
+    bool m_near_goal;
+    clock_t m_t_start;
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalConfiguration(const GoalConstraint& goal);
@@ -236,11 +225,20 @@ private:
         const std::vector<int>& coord,
         const RobotState& state);
 
+    void startNewSearch();
+
+    bool computePlanningFrameFK(
+        const RobotState& state,
+        std::vector<double>& pose) const;
+
+    std::vector<double> getTargetOffsetPose(
+        const std::vector<double>& tip_pose) const;
+
     /// \name coordinate frame/angle functions
     ///@{
-    void coordToAngles(
+    void coordToState(
         const std::vector<int>& coord,
-        std::vector<double>& angles) const;
+        RobotState& state) const;
     void stateToCoord(
         const RobotState& state,
         std::vector<int>& coord) const;
@@ -261,8 +259,8 @@ private:
         bool bState2IsGoal);
     void computeCostPerCell();
     int getActionCost(
-        const std::vector<double>& from_config,
-        const std::vector<double>& to_config,
+        const RobotState& first,
+        const RobotState& last,
         int dist);
 
     bool checkAction(
@@ -272,7 +270,7 @@ private:
     ///@}
 
     visualization_msgs::MarkerArray getStateVisualization(
-        const std::vector<double>& vars,
+        const RobotState& vars,
         const std::string& ns);
 };
 

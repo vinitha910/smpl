@@ -71,12 +71,12 @@ ManipLattice::ManipLattice(
     m_min_limits(),
     m_max_limits(),
     m_continuous(),
-    m_near_goal(false),
-    m_t_start(),
     m_goal_entry(nullptr),
     m_start_entry(nullptr),
     m_states(),
-    m_expanded_states()
+    m_expanded_states(),
+    m_near_goal(false),
+    m_t_start()
 {
     m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
 
@@ -529,24 +529,6 @@ ManipLatticeState* ManipLattice::getOrCreateState(
     return entry;
 }
 
-/// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
-/// not be
-bool ManipLattice::computePlanningFrameFK(
-    const std::vector<double>& state,
-    std::vector<double>& pose) const
-{
-    assert(state.size() == robot()->jointVariableCount());
-
-    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
-        return false;
-    }
-
-    pose = getTargetOffsetPose(pose);
-
-    assert(pose.size() == 6);
-    return true;
-}
-
 int ManipLattice::cost(
     ManipLatticeState* HashEntry1,
     ManipLatticeState* HashEntry2,
@@ -627,14 +609,14 @@ bool ManipLattice::isGoal(
 }
 
 int ManipLattice::getActionCost(
-    const std::vector<double>& from_config,
-    const std::vector<double>& to_config,
+    const RobotState& first,
+    const RobotState& last,
     int dist)
 {
     int num_prims = 0, cost = 0;
     double diff = 0, max_diff = 0;
 
-    if (from_config.size() != to_config.size()) {
+    if (first.size() != last.size()) {
         return -1;
     }
 
@@ -645,7 +627,7 @@ int ManipLattice::getActionCost(
             continue;
         }
 
-        diff = angles::shortest_angle_dist(from_config[i], to_config[i]);
+        diff = angles::shortest_angle_dist(first[i], last[i]);
         if (max_diff < diff) {
             max_diff = diff;
         }
@@ -654,9 +636,9 @@ int ManipLattice::getActionCost(
     num_prims = max_diff / params()->max_mprim_offset + 0.5;
     cost = num_prims * params()->cost_multiplier;
 
-    std::vector<double> from_config_norm(from_config.size());
-    for (size_t i = 0; i < from_config.size(); ++i) {
-        from_config_norm[i] = angles::normalize_angle(from_config[i]);
+    std::vector<double> from_config_norm(first.size());
+    for (size_t i = 0; i < first.size(); ++i) {
+        from_config_norm[i] = angles::normalize_angle(first[i]);
     }
 
     return cost;
@@ -1019,56 +1001,20 @@ int ManipLattice::getStartStateID() const
     return m_start_entry ? m_start_entry->stateID : -1;
 }
 
-/// \brief Return the 6-dof goal pose for the tip link.
-///
-/// Return the 6-dof goal pose for the tip link, as last set by
-/// setGoalPosition(). If no goal has been set, the returned vector is empty.
-const std::vector<double>& ManipLattice::getGoal() const
-{
-    return goal().pose;
-}
-
-/// \brief Return the 6-dof goal pose for the offset from the tip link.
-std::vector<double> ManipLattice::getTargetOffsetPose(
-    const std::vector<double>& tip_pose) const
-{
-    // pose represents T_planning_eef
-    Eigen::Affine3d T_planning_tipoff = // T_planning_eef * T_eef_tipoff
-            Eigen::Translation3d(tip_pose[0], tip_pose[1], tip_pose[2]) *
-            Eigen::AngleAxisd(tip_pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
-            Eigen::Translation3d(
-                    goal().xyz_offset[0],
-                    goal().xyz_offset[1],
-                    goal().xyz_offset[2]);
-    const Eigen::Vector3d voff(T_planning_tipoff.translation());
-    return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
-}
-
-/// \brief Return the full joint configuration goal.
-///
-/// Return the full joint configuration goal, as last set by
-/// setGoalConfiguration().
-std::vector<double> ManipLattice::getGoalConfiguration() const
-{
-    return goal().angles;
-}
-
 /// \brief Get the (heuristic) distance from the planning frame position to the
 ///     start
-std::vector<double> ManipLattice::getStartConfiguration() const
+RobotState ManipLattice::getStartConfiguration() const
 {
     if (m_start_entry) {
         return m_start_entry->state;
     }
     else {
-        return std::vector<double>();
+        return RobotState();
     }
 }
 
 visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
-    const std::vector<double>& vars,
+    const RobotState& vars,
     const std::string& ns)
 {
     auto ma = collisionChecker()->getCollisionModelVisualization(vars);
@@ -1110,8 +1056,7 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
     ROS_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", _goal.pose[3], _goal.pose[4], _goal.pose[5]);
     ROS_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", _goal.rpy_tolerance[0]);
 
-    m_near_goal = false;
-    m_t_start = clock();
+    startNewSearch();
 
     // set the (modified) goal
     return RobotPlanningSpace::setGoal(_goal);
@@ -1135,26 +1080,69 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
         m_goal_entry->coord[i] = 0;
     }
 
-    m_near_goal = false;
-    m_t_start = clock();
+    startNewSearch();
 
     // notify observers of updated goal
     return RobotPlanningSpace::setGoal(_goal);
 }
 
+// Reset any variables that should be set just before a new search is started.
+void ManipLattice::startNewSearch()
+{
+    m_expanded_states.clear();
+    m_near_goal = false;
+    m_t_start = clock();
+}
+
+/// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
+/// not be
+bool ManipLattice::computePlanningFrameFK(
+    const RobotState& state,
+    std::vector<double>& pose) const
+{
+    assert(state.size() == robot()->jointVariableCount());
+
+    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
+        return false;
+    }
+
+    pose = getTargetOffsetPose(pose);
+
+    assert(pose.size() == 6);
+    return true;
+}
+
+/// \brief Return the 6-dof goal pose for the offset from the tip link.
+std::vector<double> ManipLattice::getTargetOffsetPose(
+    const std::vector<double>& tip_pose) const
+{
+    // pose represents T_planning_eef
+    Eigen::Affine3d T_planning_tipoff = // T_planning_eef * T_eef_tipoff
+            Eigen::Translation3d(tip_pose[0], tip_pose[1], tip_pose[2]) *
+            Eigen::AngleAxisd(tip_pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
+            Eigen::Translation3d(
+                    goal().xyz_offset[0],
+                    goal().xyz_offset[1],
+                    goal().xyz_offset[2]);
+    const Eigen::Vector3d voff(T_planning_tipoff.translation());
+    return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
+}
+
 // angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
 // 0, ...
 inline
-void ManipLattice::coordToAngles(
+void ManipLattice::coordToState(
     const std::vector<int>& coord,
-    std::vector<double>& angles) const
+    RobotState& state) const
 {
-    angles.resize(coord.size());
+    state.resize(coord.size());
     for (size_t i = 0; i < coord.size(); ++i) {
         if (m_continuous[i]) {
-            angles[i] = coord[i] * params()->coord_delta[i];
+            state[i] = coord[i] * params()->coord_delta[i];
         } else {
-            angles[i] = m_min_limits[i] + coord[i] * params()->coord_delta[i];
+            state[i] = m_min_limits[i] + coord[i] * params()->coord_delta[i];
         }
     }
 }
