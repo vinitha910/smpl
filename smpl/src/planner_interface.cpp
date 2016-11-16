@@ -49,6 +49,7 @@
 #include <smpl/post_processing.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/manip_lattice.h>
+#include <smpl/graph/manip_lattice_egraph.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/heuristic/bfs_heuristic.h>
@@ -1083,6 +1084,28 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             ROS_ERROR("Failed to associate action space with planning space");
             return false;
         }
+    } else if (space_name == "manip_lattice_egraph") {
+        m_pspace = std::make_shared<ManipLatticeEgraph>(
+                m_robot, m_checker, &m_params, m_grid);
+        m_aspace = std::make_shared<ManipLatticeActionSpace>(m_pspace);
+        ManipLatticeActionSpace* manip_actions =
+                (ManipLatticeActionSpace*)m_aspace.get();
+        if (!manip_actions->load(m_params.action_filename)) {
+            ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
+            return false;
+        }
+        manip_actions->useMultipleIkSolutions(m_params.use_multiple_ik_solutions);
+
+        // associate action space with lattice
+        if (!m_pspace->setActionSpace(m_aspace)) {
+            ROS_ERROR("Failed to associate action space with planning space");
+            return false;
+        }
+
+        ManipLatticeEgraph* lattice = (ManipLatticeEgraph*)m_pspace.get();
+
+        // warning printed within, allow to fail silently
+        (void)lattice->loadExperienceGraph("~/egraph.csv");
     } else if (space_name == "workspace") {
         ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
         m_pspace = std::make_shared<WorkspaceLattice>(
