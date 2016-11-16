@@ -75,49 +75,6 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     }
 }
 
-bool EgraphBfsHeuristic::loadExperienceGraph(const std::string& path)
-{
-    std::ifstream fin(path);
-    if (!fin.is_open()) {
-        ROS_ERROR("Failed to open '%s' for reading", path.c_str());
-        return false;
-    }
-
-    CSVParser parser;
-    const bool with_header = true;
-    if (!parser.parseStream(fin, with_header)) {
-        ROS_ERROR("Failed to parse experience graph file '%s'", path.c_str());
-        return false;
-    }
-
-    size_t jvar_count = planningSpace()->robot()->getPlanningJoints().size();
-    if (parser.fieldCount() != jvar_count) {
-        ROS_ERROR("Parsed experience graph contains insufficient number of joint variables");
-        return false;
-    }
-
-    std::vector<double> egraph_states;
-    egraph_states.reserve(parser.totalFieldCount());
-    for (size_t i = 0; i < parser.recordCount(); ++i) {
-        for (size_t j = 0; j < parser.fieldCount(); ++j) {
-            try {
-                double var = std::stod(parser.fieldAt(i, j));
-                egraph_states.push_back(var);
-            } catch (const std::invalid_argument& ex) {
-                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
-                return false;
-            } catch (const std::out_of_range& ex) {
-                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
-                return false;
-            }
-        }
-    }
-
-//    m_pp->projectToPoint();
-
-    return true;
-}
-
 double EgraphBfsHeuristic::getMetricStartDistance(double x, double y, double z)
 {
     return 0.0;

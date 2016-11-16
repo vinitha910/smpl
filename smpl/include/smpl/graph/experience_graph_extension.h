@@ -29,54 +29,38 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_EGRAPH_BFS_HEURISTIC_H
-#define SMPL_EGRAPH_BFS_HEURISTIC_H
+#ifndef SMPL_EXPERIENCE_GRAPH_EXTENSION_H
+#define SMPL_EXPERIENCE_GRAPH_EXTENSION_H
 
-// standard includes
+#include <string>
 #include <vector>
 
-// project includes
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/extension.h>
+#include <smpl/graph/experience_graph.h>
 
 namespace sbpl {
 namespace motion {
 
-class EgraphBfsHeuristic : public RobotHeuristic
+class ExperienceGraphExtension : public virtual Extension
 {
 public:
 
-    EgraphBfsHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid* grid);
+    virtual bool loadExperienceGraph(const std::string& path) = 0;
 
-    /// \name Required Public Functions from RobotHeuristic
-    ///@{
-    double getMetricStartDistance(double x, double y, double z) override;
-    double getMetricGoalDistance(double x, double y, double z) override;
-    ///@}
+    virtual void getShortcutSuccPath(
+        int state_id,
+        std::vector<int>& succs,
+        std::vector<int>& costs) = 0;
 
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
-    ///@{
-    void updateGoal(const GoalConstraint& goal) override;
-    ///@}
+    virtual void getSnapSuccs(
+        int state_id,
+        std::vector<int>& succs,
+        std::vector<int>& costs) = 0;
 
-    /// \name Required Public Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
-    ///@}
+    virtual bool isOnExperienceGraph(int state_id) = 0;
 
-private:
-
-    int m_num_cells_x;
-    int m_num_cells_y;
-    int m_num_cells_z;
-    std::vector<int> m_dist_grid;
-
-    PointProjectionExtension* m_pp;
-
-    int cellToIndex(int x, int y, int z) const;
+    virtual const ExperienceGraph* getExperienceGraph() const = 0;
+    virtual ExperienceGraph* getExperienceGraph() = 0;
 };
 
 } // namespace motion
