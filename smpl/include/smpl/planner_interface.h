@@ -218,6 +218,10 @@ protected:
     void visualizePath(
         const moveit_msgs::RobotState& traj_start,
         const moveit_msgs::RobotTrajectory& traj) const;
+
+    bool writePath(
+        const moveit_msgs::RobotState& ref,
+        const moveit_msgs::RobotTrajectory& traj) const;
 };
 
 } // namespace motion
