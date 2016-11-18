@@ -108,6 +108,11 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         return false;
     }
 
+    ROS_INFO("Parsed experience graph file");
+    ROS_INFO("  Has Header: %s", parser.hasHeader() ? "true" : "false");
+    ROS_INFO("  %zu records", parser.recordCount());
+    ROS_INFO("  %zu fields", parser.fieldCount());
+
     const size_t jvar_count = robot()->getPlanningJoints().size();
     if (parser.fieldCount() != jvar_count) {
         ROS_ERROR("Parsed experience graph contains insufficient number of joint variables");
@@ -134,9 +139,10 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
     ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
 
+    ROS_INFO("Create hash entries for experience graph states");
     std::vector<RobotCoord> egraph_coords;
     for (const RobotState& state : egraph_states) {
-        RobotCoord coord;
+        RobotCoord coord(robot()->jointVariableCount());
         stateToCoord(state, coord);
         egraph_coords.push_back(std::move(coord));
 
@@ -148,23 +154,32 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
     ROS_INFO("Experience contains %zu discrete states", egraph_coords.size());
 
+    ROS_INFO("Insert states into experience graph and map coords to experience graph nodes");
+
     // insert all coords into egraph and initialize coord -> egraph node mapping
-    RobotState state;
+    RobotState state(robot()->jointVariableCount());
     for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
         coordToState(*it, state);
         m_coord_to_id[*it] = m_egraph.insert_node(state);
     }
 
+    ROS_INFO("Insert experience graph edges into experience graph");
+
     int edge_count = 0;
     ActionSpacePtr aspace = actionSpace();
+    if (!aspace) {
+        ROS_WARN("No action space available to rasterize experience graph");
+        return true;
+    }
+
     for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
         const ExperienceGraph::node_id n = m_coord_to_id[*it];
-        RobotState source;
+        RobotState source(robot()->jointVariableCount());
         coordToState(*it, source);
         std::vector<Action> actions;
         aspace->apply(source, actions);
         for (const Action& action : actions) {
-            RobotCoord last;
+            RobotCoord last(robot()->jointVariableCount());
             stateToCoord(action.back(), last);
             auto iit = m_coord_to_id.find(last);
             if (iit != m_coord_to_id.end() && !m_egraph.edge(n, iit->second)) {
