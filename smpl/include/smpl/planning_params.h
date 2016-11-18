@@ -223,6 +223,8 @@ public:
     ShortcutType shortcut_type;
     ///@}
 
+    std::map<std::string, std::string> params;
+
     /// \name Logging
     ///@{
     bool print_path;
