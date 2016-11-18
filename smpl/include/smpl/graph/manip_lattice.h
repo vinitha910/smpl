@@ -281,7 +281,9 @@ void ManipLattice::coordToState(
     const RobotCoord& coord,
     RobotState& state) const
 {
-    state.resize(coord.size());
+    assert((int)state.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
+
     for (size_t i = 0; i < coord.size(); ++i) {
         if (m_continuous[i]) {
             state[i] = coord[i] * params()->coord_delta[i];
