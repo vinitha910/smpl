@@ -46,6 +46,8 @@ namespace sbpl {
 
 bool CSVParser::parseStream(std::istream& s, bool has_header)
 {
+    m_has_header = has_header;
+
     m_fields.clear();
 
     size_t fields_per_record = 0;
