@@ -43,7 +43,14 @@ public:
     bool parseStream(std::istream& is, bool has_header = false);
 
     size_t fieldCount() const { return m_field_count; }
-    size_t recordCount() const { return m_fields.size() / m_field_count; }
+
+    size_t recordCount() const {
+        if (m_has_header) {
+            return m_fields.size() / m_field_count - 1;
+        } else {
+            return m_fields.size() / m_field_count;
+        }
+    }
 
     size_t totalFieldCount() const { return m_fields.size() - m_field_count; }
 
