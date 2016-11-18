@@ -331,9 +331,13 @@ bool ManipLatticeActionSpace::apply(
     }
 
     // get distance to the goal pose
-    RobotHeuristicPtr h = planningSpace()->heuristic(0);
-    const double goal_dist = h->getMetricGoalDistance(pose[0], pose[1], pose[2]);
-    const double start_dist = h->getMetricStartDistance(pose[0], pose[1], pose[2]);
+    double goal_dist = 0.0;
+    double start_dist = 0.0;
+    if (planningSpace()->numHeuristics() > 0) {
+        RobotHeuristicPtr h = planningSpace()->heuristic(0);
+        goal_dist = h->getMetricGoalDistance(pose[0], pose[1], pose[2]);
+        start_dist = h->getMetricStartDistance(pose[0], pose[1], pose[2]);
+    }
 
     std::vector<Action> act;
     for (size_t i = 0; i < mp_.size(); ++i) {
