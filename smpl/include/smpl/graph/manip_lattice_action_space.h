@@ -81,18 +81,20 @@ public:
     /// \brief Remove all motion primitives and disable all adaptive motions
     void clear();
 
-    const_iterator begin() const { return mp_.begin(); }
-    const_iterator end() const { return mp_.end(); }
+    const_iterator begin() const { return m_mprims.begin(); }
+    const_iterator end() const { return m_mprims.end(); }
 
     int longDistCount() const;
     int shortDistCount() const;
 
     bool useAmp(MotionPrimitive::Type type) const;
     bool useMultipleIkSolutions() const;
+    bool useLongAndShortPrims() const;
     double ampThresh(MotionPrimitive::Type type) const;
 
     void useAmp(MotionPrimitive::Type type, bool enable);
     void useMultipleIkSolutions(bool enable);
+    void useLongAndShortPrims(bool enable);
     void ampThresh(MotionPrimitive::Type type, double thresh);
 
     /// \name Required Public Functions from ActionSpace
@@ -108,7 +110,7 @@ public:
 
 protected:
 
-    std::vector<MotionPrimitive> mp_;
+    std::vector<MotionPrimitive> m_mprims;
 
     ForwardKinematicsInterface* m_fk_iface;
     InverseKinematicsInterface* m_ik_iface;
@@ -116,7 +118,8 @@ protected:
     bool m_mprim_enabled[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
     double m_mprim_thresh[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
 
-    bool use_multiple_ik_solutions_;
+    bool m_use_multiple_ik_solutions;
+    bool m_use_long_and_short_dist_mprims;
 
     RobotPlanningSpace* env_;
 

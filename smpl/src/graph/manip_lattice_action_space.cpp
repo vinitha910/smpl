@@ -144,12 +144,15 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
 
 const double ManipLatticeActionSpace::DefaultAmpThreshold = 0.2;
 
-ManipLatticeActionSpace::ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace) :
+ManipLatticeActionSpace::ManipLatticeActionSpace(
+    const RobotPlanningSpacePtr& pspace)
+:
     ActionSpace(pspace),
-    mp_(),
+    m_mprims(),
     m_mprim_enabled(),
     m_mprim_thresh(),
-    use_multiple_ik_solutions_(false)
+    m_use_multiple_ik_solutions(false),
+    m_use_long_and_short_dist_mprims(false)
 {
     clear();
 
@@ -184,7 +187,7 @@ void ManipLatticeActionSpace::addMotionPrim(
     }
 
     m.action.push_back(mprim);
-    mp_.push_back(m);
+    m_mprims.push_back(m);
 
     if (add_converse) {
         Action a;
@@ -196,28 +199,28 @@ void ManipLatticeActionSpace::addMotionPrim(
             }
         }
         m.action = a;
-        mp_.push_back(m);
+        m_mprims.push_back(m);
     }
 }
 
 void ManipLatticeActionSpace::clear()
 {
-    mp_.clear();
+    m_mprims.clear();
 
     // add all amps to the motion primitive set
     MotionPrimitive mprim;
 
     mprim.type = MotionPrimitive::SNAP_TO_RPY;
     mprim.action.clear();
-    mp_.push_back(mprim);
+    m_mprims.push_back(mprim);
 
     mprim.type = MotionPrimitive::SNAP_TO_XYZ;
     mprim.action.clear();
-    mp_.push_back(mprim);
+    m_mprims.push_back(mprim);
 
     mprim.type = MotionPrimitive::SNAP_TO_XYZ_RPY;
     mprim.action.clear();
-    mp_.push_back(mprim);
+    m_mprims.push_back(mprim);
 
     // disable all motion primitives except long distance
     for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
@@ -264,7 +267,12 @@ bool ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type) const
 
 bool ManipLatticeActionSpace::useMultipleIkSolutions() const
 {
-    return use_multiple_ik_solutions_;
+    return m_use_multiple_ik_solutions;
+}
+
+bool ManipLatticeActionSpace::useLongAndShortPrims() const
+{
+    return m_use_long_and_short_dist_mprims;
 }
 
 double ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type) const
@@ -285,7 +293,12 @@ void ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type, bool enable)
 
 void ManipLatticeActionSpace::useMultipleIkSolutions(bool enable)
 {
-    use_multiple_ik_solutions_ = enable;
+    m_use_multiple_ik_solutions = enable;
+}
+
+void ManipLatticeActionSpace::useLongAndShortPrims(bool enable)
+{
+    m_use_long_and_short_dist_mprims = enable;
 }
 
 void ManipLatticeActionSpace::ampThresh(
@@ -329,8 +342,8 @@ bool ManipLatticeActionSpace::apply(
     }
 
     std::vector<Action> act;
-    for (size_t i = 0; i < mp_.size(); ++i) {
-        const MotionPrimitive& prim = mp_[i];
+    for (size_t i = 0; i < m_mprims.size(); ++i) {
+        const MotionPrimitive& prim = m_mprims[i];
         if (getAction(parent, goal_dist, start_dist, prim, act)) {
             actions.insert(actions.end(), act.begin(), act.end());
         }
@@ -449,7 +462,7 @@ bool ManipLatticeActionSpace::computeIkAction(
     ik_option::IkOption option,
     std::vector<Action>& actions)
 {
-    if (use_multiple_ik_solutions_) {
+    if (m_use_multiple_ik_solutions) {
         //get actions for multiple ik solutions
         std::vector<std::vector<double>> solutions;
         if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
@@ -483,6 +496,9 @@ bool ManipLatticeActionSpace::mprimActive(
     MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
+        if (m_use_long_and_short_dist_mprims) {
+            return true;
+        }
         const bool near_goal =
                 goal_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE];
         const bool near_start =
@@ -490,6 +506,9 @@ bool ManipLatticeActionSpace::mprimActive(
         const bool near_endpoint = near_goal || near_start;
         return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] && near_endpoint);
     } else if (type == MotionPrimitive::SHORT_DISTANCE) {
+        if (m_use_long_and_short_dist_mprims) {
+            return m_mprim_enabled[type];
+        }
         const bool near_goal = goal_dist <= m_mprim_thresh[type];
         const bool near_start = start_dist <= m_mprim_thresh[type];
         const bool near_endpoint = near_goal || near_start;
