@@ -36,6 +36,8 @@
 #include <vector>
 
 // project includes
+#include <smpl/grid.h>
+#include <smpl/intrusive_heap.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
@@ -69,14 +71,29 @@ public:
 
 private:
 
-    int m_num_cells_x;
-    int m_num_cells_y;
-    int m_num_cells_z;
-    std::vector<int> m_dist_grid;
+    static const int Unknown = std::numeric_limits<int>::max() >> 1;
+    static const int Wall = std::numeric_limits<int>::max();
+
+    struct Cell : public heap_element
+    {
+        int dist;
+
+        Cell() = default;
+        explicit Cell(int d) : heap_element(), dist(d) { }
+    };
+
+    Grid3<Cell> m_dist_grid;
+
+    struct CellCompare
+    {
+        bool operator()(const Cell& a, const Cell& b) const {
+            return a.dist < b.dist;
+        }
+    };
+
+    intrusive_heap<Cell, CellCompare> m_open;
 
     PointProjectionExtension* m_pp;
-
-    int cellToIndex(int x, int y, int z) const;
 };
 
 } // namespace motion

@@ -31,9 +31,6 @@
 
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
-// project includes
-#include <smpl/csv_parser.h>
-
 namespace sbpl {
 namespace motion {
 
@@ -45,34 +42,52 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     m_pp(nullptr)
 {
     m_pp = ps->getExtension<PointProjectionExtension>();
-    m_num_cells_x = grid->numCellsX() + 2;
-    m_num_cells_y = grid->numCellsY() + 2;
-    m_num_cells_z = grid->numCellsZ() + 2;
-    const int num_cells = m_num_cells_x * m_num_cells_y * m_num_cells_z;
-    m_dist_grid.resize(num_cells);
+    size_t num_cells_x = grid->numCellsX() + 2;
+    size_t num_cells_y = grid->numCellsY() + 2;
+    size_t num_cells_z = grid->numCellsZ() + 2;
+
+    m_dist_grid.assign(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
 
     auto add_wall = [&](int x, int y, int z) {
-        m_dist_grid[cellToIndex(x, y, z)] = std::numeric_limits<int>::max();
+        m_dist_grid(x, y, z).dist = Wall;
     };
 
-    for (int y = 0; y < m_num_cells_y; ++y) {
-        for (int z = 0; z < m_num_cells_z; ++z) {
+    for (int y = 0; y < num_cells_y; ++y) {
+        for (int z = 0; z < num_cells_z; ++z) {
             add_wall(0, y, z);
-            add_wall(m_num_cells_x - 1, y, z);
+            add_wall(num_cells_x - 1, y, z);
         }
     }
-    for (int x = 1; x < m_num_cells_x - 1; ++x) {
-        for (int z = 0; z < m_num_cells_z; ++z) {
+    for (int x = 1; x < num_cells_x - 1; ++x) {
+        for (int z = 0; z < num_cells_z; ++z) {
             add_wall(x, 0, z);
-            add_wall(x, m_num_cells_y - 1, z);
+            add_wall(x, num_cells_y - 1, z);
         }
     }
-    for (int x = 1; x < m_num_cells_x - 1; ++x) {
-        for (int y = 1; y < m_num_cells_y - 1; ++y) {
+    for (int x = 1; x < num_cells_x - 1; ++x) {
+        for (int y = 1; y < num_cells_y - 1; ++y) {
             add_wall(x, y, 0);
-            add_wall(x, y, m_num_cells_z - 1);
+            add_wall(x, y, num_cells_z - 1);
         }
     }
+
+    // TODO/NOTE: down-projection (through PointProjectionInterface) requires
+    // state ids of states on experience graph...express this through
+    // requirements on experience graph extension interface
+    //
+    // TODO: project experience graph into 3d space (projections of adjacent
+    // nodes in the experience graph impose additional edges in 3d, cost equal
+    // to the cheapest transition):
+    //
+    // (1) lookup transitions on-demand when a grid cell is expanded, loop
+    // through all experience graph states and their neighbors (method used by
+    // origin experience graph code)
+    //
+    // (2) embed an adjacency list in the dense grid structure as a
+    // precomputation
+    //
+    // (3) maintain an external adjacency list mapping cells with projections
+    // from experience graph states to adjacent cells
 }
 
 double EgraphBfsHeuristic::getMetricStartDistance(double x, double y, double z)
@@ -91,7 +106,28 @@ void EgraphBfsHeuristic::updateGoal(const GoalConstraint& goal)
 
 int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    return 0;
+    Eigen::Vector3d p;
+    m_pp->projectToPoint(state_id, p);
+
+    int gx, gy, gz;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), gx, gy, gz);
+
+    if (!grid()->isInBounds(gx, gy, gz)) {
+        return Infinity;
+    }
+
+    if (m_dist_grid(gx, gy, gz).dist == Wall) {
+        return Infinity;
+    }
+
+    while (m_dist_grid(gx, gy, gz).dist == Unknown && !m_open.empty()) {
+        // TODO: dijkstra expansions within
+    }
+
+    if (m_dist_grid(gx, gy, gz).dist > Infinity) {
+        return Infinity;
+    }
+    return m_dist_grid(gx, gy, gz).dist;
 }
 
 int EgraphBfsHeuristic::GetStartHeuristic(int state_id)
@@ -102,12 +138,6 @@ int EgraphBfsHeuristic::GetStartHeuristic(int state_id)
 int EgraphBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
     return 0;
-}
-
-inline
-int EgraphBfsHeuristic::cellToIndex(int x, int y, int z) const
-{
-    return x * m_num_cells_y * m_num_cells_z + y * m_num_cells_z + z;
 }
 
 } // namespace motion
