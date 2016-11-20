@@ -31,6 +31,7 @@
 
 #include <fstream>
 
+#include <leatherman/print.h>
 #include <smpl/csv_parser.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 
@@ -141,56 +142,39 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
 
     ROS_INFO("Create hash entries for experience graph states");
-    std::vector<RobotCoord> egraph_coords;
-    for (const RobotState& state : egraph_states) {
-        RobotCoord coord(robot()->jointVariableCount());
-        stateToCoord(state, coord);
-        egraph_coords.push_back(std::move(coord));
 
-        createHashEntry(coord, state);
+    if (egraph_states.empty()) {
+        return true;
     }
 
-    auto it = std::unique(egraph_coords.begin(), egraph_coords.end());
-    egraph_coords.erase(it, egraph_coords.end());
+    const RobotState& pp = egraph_states.front(); // previous robot state
+    RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
+    stateToCoord(egraph_states.front(), pdp);
+    ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
+    m_coord_to_id[pdp] = pid;
+    createHashEntry(pdp, pp);
 
-    ROS_INFO("Experience contains %zu discrete states", egraph_coords.size());
-
-    ROS_INFO("Insert states into experience graph and map coords to experience graph nodes");
-
-    // insert all coords into egraph and initialize coord -> egraph node mapping
-    RobotState state(robot()->jointVariableCount());
-    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
-        coordToState(*it, state);
-        m_coord_to_id[*it] = m_egraph.insert_node(state);
-    }
-
-    ROS_INFO("Insert experience graph edges into experience graph");
-
-    int edge_count = 0;
-    ManipLatticeActionSpace* aspace =
-            dynamic_cast<ManipLatticeActionSpace*>(actionSpace().get());
-    if (!aspace) {
-        ROS_ERROR("ManipLatticeEgraph requires action space to be a ManipLatticeActionSpace");
-        return false;
-    }
-
-    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
-        const ExperienceGraph::node_id n = m_coord_to_id[*it];
-        RobotState source(robot()->jointVariableCount());
-        coordToState(*it, source);
-        std::vector<Action> actions;
-        aspace->apply(source, actions);
-        for (const Action& action : actions) {
-            RobotCoord last(robot()->jointVariableCount());
-            stateToCoord(action.back(), last);
-            auto iit = m_coord_to_id.find(last);
-            if (iit != m_coord_to_id.end() && !m_egraph.edge(n, iit->second)) {
-                m_egraph.insert_edge(n, iit->second);
-                ++edge_count;
-            }
+    std::vector<RobotState> edge_data;
+    for (size_t i = 1; i < egraph_states.size(); ++i) {
+        const RobotState& p = egraph_states[i];
+        RobotCoord dp(robot()->jointVariableCount());
+        stateToCoord(p, dp);
+        if (dp != pdp) {
+            createHashEntry(dp, p);
+            // found a new discrete state along the path
+            ExperienceGraph::node_id id = m_egraph.insert_node(p);
+            m_coord_to_id[dp] = id;
+            m_egraph.insert_edge(pid, id, edge_data);
+            pdp = dp;
+            pid = id;
+            edge_data.clear();
+        } else {
+            // gather intermediate robot states
+            edge_data.push_back(p);
         }
     }
-    ROS_INFO("Experience graph contains %d edges", edge_count);
+
+    ROS_INFO("Experience graph contains %zu nodes and %zu edges", m_egraph.num_nodes(), m_egraph.num_edges());
 
     return true;
 }
@@ -222,6 +206,88 @@ const ExperienceGraph* ManipLatticeEgraph::getExperienceGraph() const
 ExperienceGraph* ManipLatticeEgraph::getExperienceGraph()
 {
     return &m_egraph;
+}
+
+/// An attempt to construct the discrete experience graph by discretizing all
+/// input continuous states and connecting them via edges available in the
+/// canonical action set. This turns out to not work very well since the points
+/// are not often able to be connected by the limited action set. It also
+/// necessitates imposing restrictions on the action set, since context-specific
+/// actions don't make sense before an actual planning request.
+void ManipLatticeEgraph::rasterizeExperienceGraph()
+{
+//    std::vector<RobotCoord> egraph_coords;
+//    for (const RobotState& state : egraph_states) {
+//        RobotCoord coord(robot()->jointVariableCount());
+//        stateToCoord(state, coord);
+//        egraph_coords.push_back(std::move(coord));
+//    }
+//
+//    auto it = std::unique(egraph_coords.begin(), egraph_coords.end());
+//    egraph_coords.erase(it, egraph_coords.end());
+//
+//    ROS_INFO("Experience contains %zu discrete states", egraph_coords.size());
+//    for (const RobotCoord& coord : egraph_coords) {
+//        ROS_INFO("  %s", to_string(coord).c_str());
+//    }
+//
+//    ROS_INFO("Insert states into experience graph and map coords to experience graph nodes");
+//
+//    // insert all coords into egraph and initialize coord -> egraph node mapping
+//    RobotState state(robot()->jointVariableCount());
+//    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
+//        coordToState(*it, state);
+//        m_coord_to_id[*it] = m_egraph.insert_node(state);
+//    }
+//
+//    ROS_INFO("Insert experience graph edges into experience graph");
+//
+//    int edge_count = 0;
+//    ManipLatticeActionSpace* aspace =
+//            dynamic_cast<ManipLatticeActionSpace*>(actionSpace().get());
+//    if (!aspace) {
+//        ROS_ERROR("ManipLatticeEgraph requires action space to be a ManipLatticeActionSpace");
+//        return false;
+//    }
+//
+//    // save action space configuration
+//    bool mprim_enabled_state[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
+//    for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
+//        mprim_enabled_state[i] = aspace->useAmp((MotionPrimitive::Type)i);
+//    }
+//    bool use_long_and_short_mprims = aspace->useLongAndShortPrims();
+//
+//    // disable context-specific motion primitives
+//    aspace->useAmp(MotionPrimitive::SHORT_DISTANCE, true);
+//    aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, false);
+//    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, false);
+//    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, false);
+//
+//    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
+//        const ExperienceGraph::node_id n = m_coord_to_id[*it];
+//        RobotState source(robot()->jointVariableCount());
+//        coordToState(*it, source);
+//        std::vector<Action> actions;
+//        aspace->apply(source, actions);
+//        ROS_INFO("%zu actions from egraph state", actions.size());
+//        for (const Action& action : actions) {
+//            RobotCoord last(robot()->jointVariableCount());
+//            stateToCoord(action.back(), last);
+//            ROS_INFO("Check for experience graph edge %s -> %s", to_string(*it).c_str(), to_string(last).c_str());
+//            auto iit = m_coord_to_id.find(last);
+//            if (iit != m_coord_to_id.end() && !m_egraph.edge(n, iit->second)) {
+//                m_egraph.insert_edge(n, iit->second);
+//                ++edge_count;
+//            }
+//        }
+//    }
+//    ROS_INFO("Experience graph contains %d edges", edge_count);
+//
+//    // restore action space configuration
+//    for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
+//        aspace->useAmp((MotionPrimitive::Type)i, mprim_enabled_state[i]);
+//    }
+//    aspace->useLongAndShortPrims(use_long_and_short_mprims);
 }
 
 } // namespace motion

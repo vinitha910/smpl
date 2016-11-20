@@ -76,8 +76,17 @@ private:
         result_type operator()(const argument_type& s) const;
     };
 
-    hash_map<RobotCoord, ExperienceGraph::node_id, RobotCoordHash> m_coord_to_id;
+    typedef hash_map<
+            RobotCoord,
+            ExperienceGraph::node_id,
+            RobotCoordHash>
+    CoordToExperienceGraphNodeMap;
+
+    CoordToExperienceGraphNodeMap m_coord_to_id;
+
     ExperienceGraph m_egraph;
+
+    void rasterizeExperienceGraph();
 };
 
 } // namespace motion
