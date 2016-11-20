@@ -87,8 +87,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
     if (fscanf(fCfg, "%s", sTemp) < 1) {
         ROS_WARN("Parsed string has length < 1.");
         return false;
-    }
-    else {
+    } else {
         nrows = atoi(sTemp);
     }
 
@@ -96,8 +95,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
     if (fscanf(fCfg, "%s", sTemp) < 1) {
         ROS_WARN("Parsed string has length < 1.");
         return false;
-    }
-    else {
+    } else {
         ncols = atoi(sTemp);
     }
 
@@ -105,8 +103,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
     if (fscanf(fCfg, "%s", sTemp) < 1) {
         ROS_WARN("Parsed string has length < 1.");
         return false;
-    }
-    else {
+    } else {
         short_mprims = atoi(sTemp);
     }
 
@@ -125,16 +122,14 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
             if (!feof(fCfg) && strlen(sTemp) != 0) {
                 mprim[j] = angles::to_radians(atof(sTemp));
                 ROS_DEBUG("Got %s deg -> %.3f rad", sTemp, mprim[j]);
-            }
-            else {
+            } else {
                 ROS_ERROR("End of parameter file reached prematurely. Check for newline.");
                 return false;
             }
         }
         if (i < (nrows - short_mprims)) {
             addMotionPrim(mprim, false);
-        }
-        else {
+        } else {
             addMotionPrim(mprim, true);
             have_short_dist_mprims = true;
         }
@@ -170,10 +165,11 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(const RobotPlanningSpacePtr& ps
     readParameters(*pspace->params());
 }
 
-ManipLatticeActionSpace::~ManipLatticeActionSpace()
-{
-}
-
+/// \brief Add a long or short distance motion primitive to the action set
+/// \param mprim The angle delta for each joint, in radians
+/// \param short_dist true = short distance; false = long distance
+/// \param add_converse Whether to add the negative of this motion primitive
+///     to the action set
 void ManipLatticeActionSpace::addMotionPrim(
     const std::vector<double>& mprim,
     bool short_dist_mprim,
@@ -183,8 +179,7 @@ void ManipLatticeActionSpace::addMotionPrim(
 
     if (short_dist_mprim) {
         m.type = MotionPrimitive::SHORT_DISTANCE;
-    }
-    else {
+    } else {
         m.type = MotionPrimitive::LONG_DISTANCE;
     }
 
@@ -226,8 +221,13 @@ void ManipLatticeActionSpace::clear()
 
     // disable all motion primitives except long distance
     for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
-        m_mprim_enabled[i] = false;
-        m_mprim_thresh[i] = DefaultAmpThreshold;
+        if (i == MotionPrimitive::LONG_DISTANCE) {
+            m_mprim_enabled[i] = true;
+            m_mprim_thresh[i] = std::numeric_limits<double>::infinity();
+        } else {
+            m_mprim_enabled[i] = false;
+            m_mprim_thresh[i] = DefaultAmpThreshold;
+        }
     }
 }
 
@@ -255,13 +255,9 @@ int ManipLatticeActionSpace::shortDistCount() const
 
 bool ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type) const
 {
-    if (type == MotionPrimitive::LONG_DISTANCE) {
-        return true;
-    }
-    else if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
+    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
         return m_mprim_enabled[type];
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -273,13 +269,9 @@ bool ManipLatticeActionSpace::useMultipleIkSolutions() const
 
 double ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type) const
 {
-    if (type == MotionPrimitive::LONG_DISTANCE) {
-        return std::numeric_limits<double>::infinity();
-    }
-    else if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
+    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
         return m_mprim_thresh[type];
-    }
-    else {
+    } else {
         return std::numeric_limits<double>::quiet_NaN();
     }
 }
@@ -296,17 +288,14 @@ void ManipLatticeActionSpace::useMultipleIkSolutions(bool enable)
     use_multiple_ik_solutions_ = enable;
 }
 
-void ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type, double thresh)
+void ManipLatticeActionSpace::ampThresh(
+    MotionPrimitive::Type type,
+    double thresh)
 {
-    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
+    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES &&
+        type != MotionPrimitive::LONG_DISTANCE)
+    {
         m_mprim_thresh[type] = thresh;
-    }
-}
-
-void ManipLatticeActionSpace::print() const
-{
-    for (size_t i = 0; i < mp_.size(); ++i) {
-        mp_[i].print();
     }
 }
 
@@ -406,8 +395,7 @@ bool ManipLatticeActionSpace::getAction(
                     goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);
-        }
-        else {
+        } else {
             // goal is 7dof; instead of computing  IK, use the goal itself as
             // the IK solution
             actions.resize(1);
@@ -474,8 +462,7 @@ bool ManipLatticeActionSpace::computeIkAction(
             actions[a].resize(1);
             actions[a][0] = solutions[a];
         }
-    }
-    else {
+    } else {
         //get single action for single ik solution
         std::vector<double> ik_sol;
         if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
@@ -496,18 +483,18 @@ bool ManipLatticeActionSpace::mprimActive(
     MotionPrimitive::Type type) const
 {
     if (type == MotionPrimitive::LONG_DISTANCE) {
-        const bool near_endpoint =
-                (goal_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE] ||
-                start_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE]);
+        const bool near_goal =
+                goal_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE];
+        const bool near_start =
+                start_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE];
+        const bool near_endpoint = near_goal || near_start;
         return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] && near_endpoint);
-    }
-    else if (type == MotionPrimitive::SHORT_DISTANCE) {
-        const bool near_endpoint =
-                (goal_dist <= m_mprim_thresh[type] ||
-                start_dist <= m_mprim_thresh[type]);
+    } else if (type == MotionPrimitive::SHORT_DISTANCE) {
+        const bool near_goal = goal_dist <= m_mprim_thresh[type];
+        const bool near_start = start_dist <= m_mprim_thresh[type];
+        const bool near_endpoint = near_goal || near_start;
         return m_mprim_enabled[type] && near_endpoint;
-    }
-    else {
+    } else {
         return m_mprim_enabled[type] && goal_dist <= m_mprim_thresh[type];
     }
 }

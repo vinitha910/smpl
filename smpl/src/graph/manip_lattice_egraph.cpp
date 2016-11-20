@@ -32,11 +32,12 @@
 #include <fstream>
 
 #include <smpl/csv_parser.h>
+#include <smpl/graph/manip_lattice_action_space.h>
 
 namespace sbpl {
 namespace motion {
 
-auto ManipLatticeEgraph::ivec_hash::operator()(const argument_type& s) const ->
+auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) const ->
     result_type
 {
     std::size_t seed = 0;
@@ -166,10 +167,11 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     ROS_INFO("Insert experience graph edges into experience graph");
 
     int edge_count = 0;
-    ActionSpacePtr aspace = actionSpace();
+    ManipLatticeActionSpace* aspace =
+            dynamic_cast<ManipLatticeActionSpace*>(actionSpace().get());
     if (!aspace) {
-        ROS_WARN("No action space available to rasterize experience graph");
-        return true;
+        ROS_ERROR("ManipLatticeEgraph requires action space to be a ManipLatticeActionSpace");
+        return false;
     }
 
     for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {

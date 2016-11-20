@@ -68,7 +68,7 @@ public:
 
 private:
 
-    struct ivec_hash
+    struct RobotCoordHash
     {
         typedef std::vector<int> argument_type;
         typedef std::size_t result_type;
@@ -76,7 +76,7 @@ private:
         result_type operator()(const argument_type& s) const;
     };
 
-    hash_map<RobotCoord, ExperienceGraph::node_id, ivec_hash> m_coord_to_id;
+    hash_map<RobotCoord, ExperienceGraph::node_id, RobotCoordHash> m_coord_to_id;
     ExperienceGraph m_egraph;
 };
 

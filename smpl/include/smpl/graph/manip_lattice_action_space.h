@@ -67,18 +67,12 @@ public:
 
     typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
 
-    bool load(const std::string& action_filename);
-
     static const double DefaultAmpThreshold;
 
     ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace);
-    virtual ~ManipLatticeActionSpace();
 
-    /// \brief Add a long or short distance motion primitive to the action set
-    /// \param mprim The angle delta for each joint, in radians
-    /// \param short_dist true = short distance; false = long distance
-    /// \param add_converse Whether to add the negative of this motion primitive
-    ///     to the action set
+    bool load(const std::string& action_filename);
+
     void addMotionPrim(
         const std::vector<double>& mprim,
         bool short_dist_mprim,
@@ -101,18 +95,12 @@ public:
     void useMultipleIkSolutions(bool enable);
     void ampThresh(MotionPrimitive::Type type, double thresh);
 
-    /// \brief Return the set of actions available from a state.
-    ///
-    /// Each action consists of a sequence of waypoints from the source state
-    /// describing the approximate motion the robot will take to reach a
-    /// successor state. The sequence of waypoints need not contain the the
-    /// source state. The motion between waypoints will be checked via the set
-    /// CollisionChecker's isStateToStateValid function during a search.
+    /// \name Required Public Functions from ActionSpace
+    ///@{
     bool apply(const RobotState& parent, std::vector<Action>& actions);
+    ///@}
 
-    void print() const;
-
-    /// \name Reimplemented Public Functions
+    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
     ///@{
     virtual void updateStart(const RobotState& start) override;
     virtual void updateGoal(const GoalConstraint& goal) override;
@@ -125,8 +113,6 @@ protected:
     ForwardKinematicsInterface* m_fk_iface;
     InverseKinematicsInterface* m_ik_iface;
 
-    // NOTE: these arrays will NOT include entries for LONG_DISTANCE motion
-    // primitives
     bool m_mprim_enabled[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
     double m_mprim_thresh[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
 

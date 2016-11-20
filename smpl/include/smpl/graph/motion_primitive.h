@@ -50,11 +50,11 @@ struct MotionPrimitive
 {
     enum Type
     {
-        LONG_DISTANCE = -1,
-        SNAP_TO_RPY = 0, // NOTE: start at 0 to use successive types as indices
+        LONG_DISTANCE = 0,
+        SHORT_DISTANCE,
+        SNAP_TO_RPY,
         SNAP_TO_XYZ,
         SNAP_TO_XYZ_RPY,
-        SHORT_DISTANCE,
         NUMBER_OF_MPRIM_TYPES
     };
 
@@ -64,7 +64,8 @@ struct MotionPrimitive
     void print() const;
 };
 
-inline std::ostream& operator<<(std::ostream& o, MotionPrimitive::Type type)
+inline
+std::ostream& operator<<(std::ostream& o, MotionPrimitive::Type type)
 {
     switch (type) {
     case MotionPrimitive::LONG_DISTANCE:
