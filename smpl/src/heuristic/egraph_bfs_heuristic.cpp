@@ -162,12 +162,44 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
 
 double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, double z)
 {
-    return 0.0;
+    int start_id = planningSpace()->getStartStateID();
+
+    if (!m_pp) {
+        return 0.0;
+    }
+
+    Eigen::Vector3d p;
+    if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
+        return 0.0;
+    }
+
+    int sx, sy, sz;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
+
+    int gx, gy, gz;
+    grid()->worldToGrid(x, y, z, gx, gy, gz);
+
+    // compute the manhattan distance to the start cell
+    const int dx = sx - gx;
+    const int dy = sy - gy;
+    const int dz = sz - gz;
+    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));;
 }
 
 double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, double z)
 {
-    return 0.0;
+    Eigen::Vector3d gp(
+            planningSpace()->goal().tgt_off_pose[0],
+            planningSpace()->goal().tgt_off_pose[1],
+            planningSpace()->goal().tgt_off_pose[2]);
+    Eigen::Vector3i dgp;
+    grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
+
+    Eigen::Vector3i dp;
+    grid()->worldToGrid(x, y, z, dp.x(), dp.y(), dp.z());
+
+    const Eigen::Vector3i d = dgp - dp;
+    return grid()->getResolution() * (abs(d.x()) + abs(d.y() + abs(d.z())));
 }
 
 void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
