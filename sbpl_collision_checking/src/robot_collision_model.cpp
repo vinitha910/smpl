@@ -668,6 +668,7 @@ bool RobotCollisionModel::expandGroups(
 
     // remove any duplicates
     for (CollisionGroupConfig& eg : expanded) {
+        sort(eg.links.begin(), eg.links.end());
         auto uit = std::unique(eg.links.begin(), eg.links.end());
         eg.links.erase(uit, eg.links.end());
     }
