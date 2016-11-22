@@ -53,6 +53,7 @@
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/heuristic/bfs_heuristic.h>
+#include <smpl/heuristic/egraph_bfs_heuristic.h>
 #include <smpl/heuristic/euclid_dist_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
@@ -1155,7 +1156,10 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     } else if (heuristic_name == "joint_distance") {
         auto h = std::make_shared<JointDistHeuristic>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("JOINT_DIST", h));
-    }else {
+    } else if (heuristic_name == "bfs_egraph") {
+        auto h = std::make_shared<EgraphBfsHeuristic>(m_pspace, m_grid);
+        m_heuristics.insert(std::make_pair("BFS_EGRAPH", h));
+    } else {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
         return false;
     }
