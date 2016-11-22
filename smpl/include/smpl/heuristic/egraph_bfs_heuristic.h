@@ -38,6 +38,7 @@
 // project includes
 #include <smpl/grid.h>
 #include <smpl/intrusive_heap.h>
+#include <smpl/graph/experience_graph_extension.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
@@ -91,9 +92,23 @@ private:
         }
     };
 
+    double m_eg_eps;
+
     intrusive_heap<Cell, CellCompare> m_open;
 
     PointProjectionExtension* m_pp;
+    ExperienceGraphExtension* m_eg;
+
+    // map down-projected state cells to adjacent down-projected state cells
+    struct Vector3iHash
+    {
+        typedef Eigen::Vector3i argument_type;
+        typedef std::size_t result_type;
+
+        result_type operator()(const argument_type& s) const;
+    };
+
+    hash_map<Eigen::Vector3i, std::vector<Eigen::Vector3i>, Vector3iHash> m_egraph_edges;
 };
 
 } // namespace motion

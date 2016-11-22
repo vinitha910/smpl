@@ -31,20 +31,36 @@
 
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
+#include <boost/functional/hash.hpp>
+
 namespace sbpl {
 namespace motion {
 
+auto EgraphBfsHeuristic::Vector3iHash::operator()(const argument_type& s) const
+    -> result_type
+{
+    std::size_t seed = 0;
+    boost::hash_combine(seed, std::hash<int>()(s.x()));
+    boost::hash_combine(seed, std::hash<int>()(s.y()));
+    boost::hash_combine(seed, std::hash<int>()(s.z()));
+    return seed;
+}
+
 EgraphBfsHeuristic::EgraphBfsHeuristic(
     const RobotPlanningSpacePtr& ps,
-    const OccupancyGrid* grid)
+    const OccupancyGrid* _grid)
 :
-    RobotHeuristic(ps, grid),
+    RobotHeuristic(ps, _grid),
     m_pp(nullptr)
 {
+    m_eg_eps = 5.0;
+
     m_pp = ps->getExtension<PointProjectionExtension>();
-    size_t num_cells_x = grid->numCellsX() + 2;
-    size_t num_cells_y = grid->numCellsY() + 2;
-    size_t num_cells_z = grid->numCellsZ() + 2;
+    m_eg = ps->getExtension<ExperienceGraphExtension>();
+
+    size_t num_cells_x = grid()->numCellsX() + 2;
+    size_t num_cells_y = grid()->numCellsY() + 2;
+    size_t num_cells_z = grid()->numCellsZ() + 2;
 
     m_dist_grid.assign(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
 
@@ -52,6 +68,7 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
         m_dist_grid(x, y, z).dist = Wall;
     };
 
+    // pad distance grid borders with walls
     for (int y = 0; y < num_cells_y; ++y) {
         for (int z = 0; z < num_cells_z; ++z) {
             add_wall(0, y, z);
@@ -71,13 +88,9 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
         }
     }
 
-    // TODO/NOTE: down-projection (through PointProjectionInterface) requires
-    // state ids of states on experience graph...express this through
-    // requirements on experience graph extension interface
-    //
-    // TODO: project experience graph into 3d space (projections of adjacent
-    // nodes in the experience graph impose additional edges in 3d, cost equal
-    // to the cheapest transition):
+    // project experience graph into 3d space (projections of adjacent nodes in
+    // the experience graph impose additional edges in 3d, cost equal to the
+    // cheapest transition):
     //
     // (1) lookup transitions on-demand when a grid cell is expanded, loop
     // through all experience graph states and their neighbors (method used by
@@ -87,7 +100,51 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     // precomputation
     //
     // (3) maintain an external adjacency list mapping cells with projections
-    // from experience graph states to adjacent cells
+    // from experience graph states to adjacent cells (method used here)
+    ROS_INFO("Project experience graph into three-dimensional grid");
+    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    auto nodes = eg->nodes();
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        // project experience graph state to point and discretize
+        int first_id = m_eg->getStateID(*nit);
+        Eigen::Vector3d p;
+        m_pp->projectToPoint(first_id, p);
+        Eigen::Vector3i dp;
+        grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+        if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
+            continue;
+        }
+        dp += Eigen::Vector3i::Ones();
+
+        // insert node into down-projected experience graph
+        std::vector<Eigen::Vector3i> empty;
+        auto ent = m_egraph_edges.insert(std::make_pair(dp, std::move(empty)));
+        auto eit = ent.first;
+        if (ent.second) {
+            ROS_INFO("Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
+        }
+
+        auto adj = eg->adjacent_nodes(*nit);
+        for (auto ait = adj.first; ait != adj.second; ++ait) {
+            // project adjacent experience graph state and discretize
+            int second_id = m_eg->getStateID(*ait);
+            Eigen::Vector3d q;
+            m_pp->projectToPoint(second_id, q);
+            Eigen::Vector3i dq;
+            grid()->worldToGrid(q.x(), q.y(), q.z(), dq.x(), dq.y(), dq.z());
+            if (!grid()->isInBounds(dq.x(), dq.y(), dq.z())) {
+                continue;
+            }
+            dq += Eigen::Vector3i::Ones();
+
+            // insert adjacent edge
+            if (std::find(eit->second.begin(), eit->second.end(), dq) !=
+                eit->second.end())
+            {
+                eit->second.push_back(dq);
+            }
+        }
+    }
 }
 
 double EgraphBfsHeuristic::getMetricStartDistance(double x, double y, double z)
@@ -102,32 +159,126 @@ double EgraphBfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 
 void EgraphBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
+    // reset all distances
+    for (size_t x = 1; x < m_dist_grid.xsize() - 1; ++x) {
+    for (size_t y = 1; y < m_dist_grid.ysize() - 1; ++y) {
+    for (size_t z = 1; z < m_dist_grid.zsize() - 1; ++z) {
+        Cell& c = m_dist_grid(x, y, z);
+        if (c.dist != Wall) {
+            c.dist = Unknown;
+        }
+    } } }
+
+    Eigen::Vector3i gp;
+    grid()->worldToGrid(
+            goal.tgt_off_pose[0],
+            goal.tgt_off_pose[1],
+            goal.tgt_off_pose[2],
+            gp.x(), gp.y(), gp.z());
+
+    if (!grid()->isInBounds(gp.x(), gp.y(), gp.z())) {
+        ROS_WARN("Cell (%d, %d, %d) is outside heuristic bounds", gp.x(), gp.y(), gp.z());
+        return;
+    }
+
+    gp += Eigen::Vector3i::Ones();
+
+    m_open.clear();
+    Cell* c = &m_dist_grid(gp.x(), gp.y(), gp.z());
+    c->dist = 0;
+    m_open.push(c);
 }
 
 int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
 {
+    // project and discretize state
     Eigen::Vector3d p;
     m_pp->projectToPoint(state_id, p);
+    Eigen::Vector3i dp;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
-    int gx, gy, gz;
-    grid()->worldToGrid(p.x(), p.y(), p.z(), gx, gy, gz);
-
-    if (!grid()->isInBounds(gx, gy, gz)) {
+    if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
         return Infinity;
     }
 
-    if (m_dist_grid(gx, gy, gz).dist == Wall) {
+    dp += Eigen::Vector3i::Ones();
+    Cell* cell = &m_dist_grid(dp.x(), dp.y(), dp.z());
+
+    if (cell->dist == Wall) {
         return Infinity;
     }
 
-    while (m_dist_grid(gx, gy, gz).dist == Unknown && !m_open.empty()) {
-        // TODO: dijkstra expansions within
+    while (cell->dist == Unknown && !m_open.empty()) {
+        Cell* curr_cell = m_open.min();
+
+        int cidx = std::distance(m_dist_grid.data(), curr_cell);
+        size_t cx, cy, cz;
+        m_dist_grid.index_to_coord(cidx, cx, cy, cz);
+        ++cx; ++cy; ++cz;
+
+        // relax experience graph adjacency edges
+        auto it = m_egraph_edges.find(Eigen::Vector3i(cx, cy, cz));
+        if (it != m_egraph_edges.end()) {
+            for (const Eigen::Vector3i& adj : it->second) {
+                const int dx = adj.x() - cx;
+                const int dy = adj.y() - cy;
+                const int dz = adj.z() - cz;
+                const int cost = (int)std::sqrt(1000 * (dx * dx + dy * dy + dz * dz));
+                Cell* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
+                const int new_cost = curr_cell->dist + cost;
+                if (new_cost < ncell->dist) {
+                    ncell->dist = new_cost;
+                    if (m_open.contains(ncell)) {
+                        m_open.decrease(ncell);
+                    } else {
+                        m_open.push(ncell);
+                    }
+                }
+            }
+        }
+
+        // relax neighboring edges
+        for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+        for (int dz = -1; dz <= 1; ++dz) {
+            if (!(dx | dy | dz)) {
+                continue;
+            }
+
+            const int sx = cx + dx;
+            const int sy = cy + dy;
+            const int sz = cz + dz;
+
+            Cell* ncell = &m_dist_grid(sx, sy, sz);
+
+            // bounds and obstacle check
+            if (ncell->dist == Wall) {
+                continue;
+            }
+
+            const int cost = (int)std::sqrt(
+                    m_eg_eps *
+                    1000 *
+                    (dx * dx + dy * dy + dz * dz));
+            const int new_cost = curr_cell->dist + cost;
+
+            if (new_cost < ncell->dist) {
+                ncell->dist = new_cost;
+                if (m_open.contains(ncell)) {
+                    m_open.decrease(ncell);
+                } else {
+                    m_open.push(ncell);
+                }
+            }
+        }
+        }
+        }
     }
 
-    if (m_dist_grid(gx, gy, gz).dist > Infinity) {
+    if (cell->dist > Infinity) {
         return Infinity;
     }
-    return m_dist_grid(gx, gy, gz).dist;
+    return cell->dist;
 }
 
 int EgraphBfsHeuristic::GetStartHeuristic(int state_id)
