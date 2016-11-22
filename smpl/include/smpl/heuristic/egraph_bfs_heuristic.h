@@ -44,11 +44,11 @@
 namespace sbpl {
 namespace motion {
 
-class EgraphBfsHeuristic : public RobotHeuristic
+class DijkstraEgraphHeuristic3D : public RobotHeuristic
 {
 public:
 
-    EgraphBfsHeuristic(
+    DijkstraEgraphHeuristic3D(
         const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 

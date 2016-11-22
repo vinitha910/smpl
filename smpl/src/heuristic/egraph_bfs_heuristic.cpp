@@ -36,7 +36,7 @@
 namespace sbpl {
 namespace motion {
 
-auto EgraphBfsHeuristic::Vector3iHash::operator()(const argument_type& s) const
+auto DijkstraEgraphHeuristic3D::Vector3iHash::operator()(const argument_type& s) const
     -> result_type
 {
     std::size_t seed = 0;
@@ -46,7 +46,7 @@ auto EgraphBfsHeuristic::Vector3iHash::operator()(const argument_type& s) const
     return seed;
 }
 
-EgraphBfsHeuristic::EgraphBfsHeuristic(
+DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     const RobotPlanningSpacePtr& ps,
     const OccupancyGrid* _grid)
 :
@@ -160,17 +160,17 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     }
 }
 
-double EgraphBfsHeuristic::getMetricStartDistance(double x, double y, double z)
+double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, double z)
 {
     return 0.0;
 }
 
-double EgraphBfsHeuristic::getMetricGoalDistance(double x, double y, double z)
+double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, double z)
 {
     return 0.0;
 }
 
-void EgraphBfsHeuristic::updateGoal(const GoalConstraint& goal)
+void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 {
     ROS_INFO_NAMED(params()->heuristic_log, "Update EGraphBfsHeuristic goal");
 
@@ -206,7 +206,7 @@ void EgraphBfsHeuristic::updateGoal(const GoalConstraint& goal)
     ROS_INFO_NAMED(params()->heuristic_log, "Updated EGraphBfsHeuristic goal");
 }
 
-int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
+int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
 {
     // project and discretize state
     Eigen::Vector3d p;
@@ -304,12 +304,12 @@ int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
     return cell->dist;
 }
 
-int EgraphBfsHeuristic::GetStartHeuristic(int state_id)
+int DijkstraEgraphHeuristic3D::GetStartHeuristic(int state_id)
 {
     return 0;
 }
 
-int EgraphBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
+int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
 {
     return 0;
 }

@@ -1157,7 +1157,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         auto h = std::make_shared<JointDistHeuristic>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("JOINT_DIST", h));
     } else if (heuristic_name == "bfs_egraph") {
-        auto h = std::make_shared<EgraphBfsHeuristic>(m_pspace, m_grid);
+        auto h = std::make_shared<DijkstraEgraphHeuristic3D>(m_pspace, m_grid);
         m_heuristics.insert(std::make_pair("BFS_EGRAPH", h));
     } else {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
