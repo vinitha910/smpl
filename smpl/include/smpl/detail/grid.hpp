@@ -161,6 +161,9 @@ void Grid3<T>::assign(
 {
     size_type total_size = xdim * ydim * zdim;
     resize(total_size);
+    m_dims[0] = xdim;
+    m_dims[1] = ydim;
+    m_dims[2] = zdim;
     std::fill(m_data, m_data + total_size, value);
 }
 
@@ -334,6 +337,9 @@ void Grid3<T>::resize(size_type xdim, size_type ydim, size_type zdim)
 {
     size_type total_size = xdim * ydim * zdim;
     resize(total_size);
+    m_dims[0] = xdim;
+    m_dims[1] = ydim;
+    m_dims[2] = zdim;
 }
 
 template <typename T>
