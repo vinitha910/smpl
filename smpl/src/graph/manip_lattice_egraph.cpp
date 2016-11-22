@@ -54,7 +54,8 @@ ManipLatticeEgraph::ManipLatticeEgraph(
 :
     ManipLattice(robot, checker, params, grid),
     m_coord_to_id(),
-    m_egraph()
+    m_egraph(),
+    m_egraph_state_ids()
 {
 }
 
@@ -152,7 +153,9 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     stateToCoord(egraph_states.front(), pdp);
     ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
     m_coord_to_id[pdp] = pid;
-    createHashEntry(pdp, pp);
+    ManipLatticeState* entry = createHashEntry(pdp, pp);
+    m_egraph_state_ids.resize(pid + 1, -1);
+    m_egraph_state_ids[pid] = entry->stateID;
 
     std::vector<RobotState> edge_data;
     for (size_t i = 1; i < egraph_states.size(); ++i) {
@@ -160,9 +163,11 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         RobotCoord dp(robot()->jointVariableCount());
         stateToCoord(p, dp);
         if (dp != pdp) {
-            createHashEntry(dp, p);
+            ManipLatticeState* entry = createHashEntry(dp, p);
             // found a new discrete state along the path
             ExperienceGraph::node_id id = m_egraph.insert_node(p);
+            m_egraph_state_ids.resize(id + 1, -1);
+            m_egraph_state_ids[id] = entry->stateID;
             m_coord_to_id[dp] = id;
             m_egraph.insert_edge(pid, id, edge_data);
             pdp = dp;
@@ -206,6 +211,15 @@ const ExperienceGraph* ManipLatticeEgraph::getExperienceGraph() const
 ExperienceGraph* ManipLatticeEgraph::getExperienceGraph()
 {
     return &m_egraph;
+}
+
+int ManipLatticeEgraph::getStateID(ExperienceGraph::node_id n) const
+{
+    if (n >= m_egraph_state_ids.size()) {
+        return -1;
+    } else {
+        return m_egraph_state_ids[n];
+    }
 }
 
 /// An attempt to construct the discrete experience graph by discretizing all

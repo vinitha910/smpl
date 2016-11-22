@@ -61,6 +61,8 @@ public:
 
     virtual const ExperienceGraph* getExperienceGraph() const = 0;
     virtual ExperienceGraph* getExperienceGraph() = 0;
+
+    virtual int getStateID(ExperienceGraph::node_id n) const = 0;
 };
 
 } // namespace motion

@@ -66,6 +66,8 @@ public:
     const ExperienceGraph* getExperienceGraph() const;
     ExperienceGraph* getExperienceGraph();
 
+    int getStateID(ExperienceGraph::node_id n) const;
+
 private:
 
     struct RobotCoordHash
@@ -85,6 +87,9 @@ private:
     CoordToExperienceGraphNodeMap m_coord_to_id;
 
     ExperienceGraph m_egraph;
+
+    // map from experience graph node ids to state ids
+    std::vector<int> m_egraph_state_ids;
 
     void rasterizeExperienceGraph();
 };
