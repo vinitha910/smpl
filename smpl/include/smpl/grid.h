@@ -109,6 +109,9 @@ public:
     const_reverse_iterator rend() const;
     const_reverse_iterator crend() const;
 
+    size_type xsize() const { return m_dims[0]; }
+    size_type ysize() const { return m_dims[1]; }
+    size_type zsize() const { return m_dims[2]; }
     size_type size() const;
     size_type max_size() const;
 
@@ -119,13 +122,16 @@ public:
 
     void swap(Grid3& other);
 
+    size_type coord_to_index(size_type x, size_type y, size_type z) const;
+    void index_to_coord(size_type i, size_type& x, size_type& y, size_type& z) const;
+
+    bool in_bounds(size_type x, size_type y, size_type z) const;
+
 private:
 
     value_type* m_data;
     size_type m_dims[3];
 
-    size_type coord_to_index(size_type x, size_type y, size_type z) const;
-    bool in_bounds(size_type x, size_type y, size_type z) const;
     void resize(size_type count);
 };
 

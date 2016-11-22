@@ -360,6 +360,19 @@ Grid3<T>::coord_to_index(size_type x, size_type y, size_type z) const
 }
 
 template <typename T>
+void
+Grid3<T>::index_to_coord(
+    size_type i,
+    size_type& x,
+    size_type& y,
+    size_type& z) const
+{
+    x = i / (m_dims[1] * m_dims[2]);
+    y = (i - x * m_dims[1] * m_dims[2]) / m_dims[2];
+    z = i - (x * m_dims[1] * m_dims[2]) - y * m_dims[2];
+}
+
+template <typename T>
 bool Grid3<T>::in_bounds(size_type x, size_type y, size_type z) const
 {
     return x < m_dims[0] & y < m_dims[1] & z < m_dims[2];
