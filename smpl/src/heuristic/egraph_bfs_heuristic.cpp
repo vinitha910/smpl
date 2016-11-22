@@ -58,11 +58,20 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     m_pp = ps->getExtension<PointProjectionExtension>();
     m_eg = ps->getExtension<ExperienceGraphExtension>();
 
+    if (!m_pp) {
+        ROS_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends PointProjectionExtension");
+    }
+    if (!m_eg) {
+        ROS_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
+    }
+
     size_t num_cells_x = grid()->numCellsX() + 2;
     size_t num_cells_y = grid()->numCellsY() + 2;
     size_t num_cells_z = grid()->numCellsZ() + 2;
 
     m_dist_grid.assign(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
+
+    ROS_INFO("Create dijkstra distance grid of size %zu x %zu x %zu", num_cells_x, num_cells_y, num_cells_z);
 
     auto add_wall = [&](int x, int y, int z) {
         m_dist_grid(x, y, z).dist = Wall;
@@ -103,6 +112,10 @@ EgraphBfsHeuristic::EgraphBfsHeuristic(
     // from experience graph states to adjacent cells (method used here)
     ROS_INFO("Project experience graph into three-dimensional grid");
     ExperienceGraph* eg = m_eg->getExperienceGraph();
+    if (!eg) {
+        ROS_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
+        return;
+    }
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
@@ -159,6 +172,8 @@ double EgraphBfsHeuristic::getMetricGoalDistance(double x, double y, double z)
 
 void EgraphBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
+    ROS_INFO_NAMED(params()->heuristic_log, "Update EGraphBfsHeuristic goal");
+
     // reset all distances
     for (size_t x = 1; x < m_dist_grid.xsize() - 1; ++x) {
     for (size_t y = 1; y < m_dist_grid.ysize() - 1; ++y) {
@@ -187,6 +202,8 @@ void EgraphBfsHeuristic::updateGoal(const GoalConstraint& goal)
     Cell* c = &m_dist_grid(gp.x(), gp.y(), gp.z());
     c->dist = 0;
     m_open.push(c);
+
+    ROS_INFO_NAMED(params()->heuristic_log, "Updated EGraphBfsHeuristic goal");
 }
 
 int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
@@ -210,11 +227,12 @@ int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
 
     while (cell->dist == Unknown && !m_open.empty()) {
         Cell* curr_cell = m_open.min();
+        m_open.pop();
 
         int cidx = std::distance(m_dist_grid.data(), curr_cell);
         size_t cx, cy, cz;
         m_dist_grid.index_to_coord(cidx, cx, cy, cz);
-        ++cx; ++cy; ++cz;
+        ROS_DEBUG_NAMED(params()->heuristic_log, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
 
         // relax experience graph adjacency edges
         auto it = m_egraph_edges.find(Eigen::Vector3i(cx, cy, cz));
@@ -223,14 +241,17 @@ int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
                 const int dx = adj.x() - cx;
                 const int dy = adj.y() - cy;
                 const int dz = adj.z() - cz;
-                const int cost = (int)std::sqrt(1000 * (dx * dx + dy * dy + dz * dz));
                 Cell* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
+
+                const int cost = (int)std::sqrt(1000 * (dx * dx + dy * dy + dz * dz));
                 const int new_cost = curr_cell->dist + cost;
                 if (new_cost < ncell->dist) {
                     ncell->dist = new_cost;
                     if (m_open.contains(ncell)) {
+                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with egraph edge", adj.x(), adj.y(), adj.z());
                         m_open.decrease(ncell);
                     } else {
+                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with egraph edge", adj.x(), adj.y(), adj.z());
                         m_open.push(ncell);
                     }
                 }
@@ -265,8 +286,10 @@ int EgraphBfsHeuristic::GetGoalHeuristic(int state_id)
             if (new_cost < ncell->dist) {
                 ncell->dist = new_cost;
                 if (m_open.contains(ncell)) {
+                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with normal edge", sx, sy, sz);
                     m_open.decrease(ncell);
                 } else {
+                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with normal edge", sx, sy, sz);
                     m_open.push(ncell);
                 }
             }
