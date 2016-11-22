@@ -183,7 +183,7 @@ double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, dou
     const int dx = sx - gx;
     const int dy = sy - gy;
     const int dz = sz - gz;
-    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));;
+    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
 }
 
 double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, double z)
