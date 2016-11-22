@@ -222,6 +222,15 @@ int ManipLatticeEgraph::getStateID(ExperienceGraph::node_id n) const
     }
 }
 
+Extension* ManipLatticeEgraph::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<ExperienceGraphExtension>()) {
+        return this;
+    } else {
+        return ManipLattice::getExtension(class_code);
+    }
+}
+
 /// An attempt to construct the discrete experience graph by discretizing all
 /// input continuous states and connecting them via edges available in the
 /// canonical action set. This turns out to not work very well since the points

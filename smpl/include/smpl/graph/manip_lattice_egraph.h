@@ -68,6 +68,8 @@ public:
 
     int getStateID(ExperienceGraph::node_id n) const;
 
+    Extension* getExtension(size_t class_code);
+
 private:
 
     struct RobotCoordHash
