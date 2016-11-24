@@ -198,10 +198,6 @@ visualization_msgs::MarkerArray
 MultiFrameBfsHeuristic::getValuesVisualization() const
 {
     visualization_msgs::MarkerArray ma;
-    geometry_msgs::Pose pose;
-    pose.orientation.w = 1.0;
-    int dimX, dimY, dimZ;
-    grid()->getGridSize(dimX, dimY, dimZ);
 
     // factor in the ee bfs values? This doesn't seem to make a whole lot of
     // sense since the color would be derived from colocated cell values
@@ -220,55 +216,55 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
 
     std::vector<geometry_msgs::Point> points;
     std::vector<std_msgs::ColorRGBA> colors;
-    for (int z = 0; z < dimZ; ++z) {
-        for (int y = 0; y < dimY; ++y) {
-            for (int x = 0; x < dimX; ++x) {
-                // skip cells without valid distances from the start
-                if (m_bfs->isWall(x, y, z) || m_bfs->isUndiscovered(x, y, z)) {
-                    continue;
-                }
-
-                int d = edge_cost * m_bfs->getDistance(x, y, z);
-                int eed = factor_ee ? edge_cost * m_ee_bfs->getDistance(x, y, z) : 0;
-                double cost_pct = (double)combine_costs(d, eed) / (double)(max_cost);
-
-                if (cost_pct > 1.0) {
-                    continue;
-                }
-
-                double hue = 300.0 - 300.0 * cost_pct;
-                double sat = 1.0;
-                double val = 1.0;
-                double r, g, b;
-                leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
-
-                std_msgs::ColorRGBA color;
-                color.r = (float)r;
-                color.g = (float)g;
-                color.b = (float)b;
-                color.a = 1.0f;
-
-                auto clamp = [](double d, double lo, double hi) {
-                    if (d < lo) {
-                        return lo;
-                    } else if (d > hi) {
-                        return hi;
-                    } else {
-                        return d;
-                    }
-                };
-
-                color.r = clamp(color.r, 0.0f, 1.0f);
-                color.g = clamp(color.g, 0.0f, 1.0f);
-                color.b = clamp(color.b, 0.0f, 1.0f);
-
-                geometry_msgs::Point p;
-                grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
-                points.push_back(p);
-
-                colors.push_back(color);
-            }
+    for (int z = 0; z < grid()->numCellsZ(); ++z) {
+    for (int y = 0; y < grid()->numCellsY(); ++y) {
+    for (int x = 0; x < grid()->numCellsX(); ++x) {
+        // skip cells without valid distances from the start
+        if (m_bfs->isWall(x, y, z) || m_bfs->isUndiscovered(x, y, z)) {
+            continue;
         }
+
+        int d = edge_cost * m_bfs->getDistance(x, y, z);
+        int eed = factor_ee ? edge_cost * m_ee_bfs->getDistance(x, y, z) : 0;
+        double cost_pct = (double)combine_costs(d, eed) / (double)(max_cost);
+
+        if (cost_pct > 1.0) {
+            continue;
+        }
+
+        double hue = 300.0 - 300.0 * cost_pct;
+        double sat = 1.0;
+        double val = 1.0;
+        double r, g, b;
+        leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
+
+        std_msgs::ColorRGBA color;
+        color.r = (float)r;
+        color.g = (float)g;
+        color.b = (float)b;
+        color.a = 1.0f;
+
+        auto clamp = [](double d, double lo, double hi) {
+            if (d < lo) {
+                return lo;
+            } else if (d > hi) {
+                return hi;
+            } else {
+                return d;
+            }
+        };
+
+        color.r = clamp(color.r, 0.0f, 1.0f);
+        color.g = clamp(color.g, 0.0f, 1.0f);
+        color.b = clamp(color.b, 0.0f, 1.0f);
+
+        geometry_msgs::Point p;
+        grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
+        points.push_back(p);
+
+        colors.push_back(color);
+    }
+    }
     }
 
     visualization_msgs::Marker marker;

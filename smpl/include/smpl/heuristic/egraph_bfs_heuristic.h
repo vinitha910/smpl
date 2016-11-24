@@ -52,6 +52,8 @@ public:
         const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
+    visualization_msgs::MarkerArray getValuesVisualization();
+
     /// \name Required Public Functions from RobotHeuristic
     ///@{
     double getMetricStartDistance(double x, double y, double z) override;
@@ -74,6 +76,7 @@ private:
 
     static const int Unknown = std::numeric_limits<int>::max() >> 1;
     static const int Wall = std::numeric_limits<int>::max();
+    static const int Infinity = Unknown;
 
     struct Cell : public heap_element
     {
@@ -109,6 +112,8 @@ private:
     };
 
     hash_map<Eigen::Vector3i, std::vector<Eigen::Vector3i>, Vector3iHash> m_egraph_edges;
+
+    int getGoalHeuristic(const Eigen::Vector3i& dp);
 };
 
 } // namespace motion

@@ -32,6 +32,8 @@
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
 #include <boost/functional/hash.hpp>
+#include <leatherman/viz.h>
+#include <smpl/debug/visualize.h>
 
 namespace sbpl {
 namespace motion {
@@ -53,7 +55,7 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     RobotHeuristic(ps, _grid),
     m_pp(nullptr)
 {
-    m_eg_eps = 5.0;
+    m_eg_eps = std::stod(params()->params.at("egraph_epsilon"));
 
     m_pp = ps->getExtension<PointProjectionExtension>();
     m_eg = ps->getExtension<ExperienceGraphExtension>();
@@ -97,6 +99,8 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
         }
     }
 
+    std::vector<geometry_msgs::Point> viz_points;
+
     // project experience graph into 3d space (projections of adjacent nodes in
     // the experience graph impose additional edges in 3d, cost equal to the
     // cheapest transition):
@@ -123,6 +127,11 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
         Eigen::Vector3d p;
         m_pp->projectToPoint(first_id, p);
         Eigen::Vector3i dp;
+        geometry_msgs::Point viz_pt;
+        viz_pt.x = p.x();
+        viz_pt.y = p.y();
+        viz_pt.z = p.z();
+        viz_points.push_back(viz_pt);
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
         if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
             continue;
@@ -151,13 +160,107 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
             dq += Eigen::Vector3i::Ones();
 
             // insert adjacent edge
-            if (std::find(eit->second.begin(), eit->second.end(), dq) !=
+            if (std::find(eit->second.begin(), eit->second.end(), dq) ==
                 eit->second.end())
             {
                 eit->second.push_back(dq);
             }
         }
     }
+
+    std_msgs::ColorRGBA color;
+    color.r = (float)0xFF / (float)0xFF;
+    color.g = (float)0x8C / (float)0xFF;
+    color.b = (float)0x00 / (float)0xFF;
+    color.a = 1.0f;
+
+    visualization_msgs::MarkerArray ma;
+    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->getResolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
+    SV_SHOW_INFO(ma);
+}
+
+visualization_msgs::MarkerArray
+DijkstraEgraphHeuristic3D::getValuesVisualization()
+{
+    ROS_INFO("Retrieve values visualization");
+    visualization_msgs::MarkerArray ma;
+
+    int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
+
+    int max_cost = (int)(1.1 * start_heur);
+
+    std::vector<geometry_msgs::Point> points;
+    std::vector<std_msgs::ColorRGBA> colors;
+    for (int z = 0; z < grid()->numCellsZ(); ++z) {
+    for (int y = 0; y < grid()->numCellsY(); ++y) {
+    for (int x = 0; x < grid()->numCellsX(); ++x) {
+        Eigen::Vector3i dp(x, y, z);
+        dp += Eigen::Vector3i::Ones();
+
+        int d = getGoalHeuristic(dp);
+        double cost_pct = (double)d / (double)max_cost;
+
+        if (cost_pct > 1.0) {
+            continue;
+        }
+
+        double hue = 300.0 - 300.0 * cost_pct;
+        double sat = 1.0;
+        double val = 1.0;
+        double r, g, b;
+        leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
+
+        std_msgs::ColorRGBA color;
+        color.r = (float)r;
+        color.g = (float)g;
+        color.b = (float)b;
+        color.a = 1.0f;
+
+        auto clamp = [](double d, double lo, double hi) {
+            if (d < lo) {
+                return lo;
+            } else if (d > hi) {
+                return hi;
+            } else {
+                return d;
+            }
+        };
+
+        color.r = clamp(color.r, 0.0f, 1.0f);
+        color.g = clamp(color.g, 0.0f, 1.0f);
+        color.b = clamp(color.b, 0.0f, 1.0f);
+
+        geometry_msgs::Point p;
+        grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
+        points.push_back(p);
+
+        colors.push_back(color);
+    }
+    }
+    }
+
+    visualization_msgs::Marker marker;
+    marker.header.stamp = ros::Time(0);
+    marker.header.frame_id = grid()->getReferenceFrame();
+    marker.ns = "h_values";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::CUBE_LIST;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5 * grid()->getResolution();
+    marker.scale.y = 0.5 * grid()->getResolution();
+    marker.scale.z = 0.5 * grid()->getResolution();
+//    marker.color;
+    marker.lifetime = ros::Duration(0.0);
+    marker.frame_locked = false;
+    marker.points = std::move(points);
+    marker.colors = std::move(colors);
+    marker.text = "";
+    marker.mesh_use_embedded_materials = false;
+
+    ma.markers.push_back(std::move(marker));
+    ROS_INFO("Retrieved values visualization with %zu points", ma.markers.front().points.size());
+    return ma;
 }
 
 double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, double z)
@@ -251,13 +354,31 @@ int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
     }
 
     dp += Eigen::Vector3i::Ones();
+    return getGoalHeuristic(dp);
+}
+
+int DijkstraEgraphHeuristic3D::GetStartHeuristic(int state_id)
+{
+    return 0;
+}
+
+int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
+{
+    return 0;
+}
+
+int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
+{
     Cell* cell = &m_dist_grid(dp.x(), dp.y(), dp.z());
 
     if (cell->dist == Wall) {
         return Infinity;
     }
 
+    static int last_expand_count = 0;
+    int expand_count = 0;
     while (cell->dist == Unknown && !m_open.empty()) {
+        ++expand_count;
         Cell* curr_cell = m_open.min();
         m_open.pop();
 
@@ -269,21 +390,22 @@ int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
         // relax experience graph adjacency edges
         auto it = m_egraph_edges.find(Eigen::Vector3i(cx, cy, cz));
         if (it != m_egraph_edges.end()) {
+            ROS_DEBUG_NAMED(params()->heuristic_log, "  %zu adjacent egraph cells", it->second.size());
             for (const Eigen::Vector3i& adj : it->second) {
                 const int dx = adj.x() - cx;
                 const int dy = adj.y() - cy;
                 const int dz = adj.z() - cz;
                 Cell* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
 
-                const int cost = (int)std::sqrt(1000 * (dx * dx + dy * dy + dz * dz));
+                const int cost = (int)(1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
                 const int new_cost = curr_cell->dist + cost;
                 if (new_cost < ncell->dist) {
                     ncell->dist = new_cost;
                     if (m_open.contains(ncell)) {
-                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with egraph edge", adj.x(), adj.y(), adj.z());
+                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
                         m_open.decrease(ncell);
                     } else {
-                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with egraph edge", adj.x(), adj.y(), adj.z());
+                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
                         m_open.push(ncell);
                     }
                 }
@@ -294,7 +416,7 @@ int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
         for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
         for (int dz = -1; dz <= 1; ++dz) {
-            if (!(dx | dy | dz)) {
+            if (dx == 0 & dy == 0 & dz == 0) {
                 continue;
             }
 
@@ -309,19 +431,16 @@ int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
                 continue;
             }
 
-            const int cost = (int)std::sqrt(
-                    m_eg_eps *
-                    1000 *
-                    (dx * dx + dy * dy + dz * dz));
+            const int cost = (int)(m_eg_eps * 1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
             const int new_cost = curr_cell->dist + cost;
 
             if (new_cost < ncell->dist) {
                 ncell->dist = new_cost;
                 if (m_open.contains(ncell)) {
-                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with normal edge", sx, sy, sz);
+                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
                     m_open.decrease(ncell);
                 } else {
-                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with normal edge", sx, sy, sz);
+                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
                     m_open.push(ncell);
                 }
             }
@@ -330,20 +449,16 @@ int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
         }
     }
 
+    if (last_expand_count != expand_count) {
+        // TODO: repeat count
+        ROS_INFO("Computed heuristic in %d expansions", expand_count);
+        last_expand_count = expand_count;
+    }
+
     if (cell->dist > Infinity) {
         return Infinity;
     }
     return cell->dist;
-}
-
-int DijkstraEgraphHeuristic3D::GetStartHeuristic(int state_id)
-{
-    return 0;
-}
-
-int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
-{
-    return 0;
 }
 
 } // namespace motion
