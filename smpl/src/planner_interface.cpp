@@ -478,6 +478,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     // to allow the heuristic to tailor the visualization to the current
     // scenario
     SV_SHOW_INFO(getBfsWallsVisualization());
+    SV_SHOW_INFO(getBfsValuesVisualization());
 
     ROS_WARN_NAMED(PI_LOGGER, "Planning!!!!!");
     bool b_ret = false;
@@ -817,17 +818,15 @@ PlannerInterface::getBfsValuesVisualization() const
 
     auto first = m_heuristics.begin();
 
-    auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second);
-    if (hbfs) {
+    if (auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second)) {
         return hbfs->getValuesVisualization();
-    }
-
-    auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second);
-    if (hmfbfs) {
+    } else if (auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second)) {
         return hmfbfs->getValuesVisualization();
+    } else if (auto debfs = std::dynamic_pointer_cast<DijkstraEgraphHeuristic3D>(first->second)) {
+        return debfs->getValuesVisualization();
+    } else {
+        return visualization_msgs::MarkerArray();
     }
-
-    return visualization_msgs::MarkerArray();
 }
 
 visualization_msgs::MarkerArray
