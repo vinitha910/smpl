@@ -31,6 +31,7 @@
 
 #include <fstream>
 
+#include <boost/filesystem.hpp>
 #include <leatherman/print.h>
 #include <smpl/csv_parser.h>
 #include <smpl/graph/manip_lattice_action_space.h>
@@ -98,89 +99,62 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 {
     ROS_INFO("Load Experience Graph at %s", path.c_str());
 
-    std::ifstream fin(path);
-    if (!fin.is_open()) {
-        ROS_ERROR("Failed to open '%s' for reading", path.c_str());
+    boost::filesystem::path p(path);
+    if (!boost::filesystem::is_directory(p)) {
+        ROS_ERROR("'%s' is not a directory", path.c_str());
         return false;
     }
 
-    CSVParser parser;
-    const bool with_header = true;
-    if (!parser.parseStream(fin, with_header)) {
-        ROS_ERROR("Failed to parse experience graph file '%s'", path.c_str());
-        return false;
-    }
-
-    ROS_INFO("Parsed experience graph file");
-    ROS_INFO("  Has Header: %s", parser.hasHeader() ? "true" : "false");
-    ROS_INFO("  %zu records", parser.recordCount());
-    ROS_INFO("  %zu fields", parser.fieldCount());
-
-    const size_t jvar_count = robot()->getPlanningJoints().size();
-    if (parser.fieldCount() != jvar_count) {
-        ROS_ERROR("Parsed experience graph contains insufficient number of joint variables");
-        return false;
-    }
-
-    std::vector<RobotState> egraph_states;
-    egraph_states.reserve(parser.totalFieldCount());
-    for (size_t i = 0; i < parser.recordCount(); ++i) {
-        RobotState state(jvar_count);
-        for (size_t j = 0; j < parser.fieldCount(); ++j) {
-            try {
-                state[j] = std::stod(parser.fieldAt(i, j));
-            } catch (const std::invalid_argument& ex) {
-                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
-                return false;
-            } catch (const std::out_of_range& ex) {
-                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
-                return false;
-            }
+    for (auto dit = boost::filesystem::directory_iterator(p);
+        dit != boost::filesystem::directory_iterator(); ++dit)
+    {
+        const std::string& filepath = dit->path().generic_string();
+        std::vector<RobotState> egraph_states;
+        if (!parseExperienceGraphFile(filepath, egraph_states)) {
+            continue;
         }
-        egraph_states.push_back(std::move(state));
-    }
 
-    ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
+        ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
 
-    ROS_INFO("Create hash entries for experience graph states");
+        if (egraph_states.empty()) {
+            continue;
+        }
 
-    if (egraph_states.empty()) {
-        return true;
-    }
+        ROS_INFO("Create hash entries for experience graph states");
 
-    const RobotState& pp = egraph_states.front(); // previous robot state
-    RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
-    stateToCoord(egraph_states.front(), pdp);
-    ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
-    m_coord_to_id[pdp] = pid;
-    ManipLatticeState* entry = createHashEntry(pdp, pp);
-    m_egraph_state_ids.resize(pid + 1, -1);
-    m_egraph_state_ids[pid] = entry->stateID;
+        const RobotState& pp = egraph_states.front(); // previous robot state
+        RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
+        stateToCoord(egraph_states.front(), pdp);
+        ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
+        m_coord_to_id[pdp] = pid;
+        ManipLatticeState* entry = createHashEntry(pdp, pp);
+        m_egraph_state_ids.resize(pid + 1, -1);
+        m_egraph_state_ids[pid] = entry->stateID;
 
-    std::vector<RobotState> edge_data;
-    for (size_t i = 1; i < egraph_states.size(); ++i) {
-        const RobotState& p = egraph_states[i];
-        RobotCoord dp(robot()->jointVariableCount());
-        stateToCoord(p, dp);
-        if (dp != pdp) {
-            ManipLatticeState* entry = createHashEntry(dp, p);
-            // found a new discrete state along the path
-            ExperienceGraph::node_id id = m_egraph.insert_node(p);
-            m_egraph_state_ids.resize(id + 1, -1);
-            m_egraph_state_ids[id] = entry->stateID;
-            m_coord_to_id[dp] = id;
-            m_egraph.insert_edge(pid, id, edge_data);
-            pdp = dp;
-            pid = id;
-            edge_data.clear();
-        } else {
-            // gather intermediate robot states
-            edge_data.push_back(p);
+        std::vector<RobotState> edge_data;
+        for (size_t i = 1; i < egraph_states.size(); ++i) {
+            const RobotState& p = egraph_states[i];
+            RobotCoord dp(robot()->jointVariableCount());
+            stateToCoord(p, dp);
+            if (dp != pdp) {
+                ManipLatticeState* entry = createHashEntry(dp, p);
+                // found a new discrete state along the path
+                ExperienceGraph::node_id id = m_egraph.insert_node(p);
+                m_egraph_state_ids.resize(id + 1, -1);
+                m_egraph_state_ids[id] = entry->stateID;
+                m_coord_to_id[dp] = id;
+                m_egraph.insert_edge(pid, id, edge_data);
+                pdp = dp;
+                pid = id;
+                edge_data.clear();
+            } else {
+                // gather intermediate robot states
+                edge_data.push_back(p);
+            }
         }
     }
 
     ROS_INFO("Experience graph contains %zu nodes and %zu edges", m_egraph.num_nodes(), m_egraph.num_edges());
-
     return true;
 }
 
@@ -229,6 +203,54 @@ Extension* ManipLatticeEgraph::getExtension(size_t class_code)
     } else {
         return ManipLattice::getExtension(class_code);
     }
+}
+
+bool ManipLatticeEgraph::parseExperienceGraphFile(
+    const std::string& filepath,
+    std::vector<RobotState>& egraph_states) const
+{
+    std::ifstream fin(filepath);
+    if (!fin.is_open()) {
+        return false;
+    }
+
+    CSVParser parser;
+    const bool with_header = true;
+    if (!parser.parseStream(fin, with_header)) {
+        ROS_ERROR("Failed to parse experience graph file '%s'", filepath.c_str());
+        return false;
+    }
+
+    ROS_INFO("Parsed experience graph file");
+    ROS_INFO("  Has Header: %s", parser.hasHeader() ? "true" : "false");
+    ROS_INFO("  %zu records", parser.recordCount());
+    ROS_INFO("  %zu fields", parser.fieldCount());
+
+    const size_t jvar_count = robot()->getPlanningJoints().size();
+    if (parser.fieldCount() != jvar_count) {
+        ROS_ERROR("Parsed experience graph contains insufficient number of joint variables");
+        return false;
+    }
+
+    egraph_states.reserve(parser.totalFieldCount());
+    for (size_t i = 0; i < parser.recordCount(); ++i) {
+        RobotState state(jvar_count);
+        for (size_t j = 0; j < parser.fieldCount(); ++j) {
+            try {
+                state[j] = std::stod(parser.fieldAt(i, j));
+            } catch (const std::invalid_argument& ex) {
+                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
+                return false;
+            } catch (const std::out_of_range& ex) {
+                ROS_ERROR("Failed to parse egraph state variable (%s)", ex.what());
+                return false;
+            }
+        }
+        egraph_states.push_back(std::move(state));
+    }
+
+    ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
+    return true;
 }
 
 /// An attempt to construct the discrete experience graph by discretizing all

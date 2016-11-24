@@ -93,6 +93,10 @@ private:
     // map from experience graph node ids to state ids
     std::vector<int> m_egraph_state_ids;
 
+    bool parseExperienceGraphFile(
+        const std::string& filepath,
+        std::vector<RobotState>& egraph_states) const;
+
     void rasterizeExperienceGraph();
 };
 
