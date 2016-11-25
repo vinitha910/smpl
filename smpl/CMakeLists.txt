@@ -75,7 +75,8 @@ add_library(
     src/heuristic/euclid_dist_heuristic.cpp
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
-    src/heuristic/multi_frame_bfs_heuristic.cpp)
+    src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/search/egraph_planner.cpp)
 
 target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})
 

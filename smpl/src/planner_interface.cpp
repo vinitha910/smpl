@@ -57,6 +57,7 @@
 #include <smpl/heuristic/euclid_dist_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
+#include <smpl/search/egraph_planner.h>
 
 namespace sbpl {
 namespace motion {
@@ -1206,6 +1207,10 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     } else if (search_name == "rstar") {
         ROS_ERROR("R* unimplemented");
         return false;
+    } else if (search_name == "egwastar") {
+        auto first = m_heuristics.begin();
+        m_planner = std::make_shared<ExperienceGraphPlanner>(
+                m_pspace, first->second);
     } else {
         ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
         return false;
