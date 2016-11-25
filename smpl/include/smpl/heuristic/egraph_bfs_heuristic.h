@@ -132,6 +132,7 @@ private:
 
     hash_map<Eigen::Vector3i, std::vector<Eigen::Vector3i>, Vector3iHash> m_egraph_edges;
 
+    void projectExperienceGraph();
     int getGoalHeuristic(const Eigen::Vector3i& dp);
 };
 

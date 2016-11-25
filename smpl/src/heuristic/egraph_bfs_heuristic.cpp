@@ -32,6 +32,7 @@
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
 #include <boost/functional/hash.hpp>
+#include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <smpl/debug/visualize.h>
 
@@ -100,85 +101,6 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
             add_wall(x, y, num_cells_z - 1);
         }
     }
-
-    std::vector<geometry_msgs::Point> viz_points;
-
-    // project experience graph into 3d space (projections of adjacent nodes in
-    // the experience graph impose additional edges in 3d, cost equal to the
-    // cheapest transition):
-    //
-    // (1) lookup transitions on-demand when a grid cell is expanded, loop
-    // through all experience graph states and their neighbors (method used by
-    // origin experience graph code)
-    //
-    // (2) embed an adjacency list in the dense grid structure as a
-    // precomputation
-    //
-    // (3) maintain an external adjacency list mapping cells with projections
-    // from experience graph states to adjacent cells (method used here)
-    ROS_INFO("Project experience graph into three-dimensional grid");
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
-    if (!eg) {
-        ROS_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
-        return;
-    }
-    auto nodes = eg->nodes();
-    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
-        // project experience graph state to point and discretize
-        int first_id = m_eg->getStateID(*nit);
-        Eigen::Vector3d p;
-        m_pp->projectToPoint(first_id, p);
-        Eigen::Vector3i dp;
-        geometry_msgs::Point viz_pt;
-        viz_pt.x = p.x();
-        viz_pt.y = p.y();
-        viz_pt.z = p.z();
-        viz_points.push_back(viz_pt);
-        grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
-        if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
-            continue;
-        }
-        dp += Eigen::Vector3i::Ones();
-
-        // insert node into down-projected experience graph
-        std::vector<Eigen::Vector3i> empty;
-        auto ent = m_egraph_edges.insert(std::make_pair(dp, std::move(empty)));
-        auto eit = ent.first;
-        if (ent.second) {
-            ROS_INFO("Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
-        }
-
-        auto adj = eg->adjacent_nodes(*nit);
-        for (auto ait = adj.first; ait != adj.second; ++ait) {
-            // project adjacent experience graph state and discretize
-            int second_id = m_eg->getStateID(*ait);
-            Eigen::Vector3d q;
-            m_pp->projectToPoint(second_id, q);
-            Eigen::Vector3i dq;
-            grid()->worldToGrid(q.x(), q.y(), q.z(), dq.x(), dq.y(), dq.z());
-            if (!grid()->isInBounds(dq.x(), dq.y(), dq.z())) {
-                continue;
-            }
-            dq += Eigen::Vector3i::Ones();
-
-            // insert adjacent edge
-            if (std::find(eit->second.begin(), eit->second.end(), dq) ==
-                eit->second.end())
-            {
-                eit->second.push_back(dq);
-            }
-        }
-    }
-
-    std_msgs::ColorRGBA color;
-    color.r = (float)0xFF / (float)0xFF;
-    color.g = (float)0x8C / (float)0xFF;
-    color.b = (float)0x00 / (float)0xFF;
-    color.a = 1.0f;
-
-    visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->getResolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
-    SV_SHOW_INFO(ma);
 }
 
 void DijkstraEgraphHeuristic3D::getEquivalentStates(
@@ -341,6 +263,8 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
         }
     } } }
 
+    projectExperienceGraph();
+
     Eigen::Vector3i gp;
     grid()->worldToGrid(
             goal.tgt_off_pose[0],
@@ -389,6 +313,109 @@ int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
     return 0;
 }
 
+// Project experience graph states down to their 3D projections. Note that this
+// should be called once the goal is set in the environment as the projection to
+// 3D may be based off of the goal condition (for instance, the desired planning
+// frame is determined according to the planning link and a fixed offset)
+void DijkstraEgraphHeuristic3D::projectExperienceGraph()
+{
+    m_egraph_edges.clear();
+
+    std::vector<geometry_msgs::Point> viz_points;
+
+    // project experience graph into 3d space (projections of adjacent nodes in
+    // the experience graph impose additional edges in 3d, cost equal to the
+    // cheapest transition):
+    //
+    // (1) lookup transitions on-demand when a grid cell is expanded, loop
+    // through all experience graph states and their neighbors (method used by
+    // origin experience graph code)
+    //
+    // (2) embed an adjacency list in the dense grid structure as a
+    // precomputation
+    //
+    // (3) maintain an external adjacency list mapping cells with projections
+    // from experience graph states to adjacent cells (method used here)
+    ROS_INFO("Project experience graph into three-dimensional grid");
+    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    if (!eg) {
+        ROS_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
+        return;
+    }
+
+    size_t proj_node_count = 0;
+    size_t proj_edge_count = 0;
+    auto nodes = eg->nodes();
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        // project experience graph state to point and discretize
+        int first_id = m_eg->getStateID(*nit);
+        ROS_INFO("Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
+        Eigen::Vector3d p;
+        m_pp->projectToPoint(first_id, p);
+        ROS_INFO("Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
+        Eigen::Vector3i dp;
+        grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+        if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
+            continue;
+        }
+
+        geometry_msgs::Point viz_pt;
+        grid()->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x, viz_pt.y, viz_pt.z);
+        viz_points.push_back(viz_pt);
+
+        dp += Eigen::Vector3i::Ones();
+
+        // insert node into down-projected experience graph
+        std::vector<Eigen::Vector3i> empty;
+        auto ent = m_egraph_edges.insert(std::make_pair(dp, std::move(empty)));
+        auto eit = ent.first;
+        if (ent.second) {
+            ROS_INFO("Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
+            ++proj_node_count;
+        } else {
+            ROS_INFO("Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
+        }
+
+        auto adj = eg->adjacent_nodes(*nit);
+        for (auto ait = adj.first; ait != adj.second; ++ait) {
+            // project adjacent experience graph state and discretize
+            int second_id = m_eg->getStateID(*ait);
+            ROS_INFO("  Project experience graph edge to state %d", second_id);
+            Eigen::Vector3d q;
+            m_pp->projectToPoint(second_id, q);
+            Eigen::Vector3i dq;
+            grid()->worldToGrid(q.x(), q.y(), q.z(), dq.x(), dq.y(), dq.z());
+            if (!grid()->isInBounds(dq.x(), dq.y(), dq.z())) {
+                continue;
+            }
+            dq += Eigen::Vector3i::Ones();
+
+            // insert adjacent edge
+            if (std::find(eit->second.begin(), eit->second.end(), dq) ==
+                eit->second.end())
+            {
+                ++proj_edge_count;
+                ROS_INFO("  Insert edge to state %d", second_id);
+                eit->second.push_back(dq);
+            } else {
+                ROS_INFO("  Duplicate edge to state %d", second_id);
+            }
+        }
+    }
+
+    ROS_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
+
+    std_msgs::ColorRGBA color;
+    color.r = (float)0xFF / (float)0xFF;
+    color.g = (float)0x8C / (float)0xFF;
+    color.b = (float)0x00 / (float)0xFF;
+    color.a = 1.0f;
+
+    visualization_msgs::MarkerArray ma;
+    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->getResolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
+    SV_SHOW_INFO(ma);
+}
+
 int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
 {
     Cell* cell = &m_dist_grid(dp.x(), dp.y(), dp.z());
@@ -399,6 +426,7 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
 
     static int last_expand_count = 0;
     int expand_count = 0;
+    static int repeat_count = 1;
     while (cell->dist == Unknown && !m_open.empty()) {
         ++expand_count;
         Cell* curr_cell = m_open.min();
@@ -472,9 +500,11 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
     }
 
     if (last_expand_count != expand_count) {
-        // TODO: repeat count
-        ROS_INFO("Computed heuristic in %d expansions", expand_count);
+        ROS_INFO("Computed heuristic in %d expansions (after %d lookups)", expand_count, repeat_count);
         last_expand_count = expand_count;
+        repeat_count = 1;
+    } else {
+        ++repeat_count;
     }
 
     if (cell->dist > Infinity) {

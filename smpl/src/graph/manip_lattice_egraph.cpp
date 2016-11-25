@@ -114,8 +114,6 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
             continue;
         }
 
-        ROS_INFO("Read %zu states from experience graph file", egraph_states.size());
-
         if (egraph_states.empty()) {
             continue;
         }
