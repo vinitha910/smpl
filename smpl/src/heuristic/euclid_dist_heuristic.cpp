@@ -72,6 +72,14 @@ double EuclidDistHeuristic::getMetricStartDistance(double x, double y, double z)
     return 0.0;
 }
 
+Extension* EuclidDistHeuristic::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<RobotHeuristic>()) {
+        return this;
+    }
+    return nullptr;
+}
+
 int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
 {
     if (state_id == planningSpace()->getGoalStateID()) {

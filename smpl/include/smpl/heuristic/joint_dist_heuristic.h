@@ -52,6 +52,11 @@ public:
     double getMetricStartDistance(double x, double y, double z) override;
     ///@}
 
+    /// \name Required Public Functions from Extension
+    ///@{
+    Extension* getExtension(size_t class_code) override;
+    ///@}
+
     /// \name Required Public Functions from Heuristic
     ///@{
     int GetGoalHeuristic(int state_id) override;

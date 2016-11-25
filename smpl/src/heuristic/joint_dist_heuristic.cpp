@@ -55,6 +55,14 @@ double JointDistHeuristic::getMetricStartDistance(double x, double y, double z)
     return 0.0;
 }
 
+Extension* JointDistHeuristic::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<RobotHeuristic>()) {
+        return this;
+    }
+    return nullptr;
+}
+
 int JointDistHeuristic::GetGoalHeuristic(int state_id)
 {
     if (!m_ers) {

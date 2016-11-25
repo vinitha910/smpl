@@ -112,6 +112,14 @@ double BfsHeuristic::getMetricGoalDistance(double x, double y, double z)
     }
 }
 
+Extension* BfsHeuristic::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<RobotHeuristic>()) {
+        return this;
+    }
+    return nullptr;
+}
+
 int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
     if (!m_pp) {

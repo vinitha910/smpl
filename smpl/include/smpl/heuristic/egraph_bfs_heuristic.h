@@ -39,12 +39,15 @@
 #include <smpl/grid.h>
 #include <smpl/intrusive_heap.h>
 #include <smpl/graph/experience_graph_extension.h>
+#include <smpl/heuristic/egraph_heuristic.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace motion {
 
-class DijkstraEgraphHeuristic3D : public RobotHeuristic
+class DijkstraEgraphHeuristic3D :
+    public RobotHeuristic,
+    public ExperienceGraphHeuristicExtension
 {
 public:
 
@@ -54,10 +57,26 @@ public:
 
     visualization_msgs::MarkerArray getValuesVisualization();
 
+    /// \name Required Public Functions from ExperienceGraphHeuristicExtension
+    ///@{
+    void getEquivalentStates(
+        int state_id,
+        std::vector<int>& ids) const override;
+
+    void getShortcutSuccs(
+        int state_id,
+        std::vector<int>& shortcut_ids) override;
+    ///@}
+
     /// \name Required Public Functions from RobotHeuristic
     ///@{
     double getMetricStartDistance(double x, double y, double z) override;
     double getMetricGoalDistance(double x, double y, double z) override;
+    ///@}
+
+    /// \name Required Public Functions from Extension
+    ///@{
+    Extension* getExtension(size_t class_code) override;
     ///@}
 
     /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver

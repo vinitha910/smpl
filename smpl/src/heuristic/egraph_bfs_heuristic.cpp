@@ -52,7 +52,9 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     const RobotPlanningSpacePtr& ps,
     const OccupancyGrid* _grid)
 :
+    Extension(),
     RobotHeuristic(ps, _grid),
+    ExperienceGraphHeuristicExtension(),
     m_pp(nullptr)
 {
     m_eg_eps = std::stod(params()->params.at("egraph_epsilon"));
@@ -179,6 +181,18 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     SV_SHOW_INFO(ma);
 }
 
+void DijkstraEgraphHeuristic3D::getEquivalentStates(
+    int state_id,
+    std::vector<int>& ids) const
+{
+}
+
+void DijkstraEgraphHeuristic3D::getShortcutSuccs(
+    int state_id,
+    std::vector<int>& shortcut_ids)
+{
+}
+
 visualization_msgs::MarkerArray
 DijkstraEgraphHeuristic3D::getValuesVisualization()
 {
@@ -303,6 +317,14 @@ double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, doub
 
     const Eigen::Vector3i d = dgp - dp;
     return grid()->getResolution() * (abs(d.x()) + abs(d.y() + abs(d.z())));
+}
+
+Extension* DijkstraEgraphHeuristic3D::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<ExperienceGraphHeuristicExtension>()) {
+        return this;
+    }
+    return nullptr;
 }
 
 void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)

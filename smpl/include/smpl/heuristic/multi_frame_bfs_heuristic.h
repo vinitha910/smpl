@@ -65,6 +65,11 @@ public:
     double getMetricGoalDistance(double x, double y, double z);
     ///@}
 
+    /// \name Required Public Functions from Extension
+    ///@{
+    Extension* getExtension(size_t class_code) override;
+    ///@}
+
     /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
     ///@{
     void updateGoal(const GoalConstraint& goal) override;

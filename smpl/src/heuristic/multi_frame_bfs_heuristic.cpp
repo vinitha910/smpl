@@ -68,6 +68,14 @@ MultiFrameBfsHeuristic::~MultiFrameBfsHeuristic()
     // empty to allow forward declaration of BFS_3D
 }
 
+Extension* MultiFrameBfsHeuristic::getExtension(size_t class_code)
+{
+    if (class_code == GetClassCode<RobotHeuristic>()) {
+        return this;
+    }
+    return nullptr;
+}
+
 void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
     ROS_DEBUG_NAMED(params()->heuristic_log, "Update goal");

@@ -40,6 +40,7 @@
 #include <sbpl/heuristics/heuristic.h>
 
 // project includes
+#include <smpl/extension.h>
 #include <smpl/forward.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
@@ -49,7 +50,10 @@
 namespace sbpl {
 namespace motion {
 
-class RobotHeuristic : public Heuristic, public RobotPlanningSpaceObserver
+class RobotHeuristic :
+    public Heuristic,
+    public RobotPlanningSpaceObserver,
+    public virtual Extension
 {
 public:
 
