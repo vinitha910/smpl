@@ -43,13 +43,13 @@ public:
     /// heuristic value as the input state
     virtual void getEquivalentStates(
         int state_id,
-        std::vector<int>& ids) const = 0;
+        std::vector<int>& ids) = 0;
 
     /// Return the state ids of experience graph shortcut states available from
     /// the input state
     virtual void getShortcutSuccs(
         int state_id,
-        std::vector<int>& shortcut_ids) = 0;
+        std::vector<int>& ids) = 0;
 
 private:
 };

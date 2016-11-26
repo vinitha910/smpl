@@ -484,6 +484,15 @@ void ManipLattice::GetPreds(
     ROS_WARN("GetPreds unimplemented");
 }
 
+ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
+{
+    if (state_id < 0 || state_id >= (int)m_states.size()) {
+        return nullptr;
+    }
+
+    return m_states[state_id];
+}
+
 ManipLatticeState* ManipLattice::getHashEntry(const RobotCoord& coord)
 {
     ManipLatticeState state;
@@ -975,15 +984,6 @@ double ManipLattice::getGoalDistance(const std::vector<double>& pose)
 {
     std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
     return getGoalDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
-}
-
-const ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
-{
-    if (state_id < 0 || state_id >= (int)m_states.size()) {
-        return nullptr;
-    }
-
-    return m_states[state_id];
 }
 
 /// \brief Return the ID of the goal state or -1 if no goal has been set.

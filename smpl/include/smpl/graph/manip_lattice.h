@@ -173,13 +173,18 @@ public:
 
 protected:
 
-    /// \name coordinate frame/angle functions
+    /// \name discretization methods
     ///@{
     void coordToState(const RobotCoord& coord, RobotState& state) const;
     void stateToCoord(const RobotState& state, RobotCoord& coord) const;
     ///@}
 
+    ManipLatticeState* getHashEntry(int state_id) const;
+    ManipLatticeState* getHashEntry(const RobotCoord& coord);
     ManipLatticeState* createHashEntry(
+        const RobotCoord& coord,
+        const RobotState& state);
+    ManipLatticeState* getOrCreateState(
         const RobotCoord& coord,
         const RobotState& state);
 
@@ -230,12 +235,6 @@ private:
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalConfiguration(const GoalConstraint& goal);
-
-    const ManipLatticeState* getHashEntry(int state_id) const;
-    ManipLatticeState* getHashEntry(const RobotCoord& coord);
-    ManipLatticeState* getOrCreateState(
-        const RobotCoord& coord,
-        const RobotState& state);
 
     void startNewSearch();
 

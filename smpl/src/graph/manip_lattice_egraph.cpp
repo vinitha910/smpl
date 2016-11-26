@@ -54,7 +54,7 @@ ManipLatticeEgraph::ManipLatticeEgraph(
     OccupancyGrid* grid)
 :
     ManipLattice(robot, checker, params, grid),
-    m_coord_to_id(),
+    m_coord_to_nodes(),
     m_egraph(),
     m_egraph_state_ids()
 {
@@ -124,7 +124,7 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
         stateToCoord(egraph_states.front(), pdp);
         ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
-        m_coord_to_id[pdp] = pid;
+        m_coord_to_nodes[pdp] = pid;
         ManipLatticeState* entry = createHashEntry(pdp, pp);
         m_egraph_state_ids.resize(pid + 1, -1);
         m_egraph_state_ids[pid] = entry->stateID;
@@ -140,7 +140,7 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
                 ExperienceGraph::node_id id = m_egraph.insert_node(p);
                 m_egraph_state_ids.resize(id + 1, -1);
                 m_egraph_state_ids[id] = entry->stateID;
-                m_coord_to_id[dp] = id;
+                m_coord_to_nodes[dp] = id;
                 m_egraph.insert_edge(pid, id, edge_data);
                 pdp = dp;
                 pid = id;
@@ -156,23 +156,33 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     return true;
 }
 
-void ManipLatticeEgraph::getShortcutSuccPath(
+void ManipLatticeEgraph::getExperienceGraphNodes(
     int state_id,
-    std::vector<int>& succs,
-    std::vector<int>& costs)
+    std::vector<ExperienceGraph::node_id>& nodes)
 {
+    const ManipLatticeState* entry = getHashEntry(state_id);
+    auto it = m_coord_to_nodes.find(entry->coord);
+    if (it != m_coord_to_nodes.end()) {
+        nodes.push_back(it->second);
+    }
 }
 
-void ManipLatticeEgraph::getSnapSuccs(
-    int state_id,
-    std::vector<int>& succs,
-    std::vector<int>& costs)
+bool ManipLatticeEgraph::shortcut(
+    int first_id,
+    int second_id,
+    int& cost)
 {
+    cost = 1000;
+    return true;
 }
 
-bool ManipLatticeEgraph::isOnExperienceGraph(int state)
+bool ManipLatticeEgraph::snap(
+    int first_id,
+    int second_id,
+    int& cost)
 {
-    return false;
+    cost = 1000;
+    return true;
 }
 
 const ExperienceGraph* ManipLatticeEgraph::getExperienceGraph() const
@@ -280,7 +290,7 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //    RobotState state(robot()->jointVariableCount());
 //    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
 //        coordToState(*it, state);
-//        m_coord_to_id[*it] = m_egraph.insert_node(state);
+//        m_coord_to_nodes[*it] = m_egraph.insert_node(state);
 //    }
 //
 //    ROS_INFO("Insert experience graph edges into experience graph");
@@ -307,7 +317,7 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, false);
 //
 //    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
-//        const ExperienceGraph::node_id n = m_coord_to_id[*it];
+//        const ExperienceGraph::node_id n = m_coord_to_nodes[*it];
 //        RobotState source(robot()->jointVariableCount());
 //        coordToState(*it, source);
 //        std::vector<Action> actions;
@@ -317,8 +327,8 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //            RobotCoord last(robot()->jointVariableCount());
 //            stateToCoord(action.back(), last);
 //            ROS_INFO("Check for experience graph edge %s -> %s", to_string(*it).c_str(), to_string(last).c_str());
-//            auto iit = m_coord_to_id.find(last);
-//            if (iit != m_coord_to_id.end() && !m_egraph.edge(n, iit->second)) {
+//            auto iit = m_coord_to_nodes.find(last);
+//            if (iit != m_coord_to_nodes.end() && !m_egraph.edge(n, iit->second)) {
 //                m_egraph.insert_edge(n, iit->second);
 //                ++edge_count;
 //            }

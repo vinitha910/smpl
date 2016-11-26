@@ -6,8 +6,10 @@
 
 // project includes
 #include <smpl/intrusive_heap.h>
+#include <smpl/graph/experience_graph_extension.h>
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/egraph_heuristic.h>
 
 namespace sbpl {
 namespace motion {
@@ -71,7 +73,10 @@ private:
     };
 
     RobotPlanningSpacePtr m_pspace;
+    ExperienceGraphExtension* m_ege;
+
     RobotHeuristicPtr m_heur;
+    ExperienceGraphHeuristicExtension* m_egh;
 
     std::vector<SearchState*> m_states;
     SearchState* m_start_state;
@@ -89,6 +94,8 @@ private:
     SearchState* getSearchState(int state_id);
     SearchState* createState(int state_id);
     void reinitSearchState(SearchState* state);
+
+    void extractPath(std::vector<int>& solution, int& cost) const;
 };
 
 } // namespace motion

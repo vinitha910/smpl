@@ -16,7 +16,9 @@ ExperienceGraphPlanner::ExperienceGraphPlanner(
 :
     SBPLPlanner(),
     m_pspace(pspace),
+    m_ege(nullptr),
     m_heur(heur),
+    m_egh(nullptr),
     m_states(),
     m_start_state(nullptr),
     m_goal_state(nullptr),
@@ -26,6 +28,16 @@ ExperienceGraphPlanner::ExperienceGraphPlanner(
     m_eps(5.0)
 {
     environment_ = pspace.get();
+
+    m_ege = pspace->getExtension<ExperienceGraphExtension>();
+    if (!m_ege) {
+        ROS_WARN_ONCE("ExperienceGraphPlanner recommends ExperienceGraphExtension");
+    }
+
+    m_egh = heur->getExtension<ExperienceGraphHeuristicExtension>();
+    if (!m_egh) {
+        ROS_WARN_ONCE("ExperienceGraphPlanner recommends ExperienceGraphHeuristic");
+    }
 }
 
 ExperienceGraphPlanner::~ExperienceGraphPlanner()
@@ -74,6 +86,7 @@ int ExperienceGraphPlanner::replan(
     std::vector<int> succs;
     std::vector<int> costs;
 
+    bool path_found = false;
     unsigned int& fgoal = m_goal_state->f;
     while (!m_open.empty()) {
         auto now = std::chrono::high_resolution_clock::now();
@@ -94,6 +107,7 @@ int ExperienceGraphPlanner::replan(
         // path to goal found
         if (min_state->f >= fgoal || min_state == m_goal_state) {
             ROS_INFO("Found path to goal");
+            path_found = true;
             break;
         }
 
@@ -127,13 +141,76 @@ int ExperienceGraphPlanner::replan(
                 }
             }
         }
+
+        if (m_ege) {
+            std::vector<int> snap_succs;
+            m_egh->getEquivalentStates(min_state->state_id, snap_succs);
+
+            for (size_t sidx = 0; sidx < snap_succs.size(); ++sidx) {
+                int snap_id = snap_succs[sidx];
+                int cost;
+                if (!m_ege->snap(min_state->state_id, snap_id, cost)) {
+                    continue;
+                }
+
+                SearchState* snap_state = getSearchState(snap_id);
+                reinitSearchState(snap_state);
+
+                if (snap_state->iteration_closed != 0) {
+                    continue;
+                }
+
+                int new_cost = min_state->g + cost;
+                if (new_cost < snap_state->g) {
+                    snap_state->g = new_cost;
+                    snap_state->f = snap_state->g + m_eps * snap_state->h;
+                    snap_state->bp = min_state;
+                    if (m_open.contains(snap_state)) {
+                        m_open.decrease(snap_state);
+                    } else {
+                        m_open.push(snap_state);
+                    }
+                }
+            }
+
+            std::vector<int> shortcut_succs;
+            m_egh->getShortcutSuccs(min_state->state_id, shortcut_succs);
+
+            for (size_t sidx = 0; sidx < shortcut_succs.size(); ++sidx) {
+                int scut_id = shortcut_succs[sidx];
+                int cost;
+                if (!m_ege->shortcut(min_state->state_id, scut_id, cost)) {
+                    continue;
+                }
+
+                SearchState* scut_state = getSearchState(scut_id);
+                reinitSearchState(scut_state);
+
+                if (scut_state->iteration_closed != 0) {
+                    continue;
+                }
+
+                int new_cost = min_state->g + cost;
+                if (new_cost < scut_state->g) {
+                    scut_state->g = new_cost;
+                    scut_state->f = scut_state->g + m_eps * scut_state->h;
+                    scut_state->bp = min_state;
+                    if (m_open.contains(scut_state)) {
+                        m_open.decrease(scut_state);
+                    } else {
+                        m_open.push(scut_state);
+                    }
+                }
+            }
+        }
     }
 
-    if (m_open.empty()) {
-        ROS_INFO("Heap exhausted");
+    if (!path_found) {
+        return false;
     }
 
-    return 0;
+    extractPath(*solution, *cost);
+    return true;
 }
 
 int ExperienceGraphPlanner::replan(
@@ -267,6 +344,17 @@ void ExperienceGraphPlanner::reinitSearchState(SearchState* state)
         state->call_number = m_call_number;
         state->bp = nullptr;
     }
+}
+
+void ExperienceGraphPlanner::extractPath(
+    std::vector<int>& solution,
+    int& cost) const
+{
+    for (SearchState* s = m_goal_state; s; s = s->bp) {
+        solution.push_back(s->state_id);
+    }
+    std::reverse(solution.begin(), solution.end());
+    cost = m_goal_state->g;
 }
 
 } // namespace motion

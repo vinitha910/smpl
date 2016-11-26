@@ -47,17 +47,19 @@ public:
 
     virtual bool loadExperienceGraph(const std::string& path) = 0;
 
-    virtual void getShortcutSuccPath(
+    virtual void getExperienceGraphNodes(
         int state_id,
-        std::vector<int>& succs,
-        std::vector<int>& costs) = 0;
+        std::vector<ExperienceGraph::node_id>& nodes) = 0;
 
-    virtual void getSnapSuccs(
-        int state_id,
-        std::vector<int>& succs,
-        std::vector<int>& costs) = 0;
+    virtual bool shortcut(
+        int first_id,
+        int second_id,
+        int& cost) = 0;
 
-    virtual bool isOnExperienceGraph(int state_id) = 0;
+    virtual bool snap(
+        int first_id,
+        int second_id,
+        int& cost) = 0;
 
     virtual const ExperienceGraph* getExperienceGraph() const = 0;
     virtual ExperienceGraph* getExperienceGraph() = 0;

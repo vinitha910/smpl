@@ -49,26 +49,34 @@ public:
         PlanningParams* params,
         OccupancyGrid* grid);
 
+    /// \name Required Public Functions from ExperienceGraphExtension
+    ///@{
     bool loadExperienceGraph(const std::string& path);
 
-    void getShortcutSuccPath(
+    void getExperienceGraphNodes(
         int state_id,
-        std::vector<int>& succs,
-        std::vector<int>& costs);
+        std::vector<ExperienceGraph::node_id>& nodes);
 
-    void getSnapSuccs(
-        int state_id,
-        std::vector<int>& succs,
-        std::vector<int>& costs);
+    bool shortcut(
+        int first_id,
+        int second_id,
+        int& cost);
 
-    bool isOnExperienceGraph(int state);
+    bool snap(
+        int first_id,
+        int second_id,
+        int& cost);
 
     const ExperienceGraph* getExperienceGraph() const;
     ExperienceGraph* getExperienceGraph();
 
     int getStateID(ExperienceGraph::node_id n) const;
+    ///@}
 
+    /// \name Reimplemented Public Functions from Extension
+    ///@{
     Extension* getExtension(size_t class_code);
+    ///@}
 
 private:
 
@@ -86,7 +94,7 @@ private:
             RobotCoordHash>
     CoordToExperienceGraphNodeMap;
 
-    CoordToExperienceGraphNodeMap m_coord_to_id;
+    CoordToExperienceGraphNodeMap m_coord_to_nodes;
 
     ExperienceGraph m_egraph;
 

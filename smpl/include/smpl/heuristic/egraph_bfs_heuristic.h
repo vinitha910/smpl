@@ -55,17 +55,18 @@ public:
         const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
+    visualization_msgs::MarkerArray getWallsVisualization();
     visualization_msgs::MarkerArray getValuesVisualization();
 
     /// \name Required Public Functions from ExperienceGraphHeuristicExtension
     ///@{
     void getEquivalentStates(
         int state_id,
-        std::vector<int>& ids) const override;
+        std::vector<int>& ids) override;
 
     void getShortcutSuccs(
         int state_id,
-        std::vector<int>& shortcut_ids) override;
+        std::vector<int>& ids) override;
     ///@}
 
     /// \name Required Public Functions from RobotHeuristic
@@ -130,10 +131,22 @@ private:
         result_type operator()(const argument_type& s) const;
     };
 
-    hash_map<Eigen::Vector3i, std::vector<Eigen::Vector3i>, Vector3iHash> m_egraph_edges;
+    std::vector<Eigen::Vector3i> m_projected_nodes;
+    std::vector<int> m_component_ids;
+
+    struct HeuristicNode
+    {
+        std::vector<ExperienceGraph::node_id> up_nodes;
+
+        std::vector<Eigen::Vector3i> edges;
+    };
+
+    hash_map<Eigen::Vector3i, HeuristicNode, Vector3iHash> m_heur_nodes;
 
     void projectExperienceGraph();
     int getGoalHeuristic(const Eigen::Vector3i& dp);
+
+    void syncGridAndDijkstra();
 };
 
 } // namespace motion

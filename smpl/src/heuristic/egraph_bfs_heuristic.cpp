@@ -78,6 +78,8 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
 
     ROS_INFO("Create dijkstra distance grid of size %zu x %zu x %zu", num_cells_x, num_cells_y, num_cells_z);
 
+    syncGridAndDijkstra();
+
     auto add_wall = [&](int x, int y, int z) {
         m_dist_grid(x, y, z).dist = Wall;
     };
@@ -105,14 +107,67 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
 
 void DijkstraEgraphHeuristic3D::getEquivalentStates(
     int state_id,
-    std::vector<int>& ids) const
+    std::vector<int>& ids)
 {
+    std::vector<ExperienceGraph::node_id> egraph_nodes;
+    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
+
+    for (ExperienceGraph::node_id n : egraph_nodes) {
+        const Eigen::Vector3i& dp = m_projected_nodes[n];
+
+        auto it = m_heur_nodes.find(dp);
+        if (it != m_heur_nodes.end()) {
+            for (ExperienceGraph::node_id un : it->second.up_nodes) {
+                ids.push_back(m_eg->getStateID(un));
+            }
+        }
+    }
 }
 
 void DijkstraEgraphHeuristic3D::getShortcutSuccs(
     int state_id,
     std::vector<int>& shortcut_ids)
 {
+    // TODO: compute connected components id for each experience graph vertex
+    // for each component, compute the state closest to the goal (using h_G or
+    // h_E)
+}
+
+visualization_msgs::MarkerArray
+DijkstraEgraphHeuristic3D::getWallsVisualization()
+{
+    std::vector<geometry_msgs::Point> points;
+    for (int z = 0; z < grid()->numCellsZ(); z++) {
+    for (int y = 0; y < grid()->numCellsY(); y++) {
+    for (int x = 0; x < grid()->numCellsX(); x++) {
+        if (m_dist_grid(x + 1, y + 1, z + 1).dist == Wall) {
+            geometry_msgs::Point p;
+            grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
+            points.push_back(p);
+        }
+    }
+    }
+    }
+
+    ROS_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+
+    std_msgs::ColorRGBA color;
+    color.r = 100.0f / 255.0f;
+    color.g = 149.0f / 255.0f;
+    color.b = 238.0f / 255.0f;
+    color.a = 1.0f;
+
+    visualization_msgs::Marker cubes_marker = ::viz::getCubesMarker(
+            points,
+            grid()->getResolution(),
+            color,
+            grid()->getReferenceFrame(),
+            "bfs_walls",
+            0);
+
+    visualization_msgs::MarkerArray ma;
+    ma.markers.push_back(std::move(cubes_marker));
+    return ma;
 }
 
 visualization_msgs::MarkerArray
@@ -319,7 +374,7 @@ int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
 // frame is determined according to the planning link and a fixed offset)
 void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 {
-    m_egraph_edges.clear();
+    m_heur_nodes.clear();
 
     std::vector<geometry_msgs::Point> viz_points;
 
@@ -343,17 +398,20 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         return;
     }
 
+    m_projected_nodes.resize(eg->num_nodes());
+
     size_t proj_node_count = 0;
     size_t proj_edge_count = 0;
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
         int first_id = m_eg->getStateID(*nit);
-        ROS_INFO("Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
+        ROS_DEBUG_NAMED(params()->heuristic_log, "Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
         Eigen::Vector3d p;
         m_pp->projectToPoint(first_id, p);
-        ROS_INFO("Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
+        ROS_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
         Eigen::Vector3i dp;
+        m_projected_nodes[*nit] = dp;
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
         if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
             continue;
@@ -366,21 +424,25 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         dp += Eigen::Vector3i::Ones();
 
         // insert node into down-projected experience graph
-        std::vector<Eigen::Vector3i> empty;
-        auto ent = m_egraph_edges.insert(std::make_pair(dp, std::move(empty)));
+        HeuristicNode empty;
+        auto ent = m_heur_nodes.insert(std::make_pair(dp, std::move(empty)));
         auto eit = ent.first;
         if (ent.second) {
-            ROS_INFO("Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
+            ROS_DEBUG_NAMED(params()->heuristic_log, "Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
             ++proj_node_count;
         } else {
-            ROS_INFO("Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
+            ROS_DEBUG_NAMED(params()->heuristic_log, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
         }
+
+        HeuristicNode& hnode = eit->second;
+
+        hnode.up_nodes.push_back(*nit);
 
         auto adj = eg->adjacent_nodes(*nit);
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             // project adjacent experience graph state and discretize
             int second_id = m_eg->getStateID(*ait);
-            ROS_INFO("  Project experience graph edge to state %d", second_id);
+            ROS_DEBUG_NAMED(params()->heuristic_log, "  Project experience graph edge to state %d", second_id);
             Eigen::Vector3d q;
             m_pp->projectToPoint(second_id, q);
             Eigen::Vector3i dq;
@@ -391,14 +453,14 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
             dq += Eigen::Vector3i::Ones();
 
             // insert adjacent edge
-            if (std::find(eit->second.begin(), eit->second.end(), dq) ==
-                eit->second.end())
+            if (std::find(hnode.edges.begin(), hnode.edges.end(), dq) ==
+                hnode.edges.end())
             {
                 ++proj_edge_count;
-                ROS_INFO("  Insert edge to state %d", second_id);
-                eit->second.push_back(dq);
+                ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert edge to state %d", second_id);
+                hnode.edges.push_back(dq);
             } else {
-                ROS_INFO("  Duplicate edge to state %d", second_id);
+                ROS_DEBUG_NAMED(params()->heuristic_log, "  Duplicate edge to state %d", second_id);
             }
         }
     }
@@ -438,10 +500,11 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
         ROS_DEBUG_NAMED(params()->heuristic_log, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
 
         // relax experience graph adjacency edges
-        auto it = m_egraph_edges.find(Eigen::Vector3i(cx, cy, cz));
-        if (it != m_egraph_edges.end()) {
-            ROS_DEBUG_NAMED(params()->heuristic_log, "  %zu adjacent egraph cells", it->second.size());
-            for (const Eigen::Vector3i& adj : it->second) {
+        auto it = m_heur_nodes.find(Eigen::Vector3i(cx, cy, cz));
+        if (it != m_heur_nodes.end()) {
+            const HeuristicNode& hnode = it->second;
+            ROS_DEBUG_NAMED(params()->heuristic_log, "  %zu adjacent egraph cells", hnode.edges.size());
+            for (const Eigen::Vector3i& adj : hnode.edges) {
                 const int dx = adj.x() - cx;
                 const int dy = adj.y() - cy;
                 const int dz = adj.z() - cz;
@@ -511,6 +574,28 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
         return Infinity;
     }
     return cell->dist;
+}
+
+void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
+{
+    int xc, yc, zc;
+    grid()->getGridSize(xc, yc, zc);
+    const int cell_count = xc * yc * zc;
+
+    int wall_count = 0;
+    for (int z = 0; z < grid()->numCellsZ(); ++z) {
+    for (int y = 0; y < grid()->numCellsY(); ++y) {
+    for (int x = 0; x < grid()->numCellsX(); ++x) {
+        const double radius = params()->planning_link_sphere_radius;
+        if (grid()->getDistance(x, y, z) <= radius) {
+            m_dist_grid(x + 1, y + 1, z + 1).dist = Wall;
+            ++wall_count;
+        }
+    }
+    }
+    }
+
+    ROS_INFO_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 } // namespace motion
