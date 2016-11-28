@@ -188,6 +188,10 @@ protected:
         const RobotCoord& coord,
         const RobotState& state);
 
+    visualization_msgs::MarkerArray getStateVisualization(
+        const RobotState& vars,
+        const std::string& ns);
+
 private:
 
     struct StateHash
@@ -267,10 +271,6 @@ private:
         const Action& action,
         double& dist);
     ///@}
-
-    visualization_msgs::MarkerArray getStateVisualization(
-        const RobotState& vars,
-        const std::string& ns);
 };
 
 // angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin

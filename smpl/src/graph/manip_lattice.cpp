@@ -538,6 +538,17 @@ ManipLatticeState* ManipLattice::getOrCreateState(
     return entry;
 }
 
+visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
+    const RobotState& vars,
+    const std::string& ns)
+{
+    auto ma = collisionChecker()->getCollisionModelVisualization(vars);
+    for (auto& marker : ma.markers) {
+        marker.ns = ns;
+    }
+    return ma;
+}
+
 int ManipLattice::cost(
     ManipLatticeState* HashEntry1,
     ManipLatticeState* HashEntry2,
@@ -1011,17 +1022,6 @@ RobotState ManipLattice::getStartConfiguration() const
     else {
         return RobotState();
     }
-}
-
-visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
-    const RobotState& vars,
-    const std::string& ns)
-{
-    auto ma = collisionChecker()->getCollisionModelVisualization(vars);
-    for (auto& marker : ma.markers) {
-        marker.ns = ns;
-    }
-    return ma;
 }
 
 /// Set a 6-dof goal pose for the planning link
