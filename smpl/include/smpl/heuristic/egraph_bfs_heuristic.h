@@ -131,7 +131,10 @@ private:
         result_type operator()(const argument_type& s) const;
     };
 
+    // map from experience graph nodes to their heuristic cell coordinates
     std::vector<Eigen::Vector3i> m_projected_nodes;
+
+    // map from experience graph nodes to their component ids
     std::vector<int> m_component_ids;
 
     struct HeuristicNode
