@@ -1405,22 +1405,26 @@ double SelfCollisionModelImpl::robotSpheresCollisionDistance()
 double SelfCollisionModelImpl::robotSpheresCollisionDistance(
     const AllowedCollisionsInterface& aci)
 {
+    // TODO: implement
     return std::numeric_limits<double>::infinity();
 }
 
 double SelfCollisionModelImpl::attachedBodyVoxelsCollisionDistance()
 {
+    // TODO: implement
     return std::numeric_limits<double>::infinity();
 }
 
 double SelfCollisionModelImpl::attachedBodySpheresCollisionDistance()
 {
+    // TODO: implement
     return std::numeric_limits<double>::infinity();
 }
 
 double SelfCollisionModelImpl::attachedBodySpheresCollisionDistance(
     const AllowedCollisionsInterface& aci)
 {
+    // TODO: implement
     return std::numeric_limits<double>::infinity();
 }
 
