@@ -34,6 +34,7 @@
 #include <boost/filesystem.hpp>
 #include <leatherman/print.h>
 #include <smpl/csv_parser.h>
+#include <smpl/debug/visualize.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 
 namespace sbpl {
@@ -181,6 +182,27 @@ bool ManipLatticeEgraph::snap(
     int second_id,
     int& cost)
 {
+    ManipLatticeState* first_entry = getHashEntry(first_id);
+    ManipLatticeState* second_entry = getHashEntry(second_id);
+    if (!first_entry | !second_entry) {
+        ROS_WARN("No state entries for state %d or state %d", first_id, second_id);
+        return false;
+    }
+
+    ROS_INFO("Snap %s -> %s", to_string(first_entry->state).c_str(), to_string(second_entry->state).c_str());
+    SV_SHOW_INFO(getStateVisualization(first_entry->state, "snap_from"));
+    SV_SHOW_INFO(getStateVisualization(second_entry->state, "snap_to"));
+
+    int plen, check_count;
+    double dist;
+    if (!collisionChecker()->isStateToStateValid(
+        first_entry->state, second_entry->state, plen, check_count, dist))
+    {
+        ROS_WARN("Failed snap!");
+        return false;
+    }
+
+    ROS_INFO("Snap!");
     cost = 1000;
     return true;
 }
