@@ -59,6 +59,7 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     m_pp(nullptr)
 {
     m_eg_eps = std::stod(params()->params.at("egraph_epsilon"));
+    ROS_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
 
     m_pp = ps->getExtension<PointProjectionExtension>();
     m_eg = ps->getExtension<ExperienceGraphExtension>();
@@ -399,6 +400,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     }
 
     m_projected_nodes.resize(eg->num_nodes());
+    m_component_ids.resize(eg->num_nodes(), -1);
 
     size_t proj_node_count = 0;
     size_t proj_edge_count = 0;
@@ -411,17 +413,15 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         m_pp->projectToPoint(first_id, p);
         ROS_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
         Eigen::Vector3i dp;
-        m_projected_nodes[*nit] = dp;
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
-        if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
-            continue;
-        }
 
         geometry_msgs::Point viz_pt;
         grid()->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x, viz_pt.y, viz_pt.z);
         viz_points.push_back(viz_pt);
 
         dp += Eigen::Vector3i::Ones();
+
+        m_projected_nodes[*nit] = dp;
 
         // insert node into down-projected experience graph
         HeuristicNode empty;
