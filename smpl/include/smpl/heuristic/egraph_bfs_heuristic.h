@@ -136,6 +136,7 @@ private:
 
     // map from experience graph nodes to their component ids
     std::vector<int> m_component_ids;
+    std::vector<std::vector<ExperienceGraph::node_id>> m_shortcut_nodes;
 
     struct HeuristicNode
     {

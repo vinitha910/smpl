@@ -132,6 +132,15 @@ void DijkstraEgraphHeuristic3D::getShortcutSuccs(
     // TODO: compute connected components id for each experience graph vertex
     // for each component, compute the state closest to the goal (using h_G or
     // h_E)
+    std::vector<ExperienceGraph::node_id> egraph_nodes;
+    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
+
+    for (ExperienceGraph::node_id n : egraph_nodes) {
+        const int comp_id = m_component_ids[n];
+        for (ExperienceGraph::node_id nn : m_shortcut_nodes[comp_id]) {
+            shortcut_ids.push_back(m_eg->getStateID(nn));
+        }
+    }
 }
 
 visualization_msgs::MarkerArray
@@ -321,22 +330,51 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 
     projectExperienceGraph();
 
-    Eigen::Vector3i gp;
-    grid()->worldToGrid(
-            goal.tgt_off_pose[0],
-            goal.tgt_off_pose[1],
-            goal.tgt_off_pose[2],
-            gp.x(), gp.y(), gp.z());
+    Eigen::Vector3d gp(
+            goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2]);
 
-    if (!grid()->isInBounds(gp.x(), gp.y(), gp.z())) {
-        ROS_WARN("Cell (%d, %d, %d) is outside heuristic bounds", gp.x(), gp.y(), gp.z());
+    Eigen::Vector3i dgp;
+    grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
+
+    // precompute shortcuts
+    assert(m_component_ids.size() == m_eg->num_nodes());
+    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    auto nodes = eg->nodes();
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        int comp_id = m_component_ids[*nit];
+        if (m_shortcut_nodes[comp_id].empty()) {
+            m_shortcut_nodes[comp_id].push_back(*nit);
+            continue;
+        }
+
+        // get the distance of this node to the goal
+        Eigen::Vector3d p;
+        m_pp->projectToPoint(m_eg->getStateID(*nit), p);
+
+        const double dist = (gp - p).squaredNorm();
+
+        Eigen::Vector3d lp;
+        m_pp->projectToPoint(m_eg->getStateID(m_shortcut_nodes[comp_id].front()), lp);
+
+        const double curr_dist = (gp - lp).squaredNorm();
+
+        if (dist < curr_dist) {
+            m_shortcut_nodes[comp_id].clear();
+            m_shortcut_nodes[comp_id].push_back(*nit);
+        } else if (dist == curr_dist) {
+            m_shortcut_nodes[comp_id].push_back(*nit);
+        }
+    }
+
+    if (!grid()->isInBounds(dgp.x(), dgp.y(), dgp.z())) {
+        ROS_WARN("Cell (%d, %d, %d) is outside heuristic bounds", dgp.x(), dgp.y(), dgp.z());
         return;
     }
 
-    gp += Eigen::Vector3i::Ones();
+    dgp += Eigen::Vector3i::Ones();
 
     m_open.clear();
-    Cell* c = &m_dist_grid(gp.x(), gp.y(), gp.z());
+    Cell* c = &m_dist_grid(dgp.x(), dgp.y(), dgp.z());
     c->dist = 0;
     m_open.push(c);
 
@@ -400,7 +438,6 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     }
 
     m_projected_nodes.resize(eg->num_nodes());
-    m_component_ids.resize(eg->num_nodes(), -1);
 
     size_t proj_node_count = 0;
     size_t proj_edge_count = 0;
@@ -466,6 +503,36 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     }
 
     ROS_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
+
+    int comp_count = 0;
+    m_component_ids.assign(eg->num_nodes(), -1);
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        if (m_component_ids[*nit] != -1) {
+            continue;
+        }
+
+        std::vector<ExperienceGraph::node_id> frontier;
+        frontier.push_back(*nit);
+        while (!frontier.empty()) {
+            ExperienceGraph::node_id n = frontier.back();
+            frontier.pop_back();
+
+            m_component_ids[n] = comp_count;
+
+            auto adj = eg->adjacent_nodes(n);
+            for (auto ait = adj.first; ait != adj.second; ++ait) {
+                if (m_component_ids[*ait] == -1) {
+                    frontier.push_back(*ait);
+                }
+            }
+        }
+
+        ++comp_count;
+    }
+
+    // pre-allocate shortcuts array here, fill in updateGoal()
+    m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
+    ROS_INFO("Experience graph contains %d components", comp_count);
 
     std_msgs::ColorRGBA color;
     color.r = (float)0xFF / (float)0xFF;
