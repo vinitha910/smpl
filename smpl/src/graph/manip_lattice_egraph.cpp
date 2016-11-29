@@ -173,6 +173,18 @@ bool ManipLatticeEgraph::shortcut(
     int second_id,
     int& cost)
 {
+    ManipLatticeState* first_entry = getHashEntry(first_id);
+    ManipLatticeState* second_entry = getHashEntry(second_id);
+    if (!first_entry | !second_entry) {
+        ROS_WARN("No state entries for state %d or state %d", first_id, second_id);
+        return false;
+    }
+
+    ROS_INFO("Shortcut %s -> %s", to_string(first_entry->state).c_str(), to_string(second_entry->state).c_str());
+    SV_SHOW_INFO(getStateVisualization(first_entry->state, "shortcut_from"));
+    SV_SHOW_INFO(getStateVisualization(second_entry->state, "shortcut_to"));
+
+    ROS_INFO("Shortcut!");
     cost = 1000;
     return true;
 }
