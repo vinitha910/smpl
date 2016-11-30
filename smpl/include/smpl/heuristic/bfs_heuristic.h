@@ -57,7 +57,7 @@ public:
     virtual ~BfsHeuristic();
 
     visualization_msgs::MarkerArray getWallsVisualization() const;
-    visualization_msgs::MarkerArray getValuesVisualization() const;
+    visualization_msgs::MarkerArray getValuesVisualization();
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{
