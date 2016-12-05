@@ -281,6 +281,7 @@ bool ManipLatticeEgraph::extractPath(
             for (ExperienceGraphSearchNode* s = &search_nodes[cn]; s; s = s->bp) {
                 if (s != ps) {
                     node_path.push_back(std::distance(search_nodes.data(), s));
+                    ps = s;
                 } else {
                     ROS_ERROR("Cycle detected!");
                 }
