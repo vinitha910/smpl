@@ -110,19 +110,40 @@ void DijkstraEgraphHeuristic3D::getEquivalentStates(
     int state_id,
     std::vector<int>& ids)
 {
-    std::vector<ExperienceGraph::node_id> egraph_nodes;
-    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
+    Eigen::Vector3d p;
+    m_pp->projectToPoint(state_id, p);
+    Eigen::Vector3i dp;
+    grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+    if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
+        return;
+    }
+    dp += Eigen::Vector3i::Ones();
 
-    for (ExperienceGraph::node_id n : egraph_nodes) {
-        const Eigen::Vector3i& dp = m_projected_nodes[n];
+    auto hit = m_heur_nodes.find(dp);
+    if (hit == m_heur_nodes.end()) {
+        return;
+    }
 
-        auto it = m_heur_nodes.find(dp);
-        if (it != m_heur_nodes.end()) {
-            for (ExperienceGraph::node_id un : it->second.up_nodes) {
-                ids.push_back(m_eg->getStateID(un));
-            }
+    for (ExperienceGraph::node_id n : hit->second.up_nodes) {
+        int id = m_eg->getStateID(n);
+        if (id != state_id) {
+            ids.push_back(id);
         }
     }
+
+//    std::vector<ExperienceGraph::node_id> egraph_nodes;
+//    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
+//
+//    for (ExperienceGraph::node_id n : egraph_nodes) {
+//        const Eigen::Vector3i& dp = m_projected_nodes[n];
+//
+//        auto it = m_heur_nodes.find(dp);
+//        if (it != m_heur_nodes.end()) {
+//            for (ExperienceGraph::node_id un : it->second.up_nodes) {
+//                ids.push_back(m_eg->getStateID(un));
+//            }
+//        }
+//    }
 }
 
 void DijkstraEgraphHeuristic3D::getShortcutSuccs(
