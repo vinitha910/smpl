@@ -188,6 +188,22 @@ protected:
         const RobotCoord& coord,
         const RobotState& state);
 
+    bool computePlanningFrameFK(
+        const RobotState& state,
+        std::vector<double>& pose) const;
+
+    int cost(
+        ManipLatticeState* HashEntry1,
+        ManipLatticeState* HashEntry2,
+        bool bState2IsGoal) const;
+
+    bool checkAction(
+        const RobotState& state,
+        const Action& action,
+        double& dist);
+
+    bool isGoal(const RobotState& state, const std::vector<double>& pose);
+
     visualization_msgs::MarkerArray getStateVisualization(
         const RobotState& vars,
         const std::string& ns);
@@ -242,34 +258,20 @@ private:
 
     void startNewSearch();
 
-    bool computePlanningFrameFK(
-        const RobotState& state,
-        std::vector<double>& pose) const;
-
     std::vector<double> getTargetOffsetPose(
         const std::vector<double>& tip_pose) const;
 
     /// \name planning
     ///@{
-    bool isGoal(const RobotState& state, const std::vector<double>& pose);
     ///@}
 
     /// \name costs
     ///@{
-    int cost(
-        ManipLatticeState* HashEntry1,
-        ManipLatticeState* HashEntry2,
-        bool bState2IsGoal);
     void computeCostPerCell();
     int getActionCost(
         const RobotState& first,
         const RobotState& last,
         int dist);
-
-    bool checkAction(
-        const RobotState& state,
-        const Action& action,
-        double& dist);
     ///@}
 };
 

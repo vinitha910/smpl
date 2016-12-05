@@ -538,23 +538,102 @@ ManipLatticeState* ManipLattice::getOrCreateState(
     return entry;
 }
 
-visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
-    const RobotState& vars,
-    const std::string& ns)
+/// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
+/// not be
+bool ManipLattice::computePlanningFrameFK(
+    const RobotState& state,
+    std::vector<double>& pose) const
 {
-    auto ma = collisionChecker()->getCollisionModelVisualization(vars);
-    for (auto& marker : ma.markers) {
-        marker.ns = ns;
+    assert(state.size() == robot()->jointVariableCount());
+
+    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
+        return false;
     }
-    return ma;
+
+    pose = getTargetOffsetPose(pose);
+
+    assert(pose.size() == 6);
+    return true;
 }
 
 int ManipLattice::cost(
     ManipLatticeState* HashEntry1,
     ManipLatticeState* HashEntry2,
-    bool bState2IsGoal)
+    bool bState2IsGoal) const
 {
     return params()->cost_multiplier;
+}
+
+bool ManipLattice::checkAction(
+    const RobotState& state,
+    const Action& action,
+    double& dist)
+{
+    std::uint32_t violation_mask = 0x00000000;
+    int plen = 0;
+    int nchecks = 0;
+    dist = 0.0;
+
+    // check intermediate states for collisions
+    for (size_t iidx = 0; iidx < action.size(); ++iidx) {
+        const RobotState& istate = action[iidx];
+        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", iidx, to_string(istate).c_str());
+
+        // check joint limits
+        if (!robot()->checkJointLimits(istate)) {
+            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            violation_mask |= 0x00000001;
+            break;
+        }
+
+        // TODO/NOTE: this can result in an unnecessary number of collision
+        // checks per each action; leaving commented here as it might hint at
+        // an optimization where actions are checked at a coarse resolution as
+        // a way of speeding up overall collision checking; in that case, the
+        // isStateToStateValid function on CollisionChecker would have semantics
+        // meaning "collision check a waypoint path without including the
+        // endpoints".
+//        // check for collisions
+//        if (!collisionChecker()->isStateValid(istate, params()->verbose_collisions_, false, dist))
+//        {
+//            ROS_DEBUG_NAMED(params()->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+//            violation_mask |= 0x00000002;
+//            break;
+//        }
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    // check for collisions along path from parent to first waypoint
+    if (!collisionChecker()->isStateToStateValid(state, action[0], plen, nchecks, dist)) {
+        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
+        violation_mask |= 0x00000004;
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    // check for collisions between waypoints
+    for (size_t j = 1; j < action.size(); ++j) {
+        const RobotState& prev_istate = action[j - 1];
+        const RobotState& curr_istate = action[j];
+        if (!collisionChecker()->isStateToStateValid(
+                prev_istate, curr_istate, plen, nchecks, dist))
+        {
+            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
+            violation_mask |= 0x00000008;
+            break;
+        }
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    return true;
 }
 
 bool ManipLattice::isGoal(
@@ -628,6 +707,17 @@ bool ManipLattice::isGoal(
     return false;
 }
 
+visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
+    const RobotState& vars,
+    const std::string& ns)
+{
+    auto ma = collisionChecker()->getCollisionModelVisualization(vars);
+    for (auto& marker : ma.markers) {
+        marker.ns = ns;
+    }
+    return ma;
+}
+
 int ManipLattice::getActionCost(
     const RobotState& first,
     const RobotState& last,
@@ -662,78 +752,6 @@ int ManipLattice::getActionCost(
     }
 
     return cost;
-}
-
-bool ManipLattice::checkAction(
-    const RobotState& state,
-    const Action& action,
-    double& dist)
-{
-    std::uint32_t violation_mask = 0x00000000;
-    int plen = 0;
-    int nchecks = 0;
-    dist = 0.0;
-
-    // check intermediate states for collisions
-    for (size_t iidx = 0; iidx < action.size(); ++iidx) {
-        const RobotState& istate = action[iidx];
-        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", iidx, to_string(istate).c_str());
-
-        // check joint limits
-        if (!robot()->checkJointLimits(istate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
-            violation_mask |= 0x00000001;
-            break;
-        }
-
-        // TODO/NOTE: this can result in an unnecessary number of collision
-        // checks per each action; leaving commented here as it might hint at
-        // an optimization where actions are checked at a coarse resolution as
-        // a way of speeding up overall collision checking; in that case, the
-        // isStateToStateValid function on CollisionChecker would have semantics
-        // meaning "collision check a waypoint path without including the
-        // endpoints".
-//        // check for collisions
-//        if (!collisionChecker()->isStateValid(istate, params()->verbose_collisions_, false, dist))
-//        {
-//            ROS_DEBUG_NAMED(params()->expands_log_, "        -> in collision (dist: %0.3f)", dist);
-//            violation_mask |= 0x00000002;
-//            break;
-//        }
-    }
-
-    if (violation_mask) {
-        return false;
-    }
-
-    // check for collisions along path from parent to first waypoint
-    if (!collisionChecker()->isStateToStateValid(state, action[0], plen, nchecks, dist)) {
-        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
-        violation_mask |= 0x00000004;
-    }
-
-    if (violation_mask) {
-        return false;
-    }
-
-    // check for collisions between waypoints
-    for (size_t j = 1; j < action.size(); ++j) {
-        const RobotState& prev_istate = action[j - 1];
-        const RobotState& curr_istate = action[j];
-        if (!collisionChecker()->isStateToStateValid(
-                prev_istate, curr_istate, plen, nchecks, dist))
-        {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
-            violation_mask |= 0x00000008;
-            break;
-        }
-    }
-
-    if (violation_mask) {
-        return false;
-    }
-
-    return true;
 }
 
 bool ManipLattice::setStart(const RobotState& state)
@@ -1092,24 +1110,6 @@ void ManipLattice::startNewSearch()
     m_expanded_states.clear();
     m_near_goal = false;
     m_t_start = clock();
-}
-
-/// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
-/// not be
-bool ManipLattice::computePlanningFrameFK(
-    const RobotState& state,
-    std::vector<double>& pose) const
-{
-    assert(state.size() == robot()->jointVariableCount());
-
-    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
-        return false;
-    }
-
-    pose = getTargetOffsetPose(pose);
-
-    assert(pose.size() == 6);
-    return true;
 }
 
 /// \brief Return the 6-dof goal pose for the offset from the tip link.
