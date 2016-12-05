@@ -34,6 +34,7 @@
 #include <boost/filesystem.hpp>
 #include <leatherman/print.h>
 #include <smpl/csv_parser.h>
+#include <smpl/intrusive_heap.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 
@@ -59,6 +60,261 @@ ManipLatticeEgraph::ManipLatticeEgraph(
     m_egraph(),
     m_egraph_state_ids()
 {
+}
+
+bool ManipLatticeEgraph::extractPath(
+    const std::vector<int>& idpath,
+    std::vector<RobotState>& path)
+{
+    if (idpath.empty()) {
+        return true;
+    }
+
+    std::vector<RobotState> opath;
+
+    // attempt to handle paths of length 1...do any of the sbpl planners still
+    // return a single-point path in some cases?
+    if (idpath.size() == 1) {
+        const int state_id = idpath[0];
+
+        if (state_id == getGoalStateID()) {
+            RobotState angles;
+            const ManipLatticeState* entry = getHashEntry(getStartStateID());
+            if (!entry) {
+                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
+                return false;
+            }
+            opath.push_back(entry->state);
+        }
+        else {
+            const ManipLatticeState* entry = getHashEntry(state_id);
+            if (!entry) {
+                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
+                return false;
+            }
+            opath.push_back(entry->state);
+        }
+
+        SV_SHOW_INFO(getStateVisualization(opath.back(), "goal_state"));
+        return true;
+    }
+
+    if (idpath[0] == getGoalStateID()) {
+        ROS_ERROR_NAMED(params()->graph_log, "Cannot extract a non-trivial path starting from the goal state");
+        return false;
+    }
+
+    // grab the first point
+    {
+        RobotState angles;
+        const ManipLatticeState* entry = getHashEntry(idpath[0]);
+        if (!entry) {
+            ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", idpath[0]);
+            return false;
+        }
+        opath.push_back(entry->state);
+    }
+
+    ActionSpacePtr action_space = actionSpace();
+    if (!action_space) {
+        return false;
+    }
+
+    // grab the rest of the points
+    for (size_t i = 1; i < idpath.size(); ++i) {
+        const int prev_id = idpath[i - 1];
+        const int curr_id = idpath[i];
+
+        if (prev_id == getGoalStateID()) {
+            ROS_ERROR_NAMED(params()->graph_log, "Cannot determine goal state predecessor state during path extraction");
+            return false;
+        }
+
+        // find the successor state corresponding to the cheapest valid action
+
+        ManipLatticeState* prev_entry = getHashEntry(prev_id);
+        const RobotState& prev_state = prev_entry->state;
+
+        std::vector<Action> actions;
+        if (!action_space->apply(prev_state, actions)) {
+            ROS_ERROR_NAMED(params()->graph_log, "Failed to get actions while extracting the path");
+            return false;
+        }
+
+        ManipLatticeState* best_state = nullptr;
+        RobotCoord succ_coord(robot()->jointVariableCount());
+        int best_cost = std::numeric_limits<int>::max();
+        // check for transition via normal successors
+        for (const Action& action : actions) {
+            // check the validity of this transition
+            double dist;
+            if (!checkAction(prev_state, action, dist)) {
+                continue;
+            }
+
+            if (curr_id == getGoalStateID()) {
+                std::vector<double> tgt_off_pose;
+                if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
+                    ROS_WARN("Failed to compute FK for planning frame");
+                    continue;
+                }
+
+                // skip non-goal states
+                if (!isGoal(action.back(), tgt_off_pose)) {
+                    continue;
+                }
+
+                stateToCoord(action.back(), succ_coord);
+                ManipLatticeState* succ_entry = getHashEntry(succ_coord);
+                assert(succ_entry);
+
+                const int edge_cost = cost(prev_entry, succ_entry, true);
+                if (edge_cost < best_cost) {
+                    best_cost = edge_cost;
+                    best_state = succ_entry;
+                }
+            } else {
+                stateToCoord(action.back(), succ_coord);
+                ManipLatticeState* succ_entry = getHashEntry(succ_coord);
+                assert(succ_entry);
+                if (succ_entry->stateID != curr_id) {
+                    continue;
+                }
+
+                const int edge_cost = cost(prev_entry, succ_entry, false);
+                if (edge_cost < best_cost) {
+                    best_cost = edge_cost;
+                    best_state = succ_entry;
+                }
+            }
+        }
+
+        if (best_state) {
+            opath.push_back(best_state->state);
+            continue;
+        }
+
+        bool found = false;
+        // check for shortcut transition
+        auto pnit = std::find(m_egraph_state_ids.begin(), m_egraph_state_ids.end(), prev_id);
+        auto cnit = std::find(m_egraph_state_ids.begin(), m_egraph_state_ids.end(), curr_id);
+        if (pnit != m_egraph_state_ids.end() &&
+            cnit != m_egraph_state_ids.end())
+        {
+            ExperienceGraph::node_id pn =
+                    std::distance(m_egraph_state_ids.begin(), pnit);
+            ExperienceGraph::node_id cn =
+                    std::distance(m_egraph_state_ids.begin(), cnit);
+
+            ROS_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, pn, cn);
+
+            struct ExperienceGraphSearchNode : heap_element
+            {
+                int g;
+                bool closed;
+                ExperienceGraphSearchNode* bp;
+                ExperienceGraphSearchNode() :
+                    g(std::numeric_limits<int>::max()),
+                    closed(false),
+                    bp(nullptr)
+                { }
+            };
+
+            struct ExperienceGraphSearchNodeCompare
+            {
+                bool operator()(
+                    const ExperienceGraphSearchNode& a,
+                    const ExperienceGraphSearchNode& b)
+                {
+                    return a.g < b.g;
+                }
+            };
+
+            std::vector<ExperienceGraphSearchNode> search_nodes(
+                    m_egraph.num_nodes());
+            intrusive_heap<
+                ExperienceGraphSearchNode,
+                ExperienceGraphSearchNodeCompare>
+            open;
+
+            search_nodes[pn].g = 0;
+            open.push(&search_nodes[pn]);
+            int exp_count = 0;
+            while (!open.empty()) {
+                ++exp_count;
+                ExperienceGraphSearchNode* min = open.min();
+                open.pop();
+                min->closed = true;
+
+                if (min == &search_nodes[cn]) {
+                    ROS_ERROR("Found shortest shortcut path");
+                    found = true;
+                    break;
+                }
+
+                ExperienceGraph::node_id n =
+                        std::distance(search_nodes.data(), min);
+                auto adj = m_egraph.adjacent_nodes(n);
+                for (auto ait = adj.first; ait != adj.second; ++ait) {
+                    ExperienceGraphSearchNode& succ = search_nodes[*ait];
+                    if (succ.closed) {
+                        continue;
+                    }
+                    int new_cost = min->g + 1;
+                    if (new_cost < succ.g) {
+                        succ.g = new_cost;
+                        succ.bp = min;
+                        if (open.contains(&succ)) {
+                            open.decrease(&succ);
+                        } else {
+                            open.push(&succ);
+                        }
+                    }
+                }
+            }
+            ROS_INFO("Expanded %d nodes looking for shortcut", exp_count);
+            if (!found) {
+                break;
+            }
+            std::vector<ExperienceGraph::node_id> node_path;
+            ExperienceGraphSearchNode* ps = nullptr;
+            for (ExperienceGraphSearchNode* s = &search_nodes[cn]; s; s = s->bp) {
+                if (s != ps) {
+                    node_path.push_back(std::distance(search_nodes.data(), s));
+                } else {
+                    ROS_ERROR("Cycle detected!");
+                }
+            }
+            std::reverse(node_path.begin(), node_path.end());
+            for (ExperienceGraph::node_id n : node_path) {
+                int state_id = m_egraph_state_ids[n];
+                ManipLatticeState* entry = getHashEntry(state_id);
+                assert(entry);
+                opath.push_back(entry->state);
+            }
+        }
+        if (found) {
+            continue;
+        }
+
+        // check for snap transition
+        int cost;
+        if (snap(prev_id, curr_id, cost)) {
+            ROS_ERROR("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
+            ManipLatticeState* entry = getHashEntry(curr_id);
+            assert(entry);
+            opath.push_back(entry->state);
+            continue;
+        }
+
+        ROS_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor during path extraction");
+        return false;
+    }
+
+    // we made it!
+    path = std::move(opath);
+    SV_SHOW_INFO(getStateVisualization(path.back(), "goal_state"));
+    return true;
 }
 
 // Strategies for building experience graphs from continuous path data:
@@ -184,7 +440,7 @@ bool ManipLatticeEgraph::shortcut(
     SV_SHOW_INFO(getStateVisualization(first_entry->state, "shortcut_from"));
     SV_SHOW_INFO(getStateVisualization(second_entry->state, "shortcut_to"));
 
-    ROS_INFO("Shortcut!");
+    ROS_INFO("  Shortcut %d -> %d!", first_id, second_id);
     cost = 1000;
     return true;
 }
@@ -214,7 +470,7 @@ bool ManipLatticeEgraph::snap(
         return false;
     }
 
-    ROS_INFO("Snap!");
+    ROS_INFO("  Snap %d -> %d!", first_id, second_id);
     cost = 1000;
     return true;
 }

@@ -49,6 +49,13 @@ public:
         PlanningParams* params,
         OccupancyGrid* grid);
 
+    /// \name Reimplemented Public Functions from ManipLattice
+    ///@{
+    bool extractPath(
+        const std::vector<int>& ids,
+        std::vector<RobotState>& path) override;
+    ///@}
+
     /// \name Required Public Functions from ExperienceGraphExtension
     ///@{
     bool loadExperienceGraph(const std::string& path);
