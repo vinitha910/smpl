@@ -28,7 +28,6 @@ sbpl_manipulation requires the latest sbpl to be installed. Because of catkin's 
 
 	git clone https://github.com/aurone/sbpl_manipulation
 	git clone https://github.com/aurone/leatherman
-	git clone https://github.com/sbpl/sbpl_geometry_utils
 
 ### Install additional dependencies via rosdep
 
