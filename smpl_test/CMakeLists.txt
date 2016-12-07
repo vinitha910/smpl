@@ -9,7 +9,6 @@ find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 find_package(catkin
     REQUIRED
     COMPONENTS
-        angles
         cmake_modules
         geometry_msgs
         leatherman
@@ -19,7 +18,6 @@ find_package(catkin
         roscpp
         smpl
         sbpl_collision_checking
-        sbpl_geometry_utils
         sbpl_kdl_robot_model
         sbpl_pr2_robot_model
         visualization_msgs)

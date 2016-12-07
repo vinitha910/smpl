@@ -44,8 +44,8 @@
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/voxelize.h>
-#include <sbpl_geometry_utils/bounding_spheres.h>
+#include <smpl/geometry/voxelize.h>
+#include <smpl/geometry/bounding_spheres.h>
 #include <urdf/model.h>
 
 // project includes
@@ -764,25 +764,25 @@ bool RobotCollisionModel::generateBoundingSpheres(
 
         ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
 
-        sbpl::ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
+        geometry::ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::BOX) {
         urdf::Box* box = (urdf::Box*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
-        sbpl::ComputeBoxBoundingSpheres(box->dim.x, box->dim.y, box->dim.z, radius, centers);
+        geometry::ComputeBoxBoundingSpheres(box->dim.x, box->dim.y, box->dim.z, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::CYLINDER) {
         urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
-        sbpl::ComputeCylinderBoundingSpheres(cyl->radius, cyl->length, radius, centers);
+        geometry::ComputeCylinderBoundingSpheres(cyl->radius, cyl->length, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else if (geom.type == urdf::Geometry::SPHERE) {
         urdf::Sphere* sph = (urdf::Sphere*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "sphere: { radius: %0.3f }", sph->radius);
-        sbpl::ComputeSphereBoundingSpheres(sph->radius, radius, centers);
+        geometry::ComputeSphereBoundingSpheres(sph->radius, radius, centers);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> centers: %zu", centers.size());
     }
     else {
@@ -965,25 +965,25 @@ bool RobotCollisionModel::voxelizeGeometry(
 
         ROS_DEBUG_NAMED(RCM_LOGGER, "mesh: %s  triangles: %zu  vertices: %zu", mesh->filename.c_str(), triangles.size(), vertices.size());
 
-        sbpl::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
+        geometry::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else if (geom.type == urdf::Geometry::BOX) {
         urdf::Box* box = (urdf::Box*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
-        sbpl::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, voxels, false);
+        geometry::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, voxels, false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else if (geom.type == urdf::Geometry::CYLINDER) {
         urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
-        sbpl::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, voxels, false);
+        geometry::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, voxels, false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else if (geom.type == urdf::Geometry::SPHERE) {
         urdf::Sphere* sph = (urdf::Sphere*)&geom;
         ROS_DEBUG_NAMED(RCM_LOGGER, "sphere: { radius: %0.3f }", sph->radius);
-        sbpl::VoxelizeSphere(sph->radius, pose, res, voxels, false);
+        geometry::VoxelizeSphere(sph->radius, pose, res, voxels, false);
         ROS_DEBUG_NAMED(RCM_LOGGER, " -> voxels: %zu", voxels.size());
     }
     else {

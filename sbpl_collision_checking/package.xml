@@ -22,7 +22,6 @@
     <depend>octomap_msgs</depend>
     <depend>roscpp</depend>
     <depend>smpl</depend>
-    <depend>sbpl_geometry_utils</depend>
     <depend>sensor_msgs</depend>
     <depend>shape_msgs</depend>
     <depend>tf_conversions</depend>

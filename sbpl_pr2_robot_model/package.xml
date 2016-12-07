@@ -8,11 +8,9 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
-    <depend>angles</depend>
     <depend>orocos_kdl</depend>
     <depend>pr2_arm_kinematics</depend>
     <depend>roscpp</depend>
-    <depend>sbpl_geometry_utils</depend>
     <depend>sbpl_kdl_robot_model</depend>
     <depend>urdf</depend>
 </package>

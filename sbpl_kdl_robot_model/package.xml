@@ -8,11 +8,9 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
-    <depend>angles</depend>
     <depend>leatherman</depend>
     <depend>orocos_kdl</depend>
     <depend>roscpp</depend>
     <depend>smpl</depend>
-    <depend>sbpl_geometry_utils</depend>
     <depend>urdf</depend>
 </package>

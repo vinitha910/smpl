@@ -38,14 +38,13 @@
 #include <utility>
 
 // system includes
-#include <angles/angles.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
 #include <leatherman/bresenham.h>
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <moveit_msgs/RobotState.h>
-#include <sbpl_geometry_utils/utils.h>
+#include <smpl/angles.h>
 
 namespace sbpl {
 namespace collision {
@@ -577,7 +576,7 @@ bool CollisionSpace::interpolatePath(
     std::vector<double> diffs(planningVariableCount(), 0.0);
     for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
         if (isContinuous(vidx)) {
-            diffs[vidx] = angles::ShortestAngleDiff(finish[vidx], start[vidx]);
+            diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
         }
         else {
             diffs[vidx] = finish[vidx] - start[vidx];
@@ -608,7 +607,7 @@ bool CollisionSpace::interpolatePath(
     for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
         if (isContinuous(vidx)) {
             for (size_t widx = 0; widx < waypoint_count; ++widx) {
-                path[widx][vidx] = angles::NormalizeAngle(path[widx][vidx]);
+                path[widx][vidx] = angles::normalize_angle(path[widx][vidx]);
             }
         }
     }
@@ -784,7 +783,7 @@ bool CollisionSpace::setPlanningJoints(
     // map planning joint indices to collision model indices
     m_planning_joint_to_collision_model_indices.resize(joint_names.size(), -1);
 
-    m_increments.resize(joint_names.size(), utils::ToRadians(2.0));
+    m_increments.resize(joint_names.size(), angles::to_radians(2.0));
     for (size_t i = 0; i < joint_names.size(); ++i) {
         const std::string& joint_name = joint_names[i];;
         int jidx = m_rcm->jointVarIndex(joint_name);

@@ -36,6 +36,7 @@
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <ros/ros.h>
+#include <smpl/angles.h>
 
 using namespace std;
 

@@ -7,11 +7,9 @@ list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 find_package(catkin
     REQUIRED
     COMPONENTS
-        angles
         leatherman
         roscpp
         smpl
-        sbpl_geometry_utils
         urdf)
 
 find_package(orocos_kdl REQUIRED)
@@ -22,11 +20,9 @@ catkin_package(
     LIBRARIES
         sbpl_kdl_robot_model
     CATKIN_DEPENDS
-        angles
         leatherman
         roscpp
         smpl
-        sbpl_geometry_utils
         urdf
     DEPENDS
         orocos_kdl)

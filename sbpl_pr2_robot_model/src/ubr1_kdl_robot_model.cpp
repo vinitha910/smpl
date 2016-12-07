@@ -34,6 +34,7 @@
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <kdl/tree.hpp>
+#include <smpl/angles.h>
 
 using namespace std;
 

@@ -32,8 +32,10 @@
 #ifndef sbpl_manip_angles_h
 #define sbpl_manip_angles_h
 
-#include <math.h>
+// standard includes
+#include <cmath>
 
+// system includes
 #include <Eigen/Dense>
 
 namespace sbpl {
@@ -93,15 +95,53 @@ double shortest_angle_diff(double af, double ai)
 inline
 double shortest_angle_dist(double af, double ai)
 {
-    return fabs(shortest_angle_diff(af, ai));
+    return std::fabs(shortest_angle_diff(af, ai));
+}
+
+inline
+double minor_arc_diff(double af, double ai)
+{
+    return shortest_angle_diff(af, ai);
+}
+
+inline
+double major_arc_diff(double af, double ai)
+{
+    double diff = shortest_angle_diff(af, ai);
+    return -1.0 * std::copysign(1.0, diff) * (2.0 * M_PI - std::fabs(diff));
+}
+
+inline
+double minor_arc_dist(double af, double ai)
+{
+    return std::fabs(minor_arc_diff(af, ai));
+}
+
+inline
+double major_arc_dist(double af, double ai)
+{
+    return std::fabs(major_arc_diff(af, ai));
+}
+
+/// \brief Return the closest angle equivalent to af that is numerically greater
+///        than ai
+inline
+double unwind(double ai, double af)
+{
+    //2.0 * M_PI * std::floor((af - ai) / (2.0 * M_PI));
+    af = std::remainder(af - ai, 2.0 * M_PI);
+    if (af < ai) {
+        af += 2.0 * M_PI;
+    }
+    return af;
 }
 
 template <typename T>
 void get_euler_zyx(const Eigen::Matrix<T, 3, 3>& rot, T& y, T& p, T& r)
 {
-    y = atan2(rot(1, 0), rot(0, 0));
-    p  = atan2(-rot(2, 0), sqrt(rot(2, 1) * rot(2, 1) + rot(2, 2) * rot(2, 2)));
-    r = atan2(rot(2, 1), rot(2, 2));
+    y = std::atan2(rot(1, 0), rot(0, 0));
+    p  = std::atan2(-rot(2, 0), std::sqrt(rot(2, 1) * rot(2, 1) + rot(2, 2) * rot(2, 2)));
+    r = std::atan2(rot(2, 1), rot(2, 2));
 }
 
 template <typename T>

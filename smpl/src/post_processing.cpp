@@ -39,9 +39,10 @@
 #include <Eigen/Dense>
 #include <leatherman/print.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/shortcut.h>
 
+// project includes
 #include <smpl/angles.h>
+#include <smpl/geometry/shortcut.h>
 
 namespace sbpl {
 namespace motion {

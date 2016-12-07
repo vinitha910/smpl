@@ -39,7 +39,6 @@
 #include <vector>
 
 // system includes
-#include <angles/angles.h>
 #include <kdl/chain.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
@@ -183,8 +182,13 @@ protected:
     std::map<std::string, int> joint_map_;
     std::map<std::string, int> link_map_;
 
+    double normalizeAngle(double a, double a_min, double a_max) const;
     void normalizeAngles(KDL::JntArray& angles) const;
     void normalizeAngles(std::vector<double>& angles) const;
+    bool normalizeAnglesIntoRange(
+        std::vector<double>& angles,
+        const std::vector<double>& angle_mins,
+        const std::vector<double>& angle_maxs) const;
 
     bool getJointLimits(
         std::vector<std::string>& joint_names,
