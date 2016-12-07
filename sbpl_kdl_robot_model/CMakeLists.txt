@@ -11,7 +11,6 @@ find_package(catkin
         leatherman
         roscpp
         smpl
-        sbpl_geometry_utils
         urdf)
 
 find_package(orocos_kdl REQUIRED)
@@ -26,7 +25,6 @@ catkin_package(
         leatherman
         roscpp
         smpl
-        sbpl_geometry_utils
         urdf
     DEPENDS
         orocos_kdl)

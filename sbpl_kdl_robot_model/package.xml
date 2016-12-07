@@ -13,6 +13,5 @@
     <depend>orocos_kdl</depend>
     <depend>roscpp</depend>
     <depend>smpl</depend>
-    <depend>sbpl_geometry_utils</depend>
     <depend>urdf</depend>
 </package>

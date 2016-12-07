@@ -37,7 +37,7 @@
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <ros/ros.h>
-#include <sbpl_geometry_utils/utils.h>
+#include <smpl/angles.h>
 
 using namespace std;
 
@@ -176,11 +176,29 @@ void KDLRobotModel::setKinematicsToPlanningTransform(
     T_planning_to_kinematics_ = f.Inverse();
 }
 
+double KDLRobotModel::normalizeAngle(double a, double a_min, double a_max) const
+{
+    // normalize to [-2*pi, 2*pi] range
+    if (std::fabs(a) > 2.0 * M_PI) {
+        a = std::fmod(a, 2.0 * M_PI);
+    }
+
+    while (a > a_max) {
+        a -= 2.0 * M_PI;
+    }
+
+    while (a < a_min) {
+        a += 2.0 * M_PI;
+    }
+
+    return a;
+}
+
 void KDLRobotModel::normalizeAngles(KDL::JntArray& angles) const
 {
     for (size_t i = 0; i < continuous_.size(); ++i) {
         if (continuous_[i]) {
-            angles(i) = angles::NormalizeAngle(angles(i));
+            angles(i) = angles::normalize_angle(angles(i));
         }
     }
 }
@@ -190,9 +208,36 @@ void KDLRobotModel::normalizeAngles(std::vector<double>& angles) const
     assert(continuous_.size() == angles.size());
     for (size_t i = 0; i < continuous_.size(); ++i) {
         if (continuous_[i]) {
-            angles[i] = angles::NormalizeAngle(angles[i]);
+            angles[i] = angles::normalize_angle(angles[i]);
         }
     }
+}
+
+bool KDLRobotModel::normalizeAnglesIntoRange(
+    std::vector<double>& angles,
+    const std::vector<double>& angle_mins,
+    const std::vector<double>& angle_maxs) const
+{
+    size_t dim = angles.size();
+    if (angle_mins.size() != dim || angle_maxs.size() != dim) {
+        return false;
+    }
+
+    for (size_t i = 0; i < dim; i++) {
+        if (angle_mins[i] > angle_maxs[i]) {
+            return false;
+        }
+    }
+
+    for (size_t i = 0; i < dim; i++) {
+        double min_angle_norm = angles::normalize_angle(angle_mins[i]);
+        angles[i] = normalizeAngle(angles[i], angle_mins[i], min_angle_norm);
+        if (angles[i] < angle_mins[i] || angles[i] > angle_maxs[i]) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool KDLRobotModel::getJointLimits(
@@ -290,7 +335,7 @@ bool KDLRobotModel::checkJointLimits(
     bool verbose)
 {
     std::vector<double> a = angles;
-    if (!sbpl::utils::NormalizeAnglesIntoRange(a, min_limits_, max_limits_)) {
+    if (!normalizeAnglesIntoRange(a, min_limits_, max_limits_)) {
         ROS_DEBUG("Joint angles are out of bounds.");
         return false;
     }
