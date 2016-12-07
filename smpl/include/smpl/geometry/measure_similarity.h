@@ -42,6 +42,6 @@ auto dynamic_time_warping(
 } // namespace stats
 } // namespace sbpl
 
-#include "detail/measure_similarity.h"
+#include "detail/measure_similarity.hpp"
 
 #endif

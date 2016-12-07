@@ -97,7 +97,7 @@ void CreateGridMesh(
 } // namespace geometry
 } // namespace sbpl
 
-#include "detail/mesh_utils.h"
+#include "detail/mesh_utils.hpp"
 
 #endif
 

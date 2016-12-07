@@ -256,6 +256,6 @@ void VoxelizeTriangle(
 } // namespace geometry
 } // namespace sbpl
 
-#include "detail/voxelize.h"
+#include "detail/voxelize.hpp"
 
 #endif

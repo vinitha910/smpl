@@ -190,7 +190,7 @@ bool DivideAndConquerShortcutPath(
 } // namespace shortcut
 } // namespace sbpl
 
-#include "detail/shortcut.h"
+#include "detail/shortcut.hpp"
 
 #endif
 
