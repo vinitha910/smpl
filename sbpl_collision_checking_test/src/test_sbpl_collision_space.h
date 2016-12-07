@@ -37,7 +37,6 @@
 #include <map>
 
 // system includes
-#include <angles/angles.h>
 #include <boost/thread/mutex.hpp>
 #include <geometry_msgs/Pose.h>
 #include <kdl/chain.hpp>

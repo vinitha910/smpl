@@ -7,7 +7,6 @@ list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 find_package(catkin
     REQUIRED
     COMPONENTS
-        angles
         pr2_arm_kinematics
         roscpp
         sbpl_kdl_robot_model
@@ -21,7 +20,6 @@ catkin_package(
     LIBRARIES
         sbpl_pr2_robot_model
     CATKIN_DEPENDS
-        angles
         pr2_arm_kinematics
         roscpp
         sbpl_kdl_robot_model

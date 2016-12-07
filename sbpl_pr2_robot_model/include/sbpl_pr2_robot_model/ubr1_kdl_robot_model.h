@@ -37,7 +37,6 @@
 #include <vector>
 
 // system includes
-#include <angles/angles.h>
 #include <kdl/chain.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>

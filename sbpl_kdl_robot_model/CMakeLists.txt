@@ -7,7 +7,6 @@ list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 find_package(catkin
     REQUIRED
     COMPONENTS
-        angles
         leatherman
         roscpp
         smpl
@@ -21,7 +20,6 @@ catkin_package(
     LIBRARIES
         sbpl_kdl_robot_model
     CATKIN_DEPENDS
-        angles
         leatherman
         roscpp
         smpl
