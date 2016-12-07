@@ -15,7 +15,6 @@ find_package(catkin
         moveit_core
         moveit_msgs
         roscpp
-        sbpl_geometry_utils
         trajectory_msgs
         visualization_msgs)
 
@@ -35,7 +34,6 @@ catkin_package(
         moveit_core
         moveit_msgs
         roscpp
-        sbpl_geometry_utils
         trajectory_msgs
         visualization_msgs
     DEPENDS
@@ -63,6 +61,9 @@ add_library(
     src/robot_model.cpp
     src/debug/visualize.cpp
     src/debug/visualizer_ros.cpp
+    src/geometry/bounding_spheres.cpp
+    src/geometry/mesh_utils.cpp
+    src/geometry/voxelize.cpp
     src/graph/action_space.cpp
     src/graph/experience_graph.cpp
     src/graph/manip_lattice.cpp
