@@ -10,7 +10,6 @@ find_package(catkin
         angles
         pr2_arm_kinematics
         roscpp
-        sbpl_geometry_utils
         sbpl_kdl_robot_model
         urdf)
 
@@ -25,7 +24,6 @@ catkin_package(
         angles
         pr2_arm_kinematics
         roscpp
-        sbpl_geometry_utils
         sbpl_kdl_robot_model
         urdf
     DEPENDS

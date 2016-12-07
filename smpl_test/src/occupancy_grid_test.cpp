@@ -32,7 +32,7 @@
 #include <ros/ros.h>
 #include <smpl/occupancy_grid.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <sbpl_geometry_utils/voxelize.h>
+#include <smpl/geometry/voxelize.h>
 
 int main(int argc, char* argv[])
 {
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
     std::vector<Eigen::Vector3d> voxels;
     cube_pos = Eigen::Vector3d(-0.333, 0.0, 0.5);
     cube_pose = Eigen::Translation3d(cube_pos);
-    sbpl::VoxelizeBox(
+    sbpl::geometry::VoxelizeBox(
             cube_size, cube_size, cube_size,
             cube_pose,
             res,
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 
     cube_pos = Eigen::Vector3d(0.333, 0.0, 0.5);
     cube_pose = Eigen::Translation3d(cube_pos);
-    sbpl::VoxelizeBox(
+    sbpl::geometry::VoxelizeBox(
             cube_size, cube_size, cube_size,
             cube_pose,
             res,

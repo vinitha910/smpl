@@ -19,7 +19,6 @@ find_package(catkin
         roscpp
         smpl
         sbpl_collision_checking
-        sbpl_geometry_utils
         sbpl_kdl_robot_model
         sbpl_pr2_robot_model
         visualization_msgs)

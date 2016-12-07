@@ -7,7 +7,7 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <octomap/octomap.h>
 #include <ros/console.h>
-#include <sbpl_geometry_utils/voxelize.h>
+#include <smpl/geometry/voxelize.h>
 
 namespace sbpl {
 namespace collision {
@@ -322,7 +322,7 @@ bool VoxelizeSphere(
     std::vector<Eigen::Vector3d>& voxels)
 {
     const double radius = sphere.radius;
-    sbpl::VoxelizeSphere(radius, pose, res, go, voxels, false);
+    geometry::VoxelizeSphere(radius, pose, res, go, voxels, false);
     return true;
 }
 
@@ -335,7 +335,7 @@ bool VoxelizeCylinder(
 {
     const double height = cylinder.length;
     const double radius = cylinder.radius;
-    sbpl::VoxelizeCylinder(radius, height, pose, res, go, voxels, false);
+    geometry::VoxelizeCylinder(radius, height, pose, res, go, voxels, false);
     return true;
 }
 
@@ -348,7 +348,7 @@ bool VoxelizeCone(
 {
     const double height = cone.length;
     const double radius = cone.radius;
-    sbpl::VoxelizeCone(radius, height, pose, res, go, voxels, false);
+    geometry::VoxelizeCone(radius, height, pose, res, go, voxels, false);
     return true;
 }
 
@@ -362,7 +362,7 @@ bool VoxelizeBox(
     const double length = box.size[0];
     const double width = box.size[1];
     const double height = box.size[2];
-    sbpl::VoxelizeBox(length, width, height, pose, res, go, voxels, false);
+    geometry::VoxelizeBox(length, width, height, pose, res, go, voxels, false);
     return true;
 }
 
@@ -376,7 +376,7 @@ bool VoxelizePlane(
     std::vector<Eigen::Vector3d>& voxels)
 {
     // TODO: incorporate pose
-    sbpl::VoxelizePlane(
+    geometry::VoxelizePlane(
             plane.a, plane.b, plane.c, plane.d, gmin, gmax, res, go, voxels);
     return true;
 }
@@ -396,7 +396,7 @@ bool VoxelizeMesh(
                 mesh.vertices[3 * i + 2]);
     }
     std::vector<int> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
-    sbpl::VoxelizeMesh(vertices, indices, pose, res, go, voxels, false);
+    geometry::VoxelizeMesh(vertices, indices, pose, res, go, voxels, false);
     return true;
 }
 
@@ -482,7 +482,7 @@ bool VoxelizeBox(
     tf::poseMsgToEigen(pose, eigen_pose);
 
     std::vector<Eigen::Vector3d> sbpl_voxels;
-    sbpl::VoxelizeBox(
+    geometry::VoxelizeBox(
             length, width, height, eigen_pose, res, go, sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
@@ -503,7 +503,7 @@ bool VoxelizeSphere(
     tf::poseMsgToEigen(pose, eigen_pose);
 
     std::vector<Eigen::Vector3d> sbpl_voxels;
-    sbpl::VoxelizeSphere(radius, eigen_pose, res, go, sbpl_voxels, false);
+    geometry::VoxelizeSphere(radius, eigen_pose, res, go, sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
@@ -523,7 +523,7 @@ bool VoxelizeCylinder(
     tf::poseMsgToEigen(pose, eigen_pose);
 
     std::vector<Eigen::Vector3d> sbpl_voxels;
-    sbpl::VoxelizeCylinder(
+    geometry::VoxelizeCylinder(
             radius, height, eigen_pose, res, go, sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
@@ -544,7 +544,7 @@ bool VoxelizeCone(
     tf::poseMsgToEigen(pose, eigen_pose);
 
     std::vector<Eigen::Vector3d> sbpl_voxels;
-    sbpl::VoxelizeCone(radius, height, eigen_pose, res, go, sbpl_voxels, false);
+    geometry::VoxelizeCone(radius, height, eigen_pose, res, go, sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
@@ -570,7 +570,7 @@ bool VoxelizeMesh(
     tf::poseMsgToEigen(pose, eigen_pose);
 
     std::vector<Eigen::Vector3d> sbpl_voxels;
-    sbpl::VoxelizeMesh(vertices, indices, eigen_pose, res, go, sbpl_voxels, false);
+    geometry::VoxelizeMesh(vertices, indices, eigen_pose, res, go, sbpl_voxels, false);
 
     voxels.insert(voxels.end(), sbpl_voxels.begin(), sbpl_voxels.end());
     return true;
@@ -589,9 +589,10 @@ bool VoxelizePlane(
     tf::poseMsgToEigen(pose, eigen_pose);
 
     // TODO: incorporate pose
-    sbpl::VoxelizePlane(
+    geometry::VoxelizePlane(
             plane.coef[0], plane.coef[1], plane.coef[2], plane.coef[3],
             gmin, gmax, res, go, voxels);
+    return true;
 }
 
 } // namespace collision
