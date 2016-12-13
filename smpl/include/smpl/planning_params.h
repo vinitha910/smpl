@@ -227,6 +227,7 @@ public:
 
     /// \name Logging
     ///@{
+    std::string plan_output_dir;
     bool print_path;
     bool verbose;
     bool verbose_heuristics;

@@ -215,8 +215,7 @@ bool PlannerInterface::solve(
 
     postProcessPath(path, res.trajectory.joint_trajectory);
     visualizePath(res.trajectory_start, res.trajectory);
-    const bool write_path = true;
-    if (write_path) {
+    if (!m_params.plan_output_dir.empty()) {
         writePath(res.trajectory_start, res.trajectory);
     }
 
@@ -1364,11 +1363,15 @@ bool PlannerInterface::writePath(
 {
     auto now = std::chrono::high_resolution_clock::now();
     now.time_since_epoch().count();
-    std::stringstream ofname; ofname << "path_" << now.time_since_epoch().count();
+    std::stringstream ofname;
+    ofname << m_params.plan_output_dir << '/';
+    ofname << "path_" << now.time_since_epoch().count();
     std::ofstream ofs(ofname.str());
     if (!ofs.is_open()) {
         return false;
     }
+
+    ROS_INFO("Log path to %s", ofname.str().c_str());
 
     // write header
     for (size_t vidx = 0; vidx < m_robot->jointVariableCount(); ++vidx) {
