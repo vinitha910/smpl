@@ -352,6 +352,7 @@ bool ManipLatticeActionSpace::apply(
     std::vector<Action> act;
     for (const MotionPrimitive& prim : m_mprims) {
         if (getAction(parent, goal_dist, start_dist, prim, act)) {
+            actions.clear();
             actions.insert(actions.end(), act.begin(), act.end());
         }
     }
