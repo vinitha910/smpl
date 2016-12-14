@@ -107,8 +107,7 @@ public:
     ManipLattice(
         RobotModel* robot,
         CollisionChecker* checker,
-        PlanningParams* params,
-        OccupancyGrid* grid);
+        PlanningParams* params);
 
     ~ManipLattice();
 
@@ -232,8 +231,6 @@ private:
             return *a == *b;
         }
     };
-
-    OccupancyGrid* m_grid;
 
     ForwardKinematicsInterface* m_fk_iface;
 

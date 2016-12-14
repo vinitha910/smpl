@@ -46,8 +46,7 @@ public:
     ManipLatticeEgraph(
         RobotModel* robot,
         CollisionChecker* checker,
-        PlanningParams* params,
-        OccupancyGrid* grid);
+        PlanningParams* params);
 
     /// \name Reimplemented Public Functions from ManipLattice
     ///@{

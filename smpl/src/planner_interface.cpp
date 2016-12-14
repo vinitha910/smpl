@@ -1046,7 +1046,10 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     if (space_name == "manip") {
         ROS_INFO_NAMED(PI_LOGGER, "Initialize Manip Lattice");
         m_pspace = std::make_shared<ManipLattice>(
-                m_robot, m_checker, &m_params, m_grid);
+                m_robot, m_checker, &m_params);
+
+        ManipLattice* manip_lattice = (ManipLattice*)m_pspace.get();
+        manip_lattice->setVisualizationFrameId(m_grid->getReferenceFrame());
 
         // instantiate action space and load from file
         m_aspace = std::make_shared<ManipLatticeActionSpace>(m_pspace);
@@ -1088,7 +1091,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         }
     } else if (space_name == "manip_lattice_egraph") {
         m_pspace = std::make_shared<ManipLatticeEgraph>(
-                m_robot, m_checker, &m_params, m_grid);
+                m_robot, m_checker, &m_params);
         m_aspace = std::make_shared<ManipLatticeActionSpace>(m_pspace);
         ManipLatticeActionSpace* manip_actions =
                 (ManipLatticeActionSpace*)m_aspace.get();
@@ -1247,8 +1250,8 @@ void PlannerInterface::profilePath(
             }
             else {
                 // use the shortest angular distance
-                const double dist = fabs(angles::shortest_angle_diff(
-                        from_pos, to_pos));
+                const double dist =
+                        fabs(angles::shortest_angle_diff(from_pos, to_pos));
                 t = dist / vel;
             }
 

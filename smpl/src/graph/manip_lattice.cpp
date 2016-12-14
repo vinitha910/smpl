@@ -59,14 +59,12 @@ namespace motion {
 ManipLattice::ManipLattice(
     RobotModel* robot_model,
     CollisionChecker* checker,
-    PlanningParams* _params,
-    OccupancyGrid* grid)
+    PlanningParams* _params)
 :
     Extension(),
     RobotPlanningSpace(robot_model, checker, _params),
     PointProjectionExtension(),
     ExtractRobotStateExtension(),
-    m_grid(grid),
     m_fk_iface(nullptr),
     m_min_limits(),
     m_max_limits(),
@@ -184,7 +182,6 @@ void ManipLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(parent_entry->state).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
-//    ROS_DEBUG_NAMED(params()->expands_log_, "  goal dist: %0.3f", m_grid->getResolution() * bfs_->getDistance(parent_entry->xyz[0], parent_entry->xyz[1], parent_entry->xyz[2]));
 
     SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
 
@@ -1067,10 +1064,6 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
         return false;
     }
 
-
-    // set the discrete goal position coordinates
-    GoalConstraint _goal = gc;
-    m_grid->worldToGrid(_goal.tgt_off_pose.data(), _goal.xyz);
     SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
     // set the goal entry's coordinate (this may not be necessary anymore)
@@ -1080,15 +1073,15 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 
     ROS_DEBUG_NAMED(params()->graph_log, "time: %f", clock() / (double)CLOCKS_PER_SEC);
     ROS_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
-    ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", _goal.pose[0], _goal.pose[1], _goal.pose[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", _goal.xyz_tolerance[0]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", _goal.pose[3], _goal.pose[4], _goal.pose[5]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", _goal.rpy_tolerance[0]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose[0], gc.pose[1], gc.pose[2]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", gc.pose[3], gc.pose[4], gc.pose[5]);
+    ROS_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
 
     startNewSearch();
 
     // set the (modified) goal
-    return RobotPlanningSpace::setGoal(_goal);
+    return RobotPlanningSpace::setGoal(gc);
 }
 
 /// \brief Set a full joint configuration goal.
@@ -1101,9 +1094,6 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
         return false;
     }
 
-    GoalConstraint _goal = goal;
-    m_grid->worldToGrid(_goal.tgt_off_pose.data(), _goal.xyz);
-
     // set the goal entry's coordinate (this may not be necessary anymore)
     for (int i = 0; i < robot()->jointVariableCount(); i++) {
         m_goal_entry->coord[i] = 0;
@@ -1112,7 +1102,7 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
     startNewSearch();
 
     // notify observers of updated goal
-    return RobotPlanningSpace::setGoal(_goal);
+    return RobotPlanningSpace::setGoal(goal);
 }
 
 // Reset any variables that should be set just before a new search is started.

@@ -52,10 +52,9 @@ auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) cons
 ManipLatticeEgraph::ManipLatticeEgraph(
     RobotModel* robot,
     CollisionChecker* checker,
-    PlanningParams* params,
-    OccupancyGrid* grid)
+    PlanningParams* params)
 :
-    ManipLattice(robot, checker, params, grid),
+    ManipLattice(robot, checker, params),
     m_coord_to_nodes(),
     m_egraph(),
     m_egraph_state_ids()
