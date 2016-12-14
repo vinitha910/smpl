@@ -303,7 +303,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 
     ROS_INFO_NAMED(PI_LOGGER, "  joint variables: %s", to_string(initial_positions).c_str());
 
-    if (m_pspace->setStart(initial_positions) == 0) {
+    if (!m_pspace->setStart(initial_positions)) {
         ROS_ERROR("environment failed to set start state. not planning.");
         return false;
     }

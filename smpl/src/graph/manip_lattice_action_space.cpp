@@ -57,25 +57,22 @@ namespace motion {
 // dv(i-k+1)1   dv(i-k+1)2  ... dv(i-k+1)m
 // ...
 // dvi1         dvi2        ... dvim
-
 bool ManipLatticeActionSpace::load(const std::string& action_filename)
 {
-    FILE* fCfg = NULL;
-    if ((fCfg = fopen(action_filename.c_str(), "r")) == NULL) {
+    FILE* fCfg = fopen(action_filename.c_str(), "r");
+    if (!fCfg) {
         ROS_ERROR("Failed to open action set file. (file: '%s')", action_filename.c_str());
         return false;
     }
 
-    char sTemp[1024];
-    int nrows = 0, ncols = 0, short_mprims = 0;
+    char sTemp[1024] = { 0 };
+    int nrows = 0;
+    int ncols = 0;
+    int short_mprims = 0;
 
-    if (fCfg == NULL) {
-        ROS_ERROR("unable to open the params file. Exiting.");
-        return false;
-    }
-
-    if (fscanf(fCfg, "%s", sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
+    // read and check header
+    if (fscanf(fCfg, "%1023s", sTemp) < 1) {
+        ROS_ERROR("Parsed string has length < 1.");
     }
 
     if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
@@ -83,60 +80,56 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
         return false;
     }
 
-    // number of actions
-    if (fscanf(fCfg, "%s", sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
+    // read number of actions
+    if (fscanf(fCfg, "%d", &nrows) < 1) {
+        ROS_ERROR("Parsed string has length < 1.");
         return false;
-    } else {
-        nrows = atoi(sTemp);
     }
 
-    // length of joint array
-    if (fscanf(fCfg, "%s", sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
+    // read length of joint array
+    if (fscanf(fCfg, "%d", &ncols) < 1) {
+        ROS_ERROR("Parsed string has length < 1.");
         return false;
-    } else {
-        ncols = atoi(sTemp);
     }
 
-    // number of short distance motion primitives
-    if (fscanf(fCfg, "%s", sTemp) < 1) {
-        ROS_WARN("Parsed string has length < 1.");
+    // read number of short distance motion primitives
+    if (fscanf(fCfg, "%d", &short_mprims) < 1) {
+        ROS_ERROR("Parsed string has length < 1.");
         return false;
-    } else {
-        short_mprims = atoi(sTemp);
     }
 
     if (short_mprims == nrows) {
-        ROS_ERROR("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
+        ROS_WARN("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
     }
 
     std::vector<double> mprim(ncols, 0);
 
-    bool have_short_dist_mprims = false;
+    bool have_short_dist_mprims = short_mprims > 0;
+    if (have_short_dist_mprims) {
+        useAmp(MotionPrimitive::SHORT_DISTANCE, true);
+    }
+
     for (int i = 0; i < nrows; ++i) {
+        // read joint delta
         for (int j = 0; j < ncols; ++j) {
-            if (fscanf(fCfg, "%s", sTemp) < 1)  {
-                ROS_WARN("Parsed string has length < 1.");
+            double d;
+            if (fscanf(fCfg, "%lf", &d) < 1)  {
+                ROS_ERROR("Parsed string has length < 1.");
+                return false;
             }
-            if (!feof(fCfg) && strlen(sTemp) != 0) {
-                mprim[j] = angles::to_radians(atof(sTemp));
-                ROS_DEBUG("Got %s deg -> %.3f rad", sTemp, mprim[j]);
-            } else {
+            if (feof(fCfg)) {
                 ROS_ERROR("End of parameter file reached prematurely. Check for newline.");
                 return false;
             }
+            mprim[j] = d * planningSpace()->params()->coord_delta[j];
+            ROS_DEBUG("Got %0.3f deg -> %0.3f rad", d, mprim[j]);
         }
+
         if (i < (nrows - short_mprims)) {
             addMotionPrim(mprim, false);
         } else {
             addMotionPrim(mprim, true);
-            have_short_dist_mprims = true;
         }
-    }
-
-    if (have_short_dist_mprims) {
-        useAmp(MotionPrimitive::SHORT_DISTANCE, true);
     }
 
     return true;
