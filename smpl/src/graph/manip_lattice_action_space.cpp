@@ -161,8 +161,12 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(
     m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
     m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
 
-    if (!m_fk_iface || !m_ik_iface) {
-        ROS_WARN("Action Set requires Forward and Inverse Kinematics Interfaces");
+    if (!m_fk_iface) {
+        ROS_WARN("Manip Lattice Action Set requires Forward Kinematics Interface");
+    }
+
+    if (!m_ik_iface) {
+        ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interfaces");
     }
 
     readParameters(*pspace->params());
@@ -326,6 +330,10 @@ bool ManipLatticeActionSpace::apply(
     const RobotState& parent,
     std::vector<Action>& actions)
 {
+    if (!m_fk_iface) {
+        return false;
+    }
+
     std::vector<double> pose;
     if (!m_fk_iface->computePlanningLinkFK(parent, pose)) {
         ROS_ERROR("Failed to compute forward kinematics for planning link");
@@ -342,8 +350,7 @@ bool ManipLatticeActionSpace::apply(
     }
 
     std::vector<Action> act;
-    for (size_t i = 0; i < m_mprims.size(); ++i) {
-        const MotionPrimitive& prim = m_mprims[i];
+    for (const MotionPrimitive& prim : m_mprims) {
         if (getAction(parent, goal_dist, start_dist, prim, act)) {
             actions.insert(actions.end(), act.begin(), act.end());
         }
@@ -462,6 +469,10 @@ bool ManipLatticeActionSpace::computeIkAction(
     ik_option::IkOption option,
     std::vector<Action>& actions)
 {
+    if (!m_ik_iface) {
+        return false;
+    }
+
     if (m_use_multiple_ik_solutions) {
         //get actions for multiple ik solutions
         std::vector<std::vector<double>> solutions;
