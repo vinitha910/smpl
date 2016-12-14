@@ -143,7 +143,7 @@ enum GoalType
 struct GoalConstraint
 {
     // Relevant for joint state goals
-    std::vector<double> angles;
+    RobotState angles;
     std::vector<double> angle_tolerances;
 
     // Relevant for workspace goals
