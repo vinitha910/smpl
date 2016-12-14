@@ -67,7 +67,16 @@ PlanningParams::PlanningParams() :
     coord_vals(),
     coord_delta(),
 
+    action_filename(),
     use_multiple_ik_solutions(DefaultUseMultipleIkSolutions),
+    use_xyz_snap_mprim(DefaultUseMotionPrimitiveSnapXYZ),
+    use_rpy_snap_mprim(DefaultUseMotionPrimitiveSnapRPY),
+    use_xyzrpy_snap_mprim(DefaultUseMotionPrimitiveSnapXYZRPY),
+    use_short_dist_mprims(DefaultUseMotionPrimitiveShortDistance),
+    xyz_snap_thresh(DefaultThreshSnapXYZ),
+    rpy_snap_thresh(DefaultThreshSnapRPY),
+    xyzrpy_snap_thresh(DefaultThreshSnapXYZRPY),
+    short_dist_mprims_thresh(DefaultThreshShortDistance),
 
     cost_multiplier(DefaultCostMultiplier),
     cost_per_cell(DefaultCostPerCell),

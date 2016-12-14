@@ -67,7 +67,7 @@ public:
 
     typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
 
-    static const double DefaultAmpThreshold;
+    static constexpr double DefaultAmpThreshold = 0.2;
 
     ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace);
 
@@ -78,7 +78,6 @@ public:
         bool short_dist_mprim,
         bool add_converse = true);
 
-    /// \brief Remove all motion primitives and disable all adaptive motions
     void clear();
 
     const_iterator begin() const { return m_mprims.begin(); }

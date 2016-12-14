@@ -131,13 +131,22 @@ class PlanningParams
 public:
 
     // manipulation lattice parameters
+    static const bool DefaultUseMultipleIkSolutions = false;
+    static const bool DefaultUseMotionPrimitiveSnapXYZ = false;
+    static const bool DefaultUseMotionPrimitiveSnapRPY = false;
+    static const bool DefaultUseMotionPrimitiveSnapXYZRPY = false;
+    static const bool DefaultUseMotionPrimitiveShortDistance = false;
+    static constexpr double DefaultThreshSnapXYZ = 0.2;
+    static constexpr double DefaultThreshSnapRPY = 0.2;
+    static constexpr double DefaultThreshSnapXYZRPY = 0.2;
+    static constexpr double DefaultThreshShortDistance = 0.2;
+
     static const int DefaultCostMultiplier = 1000;
     static const int DefaultCostPerCell = 100;
     static const int DefaultCostPerMeter = 1000;
     static const int DefaultCostPerSecond = DefaultCostMultiplier;
     static constexpr double DefaultTimePerCell = 0.05;
     static constexpr double DefaultMaxMprimOffset = 0.0;
-    static const bool DefaultUseMultipleIkSolutions = false;
 
     // heuristic parameters
     static const bool DefaultUseBfsHeuristic = true;

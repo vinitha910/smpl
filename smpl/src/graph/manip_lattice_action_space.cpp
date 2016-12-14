@@ -48,15 +48,53 @@
 namespace sbpl {
 namespace motion {
 
-// Action Set File Format
+ManipLatticeActionSpace::ManipLatticeActionSpace(
+    const RobotPlanningSpacePtr& pspace)
+:
+    ActionSpace(pspace),
+    m_mprims(),
+    m_mprim_enabled(),
+    m_mprim_thresh(),
+    m_use_multiple_ik_solutions(false),
+    m_use_long_and_short_dist_mprims(false)
+{
+    // NOTE: other default thresholds will be set in readParameters, with
+    // default values specified in PlanningParams
+    m_mprim_thresh[MotionPrimitive::Type::LONG_DISTANCE] =
+            std::numeric_limits<double>::infinity();
 
-// Motion_Primitives(degrees): <i actions> <j planning joint variables> <k short distance motion primitives>
-// dv11         dv12        ... dv1m
-// ...
-// dv(i-k)1     dv(i-k)2    ... dv(i-k)m
-// dv(i-k+1)1   dv(i-k+1)2  ... dv(i-k+1)m
-// ...
-// dvi1         dvi2        ... dvim
+    clear();
+
+    RobotModel* robot = planningSpace()->robot();
+
+    m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
+    m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
+
+    if (!m_fk_iface) {
+        ROS_WARN("Manip Lattice Action Set requires Forward Kinematics Interface");
+    }
+
+    if (!m_ik_iface) {
+        ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interfaces");
+    }
+
+    readParameters(*pspace->params());
+}
+
+/// \brief Load motion primitives from file.
+///
+/// Read in the discrete variable deltas for each motion. If short distance
+/// motion primitives are included in the file, they are also enabled.
+///
+/// Action Set File Format
+///
+/// Motion_Primitives(degrees): <i actions> <j planning joint variables> <k short distance motion primitives>
+/// dv11         dv12        ... dv1m
+/// ...
+/// dv(i-k)1     dv(i-k)2    ... dv(i-k)m
+/// dv(i-k+1)1   dv(i-k+1)2  ... dv(i-k+1)m
+/// ...
+/// dvi1         dvi2        ... dvim
 bool ManipLatticeActionSpace::load(const std::string& action_filename)
 {
     FILE* fCfg = fopen(action_filename.c_str(), "r");
@@ -135,36 +173,6 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
     return true;
 }
 
-const double ManipLatticeActionSpace::DefaultAmpThreshold = 0.2;
-
-ManipLatticeActionSpace::ManipLatticeActionSpace(
-    const RobotPlanningSpacePtr& pspace)
-:
-    ActionSpace(pspace),
-    m_mprims(),
-    m_mprim_enabled(),
-    m_mprim_thresh(),
-    m_use_multiple_ik_solutions(false),
-    m_use_long_and_short_dist_mprims(false)
-{
-    clear();
-
-    RobotModel* robot = planningSpace()->robot();
-
-    m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
-    m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
-
-    if (!m_fk_iface) {
-        ROS_WARN("Manip Lattice Action Set requires Forward Kinematics Interface");
-    }
-
-    if (!m_ik_iface) {
-        ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interfaces");
-    }
-
-    readParameters(*pspace->params());
-}
-
 /// \brief Add a long or short distance motion primitive to the action set
 /// \param mprim The angle delta for each joint, in radians
 /// \param short_dist true = short distance; false = long distance
@@ -200,6 +208,9 @@ void ManipLatticeActionSpace::addMotionPrim(
     }
 }
 
+/// \brief Remove long and short motion primitives and disable adaptive motions.
+///
+/// Thresholds for short distance and adaptive motions are retained
 void ManipLatticeActionSpace::clear()
 {
     m_mprims.clear();
@@ -219,15 +230,8 @@ void ManipLatticeActionSpace::clear()
     mprim.action.clear();
     m_mprims.push_back(mprim);
 
-    // disable all motion primitives except long distance
     for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
-        if (i == MotionPrimitive::LONG_DISTANCE) {
-            m_mprim_enabled[i] = true;
-            m_mprim_thresh[i] = std::numeric_limits<double>::infinity();
-        } else {
-            m_mprim_enabled[i] = false;
-            m_mprim_thresh[i] = DefaultAmpThreshold;
-        }
+        m_mprim_enabled[i] = (i == MotionPrimitive::Type::LONG_DISTANCE);
     }
 }
 
@@ -344,8 +348,8 @@ bool ManipLatticeActionSpace::apply(
 
     std::vector<Action> act;
     for (const MotionPrimitive& prim : m_mprims) {
+        act.clear();
         if (getAction(parent, goal_dist, start_dist, prim, act)) {
-            actions.clear();
             actions.insert(actions.end(), act.begin(), act.end());
         }
     }
@@ -427,6 +431,7 @@ bool ManipLatticeActionSpace::getAction(
 
 bool ManipLatticeActionSpace::readParameters(const PlanningParams& p)
 {
+    useMultipleIkSolutions(p.use_multiple_ik_solutions);
     useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ, p.use_xyz_snap_mprim);
     useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY, p.use_rpy_snap_mprim);
     useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY, p.use_xyzrpy_snap_mprim);

@@ -1060,7 +1060,6 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
             return false;
         }
-        manip_actions->useMultipleIkSolutions(m_params.use_multiple_ik_solutions);
 
         ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
         for (auto ait = manip_actions->begin(); ait != manip_actions->end(); ++ait) {
@@ -1099,7 +1098,6 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
             ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
             return false;
         }
-        manip_actions->useMultipleIkSolutions(m_params.use_multiple_ik_solutions);
 
         // associate action space with lattice
         if (!m_pspace->setActionSpace(m_aspace)) {
