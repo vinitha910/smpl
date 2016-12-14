@@ -65,6 +65,9 @@ Extension* JointDistHeuristic::getExtension(size_t class_code)
 
 int JointDistHeuristic::GetGoalHeuristic(int state_id)
 {
+    if (state_id == planningSpace()->getGoalStateID()) {
+        return 0;
+    }
     if (!m_ers) {
         return 0;
     }
