@@ -455,7 +455,7 @@ const RobotState& ManipLattice::extractState(int state_id)
 bool ManipLattice::projectToPoint(int state_id, Eigen::Vector3d& pos)
 {
     if (state_id == getGoalStateID()) {
-        assert(goal().tgt_off_pose().size() >= 3);
+        assert(goal().tgt_off_pose.size() >= 3);
         pos.x() = goal().tgt_off_pose[0];
         pos.y() = goal().tgt_off_pose[1];
         pos.z() = goal().tgt_off_pose[2];

@@ -364,7 +364,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
 
     // precompute shortcuts
-    assert(m_component_ids.size() == m_eg->num_nodes());
+    assert(m_component_ids.size() == m_eg->getExperienceGraph()->num_nodes());
     ExperienceGraph* eg = m_eg->getExperienceGraph();
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
