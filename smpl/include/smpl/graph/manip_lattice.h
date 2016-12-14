@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_manip_lattice_h
-#define sbpl_manip_manip_lattice_h
+#ifndef SMPL_MANIP_LATTICE_H
+#define SMPL_MANIP_LATTICE_H
 
 // standard includes
 #include <time.h>
@@ -121,6 +121,9 @@ public:
     double getGoalDistance(const std::vector<double>& pose);
 
     void getExpandedStates(std::vector<RobotState>& states) const;
+
+    void setVisualizationFrameId(const std::string& frame_id);
+    const std::string& visualizationFrameId() const;
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
@@ -252,6 +255,8 @@ private:
     std::vector<int> m_expanded_states;
     bool m_near_goal;
     clock_t m_t_start;
+
+    std::string m_viz_frame_id;
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalConfiguration(const GoalConstraint& goal);

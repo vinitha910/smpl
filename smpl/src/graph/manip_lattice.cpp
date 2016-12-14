@@ -76,7 +76,8 @@ ManipLattice::ManipLattice(
     m_states(),
     m_expanded_states(),
     m_near_goal(false),
-    m_t_start()
+    m_t_start(),
+    m_viz_frame_id()
 {
     m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
 
@@ -828,6 +829,16 @@ void ManipLattice::getExpandedStates(std::vector<RobotState>& states) const
     }
 }
 
+void ManipLattice::setVisualizationFrameId(const std::string& frame_id)
+{
+    m_viz_frame_id = frame_id;
+}
+
+const std::string& ManipLattice::visualizationFrameId() const
+{
+    return m_viz_frame_id;
+}
+
 void ManipLattice::computeCostPerCell()
 {
     ROS_WARN("yeah...");
@@ -1056,11 +1067,11 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
         return false;
     }
 
-    SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_grid->getReferenceFrame(), "target_goal"));
 
     // set the discrete goal position coordinates
     GoalConstraint _goal = gc;
     m_grid->worldToGrid(_goal.tgt_off_pose.data(), _goal.xyz);
+    SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
     // set the goal entry's coordinate (this may not be necessary anymore)
     for (int i = 0; i < robot()->jointVariableCount(); i++) {
