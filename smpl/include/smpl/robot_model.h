@@ -41,6 +41,7 @@
 #include <vector>
 
 #include <smpl/extension.h>
+#include <smpl/types.h>
 
 namespace sbpl {
 namespace motion {
@@ -70,7 +71,7 @@ public:
     virtual double accLimit(int jidx) const = 0;
 
     /// \brief Check a state for joint limit violations.
-    virtual bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) = 0;
+    virtual bool checkJointLimits(const RobotState& state, bool verbose = false) = 0;
 
     size_t jointCount() const { return planning_joints_.size(); }
     size_t jointVariableCount() const { return planning_joints_.size(); }
@@ -92,7 +93,7 @@ public:
 
     /// \brief Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
-        const std::vector<double>& angles,
+        const RobotState& state,
         const std::string& name,
         std::vector<double>& pose) = 0;
 
@@ -103,7 +104,7 @@ public:
     ///
     /// \return true if forward kinematics were computed; false otherwise
     virtual bool computePlanningLinkFK(
-        const std::vector<double>& angles,
+        const RobotState& state,
         std::vector<double>& pose) = 0;
 };
 
@@ -131,15 +132,15 @@ public:
     /// \brief Compute an inverse kinematics solution.
     virtual bool computeIK(
         const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution,
+        const RobotState& start,
+        RobotState& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 
     /// \brief Compute multiple inverse kinematic solutions.
     virtual bool computeIK(
         const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<std::vector<double>>& solutions,
+        const RobotState& start,
+        std::vector<RobotState>& solutions,
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 };
 
@@ -158,8 +159,8 @@ public:
     ///     redundant joint variables to the seed state.
     virtual bool computeFastIK(
         const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution) = 0;
+        const RobotState& start,
+        RobotState& solution) = 0;
 };
 
 /// \brief Convenience class allowing a component to implement all root
@@ -177,8 +178,8 @@ public:
     bool hasPosLimit(int jidx) const { return m_parent->hasPosLimit(jidx); }
     double velLimit(int jidx) const { return m_parent->velLimit(jidx); }
     double accLimit(int jidx) const { return m_parent->accLimit(jidx); }
-    bool checkJointLimits(const std::vector<double>& angles, bool verbose = false) {
-        return m_parent->checkJointLimits(angles, verbose);
+    bool checkJointLimits(const RobotState& state, bool verbose = false) {
+        return m_parent->checkJointLimits(state, verbose);
     }
 
 private:
