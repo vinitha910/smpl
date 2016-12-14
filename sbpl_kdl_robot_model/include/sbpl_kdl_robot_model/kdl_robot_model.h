@@ -91,7 +91,8 @@ public:
 
     virtual double minPosLimit(int jidx) const { return min_limits_[jidx]; }
     virtual double maxPosLimit(int jidx) const { return max_limits_[jidx]; }
-    virtual bool   hasPosLimit(int jidx) const { return continuous_[jidx]; }
+    virtual bool   hasPosLimit(int jidx) const { return !continuous_[jidx]; }
+    virtual bool   isContinuous(int jidx) const { return continuous_[jidx]; }
     virtual double velLimit(int jidx) const { return vel_limits_[jidx]; }
     virtual double accLimit(int jidx) const { return 0.0; }
 

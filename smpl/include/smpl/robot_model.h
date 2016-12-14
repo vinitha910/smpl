@@ -61,8 +61,11 @@ public:
     /// \brief Return the upper position limit for a joint.
     virtual double maxPosLimit(int jidx) const = 0;
 
-    /// \brief Return whether a joint has position limits
+    /// \brief Return whether a joint has position limits.
     virtual bool hasPosLimit(int jidx) const = 0;
+
+    /// \brief Return whether the variable has topology SO(2).
+    virtual bool isContinuous(int jidx) const = 0;
 
     /// \brief Return the velocity limit for a joint with 0 = unlimited
     virtual double velLimit(int jidx) const = 0;

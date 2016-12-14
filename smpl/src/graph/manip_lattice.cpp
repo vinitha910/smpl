@@ -85,7 +85,7 @@ ManipLattice::ManipLattice(
     for (int jidx = 0; jidx < robot()->jointVariableCount(); ++jidx) {
         m_min_limits[jidx] = robot_model->minPosLimit(jidx);
         m_max_limits[jidx] = robot_model->maxPosLimit(jidx);
-        m_continuous[jidx] = !robot_model->hasPosLimit(jidx);
+        m_continuous[jidx] = robot_model->isContinuous(jidx);
     }
 
     // create empty start & goal states
