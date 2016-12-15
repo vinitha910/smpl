@@ -125,17 +125,27 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         fout = stdout;
     }
 
-    ManipLatticeState* HashEntry = m_states[stateID];
+    ManipLatticeState* entry = m_states[stateID];
 
     std::stringstream ss;
 
-    if (HashEntry->stateID == m_goal_entry->stateID) {
-        ss << "<goal state>";
+    if (entry->stateID == m_goal_entry->stateID) {
+        ss << "<goal state: { ";
+        switch (goal().type) {
+        case GoalType::XYZ_GOAL:
+        case GoalType::XYZ_RPY_GOAL:
+            ss << "pose: " << to_string(goal().tgt_off_pose);
+            break;
+        case GoalType::JOINT_STATE_GOAL:
+            ss << "state: " << to_string(goal().angles);
+            break;
+        }
+        ss << " }>";
     } else {
         ss << "{ ";
-        for (size_t i = 0; i < HashEntry->state.size(); ++i) {
-            ss << std::setprecision(3) << HashEntry->state[i];
-            if (i != HashEntry->state.size() - 1) {
+        for (size_t i = 0; i < entry->state.size(); ++i) {
+            ss << std::setprecision(3) << entry->state[i];
+            if (i != entry->state.size() - 1) {
                 ss << ", ";
             }
         }
