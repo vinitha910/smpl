@@ -867,15 +867,13 @@ bool ManipLattice::extractPath(
         const int state_id = idpath[0];
 
         if (state_id == getGoalStateID()) {
-            RobotState angles;
             const ManipLatticeState* entry = getHashEntry(getStartStateID());
             if (!entry) {
                 ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
                 return false;
             }
             opath.push_back(entry->state);
-        }
-        else {
+        } else {
             const ManipLatticeState* entry = getHashEntry(state_id);
             if (!entry) {
                 ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
@@ -895,7 +893,6 @@ bool ManipLattice::extractPath(
 
     // grab the first point
     {
-        RobotState angles;
         const ManipLatticeState* entry = getHashEntry(idpath[0]);
         if (!entry) {
             ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", idpath[0]);
@@ -906,6 +903,7 @@ bool ManipLattice::extractPath(
 
     ActionSpacePtr action_space = actionSpace();
     if (!action_space) {
+        ROS_ERROR_NAMED(params()->graph_log, "No action space available for path extraction");
         return false;
     }
 
@@ -913,6 +911,7 @@ bool ManipLattice::extractPath(
     for (size_t i = 1; i < idpath.size(); ++i) {
         const int prev_id = idpath[i - 1];
         const int curr_id = idpath[i];
+        ROS_DEBUG_NAMED(params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == getGoalStateID()) {
             ROS_ERROR_NAMED(params()->graph_log, "Cannot determine goal state predecessor state during path extraction");
@@ -920,7 +919,7 @@ bool ManipLattice::extractPath(
         }
 
         if (curr_id == getGoalStateID()) {
-            // find the goal state corresponding to the cheapest valid action
+            ROS_DEBUG_NAMED(params()->graph_log, "Search for transition to goal state");
 
             ManipLatticeState* prev_entry = m_states[prev_id];
             const RobotState& prev_state = prev_entry->state;
@@ -931,6 +930,7 @@ bool ManipLattice::extractPath(
                 return false;
             }
 
+            // find the goal state corresponding to the cheapest valid action
             ManipLatticeState* best_goal_state = nullptr;
             RobotCoord succ_coord(robot()->jointVariableCount());
             int best_cost = std::numeric_limits<int>::max();
@@ -966,19 +966,19 @@ bool ManipLattice::extractPath(
             }
 
             if (!best_goal_state) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor during path extraction");
+                ROS_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor from state %s during path extraction", to_string(prev_entry->state).c_str());
                 return false;
             }
 
             opath.push_back(best_goal_state->state);
-        }
-        else {
+        } else {
             const ManipLatticeState* entry = getHashEntry(curr_id);
             if (!entry) {
                 ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry state %d", curr_id);
                 return false;
             }
 
+            ROS_DEBUG_NAMED(params()->graph_log, "Extract successor state %s", to_string(entry->state).c_str());
             opath.push_back(entry->state);
         }
     }
