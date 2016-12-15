@@ -96,9 +96,8 @@ ManipLattice::ManipLattice(
     // moment since it requires all non-continuous joints to be at their minimum
     // values and all continuous joints to be at their zero positions, but that
     // case will likely produce a bug in the current state
-    RobotCoord coord(robot()->jointVariableCount(), 0);
     m_start_entry = nullptr;
-    m_goal_entry = createHashEntry(coord, {});
+    m_goal_entry = reserveHashEntry();
     ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_entry->stateID);
 
     // compute the cost per cell to be used by heuristic
@@ -516,21 +515,13 @@ ManipLatticeState* ManipLattice::createHashEntry(
     const RobotCoord& coord,
     const RobotState& state)
 {
-    ManipLatticeState* entry = new ManipLatticeState;
-    entry->stateID = (int)m_states.size();
+    ManipLatticeState* entry = reserveHashEntry();
+
     entry->coord = coord;
     entry->state = state;
 
-    // map state id -> state
-    m_states.push_back(entry);
-
     // map state -> state id
     m_state_to_id[entry] = entry->stateID;
-
-    // map planner state -> graph state
-    int* pinds = new int[NUMOFINDICES_STATEID2IND];
-    std::fill(pinds, pinds + NUMOFINDICES_STATEID2IND, -1);
-    StateID2IndexMapping.push_back(pinds);
 
     return entry;
 }
@@ -543,6 +534,22 @@ ManipLatticeState* ManipLattice::getOrCreateState(
     if (!entry) {
         entry = createHashEntry(coord, state);
     }
+    return entry;
+}
+
+ManipLatticeState* ManipLattice::reserveHashEntry()
+{
+    ManipLatticeState* entry = new ManipLatticeState;
+    entry->stateID = (int)m_states.size();
+
+    // map state id -> state
+    m_states.push_back(entry);
+
+    // map planner state -> graph state
+    int* pinds = new int[NUMOFINDICES_STATEID2IND];
+    std::fill(pinds, pinds + NUMOFINDICES_STATEID2IND, -1);
+    StateID2IndexMapping.push_back(pinds);
+
     return entry;
 }
 
@@ -1076,11 +1083,6 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 
     SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
-    // set the goal entry's coordinate (this may not be necessary anymore)
-    for (int i = 0; i < robot()->jointVariableCount(); i++) {
-        m_goal_entry->coord[i] = 0;
-    }
-
     ROS_DEBUG_NAMED(params()->graph_log, "time: %f", clock() / (double)CLOCKS_PER_SEC);
     ROS_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
     ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose[0], gc.pose[1], gc.pose[2]);
@@ -1102,11 +1104,6 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
     if (!computePlanningFrameFK(goal.angles, pose)) {
         ROS_WARN("Could not compute planning link FK for given goal configuration!");
         return false;
-    }
-
-    // set the goal entry's coordinate (this may not be necessary anymore)
-    for (int i = 0; i < robot()->jointVariableCount(); i++) {
-        m_goal_entry->coord[i] = 0;
     }
 
     startNewSearch();

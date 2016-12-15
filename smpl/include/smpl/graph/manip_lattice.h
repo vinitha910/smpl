@@ -189,6 +189,7 @@ protected:
     ManipLatticeState* getOrCreateState(
         const RobotCoord& coord,
         const RobotState& state);
+    ManipLatticeState* reserveHashEntry();
 
     bool computePlanningFrameFK(
         const RobotState& state,
