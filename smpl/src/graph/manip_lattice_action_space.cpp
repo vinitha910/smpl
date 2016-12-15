@@ -195,15 +195,11 @@ void ManipLatticeActionSpace::addMotionPrim(
     m_mprims.push_back(m);
 
     if (add_converse) {
-        Action a;
-        a.resize(1);
-        a[0] = mprim;
-        for (int i = 0; i < int(mprim.size()); ++i) {
-            if (mprim[i] != 0) {
-                a[0][i] *= -1;
+        for (RobotState& state : m.action) {
+            for (size_t i = 0; i < state.size(); ++i) {
+                state[i] *= -1.0;
             }
         }
-        m.action = a;
         m_mprims.push_back(m);
     }
 }
