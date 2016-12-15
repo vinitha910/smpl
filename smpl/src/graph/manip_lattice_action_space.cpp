@@ -43,8 +43,6 @@
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-#define VERIFY_KINEMATICS 0
-
 namespace sbpl {
 namespace motion {
 

@@ -67,8 +67,6 @@ public:
 
     typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
 
-    static constexpr double DefaultAmpThreshold = 0.2;
-
     ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace);
 
     bool load(const std::string& action_filename);
