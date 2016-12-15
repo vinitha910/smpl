@@ -75,7 +75,7 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(
     }
 
     if (!m_ik_iface) {
-        ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interfaces");
+        ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interface");
     }
 
     readParameters(*pspace->params());

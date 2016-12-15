@@ -48,6 +48,9 @@ target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 add_executable(egraph_test src/egraph_test.cpp)
 target_link_libraries(egraph_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(xytheta src/xytheta.cpp)
+target_link_libraries(xytheta ${catkin_LIBRARIES})
+
 install(
     TARGETS callPlanner
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
