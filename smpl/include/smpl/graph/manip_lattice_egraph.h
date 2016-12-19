@@ -107,6 +107,11 @@ private:
     // map from experience graph node ids to state ids
     std::vector<int> m_egraph_state_ids;
 
+    bool findShortestExperienceGraphPath(
+        ExperienceGraph::node_id u,
+        ExperienceGraph::node_id s,
+        std::vector<ExperienceGraph::node_id>& path);
+
     bool parseExperienceGraphFile(
         const std::string& filepath,
         std::vector<RobotState>& egraph_states) const;

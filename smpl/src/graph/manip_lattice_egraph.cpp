@@ -65,11 +65,10 @@ bool ManipLatticeEgraph::extractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
 {
+    ROS_DEBUG_NAMED(params()->graph_log, "State ID Path: %s", to_string(idpath).c_str());
     if (idpath.empty()) {
         return true;
     }
-
-    std::vector<RobotState> opath;
 
     // attempt to handle paths of length 1...do any of the sbpl planners still
     // return a single-point path in some cases?
@@ -83,18 +82,17 @@ bool ManipLatticeEgraph::extractPath(
                 ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
                 return false;
             }
-            opath.push_back(entry->state);
-        }
-        else {
+            path.push_back(entry->state);
+        } else {
             const ManipLatticeState* entry = getHashEntry(state_id);
             if (!entry) {
                 ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
             }
-            opath.push_back(entry->state);
+            path.push_back(entry->state);
         }
 
-        SV_SHOW_INFO(getStateVisualization(opath.back(), "goal_state"));
+        SV_SHOW_INFO(getStateVisualization(path.back(), "goal_state"));
         return true;
     }
 
@@ -102,6 +100,8 @@ bool ManipLatticeEgraph::extractPath(
         ROS_ERROR_NAMED(params()->graph_log, "Cannot extract a non-trivial path starting from the goal state");
         return false;
     }
+
+    std::vector<RobotState> opath;
 
     // grab the first point
     {
@@ -123,6 +123,7 @@ bool ManipLatticeEgraph::extractPath(
     for (size_t i = 1; i < idpath.size(); ++i) {
         const int prev_id = idpath[i - 1];
         const int curr_id = idpath[i];
+        ROS_DEBUG_NAMED(params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == getGoalStateID()) {
             ROS_ERROR_NAMED(params()->graph_log, "Cannot determine goal state predecessor state during path extraction");
@@ -140,10 +141,10 @@ bool ManipLatticeEgraph::extractPath(
             return false;
         }
 
+        ROS_DEBUG_NAMED(params()->graph_log, "Check for transition via normal successors");
         ManipLatticeState* best_state = nullptr;
         RobotCoord succ_coord(robot()->jointVariableCount());
         int best_cost = std::numeric_limits<int>::max();
-        // check for transition via normal successors
         for (const Action& action : actions) {
             // check the validity of this transition
             double dist;
@@ -152,6 +153,7 @@ bool ManipLatticeEgraph::extractPath(
             }
 
             if (curr_id == getGoalStateID()) {
+                ROS_DEBUG_NAMED(params()->graph_log, "Search for transition to goal state");
                 std::vector<double> tgt_off_pose;
                 if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
                     ROS_WARN("Failed to compute FK for planning frame");
@@ -189,6 +191,7 @@ bool ManipLatticeEgraph::extractPath(
         }
 
         if (best_state) {
+            ROS_DEBUG_NAMED(params()->graph_log, "Extract successor state %s", to_string(best_state->state).c_str());
             opath.push_back(best_state->state);
             continue;
         }
@@ -207,90 +210,15 @@ bool ManipLatticeEgraph::extractPath(
 
             ROS_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, pn, cn);
 
-            struct ExperienceGraphSearchNode : heap_element
-            {
-                int g;
-                bool closed;
-                ExperienceGraphSearchNode* bp;
-                ExperienceGraphSearchNode() :
-                    g(std::numeric_limits<int>::max()),
-                    closed(false),
-                    bp(nullptr)
-                { }
-            };
-
-            struct ExperienceGraphSearchNodeCompare
-            {
-                bool operator()(
-                    const ExperienceGraphSearchNode& a,
-                    const ExperienceGraphSearchNode& b)
-                {
-                    return a.g < b.g;
-                }
-            };
-
-            std::vector<ExperienceGraphSearchNode> search_nodes(
-                    m_egraph.num_nodes());
-            intrusive_heap<
-                ExperienceGraphSearchNode,
-                ExperienceGraphSearchNodeCompare>
-            open;
-
-            search_nodes[pn].g = 0;
-            open.push(&search_nodes[pn]);
-            int exp_count = 0;
-            while (!open.empty()) {
-                ++exp_count;
-                ExperienceGraphSearchNode* min = open.min();
-                open.pop();
-                min->closed = true;
-
-                if (min == &search_nodes[cn]) {
-                    ROS_ERROR("Found shortest shortcut path");
-                    found = true;
-                    break;
-                }
-
-                ExperienceGraph::node_id n =
-                        std::distance(search_nodes.data(), min);
-                auto adj = m_egraph.adjacent_nodes(n);
-                for (auto ait = adj.first; ait != adj.second; ++ait) {
-                    ExperienceGraphSearchNode& succ = search_nodes[*ait];
-                    if (succ.closed) {
-                        continue;
-                    }
-                    int new_cost = min->g + 1;
-                    if (new_cost < succ.g) {
-                        succ.g = new_cost;
-                        succ.bp = min;
-                        if (open.contains(&succ)) {
-                            open.decrease(&succ);
-                        } else {
-                            open.push(&succ);
-                        }
-                    }
-                }
-            }
-            ROS_INFO("Expanded %d nodes looking for shortcut", exp_count);
-            if (!found) {
-                break;
-            }
             std::vector<ExperienceGraph::node_id> node_path;
-            ExperienceGraphSearchNode* ps = nullptr;
-            for (ExperienceGraphSearchNode* s = &search_nodes[cn]; s; s = s->bp) {
-                if (s != ps) {
-                    node_path.push_back(std::distance(search_nodes.data(), s));
-                    ps = s;
-                } else {
-                    ROS_ERROR("Cycle detected!");
+            found = findShortestExperienceGraphPath(pn, cn, node_path);
+            if (found) {
+                for (ExperienceGraph::node_id n : node_path) {
+                    int state_id = m_egraph_state_ids[n];
+                    ManipLatticeState* entry = getHashEntry(state_id);
+                    assert(entry);
+                    opath.push_back(entry->state);
                 }
-            }
-            std::reverse(node_path.begin(), node_path.end());
-            for (ExperienceGraph::node_id n : node_path) {
-                int state_id = m_egraph_state_ids[n];
-                ManipLatticeState* entry = getHashEntry(state_id);
-                assert(entry);
-                opath.push_back(entry->state);
             }
         }
         if (found) {
@@ -298,6 +226,7 @@ bool ManipLatticeEgraph::extractPath(
         }
 
         // check for snap transition
+        ROS_DEBUG_NAMED(params()->graph_log, "Check for snap successor");
         int cost;
         if (snap(prev_id, curr_id, cost)) {
             ROS_ERROR("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
@@ -501,6 +430,89 @@ Extension* ManipLatticeEgraph::getExtension(size_t class_code)
     } else {
         return ManipLattice::getExtension(class_code);
     }
+}
+
+bool ManipLatticeEgraph::findShortestExperienceGraphPath(
+    ExperienceGraph::node_id start_node,
+    ExperienceGraph::node_id goal_node,
+    std::vector<ExperienceGraph::node_id>& path)
+{
+    struct ExperienceGraphSearchNode : heap_element
+    {
+        int g;
+        bool closed;
+        ExperienceGraphSearchNode* bp;
+        ExperienceGraphSearchNode() :
+            g(std::numeric_limits<int>::max()),
+            closed(false),
+            bp(nullptr)
+        { }
+    };
+
+    struct NodeCompare
+    {
+        bool operator()(
+            const ExperienceGraphSearchNode& a,
+            const ExperienceGraphSearchNode& b)
+        {
+            return a.g < b.g;
+        }
+    };
+
+    typedef intrusive_heap<ExperienceGraphSearchNode, NodeCompare> heap_type;
+
+    std::vector<ExperienceGraphSearchNode> search_nodes(m_egraph.num_nodes());
+
+    heap_type open;
+
+    search_nodes[start_node].g = 0;
+    open.push(&search_nodes[start_node]);
+    int exp_count = 0;
+    while (!open.empty()) {
+        ++exp_count;
+        ExperienceGraphSearchNode* min = open.min();
+        open.pop();
+        min->closed = true;
+
+        if (min == &search_nodes[goal_node]) {
+            ROS_ERROR("Found shortest experience graph path");
+            ExperienceGraphSearchNode* ps = nullptr;
+            for (ExperienceGraphSearchNode* s = &search_nodes[goal_node];
+                s; s = s->bp)
+            {
+                if (s != ps) {
+                    path.push_back(std::distance(search_nodes.data(), s));
+                    ps = s;
+                } else {
+                    ROS_ERROR("Cycle detected!");
+                }
+            }
+            std::reverse(path.begin(), path.end());
+            return true;
+        }
+
+        ExperienceGraph::node_id n = std::distance(search_nodes.data(), min);
+        auto adj = m_egraph.adjacent_nodes(n);
+        for (auto ait = adj.first; ait != adj.second; ++ait) {
+            ExperienceGraphSearchNode& succ = search_nodes[*ait];
+            if (succ.closed) {
+                continue;
+            }
+            int new_cost = min->g + 1;
+            if (new_cost < succ.g) {
+                succ.g = new_cost;
+                succ.bp = min;
+                if (open.contains(&succ)) {
+                    open.decrease(&succ);
+                } else {
+                    open.push(&succ);
+                }
+            }
+        }
+    }
+
+    ROS_INFO("Expanded %d nodes looking for shortcut", exp_count);
+    return false;
 }
 
 bool ManipLatticeEgraph::parseExperienceGraphFile(
