@@ -246,41 +246,6 @@ bool ManipLatticeEgraph::extractPath(
     return true;
 }
 
-// Strategies for building experience graphs from continuous path data:
-//
-// 1. The path data comes in the form as a set of continuous states
-//
-// discretize every state in the set of continuous states
-// remove any duplicate discrete states
-// for each pair of discrete points
-//     if there exists an action that transitions between the two points
-//         add the transition path to the experience graph
-//
-// 2. The path data comes in the form as a set of paths (sequences of continuous
-//    states). The intention is to reuse the input paths verbatim with little
-//    discretization error.
-//
-// for each path, p
-//     dp0 = discretize(p0)
-//     dpf = discretize(p0)
-//     edge <- [ p0 ]
-//     for each point pi in path \ p0
-//         dpf = discretize(pi)
-//         if dpf != dp0
-//             add edge (dp0, dpf, edge)
-//         else
-//             edge = edge + [ pi ]
-//
-// TODO: Considerations:
-//
-// (1) What should be done about about context-specific actions, such as IK
-// motions to the current goal?
-// (2) Should effort be made to explicitly connect two states with the same
-// discrete coordinate but differing continuous coordinates?
-// (2a) One method might be to allow discontinuous jumps, denoted by either the
-// the discretization or an explicit tolerance
-// (3a) Intersections between paths can be tested and a new state at the
-// intersection can be created
 bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 {
     ROS_INFO("Load Experience Graph at %s", path.c_str());
@@ -311,7 +276,9 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         stateToCoord(egraph_states.front(), pdp);
         ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
         m_coord_to_nodes[pdp] = pid;
-        ManipLatticeState* entry = createHashEntry(pdp, pp);
+        ManipLatticeState* entry = reserveHashEntry(); //createHashEntry(pdp, pp);
+        entry->coord = pdp;
+        entry->state = pp;
         m_egraph_state_ids.resize(pid + 1, -1);
         m_egraph_state_ids[pid] = entry->stateID;
 
@@ -321,7 +288,9 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
             RobotCoord dp(robot()->jointVariableCount());
             stateToCoord(p, dp);
             if (dp != pdp) {
-                ManipLatticeState* entry = createHashEntry(dp, p);
+                ManipLatticeState* entry = reserveHashEntry(); //createHashEntry(dp, p);
+                entry->coord = dp;
+                entry->state = p;
                 // found a new discrete state along the path
                 ExperienceGraph::node_id id = m_egraph.insert_node(p);
                 m_egraph_state_ids.resize(id + 1, -1);
