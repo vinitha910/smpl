@@ -274,13 +274,18 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         const RobotState& pp = egraph_states.front(); // previous robot state
         RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
         stateToCoord(egraph_states.front(), pdp);
+
         ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
-        m_coord_to_nodes[pdp] = pid;
-        ManipLatticeState* entry = reserveHashEntry(); //createHashEntry(pdp, pp);
+        m_coord_to_nodes[pdp].push_back(pid);
+
+        ManipLatticeState* entry = reserveHashEntry();
         entry->coord = pdp;
         entry->state = pp;
+
+        // map state id <-> experience graph state
         m_egraph_state_ids.resize(pid + 1, -1);
         m_egraph_state_ids[pid] = entry->stateID;
+        m_state_to_node[entry->stateID] = pid;
 
         std::vector<RobotState> edge_data;
         for (size_t i = 1; i < egraph_states.size(); ++i) {
@@ -288,15 +293,20 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
             RobotCoord dp(robot()->jointVariableCount());
             stateToCoord(p, dp);
             if (dp != pdp) {
-                ManipLatticeState* entry = reserveHashEntry(); //createHashEntry(dp, p);
+                // found a new discrete state along the path
+
+                ExperienceGraph::node_id id = m_egraph.insert_node(p);
+                m_coord_to_nodes[dp].push_back(id);
+
+                ManipLatticeState* entry = reserveHashEntry();
                 entry->coord = dp;
                 entry->state = p;
-                // found a new discrete state along the path
-                ExperienceGraph::node_id id = m_egraph.insert_node(p);
+
                 m_egraph_state_ids.resize(id + 1, -1);
                 m_egraph_state_ids[id] = entry->stateID;
-                m_coord_to_nodes[dp] = id;
+                m_state_to_node[entry->stateID] = id;
                 m_egraph.insert_edge(pid, id, edge_data);
+
                 pdp = dp;
                 pid = id;
                 edge_data.clear();
@@ -315,9 +325,8 @@ void ManipLatticeEgraph::getExperienceGraphNodes(
     int state_id,
     std::vector<ExperienceGraph::node_id>& nodes)
 {
-    const ManipLatticeState* entry = getHashEntry(state_id);
-    auto it = m_coord_to_nodes.find(entry->coord);
-    if (it != m_coord_to_nodes.end()) {
+    auto it = m_state_to_node.find(state_id);
+    if (it != m_state_to_node.end()) {
         nodes.push_back(it->second);
     }
 }

@@ -96,11 +96,12 @@ private:
 
     typedef hash_map<
             RobotCoord,
-            ExperienceGraph::node_id,
+            std::vector<ExperienceGraph::node_id>,
             RobotCoordHash>
     CoordToExperienceGraphNodeMap;
 
     CoordToExperienceGraphNodeMap m_coord_to_nodes;
+    hash_map<int, ExperienceGraph::node_id> m_state_to_node;
 
     ExperienceGraph m_egraph;
 
