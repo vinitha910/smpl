@@ -88,14 +88,6 @@ ManipLattice::ManipLattice(
         m_continuous[jidx] = robot_model->isContinuous(jidx);
     }
 
-    // create empty start & goal states
-
-    // TODO: need to be really careful about this...the search should "probably"
-    // never generate a unique state that has the same id as the reserved goal
-    // state and thus uses the same storage. This case should be rare at the
-    // moment since it requires all non-continuous joints to be at their minimum
-    // values and all continuous joints to be at their zero positions, but that
-    // case will likely produce a bug in the current state
     m_start_entry = nullptr;
     m_goal_entry = reserveHashEntry();
     ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_entry->stateID);
