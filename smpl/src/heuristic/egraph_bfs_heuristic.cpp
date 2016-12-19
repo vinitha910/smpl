@@ -136,36 +136,22 @@ void DijkstraEgraphHeuristic3D::getEquivalentStates(
             ids.push_back(id);
         }
     }
-
-//    std::vector<ExperienceGraph::node_id> egraph_nodes;
-//    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
-//
-//    for (ExperienceGraph::node_id n : egraph_nodes) {
-//        const Eigen::Vector3i& dp = m_projected_nodes[n];
-//
-//        auto it = m_heur_nodes.find(dp);
-//        if (it != m_heur_nodes.end()) {
-//            for (ExperienceGraph::node_id un : it->second.up_nodes) {
-//                ids.push_back(m_eg->getStateID(un));
-//            }
-//        }
-//    }
 }
 
 void DijkstraEgraphHeuristic3D::getShortcutSuccs(
     int state_id,
     std::vector<int>& shortcut_ids)
 {
-    // TODO: compute connected components id for each experience graph vertex
-    // for each component, compute the state closest to the goal (using h_G or
-    // h_E)
     std::vector<ExperienceGraph::node_id> egraph_nodes;
     m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
 
     for (ExperienceGraph::node_id n : egraph_nodes) {
         const int comp_id = m_component_ids[n];
         for (ExperienceGraph::node_id nn : m_shortcut_nodes[comp_id]) {
-            shortcut_ids.push_back(m_eg->getStateID(nn));
+            int id = m_eg->getStateID(nn);
+            if (id != state_id) {
+                shortcut_ids.push_back(id);
+            }
         }
     }
 }
