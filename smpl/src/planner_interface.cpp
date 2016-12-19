@@ -36,6 +36,7 @@
 #include <assert.h>
 
 // system includes
+#include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 #include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
@@ -1362,22 +1363,39 @@ bool PlannerInterface::writePath(
     const moveit_msgs::RobotState& ref,
     const moveit_msgs::RobotTrajectory& traj) const
 {
+    boost::filesystem::path p(m_params.plan_output_dir);
+
+    try {
+        if (!boost::filesystem::exists(p)) {
+            ROS_INFO("Create plan output directory %s", p.native().c_str());
+            boost::filesystem::create_directory(p);
+        }
+
+        if (!boost::filesystem::is_directory(p)) {
+            ROS_ERROR("Failed to log path. %s is not a directory", m_params.plan_output_dir.c_str());
+            return false;
+        }
+    } catch (const boost::filesystem::filesystem_error& ex) {
+        ROS_ERROR("Failed to create plan output directory %s", p.native().c_str());
+        return false;
+    }
+
+    std::stringstream ss_filename;
     auto now = std::chrono::high_resolution_clock::now();
-    now.time_since_epoch().count();
-    std::stringstream ofname;
-    ofname << m_params.plan_output_dir << '/';
-    ofname << "path_" << now.time_since_epoch().count();
-    std::ofstream ofs(ofname.str());
+    ss_filename << "path_" << now.time_since_epoch().count();
+    p /= ss_filename.str();
+
+    std::ofstream ofs(p.native());
     if (!ofs.is_open()) {
         return false;
     }
 
-    ROS_INFO("Log path to %s", ofname.str().c_str());
+    ROS_INFO("Log path to %s", p.native().c_str());
 
     // write header
     for (size_t vidx = 0; vidx < m_robot->jointVariableCount(); ++vidx) {
         const std::string& var_name = m_robot->getPlanningJoints()[vidx];
-        ofs << var_name; // TODO: sanitize variable name for csv
+        ofs << var_name; // TODO: sanitize variable name for csv?
         if (vidx != m_robot->jointVariableCount() - 1) {
             ofs << ',';
         }
