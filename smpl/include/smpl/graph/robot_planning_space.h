@@ -41,6 +41,7 @@
 
 // project includes
 #include <smpl/collision_checker.h>
+#include <smpl/extension.h>
 #include <smpl/forward.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
