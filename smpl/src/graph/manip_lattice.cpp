@@ -232,8 +232,7 @@ void ManipLattice::GetSuccs(
         // put successor on successor list with the proper cost
         if (is_goal_succ) {
             succs->push_back(m_goal_state_id);
-        }
-        else {
+        } else {
             succs->push_back(succ_state_id);
         }
         costs->push_back(cost(parent_entry, succ_entry, is_goal_succ));
@@ -331,8 +330,7 @@ void ManipLattice::GetLazySuccs(
 
         if (succ_is_goal_state) {
             SuccIDV->push_back(m_goal_state_id);
-        }
-        else {
+        } else {
             SuccIDV->push_back(succ_state_id);
         }
         CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
@@ -410,8 +408,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
             if (!isGoal(action.back(), tgt_off_pose)) {
                 continue;
             }
-        }
-        else {
+        } else {
             // skip actions which don't end up at the child state
             if (succ_coord != child_entry->coord) {
                 continue;
@@ -440,8 +437,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
     if (best_cost != std::numeric_limits<int>::max()) {
         return best_cost;
-    }
-    else {
+    } else {
         return -1;
     }
 }
@@ -1051,8 +1047,7 @@ RobotState ManipLattice::getStartConfiguration() const
 {
     if (m_start_state_id >= 0) {
         return getHashEntry(m_start_state_id)->state;
-    }
-    else {
+    } else {
         return RobotState();
     }
 }

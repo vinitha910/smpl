@@ -345,8 +345,7 @@ bool WorkspaceLattice::extractPath(
             }
 
             path.push_back(best_goal_entry->state);
-        }
-        else {
+        } else {
             WorkspaceLatticeState* state_entry = getState(curr_id);
             path.push_back(state_entry->state);
         }
@@ -505,11 +504,9 @@ void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
 
     if (fout == stdout) {
         ROS_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
-    }
-    else if (fout == stderr) {
+    } else if (fout == stderr) {
         ROS_WARN_NAMED(params()->graph_log, "%s", ss.str().c_str());
-    }
-    else {
+    } else {
         fprintf(fout, "%s\n", ss.str().c_str());
     }
 }
@@ -785,19 +782,8 @@ void WorkspaceLattice::getActions(
     for (size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
         const auto& prim = m_prims[pidx];
 
-        if (prim.type == MotionPrimitive::Type::LONG_DISTANCE) {
-            if ((entry.h <= short_dist_mprims_thresh) && use_multi_res_prims) {
-                ROS_DEBUG_NAMED(params()->expands_log, "    -> skipping long distance mprim");
-                continue;
-            }
-        } else if (prim.type == MotionPrimitive::Type::SHORT_DISTANCE) {
-            if ((entry.h > short_dist_mprims_thresh) && use_multi_res_prims) {
-                ROS_DEBUG_NAMED(params()->expands_log, "    -> skipping short distance mprim");
-                continue;
-            }
-        }
-
         Action action;
+        action.reserve(prim.action.size());
 
         WorkspaceState final_state = cont_state;
         for (const RobotState& delta_state : prim.action) {
@@ -814,7 +800,7 @@ void WorkspaceLattice::getActions(
             action.push_back(final_state);
         }
 
-        actions.push_back(action);
+        actions.push_back(std::move(action));
     }
 }
 
@@ -900,32 +886,27 @@ bool WorkspaceLattice::getMotionPrimitive(
             return false;
         }
         getAdaptiveMotionPrim(SNAP_TO_RPY, parent, mp);
-    }
-    else if (mp.type == SNAP_TO_XYZRPY) {
+    } else if (mp.type == SNAP_TO_XYZRPY) {
         if (parent->h > prms_.cost_per_cell * 10) {
             return false;
         }
         getAdaptiveMotionPrim(SNAP_TO_XYZRPY, parent, mp);
-    }
-    else if (mp.type == SNAP_TO_XYZ_THEN_TO_RPY) {
+    } else if (mp.type == SNAP_TO_XYZ_THEN_TO_RPY) {
         if (parent->h > prms_.cost_per_cell * 15) {
             return false;
         }
         getAdaptiveMotionPrim(SNAP_TO_XYZ_THEN_TO_RPY, parent, mp);
-    }
-    else if (mp.type == SNAP_TO_RPY_THEN_TO_XYZ) {
+    } else if (mp.type == SNAP_TO_RPY_THEN_TO_XYZ) {
         if (parent->h > prms_.cost_per_cell * 15) {
             return false;
         }
         getAdaptiveMotionPrim(SNAP_TO_RPY_THEN_TO_XYZ, parent, mp);
-    }
-    else if (mp.type == SNAP_TO_RPY_AT_START) {
+    } else if (mp.type == SNAP_TO_RPY_AT_START) {
         if (parent->h < prms_.cost_per_cell * 3) {
             return false;
         }
         getAdaptiveMotionPrim(SNAP_TO_RPY_AT_START, parent, mp);
-    }
-    else if (mp.type == RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ) {
+    } else if (mp.type == RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ) {
         if (parent->h > prms_.cost_per_cell * 20) {
             return false;
         }
@@ -934,8 +915,7 @@ bool WorkspaceLattice::getMotionPrimitive(
             return false;
         }
         getAdaptiveMotionPrim(RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ, parent, mp);
-    }
-    else if (mp.type == RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ) {
+    } else if (mp.type == RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ) {
         if (m_goal_entry->coord[3] == parent->coord[3] &&
             m_goal_entry->coord[4] == parent->coord[4] &&
             m_goal_entry->coord[5] == parent->coord[5])
@@ -951,8 +931,7 @@ bool WorkspaceLattice::getMotionPrimitive(
         }
 
         getAdaptiveMotionPrim(RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ, parent, mp);
-    }
-    else {
+    } else {
         ROS_WARN("Invalid motion primitive type");
     }
 
@@ -982,9 +961,8 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         mp.coord[3] = m_goal_entry->coord[3] - parent->coord[3];
         mp.coord[4] = m_goal_entry->coord[4] - parent->coord[4];
         mp.coord[5] = m_goal_entry->coord[5] - parent->coord[5];
-    }
-    // snap to goal pose in one motion
-    else if (type == SNAP_TO_XYZRPY) {
+    } else if (type == SNAP_TO_XYZRPY) {
+        // snap to goal pose in one motion
         mp.m.resize(1, std::vector<double>(m_dof_count, 0.0));
         mp.m[0][0] = double(m_goal_entry->coord[0] - parent->coord[0]) * m_res[0];
         mp.m[0][1] = double(m_goal_entry->coord[1] - parent->coord[1]) * m_res[1];
@@ -998,9 +976,8 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         mp.coord[3] = m_goal_entry->coord[3] - parent->coord[3];
         mp.coord[4] = m_goal_entry->coord[4] - parent->coord[4];
         mp.coord[5] = m_goal_entry->coord[5] - parent->coord[5];
-    }
-    // first satisfy goal orientation in place, then move into the goal position
-    else if (type == SNAP_TO_RPY_THEN_TO_XYZ) {
+    } else if (type == SNAP_TO_RPY_THEN_TO_XYZ) {
+        // first satisfy goal orientation in place, then move into the goal position
         mp.m.resize(2, std::vector<double>(m_dof_count, 0.0));
         mp.m[0][3] = angles::normalize_angle(double(m_goal_entry->coord[3] - parent->coord[3]) * m_res[3]);
         mp.m[0][4] = angles::normalize_angle(double(m_goal_entry->coord[4] - parent->coord[4]) * m_res[4]);
@@ -1014,9 +991,8 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         mp.coord[3] = m_goal_entry->coord[3] - parent->coord[3];
         mp.coord[4] = m_goal_entry->coord[4] - parent->coord[4];
         mp.coord[5] = m_goal_entry->coord[5] - parent->coord[5];
-    }
-    // first move to the goal position, then rotate into the goal orientation
-    else if (type == SNAP_TO_XYZ_THEN_TO_RPY) {
+    } else if (type == SNAP_TO_XYZ_THEN_TO_RPY) {
+        // first move to the goal position, then rotate into the goal orientation
         mp.m.resize(2, std::vector<double>(m_dof_count, 0.0));
         mp.m[0][0] = double(m_goal_entry->coord[0] - parent->coord[0]) * m_res[0];
         mp.m[0][1] = double(m_goal_entry->coord[1] - parent->coord[1]) * m_res[1];
@@ -1030,8 +1006,7 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         mp.coord[3] = m_goal_entry->coord[3] - parent->coord[3];
         mp.coord[4] = m_goal_entry->coord[4] - parent->coord[4];
         mp.coord[5] = m_goal_entry->coord[5] - parent->coord[5];
-    }
-    else if (type == SNAP_TO_RPY_AT_START) {
+    } else if (type == SNAP_TO_RPY_AT_START) {
         mp.m.resize(1, std::vector<double>(m_dof_count, 0.0));
         getVector(
                 m_goal_entry->coord[0], m_goal_entry->coord[1],
@@ -1050,8 +1025,7 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         mp.m[0][5] = angles::normalize_angle(double(mp.coord[5]) * m_res[5]);
         ROS_DEBUG_NAMED(params()->expands_log, "     [snap_to_rpy_at_start] xyz-coord: %d %d %d  rpy-coord: %d %d %d  fa-coord: %d", mp.coord[0], mp.coord[1], mp.coord[2], mp.coord[3], mp.coord[4], mp.coord[5], mp.coord[6]);
         ROS_DEBUG_NAMED(params()->expands_log, "     [snap_to_rpy_at_start] xyz: %0.3f %0.3f %0.3f    rpy: %0.3f %0.3f %0.3f   fa: %0.3f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
-    }
-    else if (type == RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ) {
+    } else if (type == RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ) {
         int x, y, z;
         std::vector<int> icoord(m_dof_count, 0);
         if (!getDistanceGradient(x, y, z)) {
@@ -1092,8 +1066,7 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
             ROS_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
             ROS_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
             ROS_DEBUG_NAMED(params()->expands_log, "     [towards-xyz]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[2][0], mp.m[2][1], mp.m[2][2], mp.m[2][3], mp.m[2][4], mp.m[2][5], mp.m[2][6], parent->h);
-        }
-        else {
+        } else {
             std::vector<double> wcoord(m_dof_count, 0), gwcoord(m_dof_count, 0);
             coordToWorldPose(parent->coord, wcoord);
             coordToWorldPose(m_goal_entry->coord, gwcoord);
@@ -1104,8 +1077,7 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
             ROS_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  -- ");
             ROS_DEBUG_NAMED(params()->expands_log, "     [towards-xyz]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
         }
-    }
-    else if (type == RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ) {
+    } else if (type == RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ) {
         int x, y, z;
         std::vector<int> icoord(m_dof_count, 0);
         if (!getDistanceGradient(x, y, z)) {
@@ -1145,8 +1117,7 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         ROS_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
         ROS_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
         ROS_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
-    }
-    else {
+    } else {
         ROS_WARN("Invalid adaptive motion primitive type.");
     }
 }
@@ -1166,53 +1137,43 @@ void WorkspaceLattice::getVector(
     if (!snap) {
         if (dx != 0) {
             xout = (dx * multiplier) / length + 0.5;
-        }
-        else {
+        } else {
             xout = 0;
         }
 
         if (dy != 0) {
             yout = (dy * multiplier) / length + 0.5;
-        }
-        else {
+        } else {
             yout = 0;
         }
 
         if (dz != 0) {
             zout = (dz * multiplier) / length + 0.5;
-        }
-        else {
+        } else {
             zout = 0;
         }
-    }
-    else {
+    } else {
         if (dx > 0) {
             xout = min((dx * multiplier) / length + 0.5, dx);
-        }
-        else if (dx < 0) {
+        } else if (dx < 0) {
             xout = max((dx * multiplier) / length + 0.5, dx);
-        }
-        else {
+        } else {
             xout = 0;
         }
 
         if (dy > 0) {
             yout = min((dy * multiplier) / length + 0.5, dy);
-        }
-        else if (dy < 0) {
+        } else if (dy < 0) {
             yout = max((dy * multiplier) / length + 0.5, dy);
-        }
-        else {
+        } else {
             yout = 0;
         }
 
         if (dz > 0) {
             zout = min((dz * multiplier) / length + 0.5, dz);
-        }
-        else if (dz < 0) {
+        } else if (dz < 0) {
             zout = max((dz * multiplier) / length + 0.5, dz);
-        }
-        else {
+        } else {
             zout = 0;
         }
     }

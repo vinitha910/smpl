@@ -293,8 +293,7 @@ void ManipLattice::stateToCoord(
             if (coord[i] == params()->coord_vals[i]) {
                 coord[i] = 0;
             }
-        }
-        else {
+        } else {
             coord[i] = (int)(((state[i] - m_min_limits[i]) / params()->coord_delta[i]) + 0.5);
         }
     }
