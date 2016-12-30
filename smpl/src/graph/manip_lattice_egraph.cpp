@@ -166,7 +166,8 @@ bool ManipLatticeEgraph::extractPath(
                 }
 
                 stateToCoord(action.back(), succ_coord);
-                ManipLatticeState* succ_entry = getHashEntry(succ_coord);
+                int succ_state_id = getHashEntry(succ_coord);
+                ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
                 assert(succ_entry);
 
                 const int edge_cost = cost(prev_entry, succ_entry, true);
@@ -176,9 +177,10 @@ bool ManipLatticeEgraph::extractPath(
                 }
             } else {
                 stateToCoord(action.back(), succ_coord);
-                ManipLatticeState* succ_entry = getHashEntry(succ_coord);
+                int succ_state_id = getHashEntry(succ_coord);
+                ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
                 assert(succ_entry);
-                if (succ_entry->stateID != curr_id) {
+                if (succ_state_id != curr_id) {
                     continue;
                 }
 
@@ -278,14 +280,15 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
         m_coord_to_nodes[pdp].push_back(pid);
 
-        ManipLatticeState* entry = reserveHashEntry();
+        int entry_id = reserveHashEntry();
+        ManipLatticeState* entry = getHashEntry(entry_id);
         entry->coord = pdp;
         entry->state = pp;
 
         // map state id <-> experience graph state
         m_egraph_state_ids.resize(pid + 1, -1);
-        m_egraph_state_ids[pid] = entry->stateID;
-        m_state_to_node[entry->stateID] = pid;
+        m_egraph_state_ids[pid] = entry_id;
+        m_state_to_node[entry_id] = pid;
 
         std::vector<RobotState> edge_data;
         for (size_t i = 1; i < egraph_states.size(); ++i) {
@@ -298,13 +301,14 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
                 ExperienceGraph::node_id id = m_egraph.insert_node(p);
                 m_coord_to_nodes[dp].push_back(id);
 
-                ManipLatticeState* entry = reserveHashEntry();
+                int entry_id = reserveHashEntry();
+                ManipLatticeState* entry = getHashEntry(entry_id);
                 entry->coord = dp;
                 entry->state = p;
 
                 m_egraph_state_ids.resize(id + 1, -1);
-                m_egraph_state_ids[id] = entry->stateID;
-                m_state_to_node[entry->stateID] = id;
+                m_egraph_state_ids[id] = entry_id;
+                m_state_to_node[entry_id] = id;
                 m_egraph.insert_edge(pid, id, edge_data);
 
                 pdp = dp;

@@ -69,8 +69,8 @@ ManipLattice::ManipLattice(
     m_min_limits(),
     m_max_limits(),
     m_continuous(),
-    m_goal_entry(nullptr),
-    m_start_entry(nullptr),
+    m_goal_state_id(-1),
+    m_start_state_id(-1),
     m_states(),
     m_expanded_states(),
     m_near_goal(false),
@@ -88,9 +88,8 @@ ManipLattice::ManipLattice(
         m_continuous[jidx] = robot_model->isContinuous(jidx);
     }
 
-    m_start_entry = nullptr;
-    m_goal_entry = reserveHashEntry();
-    ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_entry->stateID);
+    m_goal_state_id = reserveHashEntry();
+    ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_state_id);
 
     // compute the cost per cell to be used by heuristic
     computeCostPerCell();
@@ -98,8 +97,6 @@ ManipLattice::ManipLattice(
 
 ManipLattice::~ManipLattice()
 {
-    m_goal_entry = nullptr;
-    m_start_entry = nullptr;
     for (size_t i = 0; i < m_states.size(); i++) {
         delete m_states[i];
         m_states[i] = nullptr;
@@ -120,7 +117,7 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
 
     std::stringstream ss;
 
-    if (entry->stateID == m_goal_entry->stateID) {
+    if (stateID == m_goal_state_id) {
         ss << "<goal state: { ";
         switch (goal().type) {
         case GoalType::XYZ_GOAL:
@@ -170,7 +167,7 @@ void ManipLattice::GetSuccs(
     }
 
     // goal state should be absorbing
-    if (state_id == m_goal_entry->stateID) {
+    if (state_id == m_goal_state_id) {
         return;
     }
 
@@ -222,7 +219,8 @@ void ManipLattice::GetSuccs(
         }
 
         // check if hash entry already exists, if not then create one
-        ManipLatticeState* succ_entry = getOrCreateState(succ_coord, action.back());
+        int succ_state_id = getOrCreateState(succ_coord, action.back());
+        ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
 
         // check if this state meets the goal criteria
         const bool is_goal_succ = isGoal(action.back(), tgt_off_pose);
@@ -233,20 +231,20 @@ void ManipLattice::GetSuccs(
 
         // put successor on successor list with the proper cost
         if (is_goal_succ) {
-            succs->push_back(m_goal_entry->stateID);
+            succs->push_back(m_goal_state_id);
         }
         else {
-            succs->push_back(succ_entry->stateID);
+            succs->push_back(succ_state_id);
         }
         costs->push_back(cost(parent_entry, succ_entry, is_goal_succ));
 
         // log successor details
         ROS_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_entry->stateID);
+        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
         ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_coord).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
+        ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
 
@@ -282,7 +280,7 @@ void ManipLattice::GetLazySuccs(
     }
 
     // goal state should be absorbing
-    if (SourceStateID == m_goal_entry->stateID) {
+    if (SourceStateID == m_goal_state_id) {
         return;
     }
 
@@ -328,25 +326,25 @@ void ManipLattice::GetLazySuccs(
             ++goal_succ_count;
         }
 
-        ManipLatticeState* succ_entry =
-                getOrCreateState(succ_coord, action.back());
+        int succ_state_id = getOrCreateState(succ_coord, action.back());
+        ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
 
         if (succ_is_goal_state) {
-            SuccIDV->push_back(m_goal_entry->stateID);
+            SuccIDV->push_back(m_goal_state_id);
         }
         else {
-            SuccIDV->push_back(succ_entry->stateID);
+            SuccIDV->push_back(succ_state_id);
         }
         CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
         isTrueCost->push_back(false);
 
         // log successor details
         ROS_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_entry->stateID);
+        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
         ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_coord).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_entry->stateID));
+        ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
 
@@ -388,7 +386,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         return -1;
     }
 
-    const bool goal_edge = (child_entry == m_goal_entry);
+    const bool goal_edge = (childID == m_goal_state_id);
 
     size_t num_actions = 0;
 
@@ -429,8 +427,8 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         }
 
         // get the unique state
-        ManipLatticeState* succ_entry = goal_edge ?
-                getHashEntry(succ_coord) : child_entry;
+        int succ_state_id = goal_edge ? getHashEntry(succ_coord) : childID;
+        ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
         assert(succ_entry);
 
         const bool is_goal = isGoal(action.back(), tgt_off_pose);
@@ -492,47 +490,48 @@ ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
     return m_states[state_id];
 }
 
-ManipLatticeState* ManipLattice::getHashEntry(const RobotCoord& coord)
+int ManipLattice::getHashEntry(const RobotCoord& coord)
 {
     ManipLatticeState state;
     state.coord = coord;
     auto sit = m_state_to_id.find(&state);
     if (sit == m_state_to_id.end()) {
-        return nullptr;
+        return -1;
     }
-    return sit->first;
+    return sit->second;
 }
 
-ManipLatticeState* ManipLattice::createHashEntry(
+int ManipLattice::createHashEntry(
     const RobotCoord& coord,
     const RobotState& state)
 {
-    ManipLatticeState* entry = reserveHashEntry();
+    int state_id = reserveHashEntry();
+    ManipLatticeState* entry = getHashEntry(state_id);
 
     entry->coord = coord;
     entry->state = state;
 
     // map state -> state id
-    m_state_to_id[entry] = entry->stateID;
+    m_state_to_id[entry] = state_id;
 
-    return entry;
+    return state_id;
 }
 
-ManipLatticeState* ManipLattice::getOrCreateState(
+int ManipLattice::getOrCreateState(
     const RobotCoord& coord,
     const RobotState& state)
 {
-    ManipLatticeState* entry = getHashEntry(coord);
-    if (!entry) {
-        entry = createHashEntry(coord, state);
+    int state_id = getHashEntry(coord);
+    if (state_id < 0) {
+        state_id = createHashEntry(coord, state);
     }
-    return entry;
+    return state_id;
 }
 
-ManipLatticeState* ManipLattice::reserveHashEntry()
+int ManipLattice::reserveHashEntry()
 {
     ManipLatticeState* entry = new ManipLatticeState;
-    entry->stateID = (int)m_states.size();
+    int state_id = (int)m_states.size();
 
     // map state id -> state
     m_states.push_back(entry);
@@ -542,7 +541,7 @@ ManipLatticeState* ManipLattice::reserveHashEntry()
     std::fill(pinds, pinds + NUMOFINDICES_STATEID2IND, -1);
     StateID2IndexMapping.push_back(pinds);
 
-    return entry;
+    return state_id;
 }
 
 /// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
@@ -800,9 +799,7 @@ bool ManipLattice::setStart(const RobotState& state)
     stateToCoord(state, start_coord);
     ROS_DEBUG_NAMED(params()->graph_log, "  coord: %s", to_string(start_coord).c_str());
 
-    ManipLatticeState* start_entry = getOrCreateState(start_coord, state);
-
-    m_start_entry = start_entry;
+    m_start_state_id = getOrCreateState(start_coord, state);
 
     // notify observers of updated start state
     return RobotPlanningSpace::setStart(state);
@@ -954,7 +951,8 @@ bool ManipLattice::extractPath(
                 }
 
                 stateToCoord(action.back(), succ_coord);
-                ManipLatticeState* succ_entry = getHashEntry(succ_coord);
+                int succ_state_id = getHashEntry(succ_coord);
+                ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
                 assert(succ_entry);
 
                 const int edge_cost = cost(prev_entry, succ_entry, true);
@@ -1035,7 +1033,7 @@ double ManipLattice::getGoalDistance(const std::vector<double>& pose)
 /// \brief Return the ID of the goal state or -1 if no goal has been set.
 int ManipLattice::getGoalStateID() const
 {
-    return m_goal_entry ? m_goal_entry->stateID : -1;
+    return m_goal_state_id;
 }
 
 /// \brief Return the ID of the start state or -1 if no start has been set.
@@ -1044,15 +1042,15 @@ int ManipLattice::getGoalStateID() const
 /// states and not the state id of any particular unique state.
 int ManipLattice::getStartStateID() const
 {
-    return m_start_entry ? m_start_entry->stateID : -1;
+    return m_start_state_id;
 }
 
 /// \brief Get the (heuristic) distance from the planning frame position to the
 ///     start
 RobotState ManipLattice::getStartConfiguration() const
 {
-    if (m_start_entry) {
-        return m_start_entry->state;
+    if (m_start_state_id >= 0) {
+        return getHashEntry(m_start_state_id)->state;
     }
     else {
         return RobotState();

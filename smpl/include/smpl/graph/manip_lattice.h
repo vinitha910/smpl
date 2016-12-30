@@ -65,7 +65,6 @@ typedef std::vector<int> RobotCoord;
 
 struct ManipLatticeState
 {
-    int stateID;        // hash entry ID number
     RobotCoord coord;   // discrete coordinate
     RobotState state;   // corresponding continuous coordinate
 };
@@ -182,14 +181,11 @@ protected:
     ///@}
 
     ManipLatticeState* getHashEntry(int state_id) const;
-    ManipLatticeState* getHashEntry(const RobotCoord& coord);
-    ManipLatticeState* createHashEntry(
-        const RobotCoord& coord,
-        const RobotState& state);
-    ManipLatticeState* getOrCreateState(
-        const RobotCoord& coord,
-        const RobotState& state);
-    ManipLatticeState* reserveHashEntry();
+
+    int getHashEntry(const RobotCoord& coord);
+    int createHashEntry(const RobotCoord& coord, const RobotState& state);
+    int getOrCreateState(const RobotCoord& coord, const RobotState& state);
+    int reserveHashEntry();
 
     bool computePlanningFrameFK(
         const RobotState& state,
@@ -240,8 +236,8 @@ private:
     std::vector<double> m_max_limits;
     std::vector<bool> m_continuous;
 
-    ManipLatticeState* m_goal_entry;
-    ManipLatticeState* m_start_entry;
+    int m_goal_state_id;
+    int m_start_state_id;
 
     // maps from coords to stateID
     hash_map<ManipLatticeState*, int, StateHash, StateEqual> m_state_to_id;
