@@ -40,7 +40,7 @@
 #include <moveit_msgs/GetMotionPlan.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <ros/ros.h>
-#include <smpl/planner_interface.h>
+#include <smpl/ros/planner_interface.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>

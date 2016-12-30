@@ -56,6 +56,7 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/graph/action_space.h>
+#include <smpl/ros/planning_space_allocator.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 SBPL_CLASS_FORWARD(Heuristic);
@@ -64,10 +65,7 @@ SBPL_CLASS_FORWARD(SBPLPlanner);
 namespace sbpl {
 namespace motion {
 
-class ManipLattice;
-
 SBPL_CLASS_FORWARD(PlannerInterface);
-
 class PlannerInterface
 {
 public:
@@ -136,10 +134,11 @@ protected:
     // params
     bool m_initialized;
 
+    std::map<std::string, PlanningSpaceAllocatorPtr> m_pspace_allocators;
+
     // planner components
 
     RobotPlanningSpacePtr m_pspace;
-    ActionSpacePtr m_aspace;
     std::map<std::string, RobotHeuristicPtr> m_heuristics;
     SBPLPlannerPtr m_planner;
 

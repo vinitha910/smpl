@@ -53,7 +53,6 @@ add_library(
     smpl
     src/bfs3d.cpp
     src/csv_parser.cpp
-    src/planner_interface.cpp
     src/collision_checker.cpp
     src/occupancy_grid.cpp
     src/planning_params.cpp
@@ -78,6 +77,10 @@ add_library(
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/ros/planner_interface.cpp
+    src/ros/manip_lattice_allocator.cpp
+    src/ros/manip_lattice_egraph_allocator.cpp
+    src/ros/workspace_lattice_allocator.cpp
     src/search/egraph_planner.cpp)
 
 target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})

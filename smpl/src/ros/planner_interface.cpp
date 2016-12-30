@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <smpl/planner_interface.h>
+#include <smpl/ros/planner_interface.h>
 
 // standard includes
 #include <assert.h>
@@ -58,6 +58,9 @@
 #include <smpl/heuristic/euclid_dist_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
+#include <smpl/ros/manip_lattice_allocator.h>
+#include <smpl/ros/manip_lattice_egraph_allocator.h>
+#include <smpl/ros/workspace_lattice_allocator.h>
 #include <smpl/search/egraph_planner.h>
 
 namespace sbpl {
@@ -77,7 +80,6 @@ PlannerInterface::PlannerInterface(
     m_params(),
     m_initialized(false),
     m_pspace(),
-    m_aspace(),
     m_heuristics(),
     m_planner(),
     m_heur_vec(),
@@ -89,6 +91,13 @@ PlannerInterface::PlannerInterface(
     if (m_robot) {
         m_fk_iface = m_robot->getExtension<ForwardKinematicsInterface>();
     }
+
+    m_pspace_allocators.insert(std::make_pair(
+            "manip", std::make_shared<ManipLatticeAllocator>(m_grid)));
+    m_pspace_allocators.insert(std::make_pair(
+            "manip_lattice_egraph", std::make_shared<ManipLatticeEgraphAllocator>()));
+    m_pspace_allocators.insert(std::make_pair(
+            "workspace", std::make_shared<WorkspaceLatticeAllocator>(m_grid)));
 }
 
 PlannerInterface::~PlannerInterface()
@@ -1044,100 +1053,15 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     ROS_INFO_NAMED(PI_LOGGER, " -> Search: %s", search_name.c_str());
 
     // initialize the planning space
-    if (space_name == "manip") {
-        ROS_INFO_NAMED(PI_LOGGER, "Initialize Manip Lattice");
-        m_pspace = std::make_shared<ManipLattice>(
-                m_robot, m_checker, &m_params);
-
-        ManipLattice* manip_lattice = (ManipLattice*)m_pspace.get();
-        manip_lattice->setVisualizationFrameId(m_grid->getReferenceFrame());
-
-        // instantiate action space and load from file
-        m_aspace = std::make_shared<ManipLatticeActionSpace>(m_pspace);
-        ManipLatticeActionSpace* manip_actions =
-                (ManipLatticeActionSpace*)m_aspace.get();
-
-        if (!manip_actions->load(m_params.action_filename)) {
-            ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
-            return false;
-        }
-
-        ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
-        for (auto ait = manip_actions->begin(); ait != manip_actions->end(); ++ait) {
-            ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_string(ait->type).c_str());
-            if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_RPY) {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY));
-            }
-            else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ));
-            }
-            else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", manip_actions->useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-                ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", manip_actions->ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY));
-            }
-            else if (ait->type == sbpl::motion::MotionPrimitive::LONG_DISTANCE ||
-                ait->type == sbpl::motion::MotionPrimitive::SHORT_DISTANCE)
-            {
-                ROS_DEBUG_NAMED(PI_LOGGER, "    action: %s", to_string(ait->action).c_str());
-            }
-        }
-
-        // associate action space with lattice
-        if (!m_pspace->setActionSpace(m_aspace)) {
-            ROS_ERROR("Failed to associate action space with planning space");
-            return false;
-        }
-    } else if (space_name == "manip_lattice_egraph") {
-        m_pspace = std::make_shared<ManipLatticeEgraph>(
-                m_robot, m_checker, &m_params);
-        m_aspace = std::make_shared<ManipLatticeActionSpace>(m_pspace);
-        ManipLatticeActionSpace* manip_actions =
-                (ManipLatticeActionSpace*)m_aspace.get();
-        if (!manip_actions->load(m_params.action_filename)) {
-            ROS_ERROR("Failed to load actions from file '%s'", m_params.action_filename.c_str());
-            return false;
-        }
-
-        // associate action space with lattice
-        if (!m_pspace->setActionSpace(m_aspace)) {
-            ROS_ERROR("Failed to associate action space with planning space");
-            return false;
-        }
-
-        ManipLatticeEgraph* lattice = (ManipLatticeEgraph*)m_pspace.get();
-
-        auto pit = m_params.params.find("egraph_path");
-        if (pit != m_params.params.end()) {
-            // warning printed within, allow to fail silently
-            (void)lattice->loadExperienceGraph(pit->second);
-        } else {
-            ROS_WARN("No experience graph file parameter");
-        }
-    } else if (space_name == "workspace") {
-        ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
-        m_pspace = std::make_shared<WorkspaceLattice>(
-                m_robot, m_checker, &m_params, m_grid);
-        WorkspaceLattice* workspace_lattice = (WorkspaceLattice*)m_pspace.get();
-        WorkspaceLattice::Params wsp;
-        wsp.R_count = 360;
-        wsp.P_count = 180 + 1;
-        wsp.Y_count = 360;
-
-        RedundantManipulatorInterface* rmi =
-                m_robot->getExtension<RedundantManipulatorInterface>();
-        if (!rmi) {
-            ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
-            return false;
-        }
-        wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
-        if (!workspace_lattice->init(wsp)) {
-            ROS_ERROR("Failed to initialize Workspace Lattice");
-            return false;
-        }
-    } else {
+    auto psait = m_pspace_allocators.find(space_name);
+    if (psait == m_pspace_allocators.end()) {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
+        return false;
+    }
+
+    m_pspace = psait->second->allocate(m_robot, m_checker, &m_params);
+    if (!m_pspace) {
+        ROS_ERROR("Failed to allocate planning space '%s'", space_name.c_str());
         return false;
     }
 
