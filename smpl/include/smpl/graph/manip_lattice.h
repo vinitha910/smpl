@@ -209,26 +209,6 @@ protected:
 
 private:
 
-    struct StateHash
-    {
-        typedef const ManipLatticeState* argument_type;
-        typedef std::size_t result_type;
-
-        result_type operator()(argument_type s) const
-        {
-            return std::hash<ManipLatticeState>()(*s);
-        }
-    };
-
-    struct StateEqual
-    {
-        typedef const ManipLatticeState* argument_type;
-        bool operator()(argument_type a, argument_type b) const
-        {
-            return *a == *b;
-        }
-    };
-
     ForwardKinematicsInterface* m_fk_iface;
 
     // cached from robot model
@@ -240,7 +220,10 @@ private:
     int m_start_state_id;
 
     // maps from coords to stateID
-    hash_map<ManipLatticeState*, int, StateHash, StateEqual> m_state_to_id;
+    typedef ManipLatticeState StateKey;
+    typedef PointerValueHash<StateKey> StateHash;
+    typedef PointerValueEqual<StateKey> StateEqual;
+    hash_map<StateKey*, int, StateHash, StateEqual> m_state_to_id;
 
     // maps from stateID to coords
     std::vector<ManipLatticeState*> m_states;

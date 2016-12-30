@@ -183,26 +183,6 @@ public:
 
 private:
 
-    struct StateHash
-    {
-        typedef const WorkspaceLatticeState* argument_type;
-        typedef std::size_t result_type;
-
-        result_type operator()(argument_type s) const
-        {
-            return std::hash<WorkspaceLatticeState>()(*s);
-        }
-    };
-
-    struct StateEqual
-    {
-        typedef const WorkspaceLatticeState* argument_type;
-        bool operator()(argument_type a, argument_type b) const
-        {
-            return *a == *b;
-        }
-    };
-
     // Context Interfaces
     OccupancyGrid* m_grid;
 
@@ -217,7 +197,10 @@ private:
     int m_start_state_id;
 
     // maps state -> id
-    hash_map<const WorkspaceLatticeState*, int, StateHash, StateEqual> m_state_to_id;
+    typedef WorkspaceLatticeState StateKey;
+    typedef PointerValueHash<StateKey> StateHash;
+    typedef PointerValueEqual<StateKey> StateEqual;
+    hash_map<StateKey*, int, StateHash, StateEqual> m_state_to_id;
 
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;

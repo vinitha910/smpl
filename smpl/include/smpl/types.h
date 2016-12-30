@@ -33,6 +33,7 @@
 #define sbpl_manip_types_h
 
 // standard includes
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -46,6 +47,21 @@ template <
     class KeyEqual = std::equal_to<Key>,
     class Allocator = std::allocator<std::pair<const Key, T>>>
 using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
+
+template <typename T>
+struct PointerValueHash
+{
+    typedef T* argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type s) const { return std::hash<T>()(*s); }
+};
+
+template <typename T>
+struct PointerValueEqual
+{
+    typedef T* argument_type;
+    bool operator()(argument_type a, argument_type b) const { return *a == *b; }
+};
 
 #if 1
 typedef std::vector<double> RobotState;
