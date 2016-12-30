@@ -48,26 +48,12 @@
 #include <smpl/types.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/workspace_lattice_base.h>
 
 namespace sbpl {
 namespace motion {
 
 #define BROKEN 1
-
-/// continuous state ( x, y, z, R, P, Y, j1, ..., jn )
-typedef std::vector<double> WorkspaceState;
-
-/// discrete coordinate ( x, y, z, R, P, Y, j1, ..., jn )
-typedef std::vector<int> WorkspaceCoord;
-
-/// 6-dof pose ( x, y, z, R, P, Y )
-typedef std::vector<double> SixPose;
-
-/// 6-dof pose ( x, y, z, qw, qx, qy, qz )
-typedef std::vector<double> SevenPose;
-
-/// 3-dof position ( x, y, z )
-typedef std::vector<double> Position;
 
 struct WorkspaceLatticeState
 {
@@ -104,21 +90,9 @@ namespace motion {
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
-class WorkspaceLattice : public RobotPlanningSpace
+class WorkspaceLattice : public WorkspaceLatticeBase
 {
 public:
-
-    /// WorkspaceLattice-specific parameters
-    struct Params
-    {
-        // NOTE: (x, y, z) resolutions defined by the input occupancy grid
-
-        int R_count;
-        int P_count;
-        int Y_count;
-
-        std::vector<double> free_angle_res;
-    };
 
     struct PoseGoal
     {
@@ -135,8 +109,8 @@ public:
 
     ~WorkspaceLattice();
 
-    bool init(const Params& params);
-    bool initialized() const;
+    bool init(const Params& params) override;
+    bool initialized() const override;
 
     // TODO: add path extraction function that returns path in workspace rep
 
@@ -183,13 +157,6 @@ public:
 
 private:
 
-    // Context Interfaces
-    OccupancyGrid* m_grid;
-
-    ForwardKinematicsInterface* m_fk_iface;
-    InverseKinematicsInterface* m_ik_iface;
-    RedundantManipulatorInterface* m_rm_iface;
-
     WorkspaceLatticeState* m_goal_entry;
     int m_goal_state_id;
 
@@ -213,12 +180,6 @@ private:
     /// \name State Space Configuration
     ///@{
 
-    // ( res_x, res_y, res_z, res_R, res_P, res_Y, res_j1, ..., res_j2 )
-    std::vector<double> m_res;
-    std::vector<int> m_val_count;
-    int m_dof_count;
-    std::vector<size_t> m_fangle_indices; // cached from robot model
-
     ///@}
 
     /// \name Action Space Configuration
@@ -231,34 +192,8 @@ private:
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
 
-    size_t freeAngleCount() const { return m_fangle_indices.size(); }
-
     int createState(const WorkspaceCoord& coord);
     WorkspaceLatticeState* getState(int state_id);
-
-    // conversions between robot states, workspace states, and workspacce coords
-    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate);
-    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord);
-    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate);
-    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord);
-    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state);
-    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state);
-
-    bool stateWorkspaceToRobot(
-        const WorkspaceState& state, const RobotState& seed, RobotState& ostate);
-
-    // TODO: variants of workspace -> robot that don't restrict redundant angles
-    // TODO: variants of workspace -> robot that take in a full seed state
-
-    // conversions from discrete coordinates to continuous states
-    void posWorkspaceToCoord(const double* gp, int* wp);
-    void posCoordToWorkspace(const int* wp, double* gp);
-    void rotWorkspaceToCoord(const double* gr, int* wr);
-    void rotCoordToWorkspace(const int* wr, double* gr);
-    void poseWorkspaceToCoord(const double* gp, int* wp);
-    void poseCoordToWorkspace(const int* wp, double* gp);
-    void favWorkspaceToCoord(const double* wa, int* ga);
-    void favCoordToWorkspace(const int* ga, double* wa);
 
     void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
 

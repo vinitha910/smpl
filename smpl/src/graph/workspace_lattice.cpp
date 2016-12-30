@@ -74,15 +74,12 @@ WorkspaceLattice::WorkspaceLattice(
     PlanningParams* params,
     OccupancyGrid* grid)
 :
-    RobotPlanningSpace(robot, checker, params),
-    m_grid(grid),
+    WorkspaceLatticeBase(robot, checker, params, grid),
     m_goal_entry(nullptr),
     m_start_entry(nullptr),
     m_state_to_id(),
     m_states(),
-    m_near_goal(false),
-    m_fangle_indices(),
-    m_dof_count(-1)
+    m_near_goal(false)
 {
 }
 
@@ -99,64 +96,8 @@ WorkspaceLattice::~WorkspaceLattice()
 
 bool WorkspaceLattice::init(const Params& _params)
 {
-    m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
-    if (!m_fk_iface) {
-        ROS_WARN("Workspace Lattice requires Forward Kinematics Interface extension");
+    if (!WorkspaceLatticeBase::init(_params)) {
         return false;
-    }
-
-    m_ik_iface = robot()->getExtension<InverseKinematicsInterface>();
-    if (!m_ik_iface) {
-        ROS_WARN("Workspace Lattice requires Inverse Kinematics Interface extension");
-        return false;
-    }
-
-    m_rm_iface = robot()->getExtension<RedundantManipulatorInterface>();
-    if (!m_rm_iface) {
-        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
-        return false;
-    }
-
-    m_fangle_indices.resize(m_rm_iface->redundantVariableCount());
-    for (size_t i = 0; i < m_fangle_indices.size(); ++i) {
-        m_fangle_indices[i] = m_rm_iface->redundantVariableIndex(i);
-    }
-    m_dof_count = 6 + m_fangle_indices.size();
-
-    m_res.resize(m_dof_count);
-    m_val_count.resize(m_dof_count);
-
-    m_res[0] = m_grid->getResolution();
-    m_res[1] = m_grid->getResolution();
-    m_res[2] = m_grid->getResolution();
-    // TODO: limit these ranges and handle discretization appropriately
-    m_res[3] = 2.0 * M_PI / _params.R_count;
-    m_res[4] = M_PI       / _params.P_count;
-    m_res[5] = 2.0 * M_PI / _params.Y_count;
-
-    for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        m_res[6 + i] = (2.0 * M_PI) / _params.free_angle_res[i];
-    }
-
-    m_val_count[0] = std::numeric_limits<int>::max();
-    m_val_count[1] = std::numeric_limits<int>::max();
-    m_val_count[2] = std::numeric_limits<int>::max();
-    m_val_count[3] = _params.R_count;
-    m_val_count[4] = _params.P_count;
-    m_val_count[5] = _params.Y_count;
-    for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        m_val_count[6 + i] = (2.0 * M_PI) / _params.free_angle_res[i];
-    }
-
-    ROS_INFO("discretization of workspace lattice:");
-    ROS_INFO("  x: { res: %0.3f, count: %d }", m_res[0], m_val_count[0]);
-    ROS_INFO("  y: { res: %0.3f, count: %d }", m_res[1], m_val_count[1]);
-    ROS_INFO("  z: { res: %0.3f, count: %d }", m_res[2], m_val_count[2]);
-    ROS_INFO("  R: { res: %0.3f, count: %d }", m_res[3], m_val_count[3]);
-    ROS_INFO("  P: { res: %0.3f, count: %d }", m_res[4], m_val_count[4]);
-    ROS_INFO("  Y: { res: %0.3f, count: %d }", m_res[5], m_val_count[5]);
-    for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        ROS_INFO("  J%d: { res: %0.3f, count: %d }", i, m_res[6 + i], m_val_count[6 + i]);
     }
 
     ROS_DEBUG_NAMED(params()->graph_log, "initialize environment");
@@ -216,7 +157,8 @@ bool WorkspaceLattice::init(const Params& _params)
 
 bool WorkspaceLattice::initialized() const
 {
-    return m_goal_entry; // sufficient for the moment
+    // sufficient for the moment
+    return WorkspaceLatticeBase::initialized() && m_goal_entry;
 }
 
 bool WorkspaceLattice::setStart(const RobotState& state)
@@ -591,142 +533,6 @@ WorkspaceLatticeState* WorkspaceLattice::getState(int state_id)
 {
     assert(state_id >= 0 && state_id < m_states.size());
     return m_states[state_id];
-}
-
-void WorkspaceLattice::stateRobotToWorkspace(
-    const RobotState& state,
-    WorkspaceState& ostate)
-{
-    SixPose pose;
-    bool res = m_fk_iface->computePlanningLinkFK(state, pose);
-    assert(res); // forward kinematics shouldn't fail
-
-    ostate.resize(m_dof_count);
-    std::copy(pose.begin(), pose.end(), ostate.begin());
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
-        ostate[6 + fai] = state[m_fangle_indices[fai]];
-    }
-}
-
-void WorkspaceLattice::stateRobotToCoord(
-    const RobotState& state,
-    WorkspaceCoord& coord)
-{
-    WorkspaceState ws_state;
-    stateRobotToWorkspace(state, ws_state);
-    stateWorkspaceToCoord(ws_state, coord);
-}
-
-bool WorkspaceLattice::stateWorkspaceToRobot(
-    const WorkspaceState& state,
-    RobotState& ostate)
-{
-    SixPose pose(state.begin(), state.begin() + 6);
-
-    RobotState seed(robot()->jointVariableCount(), 0);
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
-        seed[m_fangle_indices[fai]] = state[6 + fai];
-    }
-
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "pose: " << pose << ", seed: " << seed);
-
-    return m_rm_iface->computeFastIK(pose, seed, ostate);
-}
-
-bool WorkspaceLattice::stateWorkspaceToRobot(
-    const WorkspaceState& state, const RobotState& seed, RobotState& ostate)
-{
-    SixPose pose(state.begin(), state.begin() + 6);
-
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "pose: " << pose << ", seed: " << seed);
-
-    // TODO: unrestricted variant?
-    return m_rm_iface->computeFastIK(pose, seed, ostate);
-}
-
-void WorkspaceLattice::stateWorkspaceToCoord(
-    const WorkspaceState& state,
-    WorkspaceCoord& coord)
-{
-    coord.resize(m_dof_count);
-    posWorkspaceToCoord(&state[0], &coord[0]);
-    rotWorkspaceToCoord(&state[3], &coord[3]);
-    favWorkspaceToCoord(&state[6], &coord[6]);
-}
-
-bool WorkspaceLattice::stateCoordToRobot(
-    const WorkspaceCoord& coord,
-    RobotState& state)
-{
-
-}
-
-void WorkspaceLattice::stateCoordToWorkspace(
-    const WorkspaceCoord& coord,
-    WorkspaceState& state)
-{
-    state.resize(m_dof_count);
-    posCoordToWorkspace(&coord[0], &state[0]);
-    rotCoordToWorkspace(&coord[3], &state[3]);
-    favCoordToWorkspace(&coord[6], &state[6]);
-}
-
-/// \brief Convert a discrete position to its continuous counterpart.
-void WorkspaceLattice::posWorkspaceToCoord(const double* wp, int* gp)
-{
-    m_grid->worldToGrid(wp[0], wp[1], wp[2], gp[0], gp[1], gp[2]);
-}
-
-/// \brief Convert a continuous position to its discrete counterpart.
-void WorkspaceLattice::posCoordToWorkspace(const int* gp, double* wp)
-{
-    m_grid->gridToWorld(gp[0], gp[1], gp[2], wp[0], wp[1], wp[2]);
-}
-
-/// \brief Convert a continuous rotation to its continuous counterpart.
-void WorkspaceLattice::rotWorkspaceToCoord(const double* wr, int* gr)
-{
-    gr[0] = (int)((angles::normalize_angle_positive(wr[0]) + m_res[3] * 0.5) / m_res[3]) % m_val_count[3];
-    gr[1] = (int)((angles::normalize_angle_positive(wr[1]) + m_res[4] * 0.5) / m_res[4]) % m_val_count[4];
-    gr[2] = (int)((angles::normalize_angle_positive(wr[2]) + m_res[5] * 0.5) / m_res[5]) % m_val_count[5];
-}
-
-/// Convert a discrete rotation to its continuous counterpart.
-void WorkspaceLattice::rotCoordToWorkspace(const int* gr, double* wr)
-{
-    wr[0] = angles::normalize_angle((double)gr[0] * m_res[3]);
-    wr[1] = angles::normalize_angle((double)gr[1] * m_res[4]);
-    wr[2] = angles::normalize_angle((double)gr[2] * m_res[5]);
-}
-
-/// Convert a continuous pose to its discrete counterpart.
-void WorkspaceLattice::poseWorkspaceToCoord(const double* wp, int* gp)
-{
-    posWorkspaceToCoord(wp, gp);
-    rotWorkspaceToCoord(wp + 3, gp + 3);
-}
-
-/// Convert a discrete pose to its continuous counterpart.
-void WorkspaceLattice::poseCoordToWorkspace(const int* gp, double* wp)
-{
-    posCoordToWorkspace(gp, wp);
-    rotCoordToWorkspace(gp + 3, wp + 3);
-}
-
-/// Convert a continuous free angle vector to its discrete counterpart.
-void WorkspaceLattice::favWorkspaceToCoord(const double* wa, int* ga)
-{
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
-        ga[fai] = (int)((angles::normalize_angle_positive(wa[fai]) + m_res[6 + fai] * 0.5) / m_res[6 + fai]) % m_val_count[6 + fai];
-    }
-}
-
-/// Convert a discrete free angle vector to its continuous counterpart.
-void WorkspaceLattice::favCoordToWorkspace(const int* ga, double* wa)
-{
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
-        wa[fai] = angles::normalize_angle((double)ga[fai] * m_res[6 + fai]);
-    }
 }
 
 bool WorkspaceLattice::isGoal(const WorkspaceState& state)
