@@ -77,9 +77,14 @@ add_library(
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
-    src/ros/planner_interface.cpp
+    src/ros/bfs_heuristic_allocator.cpp
+    src/ros/dijkstra_egraph_3d_heuristic_allocator.cpp
+    src/ros/euclid_dist_heuristic_allocator.cpp
+    src/ros/joint_dist_heuristic_allocator.cpp
     src/ros/manip_lattice_allocator.cpp
     src/ros/manip_lattice_egraph_allocator.cpp
+    src/ros/multi_frame_bfs_heuristic_allocator.cpp
+    src/ros/planner_interface.cpp
     src/ros/workspace_lattice_allocator.cpp
     src/search/egraph_planner.cpp)
 

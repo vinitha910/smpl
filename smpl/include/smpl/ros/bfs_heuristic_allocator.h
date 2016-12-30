@@ -29,28 +29,22 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_MANIP_LATTICE_ALLOCATOR_H
-#define SMPL_MANIP_LATTICE_ALLOCATOR_H
+#ifndef SMPL_BFS_HEURISTIC_ALLOCATOR_H
+#define SMPL_BFS_HEURISTIC_ALLOCATOR_H
 
-#include <smpl/collision_checker.h>
 #include <smpl/occupancy_grid.h>
-#include <smpl/planning_params.h>
-#include <smpl/robot_model.h>
-#include <smpl/ros/planning_space_allocator.h>
+#include <smpl/ros/heuristic_allocator.h>
 
 namespace sbpl {
 namespace motion {
 
-class ManipLatticeAllocator : public PlanningSpaceAllocator
+class BfsHeuristicAllocator : public HeuristicAllocator
 {
 public:
 
-    ManipLatticeAllocator(OccupancyGrid* grid) : m_grid(grid) { }
+    BfsHeuristicAllocator(OccupancyGrid* grid) : m_grid(grid) { }
 
-    RobotPlanningSpacePtr allocate(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        PlanningParams* params) override;
+    RobotHeuristicPtr allocate(const RobotPlanningSpacePtr& pspace) override;
 
 private:
 

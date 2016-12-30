@@ -29,6 +29,9 @@
 
 /// \author Andrew Dornbush
 
+#ifndef SMPL_WORKSPACE_LATTICE_ALLOCATOR_H
+#define SMPL_WORKSPACE_LATTICE_ALLOCATOR_H
+
 #include <smpl/occupancy_grid.h>
 #include <smpl/ros/planning_space_allocator.h>
 
@@ -53,3 +56,5 @@ private:
 
 } // namespace motion
 } // namespace sbpl
+
+#endif

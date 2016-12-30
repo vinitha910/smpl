@@ -56,6 +56,7 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/graph/action_space.h>
+#include <smpl/ros/heuristic_allocator.h>
 #include <smpl/ros/planning_space_allocator.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
@@ -135,6 +136,7 @@ protected:
     bool m_initialized;
 
     std::map<std::string, PlanningSpaceAllocatorPtr> m_pspace_allocators;
+    std::map<std::string, HeuristicAllocatorPtr> m_heuristic_allocators;
 
     // planner components
 

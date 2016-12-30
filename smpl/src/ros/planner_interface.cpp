@@ -61,6 +61,11 @@
 #include <smpl/ros/manip_lattice_allocator.h>
 #include <smpl/ros/manip_lattice_egraph_allocator.h>
 #include <smpl/ros/workspace_lattice_allocator.h>
+#include <smpl/ros/bfs_heuristic_allocator.h>
+#include <smpl/ros/multi_frame_bfs_heuristic_allocator.h>
+#include <smpl/ros/euclid_dist_heuristic_allocator.h>
+#include <smpl/ros/joint_dist_heuristic_allocator.h>
+#include <smpl/ros/dijkstra_egraph_3d_heuristic_allocator.h>
 #include <smpl/search/egraph_planner.h>
 
 namespace sbpl {
@@ -98,6 +103,17 @@ PlannerInterface::PlannerInterface(
             "manip_lattice_egraph", std::make_shared<ManipLatticeEgraphAllocator>()));
     m_pspace_allocators.insert(std::make_pair(
             "workspace", std::make_shared<WorkspaceLatticeAllocator>(m_grid)));
+
+    m_heuristic_allocators.insert(std::make_pair(
+            "mfbfs", std::make_shared<MultiFrameBfsHeuristicAllocator>(m_grid)));
+    m_heuristic_allocators.insert(std::make_pair(
+            "bfs", std::make_shared<BfsHeuristicAllocator>(m_grid)));
+    m_heuristic_allocators.insert(std::make_pair(
+            "euclid", std::make_shared<EuclidDistHeuristicAllocator>(m_grid)));
+    m_heuristic_allocators.insert(std::make_pair(
+            "joint_distance", std::make_shared<JointDistHeuristicAllocator>(m_grid)));
+    m_heuristic_allocators.insert(std::make_pair(
+            "bfs_egraph", std::make_shared<DijkstraEgraph3dHeuristicAllocator>(m_grid)));
 }
 
 PlannerInterface::~PlannerInterface()
@@ -1052,7 +1068,6 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     ROS_INFO_NAMED(PI_LOGGER, " -> Heuristic: %s", heuristic_name.c_str());
     ROS_INFO_NAMED(PI_LOGGER, " -> Search: %s", search_name.c_str());
 
-    // initialize the planning space
     auto psait = m_pspace_allocators.find(space_name);
     if (psait == m_pspace_allocators.end()) {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
@@ -1065,27 +1080,21 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         return false;
     }
 
-    // initialize heuristics
-    m_heuristics.clear();
-    if (heuristic_name == "mfbfs") {
-        auto h = std::make_shared<MultiFrameBfsHeuristic>(m_pspace, m_grid);
-        m_heuristics.insert(std::make_pair("MFBFS", h));
-    } else if (heuristic_name == "bfs") {
-        auto h = std::make_shared<BfsHeuristic>(m_pspace, m_grid);
-        m_heuristics.insert(std::make_pair("BFS", h));
-    } else if (heuristic_name == "euclid") {
-        auto h = std::make_shared<EuclidDistHeuristic>(m_pspace, m_grid);
-        m_heuristics.insert(std::make_pair("EUCLID", h));
-    } else if (heuristic_name == "joint_distance") {
-        auto h = std::make_shared<JointDistHeuristic>(m_pspace, m_grid);
-        m_heuristics.insert(std::make_pair("JOINT_DIST", h));
-    } else if (heuristic_name == "bfs_egraph") {
-        auto h = std::make_shared<DijkstraEgraphHeuristic3D>(m_pspace, m_grid);
-        m_heuristics.insert(std::make_pair("BFS_EGRAPH", h));
-    } else {
+    auto hait = m_heuristic_allocators.find(heuristic_name);
+    if (hait == m_heuristic_allocators.end()) {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
         return false;
     }
+
+    auto heuristic = hait->second->allocate(m_pspace);
+    if (!heuristic) {
+        ROS_ERROR("Failed to allocate heuristic '%s'", heuristic_name.c_str());
+        return false;
+    }
+
+    // initialize heuristics
+    m_heuristics.clear();
+    m_heuristics.insert(std::make_pair(heuristic_name, heuristic));
 
     // add heuristics to planning space and gather contiguous vector (for use
     // with MHA*)

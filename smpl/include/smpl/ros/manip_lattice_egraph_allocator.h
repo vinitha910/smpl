@@ -27,6 +27,9 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef SMPL_MANIP_LATTICE_EGRAPH_ALLOCATOR_H
+#define SMPL_MANIP_LATTICE_EGRAPH_ALLOCATOR_H
+
 /// \author Andrew Dornbush
 
 #include <smpl/collision_checker.h>
@@ -49,3 +52,5 @@ public:
 
 } // namespace motion
 } // namespace sbpl
+
+#endif

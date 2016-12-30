@@ -29,35 +29,19 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_MANIP_LATTICE_ALLOCATOR_H
-#define SMPL_MANIP_LATTICE_ALLOCATOR_H
+#include <smpl/ros/multi_frame_bfs_heuristic_allocator.h>
 
-#include <smpl/collision_checker.h>
-#include <smpl/occupancy_grid.h>
-#include <smpl/planning_params.h>
-#include <smpl/robot_model.h>
-#include <smpl/ros/planning_space_allocator.h>
+// project includes
+#include <smpl/heuristic/multi_frame_bfs_heuristic.h>
 
 namespace sbpl {
 namespace motion {
 
-class ManipLatticeAllocator : public PlanningSpaceAllocator
+RobotHeuristicPtr MultiFrameBfsHeuristicAllocator::allocate(
+    const RobotPlanningSpacePtr& pspace)
 {
-public:
-
-    ManipLatticeAllocator(OccupancyGrid* grid) : m_grid(grid) { }
-
-    RobotPlanningSpacePtr allocate(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        PlanningParams* params) override;
-
-private:
-
-    OccupancyGrid* m_grid;
-};
+    return std::make_shared<MultiFrameBfsHeuristic>(pspace, m_grid);
+}
 
 } // namespace motion
 } // namespace sbpl
-
-#endif

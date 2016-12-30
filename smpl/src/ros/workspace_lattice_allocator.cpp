@@ -38,7 +38,7 @@
 namespace sbpl {
 namespace motion {
 
-static const char* PI_LOGGER = "planning";
+static const char* PI_LOGGER = "simple";
 
 RobotPlanningSpacePtr WorkspaceLatticeAllocator::allocate(
     RobotModel* robot,
