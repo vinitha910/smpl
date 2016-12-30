@@ -150,7 +150,7 @@ public:
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpcae
-    ///@{}
+    ///@{
     int getStartStateID() const override;
     int getGoalStateID() const override;
 
