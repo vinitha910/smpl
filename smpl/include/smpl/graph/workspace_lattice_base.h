@@ -80,6 +80,9 @@ public:
     virtual bool init(const Params& _params);
     virtual bool initialized() const;
 
+    const std::vector<double>& resolution() const { return m_res; }
+    int dofCount() const { return m_dof_count; }
+
 protected:
 
     OccupancyGrid* m_grid;
