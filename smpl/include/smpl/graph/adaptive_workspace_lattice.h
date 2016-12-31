@@ -46,12 +46,12 @@
 namespace sbpl {
 namespace motion {
 
-struct AdaptiveWorkspaceState
+struct AdaptiveState
 {
     bool hid;
 };
 
-struct GridState : public AdaptiveWorkspaceState
+struct AdaptiveGridState : public AdaptiveState
 {
     double x;
     double y;
@@ -61,20 +61,24 @@ struct GridState : public AdaptiveWorkspaceState
     int gz;
 };
 
-std::ostream& operator<<(std::ostream& o, const GridState& s);
-inline bool operator==(const GridState& a, const GridState& b)
+std::ostream& operator<<(std::ostream& o, const AdaptiveGridState& s);
+inline
+bool operator==(const AdaptiveGridState& a, const AdaptiveGridState& b)
 {
     return std::tie(a.gx, a.gy, a.gz) == std::tie(b.gx, b.gy, b.gz);
 }
 
-struct WorkspaceState : public AdaptiveWorkspaceState;
+struct AdaptiveWorkspaceState : public AdaptiveState
 {
     RobotState state;
     WorkspaceCoord coord;
 };
 
-std::ostream& operator<<(std::ostream& o, const WorkspaceState& s);
-inline bool operator==(const WorkspaceState& a, const WorkspaceState& b)
+std::ostream& operator<<(std::ostream& o, const AdaptiveWorkspaceState& s);
+inline
+bool operator==(
+    const AdaptiveWorkspaceState& a,
+    const AdaptiveWorkspaceState& b)
 {
     return a.coord == b.coord;
 }
@@ -85,17 +89,17 @@ inline bool operator==(const WorkspaceState& a, const WorkspaceState& b)
 namespace std {
 
 template <>
-struct hash<sbpl::motion::GridState>
+struct hash<sbpl::motion::AdaptiveGridState>
 {
-    typedef sbpl::motion::GridState argument_type;
+    typedef sbpl::motion::AdaptiveGridState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };
 
 template <>
-struct hash<sbpl::motion::WorkspaceState>
+struct hash<sbpl::motion::AdaptiveWorkspaceState>
 {
-    typedef sbpl::motion::WorkspaceState argument_type;
+    typedef sbpl::motion::AdaptiveWorkspaceState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };
@@ -181,14 +185,14 @@ public:
 
 private:
 
-    std::vector<AdaptiveWorkspaceState*> m_states;
+    std::vector<AdaptiveState*> m_states;
 
     Grid3<bool> m_dim_grid;
 
-    typedef WorkspaceState HiStateKey;
+    typedef AdaptiveWorkspaceState HiStateKey;
     typedef PointerValueHash<HiStateKey> HiStateHash;
     typedef PointerValueEqual<HiStateKey> HiStateEqual;
-    typedef GridState LoStateKey;
+    typedef AdaptiveGridState LoStateKey;
     typedef PointerValueHash<LoStateKey> LoStateHash;
     typedef PointerValueEqual<LoStateKey> LoStateEqual;
 
@@ -199,12 +203,12 @@ private:
     int m_goal_state_id;
 
     void GetSuccs(
-        const GridState& state,
+        const AdaptiveGridState& state,
         std::vector<int>* succs,
         std::vector<int>* costs);
 
     void GetSuccs(
-        const WorkspaceState& state,
+        const AdaptiveWorkspaceState& state,
         std::vector<int>* succs,
         std::vector<int>* costs);
 

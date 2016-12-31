@@ -31,7 +31,7 @@
 
 #include <smpl/graph/adaptive_workspace_lattice.h>
 
-auto std::hash<sbpl::motion::GridState>::operator()(
+auto std::hash<sbpl::motion::AdaptiveGridState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -41,7 +41,7 @@ auto std::hash<sbpl::motion::GridState>::operator()(
     return seed;
 }
 
-auto std::hash<sbpl::motion::WorkspaceState>::operator()(
+auto std::hash<sbpl::motion::AdaptiveWorkspaceState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -52,13 +52,13 @@ auto std::hash<sbpl::motion::WorkspaceState>::operator()(
 namespace sbpl {
 namespace motion {
 
-std::ostream& operator<<(std::ostream& o, const GridState& s)
+std::ostream& operator<<(std::ostream& o, const AdaptiveGridState& s)
 {
     o << "{ x: " << s.gx << ", y: " << s.gy << ", z: " << s.gy << " }";
     return o;
 }
 
-std::ostream& operator<<(std::ostream& o, const WorkspaceState& s)
+std::ostream& operator<<(std::ostream& o, const AdaptiveWorkspaceState& s)
 {
     o << "{ coord: " << s.coord << ", state: " << s.state << " }";
     return o;
@@ -92,12 +92,12 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
 
 AdaptiveWorkspaceLattice::~AdaptiveWorkspaceLattice()
 {
-    for (AdaptiveWorkspaceState* state : m_states) {
+    for (AdaptiveState* state : m_states) {
         if (state->hid) {
-            WorkspaceState* hi_state = (WorkspaceState*)state;
+            AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
             delete hi_state;
         } else {
-            GridState* lo_state = (GridState*)state;
+            AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
             delete lo_state;
         }
     }
@@ -129,11 +129,11 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
         return true;
     }
 
-    AdaptiveWorkspaceState* state = m_states[state_id];
+    AdaptiveState* state = m_states[state_id];
     if (state->hid) {
-        WorkspaceState* hi_state = (WorkspaceState*)state;
+        AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
     } else {
-        GridState* lo_state = (GridState*)state;
+        AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
         pos.x() = lo_state->x;
         pos.y() = lo_state->y;
         pos.z() = lo_state->z;
@@ -190,12 +190,12 @@ void AdaptiveWorkspaceLattice::GetSuccs(
         return;
     }
 
-    AdaptiveWorkspaceState* state = m_states[state_id];
+    AdaptiveState* state = m_states[state_id];
     if (state_id->hid) {
-        WorkspaceState* hi_state = (WorkspaceState*)state;
+        AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         return GetSuccs(*hi_state, succs, costs);
     } else {
-        GridState* lo_state = (GridState*)state;
+        AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
         return GetSuccs(*lo_state, succs, costs);
     }
 }
@@ -217,7 +217,7 @@ void AdaptiveWorkspaceLattice::PrintState(
 }
 
 void AdaptiveWorkspaceLattice::GetSuccs(
-    const GridState& state,
+    const AdaptiveGridState& state,
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
@@ -225,7 +225,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 }
 
 void AdaptiveWorkspaceLattice::GetSuccs(
-    const WorkspaceState& state,
+    const AdaptiveWorkspaceState& state,
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
@@ -234,11 +234,11 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 
 int AdaptiveWorkspaceLattice::reserveHashEntry(bool hid)
 {
-    AdaptiveWorkspaceEntry* entry;
+    AdaptiveState* entry;
     if (hid) {
-        entry = new WorkspaceState;
+        entry = new AdaptiveWorkspaceState;
     } else {
-        entry = new GridState;
+        entry = new AdaptiveGridState;
     }
     entry->hid = hid;
 
