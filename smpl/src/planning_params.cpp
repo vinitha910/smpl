@@ -110,24 +110,5 @@ PlanningParams::PlanningParams() :
 {
 }
 
-void PlanningParams::printParams(const std::string& stream) const
-{
-    ROS_INFO_NAMED(stream, " ");
-    ROS_INFO_NAMED(stream, "Manipulation Environment Parameters:");
-    ROS_INFO_NAMED(stream, "%40s: %.2f", "epsilon",epsilon);
-    ROS_INFO_NAMED(stream, "%40s: %s", "use dijkstra heuristic", use_bfs_heuristic ? "yes" : "no");
-    ROS_INFO_NAMED(stream, "%40s: %s", "sbpl search mode", search_mode ? "stop_after_first_sol" : "run_until_timeout");
-    ROS_INFO_NAMED(stream, "%40s: %s", "postprocessing: shortcut", shortcut_path ? "yes" : "no");
-    ROS_INFO_NAMED(stream, "%40s: %s", "postprocessing: interpolate", interpolate_path ? "yes" : "no");
-    ROS_INFO_NAMED(stream, "%40s: %0.3fsec", "time_per_waypoint", waypoint_time);
-    ROS_INFO_NAMED(stream, "%40s: %d", "cost per cell", cost_per_cell);
-    ROS_INFO_NAMED(stream, "%40s: %s", "reference frame", planning_frame.c_str());
-    ROS_INFO_NAMED(stream, "discretization: ");
-    for (size_t i = 0; i < coord_vals.size(); ++i) {
-        ROS_INFO_NAMED(stream, "   [%d] val: %d  delta: %0.3f", int(i), coord_vals[i], coord_delta[i]);
-    }
-    ROS_INFO_NAMED(stream, " ");
-}
-
 } // namespace motion
 } // namespace sbpl

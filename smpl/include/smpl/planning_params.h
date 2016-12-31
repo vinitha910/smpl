@@ -177,8 +177,6 @@ public:
 
     PlanningParams();
 
-    void printParams(const std::string& stream) const;
-
     /// \name Environment
     ///@{
     std::string planning_frame;
