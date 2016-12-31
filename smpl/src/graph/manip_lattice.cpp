@@ -39,6 +39,7 @@
 #include <Eigen/Dense>
 #include <leatherman/viz.h>
 #include <leatherman/print.h>
+#include <sbpl/planners/planner.h>
 
 #include <smpl/angles.h>
 #include <smpl/heuristic/robot_heuristic.h>

@@ -41,10 +41,7 @@
 #include <vector>
 
 // system includes
-#include <sbpl/planners/planner.h>
-#include <sbpl/sbpl_exception.h>
-#include <sbpl/utils/mdpconfig.h>
-#include <trajectory_msgs/JointTrajectory.h>
+#include <boost/functional/hash.hpp>
 
 // project includes
 #include <smpl/angles.h>
@@ -53,7 +50,6 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/types.h>
-#include <smpl/bfs3d/bfs3d.h>
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
