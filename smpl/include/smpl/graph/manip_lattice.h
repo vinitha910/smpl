@@ -110,6 +110,10 @@ public:
 
     ~ManipLattice();
 
+    bool init(const std::vector<double>& var_res);
+
+    const std::vector<double>& resolutions() const { return m_coord_deltas; }
+
     RobotState getStartConfiguration() const;
 
     double getStartDistance(double x, double y, double z);
@@ -216,6 +220,9 @@ private:
     std::vector<double> m_max_limits;
     std::vector<bool> m_continuous;
 
+    std::vector<int> m_coord_vals;
+    std::vector<double> m_coord_deltas;
+
     int m_goal_state_id;
     int m_start_state_id;
 
@@ -269,9 +276,9 @@ void ManipLattice::coordToState(
 
     for (size_t i = 0; i < coord.size(); ++i) {
         if (m_continuous[i]) {
-            state[i] = coord[i] * params()->coord_delta[i];
+            state[i] = coord[i] * m_coord_deltas[i];
         } else {
-            state[i] = m_min_limits[i] + coord[i] * params()->coord_delta[i];
+            state[i] = m_min_limits[i] + coord[i] * m_coord_deltas[i];
         }
     }
 }
@@ -288,13 +295,13 @@ void ManipLattice::stateToCoord(
         if (m_continuous[i]) {
             double pos_angle = angles::normalize_angle_positive(state[i]);
 
-            coord[i] = (int)((pos_angle + params()->coord_delta[i] * 0.5) / params()->coord_delta[i]);
+            coord[i] = (int)((pos_angle + m_coord_deltas[i] * 0.5) / m_coord_deltas[i]);
 
-            if (coord[i] == params()->coord_vals[i]) {
+            if (coord[i] == m_coord_vals[i]) {
                 coord[i] = 0;
             }
         } else {
-            coord[i] = (int)(((state[i] - m_min_limits[i]) / params()->coord_delta[i]) + 0.5);
+            coord[i] = (int)(((state[i] - m_min_limits[i]) / m_coord_deltas[i]) + 0.5);
         }
     }
 }

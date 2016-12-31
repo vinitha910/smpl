@@ -64,8 +64,6 @@ std::string to_string(ShortcutType type)
 
 PlanningParams::PlanningParams() :
     planning_frame(),
-    coord_vals(),
-    coord_delta(),
 
     action_filename(),
     use_multiple_ik_solutions(DefaultUseMultipleIkSolutions),

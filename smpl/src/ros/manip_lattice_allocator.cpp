@@ -48,7 +48,37 @@ RobotPlanningSpacePtr ManipLatticeAllocator::allocate(
     CollisionChecker* checker,
     PlanningParams* params)
 {
+    auto it = params->params.find("discretization");
+    if (it == params->params.end()) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
+        return RobotPlanningSpacePtr();
+    }
+    std::map<std::string, double> disc;
+    std::stringstream ss(it->second);
+    std::string joint;
+    double jres;
+    while (ss >> joint >> jres) {
+        disc.insert(std::make_pair(joint, jres));
+    }
+    ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
+
+    std::vector<double> resolutions(robot->jointVariableCount());
+    for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
+        const std::string& vname = robot->getPlanningJoints()[vidx];
+        auto dit = disc.find(vname);
+        if (dit == disc.end()) {
+            ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+            return RobotPlanningSpacePtr();
+        }
+        resolutions[vidx] = dit->second;
+    }
+
     auto pspace = std::make_shared<ManipLattice>(robot, checker, params);
+    if (!pspace->init(resolutions)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manip Lattice");
+        return RobotPlanningSpacePtr();
+    }
+
     if (m_grid) {
         pspace->setVisualizationFrameId(m_grid->getReferenceFrame());
     }

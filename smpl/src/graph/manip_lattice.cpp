@@ -105,6 +105,35 @@ ManipLattice::~ManipLattice()
     m_state_to_id.clear();
 }
 
+bool ManipLattice::init(const std::vector<double>& var_res)
+{
+    if (var_res.size() != robot()->jointVariableCount()) {
+        ROS_ERROR_NAMED(params()->graph_log, "Insufficient variable resolutions for robot model");
+        return false;
+    }
+
+    std::vector<int> discretization(robot()->jointVariableCount());
+    std::vector<double> deltas(robot()->jointVariableCount());
+    for (size_t vidx = 0; vidx < robot()->jointVariableCount(); ++vidx) {
+        if (robot()->isContinuous(vidx)) {
+            discretization[vidx] = (int)std::round((2.0 * M_PI) / var_res[vidx]);
+            deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
+        } else if (robot()->hasPosLimit(vidx)) {
+            const double span = std::fabs(
+                    robot()->maxPosLimit(vidx) - robot()->minPosLimit(vidx));
+            discretization[vidx] = (int)std::round(span / var_res[vidx]);
+            deltas[vidx] = span / (double)discretization[vidx];
+        } else {
+            discretization[vidx] = std::numeric_limits<int>::max();
+            deltas[vidx] = var_res[vidx];
+        }
+    }
+
+    m_coord_vals = std::move(discretization);
+    m_coord_deltas = std::move(deltas);
+    return true;
+}
+
 void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
 {
     assert(stateID >= 0 && stateID < (int)m_states.size());

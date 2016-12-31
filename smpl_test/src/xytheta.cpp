@@ -292,15 +292,15 @@ int main(int argc, char* argv[])
     GridCollisionChecker cc(&grid);
 
     // 3. Define Parameters
-    // * discretization
-    // * (vals would be needed for angle variables)
     smpl::PlanningParams params;
-    params.coord_delta = { 0.02, 0.02 };
-//    params.coord_vals = { /* TODO */ };
 
     // 4. Instantiate Planning Space
     auto pspace =
             std::make_shared<smpl::ManipLattice>(&robot_model, &cc, &params);
+    if (!pspace->init({ 0.02, 0.02 })) {
+        ROS_ERROR("Failed to initialize Manip Lattice");
+        return 1;
+    }
     pspace->setVisualizationFrameId("map");
 
     // 5. Instantiate and Initialize Motion Primitives

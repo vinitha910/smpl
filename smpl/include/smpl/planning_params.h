@@ -180,8 +180,6 @@ public:
     /// \name Environment
     ///@{
     std::string planning_frame;
-    std::vector<int> coord_vals;
-    std::vector<double> coord_delta;
     ///@}
 
     /// \name Actions

@@ -145,6 +145,13 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
         useAmp(MotionPrimitive::SHORT_DISTANCE, true);
     }
 
+    ManipLatticePtr lattice =
+            std::dynamic_pointer_cast<ManipLattice>(planningSpace());
+    if (!lattice) {
+        ROS_ERROR("Manip Lattice Action Space must be used with Manip Lattice");
+        return false;
+    }
+
     for (int i = 0; i < nrows; ++i) {
         // read joint delta
         for (int j = 0; j < ncols; ++j) {
@@ -157,7 +164,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
                 ROS_ERROR("End of parameter file reached prematurely. Check for newline.");
                 return false;
             }
-            mprim[j] = d * planningSpace()->params()->coord_delta[j];
+            mprim[j] = d * lattice->resolutions()[j];
             ROS_DEBUG("Got %0.3f deg -> %0.3f rad", d, mprim[j]);
         }
 

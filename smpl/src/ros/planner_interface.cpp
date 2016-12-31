@@ -125,8 +125,6 @@ bool PlannerInterface::init(const PlanningParams& params)
     ROS_INFO_NAMED(PI_LOGGER, "initialize arm planner interface");
 
     ROS_INFO_NAMED(PI_LOGGER, "  Planning Frame: %s", params.planning_frame.c_str());
-    ROS_INFO_NAMED(PI_LOGGER, "  Coord Values: %s", to_string(params.coord_vals).c_str());
-    ROS_INFO_NAMED(PI_LOGGER, "  Coord Deltas: %s", to_string(params.coord_delta).c_str());
 
     ROS_INFO_NAMED(PI_LOGGER, "  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions ? "true" : "false");
 
@@ -270,14 +268,6 @@ bool PlannerInterface::checkParams(
     // TODO: check for existence of planning joints in robot model
 
     if (params.epsilon < 1.0) {
-        return false;
-    }
-
-    if (m_robot->jointVariableCount() != (int)params.coord_vals.size()) {
-        return false;
-    }
-
-    if (m_robot->jointVariableCount() != (int)params.coord_delta.size()) {
         return false;
     }
 
