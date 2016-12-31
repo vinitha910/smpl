@@ -131,7 +131,6 @@ class PlanningParams
 public:
 
     // manipulation lattice parameters
-    static const bool DefaultUseMultipleIkSolutions = false;
     static const bool DefaultUseMotionPrimitiveSnapXYZ = false;
     static const bool DefaultUseMotionPrimitiveSnapRPY = false;
     static const bool DefaultUseMotionPrimitiveSnapXYZRPY = false;
@@ -182,21 +181,6 @@ public:
     std::string planning_frame;
     ///@}
 
-    /// \name Actions
-    ///@{
-    std::string action_filename;
-    bool use_multiple_ik_solutions;
-
-    bool use_xyz_snap_mprim;
-    bool use_rpy_snap_mprim;
-    bool use_xyzrpy_snap_mprim;
-    bool use_short_dist_mprims;
-    double xyz_snap_thresh;
-    double rpy_snap_thresh;
-    double xyzrpy_snap_thresh;
-    double short_dist_mprims_thresh;
-    ///@}
-
     /// \name Costs
     ///@{
     int cost_multiplier;           ///< uniform cost of actions
@@ -209,7 +193,6 @@ public:
 
     /// \name Heuristic
     ///@{
-    bool use_bfs_heuristic;
     double planning_link_sphere_radius;
     ///@}
 

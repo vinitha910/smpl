@@ -126,9 +126,6 @@ bool PlannerInterface::init(const PlanningParams& params)
 
     ROS_INFO_NAMED(PI_LOGGER, "  Planning Frame: %s", params.planning_frame.c_str());
 
-    ROS_INFO_NAMED(PI_LOGGER, "  Use Multiple IK Solutions: %s", params.use_multiple_ik_solutions ? "true" : "false");
-
-    ROS_INFO_NAMED(PI_LOGGER, "  Use BFS Heuristic: %s", params.use_bfs_heuristic ? "true" : "false");
     ROS_INFO_NAMED(PI_LOGGER, "  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
 
     ROS_INFO_NAMED(PI_LOGGER, "  Epsilon: %0.3f", params.epsilon);

@@ -120,8 +120,6 @@ protected:
 
     RobotPlanningSpace* env_;
 
-    bool readParameters(const PlanningParams& params);
-
     bool applyMotionPrimitive(
         const RobotState& state,
         const MotionPrimitive& mp,

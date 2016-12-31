@@ -76,7 +76,15 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(
         ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interface");
     }
 
-    readParameters(*pspace->params());
+    useMultipleIkSolutions(false);
+    useAmp(MotionPrimitive::SNAP_TO_XYZ, false);
+    useAmp(MotionPrimitive::SNAP_TO_RPY, false);
+    useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, false);
+    useAmp(MotionPrimitive::SHORT_DISTANCE, false);
+    ampThresh(MotionPrimitive::SNAP_TO_XYZ, 0.2);
+    ampThresh(MotionPrimitive::SNAP_TO_RPY, 0.2);
+    ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, 0.2);
+    ampThresh(MotionPrimitive::SHORT_DISTANCE, 0.2);
 }
 
 /// \brief Load motion primitives from file.
@@ -428,20 +436,6 @@ bool ManipLatticeActionSpace::getAction(
         ROS_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
         return false;
     }
-}
-
-bool ManipLatticeActionSpace::readParameters(const PlanningParams& p)
-{
-    useMultipleIkSolutions(p.use_multiple_ik_solutions);
-    useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ, p.use_xyz_snap_mprim);
-    useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY, p.use_rpy_snap_mprim);
-    useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY, p.use_xyzrpy_snap_mprim);
-    useAmp(sbpl::motion::MotionPrimitive::SHORT_DISTANCE, p.use_short_dist_mprims);
-    ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ, p.xyz_snap_thresh);
-    ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY, p.rpy_snap_thresh);
-    ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY, p.xyzrpy_snap_thresh);
-    ampThresh(sbpl::motion::MotionPrimitive::SHORT_DISTANCE, p.short_dist_mprims_thresh);
-    return true;
 }
 
 bool ManipLatticeActionSpace::applyMotionPrimitive(
