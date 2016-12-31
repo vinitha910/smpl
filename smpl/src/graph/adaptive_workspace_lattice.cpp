@@ -31,6 +31,15 @@
 
 #include <smpl/graph/adaptive_workspace_lattice.h>
 
+// system includes
+#include <boost/functional/hash.hpp>
+#include <leatherman/print.h>
+#include <sbpl/planners/planner.h>
+
+// project includes
+#include <smpl/angles.h>
+#include <smpl/debug/visualize.h>
+
 auto std::hash<sbpl::motion::AdaptiveGridState>::operator()(
     const argument_type& s) const -> result_type
 {
@@ -67,18 +76,19 @@ std::ostream& operator<<(std::ostream& o, const AdaptiveWorkspaceState& s)
 AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
     RobotModel* robot,
     CollisionChecker* checker,
-    PlanningParams* params,
+    const PlanningParams* params,
     OccupancyGrid* grid)
 :
     Extension(),
-    RobotPlanningSpace(robot, checker, params),
-    m_grid(grid),
-    m_states(),
-    m_dim_grid(),
+    WorkspaceLatticeBase(robot, checker, params, grid),
+    m_goal_state(nullptr),
+    m_goal_state_id(-1),
+    m_start_state(nullptr),
+    m_start_state_id(-1),
     m_hi_to_id(),
     m_lo_to_id(),
-    m_start_state_id(-1),
-    m_goal_state_id(-1)
+    m_states(),
+    m_dim_grid()
 {
     m_dim_grid.assign(
             m_grid->numCellsX(),
@@ -87,7 +97,8 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
             false);
 
     m_goal_state_id = reserveHashEntry(true);
-    ROS_DEBUG_NAMED(params()->graph_log, " goal state has state ID %d", m_goal_state_id);
+    m_goal_state = getHashEntry(m_goal_state_id);
+    ROS_DEBUG_NAMED(params->graph_log, " goal state has state ID %d", m_goal_state_id);
 }
 
 AdaptiveWorkspaceLattice::~AdaptiveWorkspaceLattice()
@@ -109,12 +120,54 @@ bool AdaptiveWorkspaceLattice::init(const Params& _params)
         return false;
     }
 
+    m_prims.clear();
+
+    MotionPrimitive prim;
+
+    // create 26-connected position motions
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0) {
+                    continue;
+                }
+
+                std::vector<double> d(m_dof_count, 0.0);
+                d[0] = resolution()[0] * dx;
+                d[1] = resolution()[1] * dy;
+                d[2] = resolution()[2] * dz;
+                prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+                prim.action.clear();
+                prim.action.push_back(std::move(d));
+
+                m_prims.push_back(prim);
+            }
+        }
+    }
+
+    // create 2-connected motions for rotation and free angle motions
+    for (int a = 3; a < dofCount(); ++a) {
+        std::vector<double> d(dofCount(), 0.0);
+
+        d[a] = resolution()[a] * -1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(d);
+        m_prims.push_back(prim);
+
+        d[a] = resolution()[a] * 1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(d);
+        m_prims.push_back(prim);
+    }
+
     return true;
 }
 
 bool AdaptiveWorkspaceLattice::initialized() const
 {
-    return false;
+    return WorkspaceLatticeBase::initialized() && m_goal_state;
 }
 
 bool AdaptiveWorkspaceLattice::projectToPoint(
@@ -132,6 +185,8 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
     AdaptiveState* state = m_states[state_id];
     if (state->hid) {
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
+        WorkspaceState state;
+        stateCoordToWorkspace(hi_state->coord, state);
     } else {
         AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
         pos.x() = lo_state->x;
@@ -152,6 +207,18 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
     return false;
 }
 
+bool AdaptiveWorkspaceLattice::isExecutable(
+    const std::vector<int>& states) const
+{
+    for (int state_id : states) {
+        AdaptiveState* state = getHashEntry(state_id);
+        if (!state->hid) {
+            return false;
+        }
+    }
+    return true;
+}
+
 int AdaptiveWorkspaceLattice::getStartStateID() const
 {
     return m_start_state_id;
@@ -166,7 +233,91 @@ bool AdaptiveWorkspaceLattice::extractPath(
     const std::vector<int>& ids,
     std::vector<RobotState>& path)
 {
-    return false;
+    path.clear();
+
+    if (ids.empty()) {
+        return true;
+    }
+
+    AdaptiveWorkspaceState* start_state = getHiHashEntry(ids[0]);
+    if (!start_state) {
+        ROS_ERROR_NAMED(params()->graph_log, "Start state is not high-dimensional");
+        return false;
+    }
+
+    path.push_back(start_state->state);
+
+    for (std::size_t i = 1; i < ids.size(); ++i) {
+        const int prev_id = ids[i - 1];
+        const int curr_id = ids[i];
+
+        if (prev_id == getGoalStateID()) {
+            ROS_ERROR_NAMED(params()->graph_log, "Cannot determine goal state successors during path extraction");
+            return false;
+        }
+
+        if (curr_id == getGoalStateID()) {
+            AdaptiveWorkspaceState* prev_state = getHiHashEntry(prev_id);
+            if (!prev_state) {
+                ROS_ERROR_NAMED(params()->graph_log, "Intermediate state is not high-dimensional");
+                return false;
+            }
+
+            std::vector<Action> actions;
+            getActions(*prev_state, actions);
+
+            AdaptiveWorkspaceState* best_goal_state = nullptr;
+            int best_cost = std::numeric_limits<int>::max();
+
+            for (std::size_t aidx = 0; aidx < actions.size(); ++aidx) {
+                const Action& action = actions[aidx];
+
+                const WorkspaceState& final_state = action.back();
+                if (!isGoal(final_state)) {
+                    continue;
+                }
+
+                double dist;
+                if (!checkAction(prev_state->state, action, dist)) {
+                    continue;
+                }
+
+                WorkspaceCoord goal_coord;
+                stateWorkspaceToCoord(final_state, goal_coord);
+
+                int goal_id = getHiHashEntry(goal_coord);
+                if (goal_id < 0) {
+                    ROS_WARN_NAMED(params()->graph_log, "Successor state for goal transition was not generated");
+                    continue;
+                }
+
+                AdaptiveWorkspaceState* goal_state = getHiHashEntry(goal_id);
+                if (!goal_state) {
+                    ROS_ERROR_NAMED(params()->graph_log, "Target goal state is not high-dimensional");
+                    return false;
+                }
+
+                best_cost = 30;
+                best_goal_state = goal_state;
+            }
+
+            if (!best_goal_state) {
+                ROS_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor during path extraction");
+                return false;
+            }
+
+            path.push_back(best_goal_state->state);
+        } else {
+            AdaptiveWorkspaceState* state = getHiHashEntry(curr_id);
+            if (!state) {
+                ROS_ERROR_NAMED(params()->graph_log, "Intermediate state is not high-dimensional");
+                return false;
+            }
+            path.push_back(state->state);
+        }
+    }
+
+    return true;
 }
 
 Extension* AdaptiveWorkspaceLattice::getExtension(size_t class_code)
@@ -186,12 +337,15 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<int>* costs)
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
+
+    ROS_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
+
     if (state_id == m_goal_state_id) {
         return;
     }
 
     AdaptiveState* state = m_states[state_id];
-    if (state_id->hid) {
+    if (state->hid) {
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         return GetSuccs(*hi_state, succs, costs);
     } else {
@@ -213,7 +367,27 @@ void AdaptiveWorkspaceLattice::PrintState(
     bool verbose,
     FILE* f)
 {
+    if (!f) {
+        f = stdout;
+    }
 
+    AdaptiveState* state = getHashEntry(state_id);
+    std::stringstream ss;
+    if (state->hid) {
+        AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
+        ss << *hi_state;
+    } else {
+        AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
+        ss << *lo_state;
+    }
+
+    if (f == stdout) {
+        ROS_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
+    } else if (f == stderr) {
+        ROS_WARN_NAMED(params()->graph_log, "%s", ss.str().c_str());
+    } else {
+        fprintf(f, "%s\n", ss.str().c_str());
+    }
 }
 
 void AdaptiveWorkspaceLattice::GetSuccs(
@@ -229,7 +403,59 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
+    SV_SHOW_INFO(getStateVisualization(state.state, "expansion"));
 
+    std::vector<Action> actions;
+    getActions(state, actions);
+
+    for (std::size_t i = 0; i < actions.size(); ++i) {
+        const Action& action = actions[i];
+
+        double dist;
+        RobotState final_rstate;
+        if (!checkAction(state.state, action, dist, &final_rstate)) {
+            continue;
+        }
+
+        const WorkspaceState& final_state = action.back();
+
+        // project state to 3d
+        int gx, gy, gz;
+        m_grid->worldToGrid(
+                final_state[0], final_state[1], final_state[2], gx, gy, gz);
+
+        if (!m_dim_grid.in_bounds(gx, gy, gz)) {
+            continue;
+        }
+
+        if (m_dim_grid(gx, gy, gz)) {
+            WorkspaceCoord succ_coord;
+            stateWorkspaceToCoord(final_state, succ_coord);
+            int succ_id = getHiHashEntry(succ_coord);
+            if (succ_id < 0) {
+                succ_id = createHiState(succ_coord, final_rstate);
+            }
+
+            const bool is_goal_succ = isGoal(final_state);
+            if (is_goal_succ) {
+                succs->push_back(m_goal_state_id);
+            } else {
+                succs->push_back(succ_id);
+            }
+            costs->push_back(30);
+        } else {
+            WorkspaceCoord succ_coord;
+            stateWorkspaceToCoord(final_state, succ_coord);
+            int succ_id = getLoHashEntry(succ_coord[0], succ_coord[1], succ_coord[2]);
+            if (succ_id < 0) {
+                succ_id = createLoState(
+                        succ_coord[0], succ_coord[1], succ_coord[2],
+                        final_state[0], final_state[1], final_state[2]);
+            }
+            succs->push_back(succ_id);
+            costs->push_back(30);
+        }
+    }
 }
 
 int AdaptiveWorkspaceLattice::reserveHashEntry(bool hid)
@@ -253,6 +479,182 @@ int AdaptiveWorkspaceLattice::reserveHashEntry(bool hid)
     StateID2IndexMapping.push_back(pinds);
 
     return state_id;
+}
+
+AdaptiveState* AdaptiveWorkspaceLattice::getHashEntry(int state_id) const
+{
+    assert(state_id >= 0 && state_id < m_states.size());
+    return m_states[state_id];
+}
+
+AdaptiveWorkspaceState* AdaptiveWorkspaceLattice::getHiHashEntry(
+    int state_id) const
+{
+    AdaptiveState* state = getHashEntry(state_id);
+    if (state->hid) {
+        return (AdaptiveWorkspaceState*)state;
+    }
+    return nullptr;
+}
+
+AdaptiveGridState* AdaptiveWorkspaceLattice::getLoHashEntry(
+    int state_id) const
+{
+    AdaptiveState* state = getHashEntry(state_id);
+    if (!state->hid) {
+        return (AdaptiveGridState*)state;
+    }
+    return nullptr;
+}
+
+int AdaptiveWorkspaceLattice::getHiHashEntry(
+    const WorkspaceCoord& coord)
+{
+    AdaptiveWorkspaceState state;
+    state.coord = coord;
+    auto sit = m_hi_to_id.find(&state);
+    if (sit == m_hi_to_id.end()) {
+        return -1;
+    }
+    return sit->second;
+}
+
+int AdaptiveWorkspaceLattice::getLoHashEntry(
+    int x,
+    int y,
+    int z)
+{
+    AdaptiveGridState state;
+    state.gx = x;
+    state.gy = y;
+    state.gz = z;
+    auto sit = m_lo_to_id.find(&state);
+    if (sit == m_lo_to_id.end()) {
+        return -1;
+    }
+    return sit->second;
+}
+
+int AdaptiveWorkspaceLattice::createHiState(
+    const WorkspaceCoord& coord,
+    const RobotState& state)
+{
+    int state_id = reserveHashEntry(true);
+    AdaptiveWorkspaceState* hi_state = getHiHashEntry(state_id);
+    hi_state->coord = coord;
+    hi_state->state = state;
+    m_hi_to_id[hi_state] = state_id;
+    return state_id;
+}
+
+int AdaptiveWorkspaceLattice::createLoState(
+    int x, int y, int z,
+    double wx, double wy, double wz)
+{
+    int state_id = reserveHashEntry(false);
+    AdaptiveGridState* lo_state = getLoHashEntry(state_id);
+    lo_state->gx = x;
+    lo_state->gy = y;
+    lo_state->gz = z;
+    lo_state->x = wx;
+    lo_state->y = wy;
+    lo_state->z = wz;
+    return state_id;
+}
+
+void AdaptiveWorkspaceLattice::getActions(
+    const AdaptiveWorkspaceState& state,
+    std::vector<Action>& actions)
+{
+    actions.clear();
+    actions.reserve(m_prims.size());
+
+    WorkspaceState cont_state;
+    stateCoordToWorkspace(state.coord, cont_state);
+
+    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "Create actions for state: " << cont_state);
+
+    for (std::size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
+        const auto& prim = m_prims[pidx];
+        Action action;
+        action.reserve(prim.action.size());
+
+        WorkspaceState final_state = cont_state;
+        for (const RobotState& delta_state : prim.action) {
+            for (int d = 0; d < dofCount(); ++d) {
+                final_state[d] += delta_state[d];
+            }
+
+            action.push_back(final_state);
+        }
+
+        actions.push_back(std::move(action));
+    }
+}
+
+bool AdaptiveWorkspaceLattice::checkAction(
+    const RobotState& state,
+    const Action& action,
+    double& dist,
+    RobotState* final_rstate)
+{
+    std::vector<RobotState> wptraj;
+    wptraj.reserve(action.size());
+
+    for (size_t widx = 0; widx < action.size(); ++widx) {
+        const WorkspaceState& istate = action[widx];
+
+        RobotState irstate;
+        if (!stateWorkspaceToRobot(istate, state, irstate)) {
+            return false;
+        }
+
+        wptraj.push_back(irstate);
+
+        if (!robot()->checkJointLimits(irstate)) {
+            return false;
+        }
+    }
+
+    int plen = 0;
+    int nchecks = 0;
+    if (!collisionChecker()->isStateToStateValid(state, wptraj[0], plen, nchecks, dist)) {
+        return false;
+    }
+
+    for (size_t widx = 1; widx < wptraj.size(); ++widx) {
+        const RobotState& prev_istate = wptraj[widx - 1];
+        const RobotState& curr_istate = wptraj[widx];
+        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate, plen, nchecks, dist)) {
+            return false;
+        }
+    }
+
+    if (final_rstate) {
+        *final_rstate = wptraj.back();
+    }
+    return true;
+}
+
+bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
+{
+    return std::fabs(state[0] - goal().pose[0]) <= goal().xyz_tolerance[0] &&
+            std::fabs(state[1] - goal().pose[1]) <= goal().xyz_tolerance[1] &&
+            std::fabs(state[2] - goal().pose[2]) <= goal().xyz_tolerance[2] &&
+            angles::shortest_angle_dist(state[3], goal().pose[3]) <= goal().rpy_tolerance[0] &&
+            angles::shortest_angle_dist(state[4], goal().pose[4]) <= goal().rpy_tolerance[1] &&
+            angles::shortest_angle_dist(state[5], goal().pose[5]) <= goal().rpy_tolerance[2];
+}
+
+visualization_msgs::MarkerArray AdaptiveWorkspaceLattice::getStateVisualization(
+    const RobotState& state,
+    const std::string& ns)
+{
+    auto ma = collisionChecker()->getCollisionModelVisualization(state);
+    for (auto& marker : ma.markers) {
+        marker.ns = ns;
+    }
+    return ma;
 }
 
 } // namespace motion

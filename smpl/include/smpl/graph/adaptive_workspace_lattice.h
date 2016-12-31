@@ -41,7 +41,9 @@
 // project includes
 #include <smpl/grid.h>
 #include <smpl/types.h>
-#include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/adaptive_graph_extension.h>
+#include <smpl/graph/motion_primitive.h>
+#include <smpl/graph/workspace_lattice_base.h>
 
 namespace sbpl {
 namespace motion {
@@ -110,28 +112,16 @@ namespace sbpl {
 namespace motion {
 
 class AdaptiveWorkspaceLattice :
-    public RobotPlanningSpace,
+    public WorkspaceLatticeBase,
     public AdaptiveGraphExtension,
     public PointProjectionExtension
 {
 public:
 
-    /// WorkspaceLattice-specific parameters
-    struct Params
-    {
-        // NOTE: (x, y, z) resolutions defined by the input occupancy grid
-
-        int R_count;
-        int P_count;
-        int Y_count;
-
-        std::vector<double> free_angle_res;
-    };
-
     AdaptiveWorkspaceLattice(
         RobotModel* robot,
         CollisionChecker* checker,
-        PlanningParams* params,
+        const PlanningParams* params,
         OccupancyGrid* grid);
 
     ~AdaptiveWorkspaceLattice();
@@ -151,6 +141,7 @@ public:
     ///@{
     bool addFullDimRegion(int state_id) override;
     bool setTunnel(const std::vector<int>& states) override;
+    bool isExecutable(const std::vector<int>& states) const override;
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpcae
@@ -165,7 +156,7 @@ public:
 
     /// \name Required Public Functions from Extension
     ///@{
-    virtual Extension* getExtension(size_t class_code) override;
+    Extension* getExtension(size_t class_code) override;
     ///@}
 
     /// \name required Public Functions from DiscreteSpaceInformation
@@ -185,9 +176,11 @@ public:
 
 private:
 
-    std::vector<AdaptiveState*> m_states;
+    AdaptiveState* m_goal_state;
+    int m_goal_state_id;
 
-    Grid3<bool> m_dim_grid;
+    AdaptiveState* m_start_state;
+    int m_start_state_id;
 
     typedef AdaptiveWorkspaceState HiStateKey;
     typedef PointerValueHash<HiStateKey> HiStateHash;
@@ -199,8 +192,11 @@ private:
     hash_map<HiStateKey*, int, HiStateHash, HiStateEqual> m_hi_to_id;
     hash_map<LoStateKey*, int, LoStateHash, LoStateEqual> m_lo_to_id;
 
-    int m_start_state_id;
-    int m_goal_state_id;
+    std::vector<AdaptiveState*> m_states;
+
+    std::vector<MotionPrimitive> m_prims;
+
+    Grid3<bool> m_dim_grid;
 
     void GetSuccs(
         const AdaptiveGridState& state,
@@ -213,6 +209,32 @@ private:
         std::vector<int>* costs);
 
     int reserveHashEntry(bool hid);
+
+    AdaptiveState* getHashEntry(int state_id) const;
+    AdaptiveWorkspaceState* getHiHashEntry(int state_id) const;
+    AdaptiveGridState* getLoHashEntry(int state_id) const;
+
+    int getHiHashEntry(const WorkspaceCoord& coord);
+    int getLoHashEntry(int x, int y, int z);
+
+    int createHiState(const WorkspaceCoord& coord, const RobotState& state);
+    int createLoState(int x, int y, int z, double wx, double wy, double wz);
+
+    void getActions(
+        const AdaptiveWorkspaceState& state,
+        std::vector<Action>& actions);
+
+    bool checkAction(
+        const RobotState& state,
+        const Action& action,
+        double& dist,
+        RobotState* final_rstate = nullptr);
+
+    bool isGoal(const WorkspaceState& state) const;
+
+    visualization_msgs::MarkerArray getStateVisualization(
+        const RobotState& state,
+        const std::string& ns);
 };
 
 } // namespace motion

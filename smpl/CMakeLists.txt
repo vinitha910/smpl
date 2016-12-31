@@ -64,6 +64,7 @@ add_library(
     src/geometry/mesh_utils.cpp
     src/geometry/voxelize.cpp
     src/graph/action_space.cpp
+    src/graph/adaptive_workspace_lattice.cpp
     src/graph/experience_graph.cpp
     src/graph/manip_lattice.cpp
     src/graph/manip_lattice_egraph.cpp
