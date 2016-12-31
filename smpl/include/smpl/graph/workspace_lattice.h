@@ -34,6 +34,7 @@
 #define sbpl_manip_workspace_lattice_h
 
 // standard includes
+#include <chrono>
 #include <vector>
 
 // system includes
@@ -104,52 +105,52 @@ public:
     WorkspaceLattice(
         RobotModel* robot,
         CollisionChecker* checker,
-        PlanningParams* params,
+        const PlanningParams* params,
         OccupancyGrid* grid);
 
     ~WorkspaceLattice();
 
+    /// \name Reimplemented Public Functions from WorkspaceLatticeBase
+    ///@{
     bool init(const Params& params) override;
     bool initialized() const override;
-
-    // TODO: add path extraction function that returns path in workspace rep
+    ///@}
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
-    virtual int GetGoalHeuristic(int state_id) override;
+    int GetGoalHeuristic(int state_id) override;
+    bool setStart(const RobotState& state) override;
+    bool setGoal(const GoalConstraint& goal) override;
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpace
     ///@{
-    bool setStart(const RobotState& state);
-    bool setGoal(const GoalConstraint& goal);
-
-    int getStartStateID() const;
-    int getGoalStateID() const;
+    int getStartStateID() const override;
+    int getGoalStateID() const override;
 
     bool extractPath(
         const std::vector<int>& ids,
-        std::vector<RobotState>& path);
+        std::vector<RobotState>& path) override;
     ///@}
 
     /// \name Required Public Functions from Extension
     ///@{
-    virtual Extension* getExtension(size_t class_code);
+    Extension* getExtension(size_t class_code) override;
     ///@}
 
     /// \name Required Public Functions from DiscreteSpaceInformation
     ///@{
-    virtual void GetSuccs(
+    void GetSuccs(
         int state_id,
         std::vector<int>* succs,
         std::vector<int>* costs) override;
 
-    virtual void GetPreds(
+    void GetPreds(
         int state_id,
         std::vector<int>* preds,
         std::vector<int>* costs) override;
 
-    virtual void PrintState(
+    void PrintState(
         int state_id,
         bool verbose,
         FILE* fout = nullptr) override;
@@ -172,22 +173,12 @@ private:
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;
 
-    clock_t m_t_start;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_t_start;
     bool m_near_goal;
 
     int m_goal_coord[6];
 
-    /// \name State Space Configuration
-    ///@{
-
-    ///@}
-
-    /// \name Action Space Configuration
-    ///@{
-
     std::vector<MotionPrimitive> m_prims;
-
-    ///@}
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);

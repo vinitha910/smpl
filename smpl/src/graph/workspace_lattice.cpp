@@ -71,15 +71,19 @@ bool all_equal(InputIt first, InputIt last, typename std::iterator_traits<InputI
 WorkspaceLattice::WorkspaceLattice(
     RobotModel* robot,
     CollisionChecker* checker,
-    PlanningParams* params,
+    const PlanningParams* params,
     OccupancyGrid* grid)
 :
     WorkspaceLatticeBase(robot, checker, params, grid),
     m_goal_entry(nullptr),
+    m_goal_state_id(-1),
     m_start_entry(nullptr),
+    m_start_state_id(-1),
     m_state_to_id(),
     m_states(),
-    m_near_goal(false)
+    m_t_start(),
+    m_near_goal(false),
+    m_goal_coord()
 {
 }
 
@@ -225,12 +229,11 @@ bool WorkspaceLattice::extractPath(
     const std::vector<int>& ids,
     std::vector<RobotState>& path)
 {
+    path.clear();
+
     if (ids.empty()) {
-        path.clear();
         return true;
     }
-
-    path.clear();
 
     WorkspaceLatticeState* start_entry = getState(ids[0]);
     path.push_back(start_entry->state);
@@ -485,7 +488,7 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     rotWorkspaceToCoord(&goal.tgt_off_pose[3], &m_goal_coord[3]);
 
     m_near_goal = false;
-    m_t_start = clock();
+    m_t_start = std::chrono::high_resolution_clock::now();
 
     return RobotPlanningSpace::setGoal(goal);
 }
@@ -544,7 +547,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state)
     {
         // log the amount of time required for the search to get close to the goal
         if (!m_near_goal) {
-            double time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
+            auto now = std::chrono::high_resolution_clock::now();
+            double time_to_goal_region =
+                    std::chrono::duration<double>(now - m_t_start).count();
             m_near_goal = true;
             ROS_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
         }
@@ -576,9 +581,6 @@ void WorkspaceLattice::getActions(
 {
     actions.clear();
     actions.reserve(m_prims.size());
-
-    const double short_dist_mprims_thresh = 0.0;
-    const bool use_multi_res_prims = false;
 
     WorkspaceState cont_state;
     stateCoordToWorkspace(entry.coord, cont_state);
