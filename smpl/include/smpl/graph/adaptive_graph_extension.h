@@ -29,6 +29,9 @@
 
 /// \author Andrew Dornbush
 
+#ifndef SMPL_ADAPTIVE_GRAPH_EXTENSION_H
+#define SMPL_ADAPTIVE_GRAPH_EXTENSION_H
+
 // standard includes
 #include <vector>
 
@@ -49,3 +52,5 @@ public:
 
 } // namespace motion
 } // namespace sbpl
+
+#endif

@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_UTILS_UTILS_H
-#define SBPL_UTILS_UTILS_H
+#ifndef SMPL_UTILS_H
+#define SMPL_UTILS_H
 
 namespace sbpl {
 namespace utils {

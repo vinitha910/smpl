@@ -30,8 +30,8 @@
 /// \author Harsh Pandey
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_bfs3d_h
-#define sbpl_manip_bfs3d_h
+#ifndef SMPL_BFS3D_H
+#define SMPL_BFS3D_H
 
 #include <stdio.h>
 #include <queue>

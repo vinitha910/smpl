@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_DISCRETIZE_H
-#define SBPL_GEOMETRY_DISCRETIZE_H
+#ifndef SMPL_DISCRETIZE_H
+#define SMPL_DISCRETIZE_H
 
 #include <cmath>
 

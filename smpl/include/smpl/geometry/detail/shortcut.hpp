@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_SHORTCUT_SHORTCUT_HPP
-#define SBPL_SHORTCUT_SHORTCUT_HPP
+#ifndef SMPL_SHORTCUT_HPP
+#define SMPL_SHORTCUT_HPP
 
 #include <smpl/geometry/shortcut.h>
 

@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_action_set_h
-#define sbpl_manip_action_set_h
+#ifndef SMPL_MANIP_LATTICE_ACTION_SPACE_H
+#define SMPL_MANIP_LATTICE_ACTION_SPACE_H
 
 // standard includes
 #include <iostream>

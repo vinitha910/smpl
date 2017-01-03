@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_post_processing_h
-#define sbpl_manip_post_processing_h
+#ifndef SMPL_POST_PROCESSING_H
+#define SMPL_POST_PROCESSING_H
 
 // standard includes
 #include <vector>

@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_MESH_UTILS_HPP
-#define SBPL_GEOMETRY_MESH_UTILS_HPP
+#ifndef SMPL_MESH_UTILS_HPP
+#define SMPL_MESH_UTILS_HPP
 
 #include "../mesh_utils.h"
 

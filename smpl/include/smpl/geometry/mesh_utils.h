@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_MESH_UTILS_H
-#define SBPL_GEOMETRY_MESH_UTILS_H
+#ifndef SMPL_MESH_UTILS_H
+#define SMPL_MESH_UTILS_H
 
 // standard includes
 #include <vector>

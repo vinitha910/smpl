@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_euclid_dist_heuristic_h
-#define sbpl_manip_euclid_dist_heuristic_h
+#ifndef SMPL_EUCLID_DIST_HEURISTIC_H
+#define SMPL_EUCLID_DIST_HEURISTIC_H
 
 // project includes
 #include <smpl/heuristic/robot_heuristic.h>

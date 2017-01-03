@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_SHORTCUT_SHORTCUT_H
-#define SBPL_SHORTCUT_SHORTCUT_H
+#ifndef SMPL_SHORTCUT_H
+#define SMPL_SHORTCUT_H
 
 #include <functional>
 #include <iterator>

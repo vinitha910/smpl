@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_extension_h
-#define sbpl_manip_extension_h
+#ifndef SMPL_EXTENSION_H
+#define SMPL_EXTENSION_H
 
 #include <typeinfo>
 

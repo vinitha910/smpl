@@ -29,6 +29,10 @@
 
 /// \author Andrew Dornbush
 
+#ifndef SMPL_ADAPTIVE_PLANNER_H
+#define SMPL_ADAPTIVE_PLANNER_H
+
+// system includes
 #include <sbpl/planners/planner.h>
 
 namespace sbpl {
@@ -85,3 +89,5 @@ private:
 
 } // namespace motion
 } // namespace sbpl
+
+#endif

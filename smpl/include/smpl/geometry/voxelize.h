@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_VOXELIZE_H
-#define SBPL_GEOMETRY_VOXELIZE_H
+#ifndef SMPL_VOXELIZE_H
+#define SMPL_VOXELIZE_H
 
 // standard includes
 #include <vector>

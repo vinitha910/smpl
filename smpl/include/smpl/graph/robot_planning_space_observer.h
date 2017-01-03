@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_robot_planning_space_observer_h
-#define sbpl_manip_robot_planning_space_observer_h
+#ifndef SMPL_ROBOT_PLANNING_SPACE_OBSERVER_H
+#define SMPL_ROBOT_PLANNING_SPACE_OBSERVER_H
 
 // project includes
 #include <smpl/types.h>

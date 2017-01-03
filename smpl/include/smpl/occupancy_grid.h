@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_occupancy_grid_h
-#define sbpl_occupancy_grid_h
+#ifndef SMPL_OCCUPANCY_GRID_H
+#define SMPL_OCCUPANCY_GRID_H
 
 // standard includes
 #include <cmath>

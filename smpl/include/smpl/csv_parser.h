@@ -29,6 +29,9 @@
 
 /// \author Andrew Dornbush
 
+#ifndef SMPL_CSV_PARSER_H
+#define SMPL_CSV_PARSER_H
+
 #include <stdio.h>
 #include <istream>
 #include <string>
@@ -121,3 +124,5 @@ private:
 };
 
 } // namespace sbpl
+
+#endif

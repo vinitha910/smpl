@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_BOUNDING_SPHERES_H
-#define SBPL_GEOMETRY_BOUNDING_SPHERES_H
+#ifndef SMPL_BOUNDING_SPHERES_H
+#define SMPL_BOUNDING_SPHERES_H
 
 // standard includes
 #include <vector>

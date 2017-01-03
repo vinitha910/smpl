@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_types_h
-#define sbpl_manip_types_h
+#ifndef SMPL_TYPES_H
+#define SMPL_TYPES_H
 
 // standard includes
 #include <functional>

@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_multi_frame_bfs_heuristic_h
-#define sbpl_manip_multi_frame_bfs_heuristic_h
+#ifndef SMPL_MULTI_FRAME_BFS_HEURISTIC_H
+#define SMPL_MULTI_FRAME_BFS_HEURISTIC_H
 
 // standard includes
 #include <memory>

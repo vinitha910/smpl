@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_VOXEL_GRID_H
-#define SBPL_GEOMETRY_VOXEL_GRID_H
+#ifndef SMPL_VOXEL_GRID_H
+#define SMPL_VOXEL_GRID_H
 
 // standard includes
 #include <vector>

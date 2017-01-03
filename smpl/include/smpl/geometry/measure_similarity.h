@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_STATS_MEASURE_SIMILARITY_H
-#define SBPL_STATS_MEASURE_SIMILARITY_H
+#ifndef SMPL_MEASURE_SIMILARITY_H
+#define SMPL_MEASURE_SIMILARITY_H
 
 namespace sbpl {
 namespace stats {

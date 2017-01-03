@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_angles_h
-#define sbpl_manip_angles_h
+#ifndef SMPL_ANGLES_H
+#define SMPL_ANGLES_H
 
 // standard includes
 #include <cmath>

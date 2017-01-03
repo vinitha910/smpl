@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_collision_checker_h
-#define sbpl_manip_collision_checker_h
+#ifndef SMPL_COLLISION_CHECKER_H
+#define SMPL_COLLISION_CHECKER_H
 
 // standard includes
 #include <string>

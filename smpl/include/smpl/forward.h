@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_forward_h
-#define sbpl_manip_forward_h
+#ifndef SMPL_FORWARD_H
+#define SMPL_FORWARD_H
 
 #include <memory>
 

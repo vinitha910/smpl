@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_action_space_h
-#define sbpl_manip_action_space_h
+#ifndef SMPL_ACTION_SPACE_H
+#define SMPL_ACTION_SPACE_H
 
 #include <smpl/forward.h>
 #include <smpl/graph/robot_planning_space_observer.h>

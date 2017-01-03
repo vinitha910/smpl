@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_planning_params_h
-#define sbpl_manip_planning_params_h
+#ifndef SMPL_PLANNING_PARAMS_H
+#define SMPL_PLANNING_PARAMS_H
 
 // standard includes
 #include <iostream>

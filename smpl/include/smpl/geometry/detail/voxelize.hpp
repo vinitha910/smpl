@@ -27,8 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef SBPL_GEOMETRY_VOXELIZE_HPP
-#define SBPL_GEOMETRY_VOXELIZE_HPP
+#ifndef SMPL_VOXELIZE_HPP
+#define SMPL_VOXELIZE_HPP
 
 #include <smpl/geometry/utils.h>
 

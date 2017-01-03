@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_soft_bfs_heuristic_h
-#define sbpl_manip_soft_bfs_heuristic_h
+#ifndef SMPL_SOFT_BFS_HEURISTIC_H
+#define SMPL_SOFT_BFS_HEURISTIC_H
 
 // system includes
 #include <sbpl/heuristics/heuristic.h>

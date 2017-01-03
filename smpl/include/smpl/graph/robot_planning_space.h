@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_robot_planning_space_h
-#define sbpl_manip_robot_planning_space_h
+#ifndef SMPL_ROBOT_PLANNING_SPACE_H
+#define SMPL_ROBOT_PLANNING_SPACE_H
 
 // standard includes
 #include <vector>

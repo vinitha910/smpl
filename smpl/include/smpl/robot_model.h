@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_robot_model_h
-#define sbpl_manip_robot_model_h
+#ifndef SMPL_ROBOT_MODEL_H
+#define SMPL_ROBOT_MODEL_H
 
 // standard includes
 #include <ostream>

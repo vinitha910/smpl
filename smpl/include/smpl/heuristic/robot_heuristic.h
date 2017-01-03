@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_robot_heuristic_h
-#define sbpl_manip_robot_heuristic_h
+#ifndef SMPL_ROBOT_HEURISTIC_H
+#define SMPL_ROBOT_HEURISTIC_H
 
 // standard includes
 #include <stdint.h>

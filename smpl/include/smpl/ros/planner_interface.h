@@ -29,8 +29,8 @@
 
 /// \author Benjamin Cohen
 
-#ifndef sbpl_manip_planner_interface_h
-#define sbpl_manip_planner_interface_h
+#ifndef SMPL_PLANNER_INTERFACE_H
+#define SMPL_PLANNER_INTERFACE_H
 
 // standard includes
 #include <chrono>

@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_workspace_lattice_h
-#define sbpl_manip_workspace_lattice_h
+#ifndef SMPL_WORKSPACE_LATTICE_H
+#define SMPL_WORKSPACE_LATTICE_H
 
 // standard includes
 #include <chrono>

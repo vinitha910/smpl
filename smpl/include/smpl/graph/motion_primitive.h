@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_motion_primitive_h
-#define sbpl_manip_motion_primitive_h
+#ifndef SMPL_MOTION_PRIMITIVE_H
+#define SMPL_MOTION_PRIMITIVE_H
 
 // standard includes
 #include <vector>
