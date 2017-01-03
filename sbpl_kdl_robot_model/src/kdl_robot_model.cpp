@@ -382,7 +382,6 @@ bool KDLRobotModel::computeFK(
 //        }
 //
 //        f = T_kinematics_to_planning_ * f1;
-//        leatherman::printKDLFrame(f,iter->first);
 //    }
 
     return true;

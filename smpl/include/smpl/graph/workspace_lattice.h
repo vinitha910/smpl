@@ -113,7 +113,6 @@ public:
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
     bool init(const Params& params) override;
-    bool initialized() const override;
     ///@}
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
@@ -179,6 +178,8 @@ private:
     int m_goal_coord[6];
 
     std::vector<MotionPrimitive> m_prims;
+
+    bool initMotionPrimitives();
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);

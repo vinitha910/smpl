@@ -85,6 +85,12 @@ WorkspaceLattice::WorkspaceLattice(
     m_near_goal(false),
     m_goal_coord()
 {
+    // this should serve as a reasonable dummy state since no valid state should
+    // have an empty coordinate vector
+    WorkspaceCoord fake_coord;
+    m_goal_state_id = createState(fake_coord);
+    m_goal_entry = getState(m_goal_state_id);
+    ROS_DEBUG_NAMED(params->graph_log, "  goal state has id %d", m_goal_state_id);
 }
 
 WorkspaceLattice::~WorkspaceLattice()
@@ -105,64 +111,12 @@ bool WorkspaceLattice::init(const Params& _params)
     }
 
     ROS_DEBUG_NAMED(params()->graph_log, "initialize environment");
-    m_start_entry = nullptr;
 
-    // this should serve as a reasonable dummy state since no valid state should
-    // have an empty coordinate vector
-    WorkspaceCoord fake_coord;
-    m_goal_state_id = createState(fake_coord);
-    m_goal_entry = getState(m_goal_state_id);
-    ROS_DEBUG_NAMED(params()->graph_log, "  goal state has id %d", m_goal_state_id);
-
-    m_prims.clear();
-
-    MotionPrimitive prim;
-
-    // create 26-connected position motions
-    for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                if (dx == 0 && dy == 0 && dz == 0) {
-                    continue;
-                }
-
-                std::vector<double> d(m_dof_count, 0.0);
-                d[0] = m_res[0] * dx;
-                d[1] = m_res[1] * dy;
-                d[2] = m_res[2] * dz;
-                prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-                prim.action.clear();
-                prim.action.push_back(std::move(d));
-
-                m_prims.push_back(prim);
-            }
-        }
-    }
-
-    // create 2-connected motions for rotation and free angle motions
-    for (int a = 3; a < m_dof_count; ++a) {
-        std::vector<double> d(m_dof_count, 0.0);
-
-        d[a] = m_res[a] * -1;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-        prim.action.clear();
-        prim.action.push_back(d);
-        m_prims.push_back(prim);
-
-        d[a] = m_res[a] * 1;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-        prim.action.clear();
-        prim.action.push_back(d);
-        m_prims.push_back(prim);
+    if (!initMotionPrimitives()) {
+        return false;
     }
 
     return true;
-}
-
-bool WorkspaceLattice::initialized() const
-{
-    // sufficient for the moment
-    return WorkspaceLatticeBase::initialized() && m_goal_entry;
 }
 
 bool WorkspaceLattice::setStart(const RobotState& state)
@@ -454,6 +408,53 @@ void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
     } else {
         fprintf(fout, "%s\n", ss.str().c_str());
     }
+}
+
+bool WorkspaceLattice::initMotionPrimitives()
+{
+    m_prims.clear();
+
+    MotionPrimitive prim;
+
+    // create 26-connected position motions
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0) {
+                    continue;
+                }
+
+                std::vector<double> d(m_dof_count, 0.0);
+                d[0] = m_res[0] * dx;
+                d[1] = m_res[1] * dy;
+                d[2] = m_res[2] * dz;
+                prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+                prim.action.clear();
+                prim.action.push_back(std::move(d));
+
+                m_prims.push_back(prim);
+            }
+        }
+    }
+
+    // create 2-connected motions for rotation and free angle motions
+    for (int a = 3; a < m_dof_count; ++a) {
+        std::vector<double> d(m_dof_count, 0.0);
+
+        d[a] = m_res[a] * -1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(d);
+        m_prims.push_back(prim);
+
+        d[a] = m_res[a] * 1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(d);
+        m_prims.push_back(prim);
+    }
+
+    return true;
 }
 
 bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
