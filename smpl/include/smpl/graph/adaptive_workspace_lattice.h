@@ -48,6 +48,7 @@
 namespace sbpl {
 namespace motion {
 
+/// Base class for adaptive states. Denotes whether a state is high dimensional.
 struct AdaptiveState
 {
     bool hid;
@@ -64,6 +65,7 @@ struct AdaptiveGridState : public AdaptiveState
 };
 
 std::ostream& operator<<(std::ostream& o, const AdaptiveGridState& s);
+
 inline
 bool operator==(const AdaptiveGridState& a, const AdaptiveGridState& b)
 {
@@ -77,6 +79,7 @@ struct AdaptiveWorkspaceState : public AdaptiveState
 };
 
 std::ostream& operator<<(std::ostream& o, const AdaptiveWorkspaceState& s);
+
 inline
 bool operator==(
     const AdaptiveWorkspaceState& a,
@@ -88,6 +91,7 @@ bool operator==(
 } // namespace motion
 } // namespace sbpl
 
+// std::hash specializations for state types
 namespace std {
 
 template <>
@@ -129,7 +133,6 @@ public:
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
     bool init(const Params& _params) override;
-    bool initialized() const override;
     ///@}
 
     /// \name Required Public Functions from PointProjectionExtension
@@ -194,9 +197,25 @@ private:
 
     std::vector<AdaptiveState*> m_states;
 
-    std::vector<MotionPrimitive> m_prims;
+    std::vector<Eigen::Vector3d> m_lo_prims;
+    std::vector<MotionPrimitive> m_hi_prims;
 
-    Grid3<bool> m_dim_grid;
+    int m_region_radius;
+    int m_tunnel_radius;
+
+    struct AdaptiveGridCell
+    {
+        int grow_count;
+        bool hid; //planning_hd;
+        bool tracking_hd;
+
+        AdaptiveGridCell() : grow_count(0), hid(false), tracking_hd(false) { }
+
+        operator bool() { return hid; }
+    };
+    Grid3<AdaptiveGridCell> m_dim_grid;
+
+    bool initMotionPrimitives();
 
     void GetSuccs(
         const AdaptiveGridState& state,

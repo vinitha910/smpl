@@ -94,7 +94,7 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
             m_grid->numCellsX(),
             m_grid->numCellsY(),
             m_grid->numCellsZ(),
-            false);
+            AdaptiveGridCell());
 
     m_goal_state_id = reserveHashEntry(true);
     m_goal_state = getHashEntry(m_goal_state_id);
@@ -120,54 +120,11 @@ bool AdaptiveWorkspaceLattice::init(const Params& _params)
         return false;
     }
 
-    m_prims.clear();
-
-    MotionPrimitive prim;
-
-    // create 26-connected position motions
-    for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                if (dx == 0 && dy == 0 && dz == 0) {
-                    continue;
-                }
-
-                std::vector<double> d(m_dof_count, 0.0);
-                d[0] = resolution()[0] * dx;
-                d[1] = resolution()[1] * dy;
-                d[2] = resolution()[2] * dz;
-                prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-                prim.action.clear();
-                prim.action.push_back(std::move(d));
-
-                m_prims.push_back(prim);
-            }
-        }
-    }
-
-    // create 2-connected motions for rotation and free angle motions
-    for (int a = 3; a < dofCount(); ++a) {
-        std::vector<double> d(dofCount(), 0.0);
-
-        d[a] = resolution()[a] * -1;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-        prim.action.clear();
-        prim.action.push_back(d);
-        m_prims.push_back(prim);
-
-        d[a] = resolution()[a] * 1;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-        prim.action.clear();
-        prim.action.push_back(d);
-        m_prims.push_back(prim);
+    if (!initMotionPrimitives()) {
+        return false;
     }
 
     return true;
-}
-
-bool AdaptiveWorkspaceLattice::initialized() const
-{
-    return WorkspaceLatticeBase::initialized() && m_goal_state;
 }
 
 bool AdaptiveWorkspaceLattice::projectToPoint(
@@ -187,6 +144,9 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         WorkspaceState state;
         stateCoordToWorkspace(hi_state->coord, state);
+        pos.x() = state[0];
+        pos.y() = state[1];
+        pos.z() = state[2];
     } else {
         AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
         pos.x() = lo_state->x;
@@ -199,12 +159,71 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
 
 bool AdaptiveWorkspaceLattice::addFullDimRegion(int state_id)
 {
-    return false;
+    int px = 0, py = 0, pz = 0;
+
+    AdaptiveState* state = m_states[state_id];
+    if (state->hid) {
+        AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
+        px = hi_state->coord[0];
+        py = hi_state->coord[1];
+        pz = hi_state->coord[2];
+    } else {
+        // add/grow hd region around ld state
+        AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
+        px = lo_state->gx;
+        py = lo_state->gy;
+        pz = lo_state->gz;
+    }
+
+    if (!m_dim_grid.in_bounds(px, py, pz)) {
+        return false;
+    }
+
+    ++m_dim_grid(px, py, pz).grow_count;
+    const int radius = m_region_radius * m_dim_grid(px, py, pz).grow_count;
+
+    // TODO: mark cells as in high-dimensional region
+
+    return true;
 }
 
 bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
 {
-    return false;
+    // clear the tunnel grid
+    // TODO: retain the list of points in the tunnel and clear only those points
+    for (auto it = m_dim_grid.begin(); it != m_dim_grid.end(); ++it) {
+        it->tracking_hd = false;
+    }
+
+    std::vector<Eigen::Vector3i> tunnel;
+    for (int state_id : states) {
+        int px, py, pz;
+
+        AdaptiveState* state = m_states[state_id];
+        if (state->hid) {
+            AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
+            px = hi_state->coord[0];
+            py = hi_state->coord[1];
+            pz = hi_state->coord[2];
+        } else {
+            AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
+            px = lo_state->gx;
+            py = lo_state->gy;
+            pz = lo_state->gz;
+        }
+
+        if (!m_dim_grid.in_bounds(px, py, pz)) {
+            ROS_ERROR_NAMED(params()->graph_log, "Failed to create tunnel. State (%d, %d, %d) out of bounds", px, py, pz);
+            return false;
+        }
+
+        tunnel.emplace_back(px, py, pz);
+    }
+
+    // TODO: dijkstra/breadth-first search out from tunnel to fill states at
+    // tunnel-width away
+
+    return true;
 }
 
 bool AdaptiveWorkspaceLattice::isExecutable(
@@ -359,7 +378,7 @@ void AdaptiveWorkspaceLattice::GetPreds(
     std::vector<int>* preds,
     std::vector<int>* costs)
 {
-
+    // TODO: implement
 }
 
 void AdaptiveWorkspaceLattice::PrintState(
@@ -390,12 +409,118 @@ void AdaptiveWorkspaceLattice::PrintState(
     }
 }
 
+bool AdaptiveWorkspaceLattice::initMotionPrimitives()
+{
+    // TODO: Factor out copy-pasta from WorkspaceLattice?
+    m_hi_prims.clear();
+
+    MotionPrimitive prim;
+
+    // create 26-connected position motions
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0) {
+                    continue;
+                }
+
+                std::vector<double> d(m_dof_count, 0.0);
+                d[0] = m_res[0] * dx;
+                d[1] = m_res[1] * dy;
+                d[2] = m_res[2] * dz;
+                prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+                prim.action.clear();
+                prim.action.push_back(std::move(d));
+
+                m_hi_prims.push_back(prim);
+            }
+        }
+    }
+
+    // create 2-connected motions for rotation and free angle motions
+    for (int a = 3; a < m_dof_count; ++a) {
+        std::vector<double> d(m_dof_count, 0.0);
+
+        d[a] = m_res[a] * -1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(d);
+        m_hi_prims.push_back(prim);
+
+        d[a] = m_res[a] * 1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(d);
+        m_hi_prims.push_back(prim);
+    }
+
+    // create 26-connected ld position motions
+    m_lo_prims.clear();
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0) {
+                    continue;
+                }
+
+                m_lo_prims.emplace_back(
+                        m_res[0] * dx, m_res[1] * dy, m_res[2] * dz);
+            }
+        }
+    }
+
+    return true;
+}
+
 void AdaptiveWorkspaceLattice::GetSuccs(
     const AdaptiveGridState& state,
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
+    for (const Eigen::Vector3d& dx : m_lo_prims) {
+        double tx = state.x + dx.x();
+        double ty = state.y + dx.y();
+        double tz = state.z + dx.z();
 
+        int tgx, tgy, tgz;
+        m_grid->worldToGrid(tx, ty, tz, tgz, tgy, tgz);
+
+        if (!m_grid->isInBounds(tgx, tgy, tgz)) {
+            continue;
+        }
+
+        if (m_grid->getDistance(tgx, tgy, tgz) == 0.0) {
+            continue;
+        }
+
+        if (m_dim_grid(tgx, tgy, tgz)) {
+            // TODO: high-dimensional transitions
+            // sample roll, pitch, yaw, and free angles
+
+            WorkspaceState succ_state;
+            WorkspaceCoord succ_coord;
+            RobotState final_rstate;
+
+            int succ_id = getHiHashEntry(succ_coord);
+            if (succ_id < 0) {
+                succ_id = createHiState(succ_coord, final_rstate);
+            }
+
+            if (isGoal(succ_state)) {
+                succs->push_back(m_goal_state_id);
+            } else {
+                succs->push_back(succ_id);
+            }
+            costs->push_back(30);
+        } else {
+            int succ_id = getLoHashEntry(tgx, tgy, tgz);
+            if (succ_id < 0) {
+                succ_id = createLoState(tgx, tgy, tgz, tx, ty, tz);
+            }
+            succs->push_back(succ_id);
+            costs->push_back(30);
+        }
+    }
 }
 
 void AdaptiveWorkspaceLattice::GetSuccs(
@@ -567,15 +692,15 @@ void AdaptiveWorkspaceLattice::getActions(
     std::vector<Action>& actions)
 {
     actions.clear();
-    actions.reserve(m_prims.size());
+    actions.reserve(m_hi_prims.size());
 
     WorkspaceState cont_state;
     stateCoordToWorkspace(state.coord, cont_state);
 
     ROS_DEBUG_STREAM_NAMED(params()->expands_log, "Create actions for state: " << cont_state);
 
-    for (std::size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
-        const auto& prim = m_prims[pidx];
+    for (std::size_t pidx = 0; pidx < m_hi_prims.size(); ++pidx) {
+        const auto& prim = m_hi_prims[pidx];
         Action action;
         action.reserve(prim.action.size());
 
