@@ -157,7 +157,7 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
     return true;
 }
 
-bool AdaptiveWorkspaceLattice::addFullDimRegion(int state_id)
+bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
 {
     int px = 0, py = 0, pz = 0;
 

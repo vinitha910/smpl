@@ -142,7 +142,7 @@ public:
 
     /// \name Required Public Functions from AdaptiveGraphExtension
     ///@{
-    bool addFullDimRegion(int state_id) override;
+    bool addHighDimRegion(int state_id) override;
     bool setTunnel(const std::vector<int>& states) override;
     bool isExecutable(const std::vector<int>& states) const override;
     ///@}
