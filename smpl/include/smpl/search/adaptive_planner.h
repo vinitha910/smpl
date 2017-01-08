@@ -34,6 +34,12 @@
 
 // system includes
 #include <sbpl/planners/planner.h>
+#include <sbpl/planners/araplanner.h>
+
+// project includes
+#include <smpl/graph/adaptive_graph_extension.h>
+#include <smpl/graph/robot_planning_space.h>
+#include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace motion {
@@ -43,7 +49,7 @@ class AdaptivePlanner : public SBPLPlanner
 public:
 
     AdaptivePlanner(
-        const RobotPlannerSpacePtr& pspace,
+        const RobotPlanningSpacePtr& pspace,
         const RobotHeuristicPtr& heur);
 
     ~AdaptivePlanner();
@@ -85,6 +91,8 @@ private:
 
     int m_start_id;
     int m_goal_id;
+
+    double m_eps_track;
 };
 
 } // namespace motion

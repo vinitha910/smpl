@@ -29,21 +29,25 @@
 
 /// \author Andrew Dornbush
 
+#include <smpl/search/adaptive_planner.h>
+
+// standard includes
 #include <chrono>
 
 namespace sbpl {
 namespace motion {
 
 AdaptivePlanner::AdaptivePlanner(
-    const RobotPlannerSpacePtr& pspace,
+    const RobotPlanningSpacePtr& pspace,
     const RobotHeuristicPtr& heur)
 :
 
-    m_planner(pspace.get()),
-    m_tracker(pspace.get()),
+    m_planner(pspace.get(), true),
+    m_tracker(pspace.get(), true),
     m_adaptive_graph(nullptr),
     m_start_id(-1),
-    m_goal_id(-1)
+    m_goal_id(-1),
+    m_eps_track(1.0)
 {
     m_adaptive_graph = pspace->getExtension<AdaptiveGraphExtension>();
     if (!m_adaptive_graph) {
@@ -147,8 +151,8 @@ int AdaptivePlanner::replan(
         ++iter_count;
 
         // search G^ad for a least-cost path
-        if (!m_planner->set_start(m_start_id) ||
-            !m_planner->set_goal(m_goal_id))
+        if (!m_planner.set_start(m_start_id) ||
+            !m_planner.set_goal(m_goal_id))
         {
             ROS_ERROR("Failed to set start or goal states for plan phase");
             return 0;
@@ -157,7 +161,7 @@ int AdaptivePlanner::replan(
         path.clear();
         int plan_cost = 0;
         auto plan_start = std::chrono::high_resolution_clock::now();
-        res = m_planner->replan(allowed_time, &path, &plan_cost);
+        res = m_planner.replan(allowed_time, &path, &plan_cost);
         auto plan_finish = std::chrono::high_resolution_clock::now();
 
         time_remaining = std::chrono::duration<double>(plan_finish - plan_start).count();
@@ -173,7 +177,7 @@ int AdaptivePlanner::replan(
             return 0;
         }
 
-        if (m_adaptive_graph->isExecutablePath(path)) {
+        if (m_adaptive_graph->isExecutable(path)) {
             ROS_INFO("Found path during planning on iteration %d", iter_count);
             return 1;
         }
@@ -182,7 +186,7 @@ int AdaptivePlanner::replan(
         path.clear();
         int track_cost = 0;
         auto track_start = std::chrono::high_resolution_clock::now();
-        res = m_tracker->replan(allowed_time, &path, &track_cost);
+        res = m_tracker.replan(allowed_time, &path, &track_cost);
         auto track_finish = std::chrono::high_resolution_clock::now();
 
         time_remaining = std::chrono::duration<double>(plan_finish - plan_start).count();
@@ -193,8 +197,8 @@ int AdaptivePlanner::replan(
                 ROS_WARN("Ran out of time after tracking phase");
                 return 0;
             }
-            m_tracker->getBestState();
-        } else if (track_cost > eps_track * plan_cost) {
+//            m_tracker.getBestState();
+        } else if (track_cost > m_eps_track * plan_cost) {
             if (time_remaining == 0.0) {
                 ROS_WARN("Ran out of time after tracking phase");
                 return 0;
@@ -203,7 +207,6 @@ int AdaptivePlanner::replan(
 
         }
 
-        m_adaptive_graph;
     }
 
     ROS_INFO("Failed to find solution");
