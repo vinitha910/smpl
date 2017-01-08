@@ -68,6 +68,7 @@
 #include <smpl/ros/joint_dist_heuristic_allocator.h>
 #include <smpl/ros/dijkstra_egraph_3d_heuristic_allocator.h>
 #include <smpl/search/egraph_planner.h>
+#include <smpl/search/adaptive_planner.h>
 
 namespace sbpl {
 namespace motion {
@@ -1133,6 +1134,9 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         auto first = m_heuristics.begin();
         m_planner = std::make_shared<ExperienceGraphPlanner>(
                 m_pspace, first->second);
+    } else if (search_name == "padastar") {
+        auto first = m_heuristics.begin();
+        m_planner = std::make_shared<AdaptivePlanner>(m_pspace, first->second);
     } else {
         ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
         return false;
