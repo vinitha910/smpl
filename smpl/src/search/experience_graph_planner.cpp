@@ -1,4 +1,4 @@
-#include <smpl/search/egraph_planner.h>
+#include <smpl/search/experience_graph_planner.h>
 
 // standard includes
 #include <chrono>

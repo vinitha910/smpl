@@ -34,8 +34,12 @@
 
 // standard includes
 #include <assert.h>
+#include <algorithm>
+#include <chrono>
+#include <utility>
 
 // system includes
+#include <Eigen/Dense>
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 #include <eigen_conversions/eigen_msg.h>
@@ -46,29 +50,29 @@
 
 // project includes
 #include <smpl/angles.h>
-#include <smpl/occupancy_grid.h>
 #include <smpl/post_processing.h>
+#include <smpl/types.h>
+
 #include <smpl/debug/visualize.h>
-#include <smpl/graph/manip_lattice.h>
-#include <smpl/graph/manip_lattice_egraph.h>
-#include <smpl/graph/manip_lattice_action_space.h>
-#include <smpl/graph/workspace_lattice.h>
+
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
-#include <smpl/heuristic/euclid_dist_heuristic.h>
-#include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
+
+#include <smpl/ros/adaptive_planner_allocator.h>
 #include <smpl/ros/adaptive_workspace_lattice_allocator.h>
+#include <smpl/ros/araplanner_allocator.h>
+#include <smpl/ros/bfs_heuristic_allocator.h>
+#include <smpl/ros/dijkstra_egraph_3d_heuristic_allocator.h>
+#include <smpl/ros/euclid_dist_heuristic_allocator.h>
+#include <smpl/ros/experience_graph_planner_allocator.h>
+#include <smpl/ros/joint_dist_heuristic_allocator.h>
+#include <smpl/ros/laraplanner_allocator.h>
 #include <smpl/ros/manip_lattice_allocator.h>
 #include <smpl/ros/manip_lattice_egraph_allocator.h>
-#include <smpl/ros/workspace_lattice_allocator.h>
-#include <smpl/ros/bfs_heuristic_allocator.h>
+#include <smpl/ros/mhaplanner_allocator.h>
 #include <smpl/ros/multi_frame_bfs_heuristic_allocator.h>
-#include <smpl/ros/euclid_dist_heuristic_allocator.h>
-#include <smpl/ros/joint_dist_heuristic_allocator.h>
-#include <smpl/ros/dijkstra_egraph_3d_heuristic_allocator.h>
-#include <smpl/search/egraph_planner.h>
-#include <smpl/search/adaptive_planner.h>
+#include <smpl/ros/workspace_lattice_allocator.h>
 
 namespace sbpl {
 namespace motion {
@@ -89,7 +93,6 @@ PlannerInterface::PlannerInterface(
     m_pspace(),
     m_heuristics(),
     m_planner(),
-    m_heur_vec(),
     m_sol_cost(INFINITECOST),
     m_planner_id(),
     m_req(),
@@ -118,6 +121,17 @@ PlannerInterface::PlannerInterface(
             "joint_distance", std::make_shared<JointDistHeuristicAllocator>(m_grid)));
     m_heuristic_allocators.insert(std::make_pair(
             "bfs_egraph", std::make_shared<DijkstraEgraph3dHeuristicAllocator>(m_grid)));
+
+    m_planner_allocators.insert(std::make_pair(
+            "arastar", std::make_shared<ARAPlannerAllocator>()));
+    m_planner_allocators.insert(std::make_pair(
+            "mhastar", std::make_shared<MHAPlannerAllocator>()));
+    m_planner_allocators.insert(std::make_pair(
+            "larastar", std::make_shared<LARAPlannerAllocator>()));
+    m_planner_allocators.insert(std::make_pair(
+            "egwastar", std::make_shared<ExperienceGraphPlannerAllocator>()));
+    m_planner_allocators.insert(std::make_pair(
+            "padastar", std::make_shared<AdaptivePlannerAllocator>()));
 }
 
 PlannerInterface::~PlannerInterface()
@@ -321,18 +335,18 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     ROS_INFO_NAMED(PI_LOGGER, "  joint variables: %s", to_string(initial_positions).c_str());
 
     if (!m_pspace->setStart(initial_positions)) {
-        ROS_ERROR("environment failed to set start state. not planning.");
+        ROS_ERROR("Failed to set start state");
         return false;
     }
 
     const int start_id = m_pspace->getStartStateID();
     if (start_id == -1) {
-        ROS_ERROR("no start state has been set");
+        ROS_ERROR("No start state has been set");
         return false;
     }
 
     if (m_planner->set_start(start_id) == 0) {
-        ROS_ERROR("failed to set start state. not planning.");
+        ROS_ERROR("Failed to set start state");
         return false;
     }
 
@@ -393,7 +407,7 @@ bool PlannerInterface::setGoalConfiguration(
 
     // set sbpl environment goal
     if (!m_pspace->setGoal(goal)) {
-        ROS_ERROR("Failed to set goal state. Exiting.");
+        ROS_ERROR("Failed to set goal");
         return false;
     }
 
@@ -405,7 +419,7 @@ bool PlannerInterface::setGoalConfiguration(
     }
 
     if (m_planner->set_goal(goal_id) == 0) {
-        ROS_ERROR("Failed to set goal state. Exiting.");
+        ROS_ERROR("Failed to set planner goal state");
         return false;
     }
 
@@ -470,7 +484,7 @@ bool PlannerInterface::setGoalPosition(
     };
 
     if (!m_pspace->setGoal(goal)) {
-        ROS_ERROR("Failed to set goal state");
+        ROS_ERROR("Failed to set goal");
         return false;
     }
 
@@ -482,7 +496,7 @@ bool PlannerInterface::setGoalPosition(
     }
 
     if (m_planner->set_goal(goal_id) == 0) {
-        ROS_ERROR("Failed to set goal state. Exiting.");
+        ROS_ERROR("Failed to set planner goal state");
         return false;
     }
 
@@ -552,19 +566,19 @@ bool PlannerInterface::planToPose(
     const auto& goal_constraints = goal_constraints_v.front();
 
     if (!setGoalPosition(goal_constraints)) {
-        ROS_ERROR("Failed to set goal position.");
+        ROS_ERROR("Failed to set goal position");
         res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
         return false;
     }
 
     if (!setStart(req.start_state)) {
-        ROS_ERROR("Failed to set initial configuration of robot.");
+        ROS_ERROR("Failed to set initial configuration of robot");
         res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
         return false;
     }
 
     if (!plan(path)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time, m_planner->get_n_expands());
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions)", m_params.allowed_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
@@ -585,19 +599,19 @@ bool PlannerInterface::planToConfiguration(
     const auto& goal_constraints = goal_constraints_v.front();
 
     if (!setGoalConfiguration(goal_constraints)) {
-        ROS_ERROR("Failed to set goal position.");
+        ROS_ERROR("Failed to set goal position");
         res.error_code.val = moveit_msgs::MoveItErrorCodes::GOAL_IN_COLLISION;
         return false;
     }
 
     if (!setStart(req.start_state)) {
-        ROS_ERROR("Failed to set initial configuration of robot.");
+        ROS_ERROR("Failed to set initial configuration of robot");
         res.error_code.val = moveit_msgs::MoveItErrorCodes::START_STATE_IN_COLLISION;
         return false;
     }
 
     if (!plan(path)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions).", m_params.allowed_time, m_planner->get_n_expands());
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions)", m_params.allowed_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
@@ -707,9 +721,9 @@ bool PlannerInterface::canServiceRequest(
         ) &&
         goal_constraints.joint_constraints.empty())
     {
-        ROS_ERROR("Position or orientation constraint is empty.");
-        ROS_ERROR("Joint constraint is empty.");
-        ROS_ERROR("Expecting a 6D end effector pose constraint or 7D joint constraint. Exiting.");
+        ROS_ERROR("Position or orientation constraint is empty");
+        ROS_ERROR("Joint constraint is empty");
+        ROS_ERROR("Expecting a 6D end effector pose constraint or 7D joint constraint");
         return false;
     }
 
@@ -1087,61 +1101,17 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     m_heuristics.clear();
     m_heuristics.insert(std::make_pair(heuristic_name, heuristic));
 
-    // add heuristics to planning space and gather contiguous vector (for use
-    // with MHA*)
-    m_heur_vec.clear();
-    for (const auto& entry : m_heuristics) {
-        RobotHeuristicPtr heuristic = entry.second;
-        m_pspace->insertHeuristic(heuristic);
-        m_heur_vec.push_back(heuristic.get());
-    }
-
-    // initialize the search algorithm
-    if (search_name == "arastar") {
-        m_planner.reset(new ARAPlanner(m_pspace.get(), true));
-        m_planner->set_initialsolution_eps(m_params.epsilon);
-        m_planner->set_search_mode(m_params.search_mode);
-    } else if (search_name == "mhastar") {
-        ROS_INFO_NAMED(PI_LOGGER, "Using %zu heuristics", m_heur_vec.size());
-
-        MHAPlanner* mha = new MHAPlanner(
-                m_pspace.get(),
-                m_heur_vec[0],
-                &m_heur_vec[0],
-                m_heur_vec.size());
-
-        // TODO: figure out a clean way to pass down planner-specific parameters
-        // via solve or an auxiliary member function
-        mha->set_initial_mha_eps(2.0);
-
-        m_planner.reset(mha);
-        m_planner->set_initialsolution_eps(m_params.epsilon);
-        m_planner->set_search_mode(m_params.search_mode);
-    } else if (search_name == "larastar") {
-        m_planner.reset(new LazyARAPlanner(m_pspace.get(), true));
-        m_planner->set_initialsolution_eps(m_params.epsilon);
-        m_planner->set_search_mode(m_params.search_mode);
-    } else if (search_name == "lmhastar") {
-        ROS_ERROR("LMHA* unimplemented");
-        return false;
-    } else if (search_name == "adstar") {
-        ROS_ERROR("AD* unimplemented");
-        return false;
-    } else if (search_name == "rstar") {
-        ROS_ERROR("R* unimplemented");
-        return false;
-    } else if (search_name == "egwastar") {
-        auto first = m_heuristics.begin();
-        m_planner = std::make_shared<ExperienceGraphPlanner>(
-                m_pspace, first->second);
-    } else if (search_name == "padastar") {
-        auto first = m_heuristics.begin();
-        m_planner = std::make_shared<AdaptivePlanner>(m_pspace, first->second);
-    } else {
+    auto pait = m_planner_allocators.find(search_name);
+    if (pait == m_planner_allocators.end()) {
         ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
         return false;
     }
 
+    m_planner = pait->second->allocate(m_pspace, heuristic);
+    if (!m_planner) {
+        ROS_ERROR("Failed to allocate planner '%s'", search_name.c_str());
+        return false;
+    }
     m_planner_id = planner_id;
     return true;
 }

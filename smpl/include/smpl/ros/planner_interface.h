@@ -28,15 +28,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Benjamin Cohen
+/// \author Andrew Dornbush
 
 #ifndef SMPL_PLANNER_INTERFACE_H
 #define SMPL_PLANNER_INTERFACE_H
 
 // standard includes
-#include <chrono>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 // system includes
 #include <Eigen/Dense>
@@ -55,12 +56,11 @@
 #include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
-#include <smpl/graph/action_space.h>
 #include <smpl/ros/heuristic_allocator.h>
+#include <smpl/ros/planner_allocator.h>
 #include <smpl/ros/planning_space_allocator.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-SBPL_CLASS_FORWARD(Heuristic);
 SBPL_CLASS_FORWARD(SBPLPlanner);
 
 namespace sbpl {
@@ -137,17 +137,13 @@ protected:
 
     std::map<std::string, PlanningSpaceAllocatorPtr> m_pspace_allocators;
     std::map<std::string, HeuristicAllocatorPtr> m_heuristic_allocators;
+    std::map<std::string, PlannerAllocatorPtr> m_planner_allocators;
 
     // planner components
 
     RobotPlanningSpacePtr m_pspace;
     std::map<std::string, RobotHeuristicPtr> m_heuristics;
     SBPLPlannerPtr m_planner;
-
-    /// \name MHA*-Specific Heuristics
-    ///@{
-    std::vector<Heuristic*> m_heur_vec;
-    ///@}
 
     int m_sol_cost;
 
