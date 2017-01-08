@@ -58,6 +58,7 @@
 #include <smpl/heuristic/euclid_dist_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
+#include <smpl/ros/adaptive_workspace_lattice_allocator.h>
 #include <smpl/ros/manip_lattice_allocator.h>
 #include <smpl/ros/manip_lattice_egraph_allocator.h>
 #include <smpl/ros/workspace_lattice_allocator.h>
@@ -103,6 +104,8 @@ PlannerInterface::PlannerInterface(
             "manip_lattice_egraph", std::make_shared<ManipLatticeEgraphAllocator>()));
     m_pspace_allocators.insert(std::make_pair(
             "workspace", std::make_shared<WorkspaceLatticeAllocator>(m_grid)));
+    m_pspace_allocators.insert(std::make_pair(
+            "adaptive_workspace_lattice", std::make_shared<AdaptiveWorkspaceLatticeAllocator>(m_grid)));
 
     m_heuristic_allocators.insert(std::make_pair(
             "mfbfs", std::make_shared<MultiFrameBfsHeuristicAllocator>(m_grid)));
