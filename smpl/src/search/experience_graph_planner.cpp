@@ -25,7 +25,8 @@ ExperienceGraphPlanner::ExperienceGraphPlanner(
     m_graph_to_search_map(),
     m_open(),
     m_call_number(0),
-    m_eps(5.0)
+    m_eps(5.0),
+    m_expand_count(0)
 {
     environment_ = pspace.get();
 
