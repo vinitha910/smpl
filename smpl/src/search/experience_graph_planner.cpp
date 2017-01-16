@@ -7,6 +7,9 @@
 #include <ros/console.h>
 #include <sbpl/utils/key.h>
 
+// project includes
+#include <smpl/time.h>
+
 namespace sbpl {
 namespace motion {
 
@@ -82,7 +85,7 @@ int ExperienceGraphPlanner::replan(
     m_start_state->f = /*m_start_state->g +*/ (unsigned int)(m_eps * m_start_state->h);
     m_open.push(m_start_state);
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start_time = smpl_clock::now();
 
     std::vector<int> succs;
     std::vector<int> costs;
@@ -90,7 +93,7 @@ int ExperienceGraphPlanner::replan(
     bool path_found = false;
     unsigned int& fgoal = m_goal_state->f;
     while (!m_open.empty()) {
-        auto now = std::chrono::high_resolution_clock::now();
+        auto now = smpl_clock::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if (elapsed >= allowed_time) {
             ROS_INFO("Ran out of time");

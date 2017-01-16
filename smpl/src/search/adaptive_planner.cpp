@@ -34,6 +34,9 @@
 // standard includes
 #include <chrono>
 
+// project includes
+#include <smpl/time.h>
+
 namespace sbpl {
 namespace motion {
 
@@ -160,9 +163,9 @@ int AdaptivePlanner::replan(
 
         path.clear();
         int plan_cost = 0;
-        auto plan_start = std::chrono::high_resolution_clock::now();
+        auto plan_start = smpl_clock::now();
         res = m_planner.replan(allowed_time, &path, &plan_cost);
-        auto plan_finish = std::chrono::high_resolution_clock::now();
+        auto plan_finish = smpl_clock::now();
 
         time_remaining = std::chrono::duration<double>(plan_finish - plan_start).count();
         time_remaining = std::min(0.0, time_remaining);
@@ -185,9 +188,9 @@ int AdaptivePlanner::replan(
         m_adaptive_graph->setTunnel(path);
         path.clear();
         int track_cost = 0;
-        auto track_start = std::chrono::high_resolution_clock::now();
+        auto track_start = smpl_clock::now();
         res = m_tracker.replan(allowed_time, &path, &track_cost);
-        auto track_finish = std::chrono::high_resolution_clock::now();
+        auto track_finish = smpl_clock::now();
 
         time_remaining = std::chrono::duration<double>(plan_finish - plan_start).count();
         time_remaining = std::min(0.0, time_remaining);

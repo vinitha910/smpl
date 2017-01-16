@@ -39,6 +39,9 @@
 #include <ros/console.h>
 #include <visualization_msgs/MarkerArray.h>
 
+// project includes
+#include <smpl/time.h>
+
 namespace sbpl {
 namespace viz {
 
@@ -107,10 +110,11 @@ void visualize(
 
 #define SV_SHOW_THROTTLE(rate, level, markers) \
     do { \
-        static ::std::chrono::time_point<::std::chrono::high_resolution_clock> last_hit; \
-        static ::std::chrono::high_resolution_clock::duration rate_dur(\
-                ::std::chrono::nanoseconds((int)(1000000000.0 / (double)rate))); \
-        auto now = ::std::chrono::high_resolution_clock::now(); \
+        static ::sbpl::smpl_clock::time_point last_hit; \
+        static auto rate_dur = \
+                ::std::chrono::duration_cast<::sbpl::smpl_clock::duration>( \
+                        ::std::chrono::duration<double>(1.0 / (double)rate)); \
+        auto now = ::sbpl::smpl_clock::now(); \
         if (last_hit + rate_dur <= now) { \
             last_hit = now; \
             ::sbpl::viz::visualize(level, markers); \

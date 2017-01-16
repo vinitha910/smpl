@@ -46,6 +46,7 @@
 #include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
+#include <smpl/time.h>
 #include <smpl/types.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/robot_planning_space.h>
@@ -172,7 +173,7 @@ private:
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;
 
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_t_start;
+    smpl_clock::time_point m_t_start;
     bool m_near_goal;
 
     int m_goal_coord[6];

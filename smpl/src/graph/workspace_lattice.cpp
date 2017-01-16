@@ -489,7 +489,7 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     rotWorkspaceToCoord(&goal.tgt_off_pose[3], &m_goal_coord[3]);
 
     m_near_goal = false;
-    m_t_start = std::chrono::high_resolution_clock::now();
+    m_t_start = smpl_clock::now();
 
     return RobotPlanningSpace::setGoal(goal);
 }
@@ -548,7 +548,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state)
     {
         // log the amount of time required for the search to get close to the goal
         if (!m_near_goal) {
-            auto now = std::chrono::high_resolution_clock::now();
+            auto now = smpl_clock::now();
             double time_to_goal_region =
                     std::chrono::duration<double>(now - m_t_start).count();
             m_near_goal = true;

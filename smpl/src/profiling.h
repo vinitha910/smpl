@@ -32,10 +32,15 @@
 #ifndef sbpl_manip_profiling_h
 #define sbpl_manip_profiling_h
 
+// standard includes
 #include <chrono>
 #include <functional>
 
+// system includes
 #include <ros/console.h>
+
+// project includes
+#include <smpl/time.h>
 
 #ifndef SBPL_MANIP_PROFILING
 #define SBPL_MANIP_PROFILING 0
@@ -74,7 +79,7 @@ public:
         if (m_elapsed != 0.0 && (m_times % m_throttle) == 0) {
             ROS_INFO("%s: \t%0.3f Hz", m_name.c_str(), m_times / m_elapsed);
         }
-        m_then = std::chrono::high_resolution_clock::now();
+        m_then = smpl_clock::now();
 #endif
     }
 
@@ -82,7 +87,7 @@ public:
     void stop()
     {
 #if SBPL_MANIP_PROFILING
-        auto now = std::chrono::high_resolution_clock::now();
+        auto now = smpl_clock::now();
         m_elapsed += std::chrono::duration<double>(now - m_then).count();
         ++m_times;
 #endif
@@ -103,7 +108,7 @@ private:
 
     const std::string m_name;
     int m_throttle;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_then;
+    smpl_clock::time_point m_then;
     double m_elapsed;
     int m_times;
 };

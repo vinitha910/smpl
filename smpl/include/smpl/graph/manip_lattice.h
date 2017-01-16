@@ -45,6 +45,7 @@
 
 // project includes
 #include <smpl/angles.h>
+#include <smpl/time.h>
 #include <smpl/collision_checker.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
@@ -234,7 +235,7 @@ private:
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
     bool m_near_goal;
-    clock_t m_t_start;
+    smpl_clock::time_point m_t_start;
 
     std::string m_viz_frame_id;
 

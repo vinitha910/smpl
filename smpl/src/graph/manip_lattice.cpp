@@ -693,13 +693,16 @@ bool ManipLattice::isGoal(
         {
             // log the amount of time required for the search to get close to the goal
             if (!m_near_goal) {
-                double time_to_goal_region = (clock() - m_t_start) / (double)CLOCKS_PER_SEC;
+                using namespace std::chrono;
+                auto time_to_goal_region = smpl_clock::now() - m_t_start;
+                auto time_to_goal_s =
+                        duration_cast<duration<double>>(time_to_goal_region);
                 m_near_goal = true;
                 ROS_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
                         pose[0], pose[1], pose[2],
                         goal().xyz_tolerance[0],
                         goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
-                        time_to_goal_region,
+                        time_to_goal_s.count(),
                         m_expanded_states.size());
             }
             Eigen::Quaterniond qg(
@@ -1098,7 +1101,10 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 
     SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
-    ROS_DEBUG_NAMED(params()->graph_log, "time: %f", clock() / (double)CLOCKS_PER_SEC);
+    using namespace std::chrono;
+    auto now = smpl_clock::now();
+    auto now_s = duration_cast<duration<double>>(now.time_since_epoch());
+    ROS_DEBUG_NAMED(params()->graph_log, "time: %f", now_s.count());
     ROS_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
     ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose[0], gc.pose[1], gc.pose[2]);
     ROS_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
@@ -1132,7 +1138,7 @@ void ManipLattice::startNewSearch()
 {
     m_expanded_states.clear();
     m_near_goal = false;
-    m_t_start = clock();
+    m_t_start = smpl_clock::now();
 }
 
 /// \brief Return the 6-dof goal pose for the offset from the tip link.
