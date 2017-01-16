@@ -93,7 +93,7 @@ class c_clock
 {
 public:
 
-    typedef clock_t rep;
+    typedef ::clock_t rep;
     typedef std::ratio<1, CLOCKS_PER_SEC> period;
 
     typedef std::chrono::duration<rep, period> duration;
@@ -102,19 +102,19 @@ public:
 
     static constexpr bool is_steady() { return true; }
 
-    static time_point now() { return time_point(duration(clock())); }
+    static time_point now() { return time_point(duration(::clock())); }
 };
 #endif
 
 // declare selected clock type
 #if SMPL_CLOCK_API == SMPL_CLOCK_ROS_TIME
-typedef ros_clock smpl_clock;
+typedef ros_clock clock;
 #elif SMPL_CLOCK_API == SMPL_CLOCK_ROS_WALLTIME
-typedef ros_wall_clock smpl_clock;
+typedef ros_wall_clock clock;
 #elif SMPL_CLOCK_API == SMPL_CLOCK_C
-typedef c_clock smpl_clock;
+typedef c_clock clock;
 #elif SMPL_CLOCK_API == SMPL_CLOCK_CHRONO_HIGH_RESOLUTION
-typedef ::std::chrono::high_resolution_clock smpl_clock;
+typedef ::std::chrono::high_resolution_clock clock;
 #else
 #error "Unrecognized clock API configuration"
 #endif

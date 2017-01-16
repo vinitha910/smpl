@@ -303,7 +303,7 @@ void ShortcutPath(
         return;
     }
 
-    auto then = smpl_clock::now();
+    auto then = clock::now();
     double prev_cost = 0.0, next_cost = 0.0;
     switch (type) {
     case ShortcutType::JOINT_SPACE:
@@ -383,7 +383,7 @@ void ShortcutPath(
         break;
     }
 
-    auto now = smpl_clock::now();
+    auto now = clock::now();
     ROS_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
 
     ROS_INFO("Original path: waypoint count: %zu, cost: %0.3f", pin.size(), prev_cost);

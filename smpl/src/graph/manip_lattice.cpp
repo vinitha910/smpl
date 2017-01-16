@@ -694,7 +694,7 @@ bool ManipLattice::isGoal(
             // log the amount of time required for the search to get close to the goal
             if (!m_near_goal) {
                 using namespace std::chrono;
-                auto time_to_goal_region = smpl_clock::now() - m_t_start;
+                auto time_to_goal_region = clock::now() - m_t_start;
                 auto time_to_goal_s =
                         duration_cast<duration<double>>(time_to_goal_region);
                 m_near_goal = true;
@@ -1102,7 +1102,7 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
     SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
     using namespace std::chrono;
-    auto now = smpl_clock::now();
+    auto now = clock::now();
     auto now_s = duration_cast<duration<double>>(now.time_since_epoch());
     ROS_DEBUG_NAMED(params()->graph_log, "time: %f", now_s.count());
     ROS_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
@@ -1138,7 +1138,7 @@ void ManipLattice::startNewSearch()
 {
     m_expanded_states.clear();
     m_near_goal = false;
-    m_t_start = smpl_clock::now();
+    m_t_start = clock::now();
 }
 
 /// \brief Return the 6-dof goal pose for the offset from the tip link.

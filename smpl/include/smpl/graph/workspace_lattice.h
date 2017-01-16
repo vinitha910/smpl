@@ -173,7 +173,7 @@ private:
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;
 
-    smpl_clock::time_point m_t_start;
+    clock::time_point m_t_start;
     bool m_near_goal;
 
     int m_goal_coord[6];

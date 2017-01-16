@@ -235,7 +235,7 @@ private:
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
     bool m_near_goal;
-    smpl_clock::time_point m_t_start;
+    clock::time_point m_t_start;
 
     std::string m_viz_frame_id;
 

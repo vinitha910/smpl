@@ -229,26 +229,26 @@ bool PlannerInterface::solve(
     m_params.allowed_time = req.allowed_planning_time;
     ROS_INFO_NAMED(PI_LOGGER, "Allowed Time (s): %0.3f", m_params.allowed_time);
 
-    auto then = smpl_clock::now();
+    auto then = clock::now();
 
     std::vector<RobotState> path;
     if (req.goal_constraints.front().position_constraints.size() > 0) {
         ROS_INFO_NAMED(PI_LOGGER, "Planning to position!");
         if (!planToPose(req, path, res)) {
-            auto now = smpl_clock::now();
+            auto now = clock::now();
             res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
         }
     } else if (req.goal_constraints.front().joint_constraints.size() > 0) {
         ROS_INFO_NAMED(PI_LOGGER, "Planning to joint configuration!");
         if (!planToConfiguration(req, path, res)) {
-            auto now = smpl_clock::now();
+            auto now = clock::now();
             res.planning_time = std::chrono::duration<double>(now - then).count();
             return false;
         }
     } else {
         ROS_ERROR("Both position and joint constraints empty!");
-        auto now = smpl_clock::now();
+        auto now = clock::now();
         res.planning_time = std::chrono::duration<double>(now - then).count();
         return false;
     }
@@ -259,7 +259,7 @@ bool PlannerInterface::solve(
         writePath(res.trajectory_start, res.trajectory);
     }
 
-    auto now = smpl_clock::now();
+    auto now = clock::now();
     res.planning_time = std::chrono::duration<double>(now - then).count();
     m_res = res; // record the last result
     return true;
@@ -1279,7 +1279,7 @@ bool PlannerInterface::writePath(
     }
 
     std::stringstream ss_filename;
-    auto now = smpl_clock::now();
+    auto now = clock::now();
     ss_filename << "path_" << now.time_since_epoch().count();
     p /= ss_filename.str();
 

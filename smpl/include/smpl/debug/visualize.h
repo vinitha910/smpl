@@ -110,11 +110,11 @@ void visualize(
 
 #define SV_SHOW_THROTTLE(rate, level, markers) \
     do { \
-        static ::sbpl::smpl_clock::time_point last_hit; \
+        static ::sbpl::clock::time_point last_hit; \
         static auto rate_dur = \
-                ::std::chrono::duration_cast<::sbpl::smpl_clock::duration>( \
+                ::std::chrono::duration_cast<::sbpl::clock::duration>( \
                         ::std::chrono::duration<double>(1.0 / (double)rate)); \
-        auto now = ::sbpl::smpl_clock::now(); \
+        auto now = ::sbpl::clock::now(); \
         if (last_hit + rate_dur <= now) { \
             last_hit = now; \
             ::sbpl::viz::visualize(level, markers); \

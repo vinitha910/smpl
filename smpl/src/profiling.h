@@ -79,7 +79,7 @@ public:
         if (m_elapsed != 0.0 && (m_times % m_throttle) == 0) {
             ROS_INFO("%s: \t%0.3f Hz", m_name.c_str(), m_times / m_elapsed);
         }
-        m_then = smpl_clock::now();
+        m_then = clock::now();
 #endif
     }
 
@@ -87,7 +87,7 @@ public:
     void stop()
     {
 #if SBPL_MANIP_PROFILING
-        auto now = smpl_clock::now();
+        auto now = clock::now();
         m_elapsed += std::chrono::duration<double>(now - m_then).count();
         ++m_times;
 #endif
@@ -108,7 +108,7 @@ private:
 
     const std::string m_name;
     int m_throttle;
-    smpl_clock::time_point m_then;
+    clock::time_point m_then;
     double m_elapsed;
     int m_times;
 };
