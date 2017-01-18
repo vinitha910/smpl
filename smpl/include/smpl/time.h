@@ -45,7 +45,9 @@
 #define SMPL_CLOCK_CHRONO_HIGH_RESOLUTION   3
 
 // select the clock API
+#ifndef SMPL_CLOCK_API
 #define SMPL_CLOCK_API SMPL_CLOCK_C
+#endif
 
 #define SMPL_CLOCK_IS_ROS \
     (SMPL_CLOCK_API == SMPL_CLOCK_ROS_TIME || \
