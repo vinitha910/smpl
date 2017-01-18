@@ -14,7 +14,6 @@ find_package(catkin
         leatherman
         moveit_msgs
         moveit_ros_planning
-        orocos_kdl
         roscpp
         smpl
         sbpl_collision_checking
@@ -22,11 +21,14 @@ find_package(catkin
         sbpl_pr2_robot_model
         visualization_msgs)
 
+find_package(orocos_kdl REQUIRED)
+
 find_package(Eigen REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${Eigen_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
+include_directories(${orocos_kdl_INCLUDE_DIRS})
 
 catkin_package()
 
