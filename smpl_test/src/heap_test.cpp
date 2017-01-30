@@ -419,6 +419,23 @@ BOOST_AUTO_TEST_CASE(ContainsTest)
 
     h.erase(&elements[0]);
     BOOST_CHECK(!h.contains(&elements[0]));
+
+    h.push(&elements[0]);
+    h.push(&elements[1]);
+    h.push(&elements[2]);
+    h.push(&elements[3]);
+    h.push(&elements[4]);
+
+    h.pop();
+    BOOST_CHECK(!h.contains(&elements[3]));
+    h.pop();
+    BOOST_CHECK(!h.contains(&elements[2]));
+    h.pop();
+    BOOST_CHECK(!h.contains(&elements[0]));
+    h.pop();
+    BOOST_CHECK(!h.contains(&elements[1]));
+    h.pop();
+    BOOST_CHECK(!h.contains(&elements[4]));
 }
 
 BOOST_AUTO_TEST_CASE(MakeTest)
