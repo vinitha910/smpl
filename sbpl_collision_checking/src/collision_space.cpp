@@ -99,12 +99,8 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
     // set the single-dof joint state
     for (size_t i = 0; i < joint_state.name.size(); ++i) {
         const std::string& joint_name = joint_state.name[i];
-        if (m_rcm->hasJointVar(joint_name)) {
-            double joint_position = joint_state.position[i];
-            int jidx = m_rcm->jointVarIndex(joint_name);
-            m_joint_vars[jidx] = joint_position;
-        }
-        else {
+        double joint_position = joint_state.position[i];
+        if (!setJointPosition(joint_name, joint_position)) {
             ROS_WARN("joint variable '%s' not found within the robot collision model", joint_name.c_str());
         }
     }
@@ -510,7 +506,7 @@ bool CollisionSpace::isStateToStateValid(
         path_length = 0;
         ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
         ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  start: %s", to_string(start_norm).c_str());
-        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]    finish: %s", to_string(end_norm).c_str());
+        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  finish: %s", to_string(end_norm).c_str());
         return false;
     }
 
