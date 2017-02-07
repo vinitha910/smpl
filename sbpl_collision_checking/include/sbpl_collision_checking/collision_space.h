@@ -305,14 +305,14 @@ inline
 double CollisionSpace::minLimit(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
-    return m_rcm->jointVarMaxPosition(jidx);
+    return m_rcm->jointVarMinPosition(jidx);
 }
 
 inline
 double CollisionSpace::maxLimit(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
-    return m_rcm->jointVarMinPosition(jidx);
+    return m_rcm->jointVarMaxPosition(jidx);
 }
 
 typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;
