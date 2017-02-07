@@ -128,6 +128,10 @@ bool PR2KDLRobotModel::init(
         return false;
     }
 
+    ROS_INFO("Min Limits: %s", to_string(min_limits_).c_str());
+    ROS_INFO("Max Limits: %s", to_string(max_limits_).c_str());
+    ROS_INFO("Continuous: %s", to_string(continuous_).c_str());
+
     // FK solver
     fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kchain_));
     jnt_pos_in_.resize(kchain_.getNrOfJoints());

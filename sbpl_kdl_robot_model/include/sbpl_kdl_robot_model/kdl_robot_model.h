@@ -53,7 +53,10 @@
 namespace sbpl {
 namespace motion {
 
-class KDLRobotModel : public RobotModel
+class KDLRobotModel :
+    public virtual RobotModel,
+    public virtual ForwardKinematicsInterface,
+    public virtual InverseKinematicsInterface
 {
 public:
 
@@ -75,7 +78,6 @@ public:
 
     virtual ~KDLRobotModel();
 
-    /* Initialization */
     virtual bool init(
         const std::string& robot_description,
         const std::vector<std::string>& planning_joints);
@@ -87,22 +89,6 @@ public:
         const KDL::Frame& f,
         const std::string& name);
 
-    Extension* getExtension(size_t class_code);
-
-    virtual double minPosLimit(int jidx) const { return min_limits_[jidx]; }
-    virtual double maxPosLimit(int jidx) const { return max_limits_[jidx]; }
-    virtual bool   hasPosLimit(int jidx) const { return !continuous_[jidx]; }
-    virtual bool   isContinuous(int jidx) const { return continuous_[jidx]; }
-    virtual double velLimit(int jidx) const { return vel_limits_[jidx]; }
-    virtual double accLimit(int jidx) const { return 0.0; }
-
-    /* Joint Limits */
-    virtual bool checkJointLimits(
-        const std::vector<double>& angles,
-        bool verbose = false);
-
-    /* Forward Kinematics */
-
     bool setPlanningLink(const std::string& name);
     const std::string& getPlanningLink() const;
 
@@ -111,28 +97,6 @@ public:
         const std::vector<double>& angles,
         const std::string& name,
         KDL::Frame& f);
-
-    virtual bool computeFK(
-        const std::vector<double>& angles,
-        const std::string& name,
-        std::vector<double>& pose);
-
-    virtual bool computePlanningLinkFK(
-        const std::vector<double>& angles,
-        std::vector<double>& pose);
-
-    /* Inverse Kinematics */
-    virtual bool computeIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution,
-        ik_option::IkOption option = ik_option::UNRESTRICTED);
-
-    virtual bool computeIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector< std::vector<double>>& solutions,
-        ik_option::IkOption option = ik_option::UNRESTRICTED);
 
     virtual bool computeFastIK(
         const std::vector<double>& pose,
@@ -145,8 +109,53 @@ public:
         std::vector<double>& solution,
         double timeout);
 
-    /* Debug Output */
     void printRobotModelInformation();
+
+    /// \name Required Public Functions from InverseKinematicsInterface
+    ///@{
+    bool computeIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector<double>& solution,
+        ik_option::IkOption option = ik_option::UNRESTRICTED) override;
+
+    bool computeIK(
+        const std::vector<double>& pose,
+        const std::vector<double>& start,
+        std::vector< std::vector<double>>& solutions,
+        ik_option::IkOption option = ik_option::UNRESTRICTED) override;
+    ///@}
+
+    /// \name Required Public Functions from ForwardKinematicsInterface
+    ///@{
+    bool computeFK(
+        const std::vector<double>& angles,
+        const std::string& name,
+        std::vector<double>& pose) override;
+    ///@}
+
+    /// \name Required Public Functions from RobotModel
+    ///@{
+    double minPosLimit(int jidx) const override { return min_limits_[jidx]; }
+    double maxPosLimit(int jidx) const override { return max_limits_[jidx]; }
+    bool   hasPosLimit(int jidx) const override { return !continuous_[jidx]; }
+    bool   isContinuous(int jidx) const override { return continuous_[jidx]; }
+    double velLimit(int jidx) const override { return vel_limits_[jidx]; }
+    double accLimit(int jidx) const override { return 0.0; }
+
+    bool checkJointLimits(
+        const std::vector<double>& angles,
+        bool verbose = false) override;
+
+    virtual bool computePlanningLinkFK(
+        const std::vector<double>& angles,
+        std::vector<double>& pose);
+    ///@}
+
+    /// \name Required Public Functions from Extension
+    ///@{
+    Extension* getExtension(size_t class_code) override;
+    ///@}
 
 protected:
 

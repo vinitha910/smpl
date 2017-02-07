@@ -79,6 +79,7 @@ bool KDLRobotModel::init(
     const std::string& robot_description,
     const std::vector<std::string>& planning_joints)
 {
+    ROS_INFO("Initialize KDL Robot Model");
     urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
     if (!urdf_->initString(robot_description)) {
         ROS_ERROR("Failed to parse the URDF.");
@@ -129,6 +130,10 @@ bool KDLRobotModel::init(
         ROS_ERROR("Failed to get the joint limits.");
         return false;
     }
+
+    ROS_INFO("Min Limits: %s", to_string(min_limits_).c_str());
+    ROS_INFO("Max Limits: %s", to_string(max_limits_).c_str());
+    ROS_INFO("Continuous: %s", to_string(continuous_).c_str());
 
     // FK solver
     fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kchain_));
@@ -322,12 +327,13 @@ bool KDLRobotModel::getJointLimits(
 
 Extension* KDLRobotModel::getExtension(size_t class_code)
 {
-    if (class_code == GetClassCode<RobotModel>()) {
+    if (class_code == GetClassCode<RobotModel>() ||
+        class_code == GetClassCode<ForwardKinematicsInterface>() ||
+        class_code == GetClassCode<InverseKinematicsInterface>())
+    {
         return this;
     }
-    else {
-        return nullptr;
-    }
+    return nullptr;
 }
 
 bool KDLRobotModel::checkJointLimits(
