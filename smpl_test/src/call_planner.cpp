@@ -46,8 +46,11 @@
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/ubr1_kdl_robot_model.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <smpl/debug/visualizer_ros.h>
 
-void fillConstraint(
+namespace smpl = sbpl::motion;
+
+void FillGoalConstraint(
     const std::vector<double>& pose,
     std::string frame_id,
     moveit_msgs::Constraints& goals)
@@ -87,7 +90,7 @@ void fillConstraint(
     ROS_INFO("Done packing the goal constraints message.");
 }
 
-moveit_msgs::CollisionObject getCollisionCube(
+moveit_msgs::CollisionObject GetCollisionCube(
     geometry_msgs::Pose pose,
     std::vector<double>& dims,
     std::string frame_id,
@@ -111,7 +114,7 @@ moveit_msgs::CollisionObject getCollisionCube(
     return object;
 }
 
-std::vector<moveit_msgs::CollisionObject> getCollisionCubes(
+std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
     std::vector<std::vector<double> > &objects,
     std::vector<std::string> &object_ids,
     std::string frame_id)
@@ -137,12 +140,12 @@ std::vector<moveit_msgs::CollisionObject> getCollisionCubes(
         dims[1] = objects[i][4];
         dims[2] = objects[i][5];
 
-        objs.push_back(getCollisionCube(pose, dims, frame_id, object_ids.at(i)));
+        objs.push_back(GetCollisionCube(pose, dims, frame_id, object_ids.at(i)));
     }
     return objs;
 }
 
-std::vector<moveit_msgs::CollisionObject> getCollisionObjects(
+std::vector<moveit_msgs::CollisionObject> GetCollisionObjects(
     std::string filename,
     std::string frame_id)
 {
@@ -192,10 +195,10 @@ std::vector<moveit_msgs::CollisionObject> getCollisionObjects(
         }
     }
 
-    return getCollisionCubes(objects, object_ids, frame_id);
+    return GetCollisionCubes(objects, object_ids, frame_id);
 }
 
-bool getInitialConfiguration(
+bool ReadInitialConfiguration(
     ros::NodeHandle& nh,
     moveit_msgs::RobotState& state)
 {
@@ -265,43 +268,134 @@ bool getInitialConfiguration(
     return true;
 }
 
-bool ParsePlanningJointGroup(
-    const ros::NodeHandle& nh,
-    std::vector<std::string>& joint_names)
+struct RobotModelConfig
 {
-    XmlRpc::XmlRpcValue xlist;
-    if (!nh.getParam("planning/planning_joints", xlist)) {
+    std::string group_name;
+    std::vector<std::string> planning_joints;
+    std::string planning_link;
+    std::string kinematics_frame;
+    std::string chain_tip_link;
+};
+
+bool ReadRobotModelConfig(const ros::NodeHandle &nh, RobotModelConfig &config)
+{
+    if (!nh.getParam("group_name", config.group_name)) {
+        ROS_ERROR("Failed to read 'group_name' from the param server");
         return false;
     }
-    std::string joint_list = std::string(xlist);
-    std::stringstream joint_name_stream(joint_list);
+
+    std::string planning_joint_list;
+    if (!nh.getParam("planning_joints", planning_joint_list)) {
+        ROS_ERROR("Failed to read 'planning_joints' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("planning_link", config.planning_link)) {
+        ROS_ERROR("Failed to read 'planning_link' from the param server");
+        return false;
+    }
+
+    std::stringstream joint_name_stream(planning_joint_list);
     while (joint_name_stream.good() && !joint_name_stream.eof()) {
         std::string jname;
         joint_name_stream >> jname;
         if (jname.empty()) {
             continue;
         }
-        joint_names.push_back(jname);
+        config.planning_joints.push_back(jname);
     }
+
+    // only required for generic kdl robot model?
+    nh.getParam("kinematics_frame", config.kinematics_frame);
+    nh.getParam("chain_tip_link", config.chain_tip_link);
+    return true;
+}
+
+struct PlannerConfig
+{
+    std::string discretization;
+    std::string mprim_filename;
+    std::string use_xyz_snap_mprim;
+    std::string use_rpy_snap_mprim;
+    std::string use_xyzrpy_snap_mprim;
+    std::string use_short_dist_mprims;
+    std::string xyz_snap_dist_thresh;
+    std::string rpy_snap_dist_thresh;
+    std::string xyzrpy_snap_dist_thresh;
+    std::string short_dist_mprims_thresh;
+};
+
+bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
+{
+    if (!nh.getParam("discretization", config.discretization)) {
+        ROS_ERROR("Failed to read 'discretization' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("mprim_filename", config.mprim_filename)) {
+        ROS_ERROR("Failed to read param 'mprim_filename' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("use_xyz_snap_mprim", config.use_xyz_snap_mprim)) {
+        ROS_ERROR("Failed to read param 'use_xyz_snap_mprim' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("use_rpy_snap_mprim", config.use_rpy_snap_mprim)) {
+        ROS_ERROR("Failed to read param 'use_rpy_snap_mprim' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("use_xyzrpy_snap_mprim", config.use_xyzrpy_snap_mprim)) {
+        ROS_ERROR("Failed to read param 'use_xyzrpy_snap_mprim' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("use_short_dist_mprims", config.use_short_dist_mprims)) {
+        ROS_ERROR("Failed to read param 'use_short_dist_mprims' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("xyz_snap_dist_thresh", config.xyz_snap_dist_thresh)) {
+        ROS_ERROR("Failed to read param 'xyz_snap_dist_thresh' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("rpy_snap_dist_thresh", config.rpy_snap_dist_thresh)) {
+        ROS_ERROR("Failed to read param 'rpy_snap_dist_thresh' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("xyzrpy_snap_dist_thresh", config.xyzrpy_snap_dist_thresh)) {
+        ROS_ERROR("Failed to read param 'xyzrpy_snap_dist_thresh' from the param server");
+        return false;
+    }
+
+    if (!nh.getParam("short_dist_mprims_thresh", config.short_dist_mprims_thresh)) {
+        ROS_ERROR("Failed to read param 'use_xyz_snap_mprim' from the param server");
+        return false;
+    }
+
     return true;
 }
 
 std::unique_ptr<sbpl::motion::RobotModel>
 SetupRobotModel(
-    const ros::NodeHandle& nh,
     const std::string& urdf,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints,
-    const std::string& planning_link,
+    const RobotModelConfig &config,
     const std::string& planning_frame)
 {
     std::unique_ptr<sbpl::motion::RobotModel> rm_ptr;
 
     sbpl::motion::KDLRobotModel* rm = nullptr;
     KDL::Frame f;
-    if (group_name == "right_arm") {
-        sbpl::motion::PR2KDLRobotModel* pr2_rm = new sbpl::motion::PR2KDLRobotModel();
-        // Set the current transform from the planning frame to the kinematics frame
+    if (config.group_name == "right_arm") {
+        ROS_INFO("Construct PR2 Robot Model");
+        sbpl::motion::PR2KDLRobotModel* pr2_rm =
+                new sbpl::motion::PR2KDLRobotModel;
+        // Set the current transform from the planning frame to the kinematics
+        // frame
         f.p.x(-0.05);
         f.p.y(1.0);
         f.p.z(0.789675);
@@ -309,9 +403,12 @@ SetupRobotModel(
         pr2_rm->setKinematicsToPlanningTransform(f, planning_frame);
         rm = pr2_rm;
     }
-    else if (group_name == "arm") {
-        sbpl::motion::UBR1KDLRobotModel* ubr1_rm = new sbpl::motion::UBR1KDLRobotModel();
-        // Set the current transform from the planning frame to the kinematics frame
+    else if (config.group_name == "arm") {
+        ROS_INFO("Construct UBR1 Robot Model");
+        sbpl::motion::UBR1KDLRobotModel* ubr1_rm =
+                new sbpl::motion::UBR1KDLRobotModel;
+        // Set the current transform from the planning frame to the kinematics
+        // frame
         f.p.x(-0.05);
         f.p.y(0.0);
         f.p.z(0.26);
@@ -320,26 +417,1114 @@ SetupRobotModel(
         rm = ubr1_rm;
     }
     else {
+        ROS_INFO("Construct Generic KDL Robot Model");
         std::string kinematics_frame, chain_tip_link;
-        if (!nh.getParam("kinematics_frame", kinematics_frame) ||
-            !nh.getParam("chain_tip_link", chain_tip_link))
-        {
+        if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
             ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
             return false;
         }
         rm  = new sbpl::motion::KDLRobotModel(kinematics_frame, chain_tip_link);
     }
 
-    if (!rm->init(urdf, planning_joints)) {
+    if (!rm->init(urdf, config.planning_joints)) {
         ROS_ERROR("Failed to initialize robot model.");
         delete rm;
         rm = nullptr;
+        return rm_ptr;
     }
 
-    rm->setPlanningLink(planning_link);
+    rm->setPlanningLink(config.planning_link);
 
     rm_ptr.reset(rm);
     return rm_ptr;
+}
+
+void initAllowedCollisionsPR2(sbpl::collision::CollisionSpace &cspace)
+{
+    sbpl::collision::AllowedCollisionMatrix acm;
+    // copied from the srdf for the pr2
+    acm.setEntry("base_bellow_link", "base_footprint", true);
+    acm.setEntry("base_bellow_link", "base_link", true);
+    acm.setEntry("base_bellow_link", "bl_caster_l_wheel_link", true);
+    acm.setEntry("base_bellow_link", "bl_caster_r_wheel_link", true);
+    acm.setEntry("base_bellow_link", "bl_caster_rotation_link", true);
+    acm.setEntry("base_bellow_link", "br_caster_l_wheel_link", true);
+    acm.setEntry("base_bellow_link", "br_caster_r_wheel_link", true);
+    acm.setEntry("base_bellow_link", "br_caster_rotation_link", true);
+    acm.setEntry("base_bellow_link", "double_stereo_link", true);
+    acm.setEntry("base_bellow_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("base_bellow_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("base_bellow_link", "fl_caster_rotation_link", true);
+    acm.setEntry("base_bellow_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("base_bellow_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("base_bellow_link", "fr_caster_rotation_link", true);
+    acm.setEntry("base_bellow_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("base_bellow_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("base_bellow_link", "head_mount_link", true);
+    acm.setEntry("base_bellow_link", "head_mount_prosilica_link", true);
+    acm.setEntry("base_bellow_link", "head_pan_link", true);
+    acm.setEntry("base_bellow_link", "head_plate_frame", true);
+    acm.setEntry("base_bellow_link", "head_tilt_link", true);
+    acm.setEntry("base_bellow_link", "l_elbow_flex_link", true);
+    acm.setEntry("base_bellow_link", "l_forearm_roll_link", true);
+    acm.setEntry("base_bellow_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("base_bellow_link", "l_shoulder_lift_link", true);
+    acm.setEntry("base_bellow_link", "l_shoulder_pan_link", true);
+    acm.setEntry("base_bellow_link", "l_upper_arm_link", true);
+    acm.setEntry("base_bellow_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("base_bellow_link", "l_wrist_flex_link", true);
+    acm.setEntry("base_bellow_link", "l_wrist_roll_link", true);
+    acm.setEntry("base_bellow_link", "laser_tilt_mount_link", true);
+    acm.setEntry("base_bellow_link", "r_elbow_flex_link", true);
+    acm.setEntry("base_bellow_link", "r_forearm_roll_link", true);
+    acm.setEntry("base_bellow_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("base_bellow_link", "r_shoulder_lift_link", true);
+    acm.setEntry("base_bellow_link", "r_shoulder_pan_link", true);
+    acm.setEntry("base_bellow_link", "r_upper_arm_link", true);
+    acm.setEntry("base_bellow_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("base_bellow_link", "sensor_mount_link", true);
+    acm.setEntry("base_bellow_link", "torso_lift_link", true);
+    acm.setEntry("base_footprint", "base_link", true);
+    acm.setEntry("base_footprint", "bl_caster_l_wheel_link", true);
+    acm.setEntry("base_footprint", "bl_caster_r_wheel_link", true);
+    acm.setEntry("base_footprint", "bl_caster_rotation_link", true);
+    acm.setEntry("base_footprint", "br_caster_l_wheel_link", true);
+    acm.setEntry("base_footprint", "br_caster_r_wheel_link", true);
+    acm.setEntry("base_footprint", "br_caster_rotation_link", true);
+    acm.setEntry("base_footprint", "double_stereo_link", true);
+    acm.setEntry("base_footprint", "fl_caster_l_wheel_link", true);
+    acm.setEntry("base_footprint", "fl_caster_r_wheel_link", true);
+    acm.setEntry("base_footprint", "fl_caster_rotation_link", true);
+    acm.setEntry("base_footprint", "fr_caster_l_wheel_link", true);
+    acm.setEntry("base_footprint", "fr_caster_r_wheel_link", true);
+    acm.setEntry("base_footprint", "fr_caster_rotation_link", true);
+    acm.setEntry("base_footprint", "head_mount_kinect_ir_link", true);
+    acm.setEntry("base_footprint", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("base_footprint", "head_mount_link", true);
+    acm.setEntry("base_footprint", "head_mount_prosilica_link", true);
+    acm.setEntry("base_footprint", "head_pan_link", true);
+    acm.setEntry("base_footprint", "head_plate_frame", true);
+    acm.setEntry("base_footprint", "head_tilt_link", true);
+    acm.setEntry("base_footprint", "l_elbow_flex_link", true);
+    acm.setEntry("base_footprint", "l_forearm_link", true);
+    acm.setEntry("base_footprint", "l_forearm_roll_link", true);
+    acm.setEntry("base_footprint", "l_gripper_l_finger_link", true);
+    acm.setEntry("base_footprint", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("base_footprint", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("base_footprint", "l_gripper_palm_link", true);
+    acm.setEntry("base_footprint", "l_gripper_r_finger_link", true);
+    acm.setEntry("base_footprint", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("base_footprint", "l_shoulder_lift_link", true);
+    acm.setEntry("base_footprint", "l_shoulder_pan_link", true);
+    acm.setEntry("base_footprint", "l_upper_arm_link", true);
+    acm.setEntry("base_footprint", "l_upper_arm_roll_link", true);
+    acm.setEntry("base_footprint", "l_wrist_flex_link", true);
+    acm.setEntry("base_footprint", "l_wrist_roll_link", true);
+    acm.setEntry("base_footprint", "laser_tilt_mount_link", true);
+    acm.setEntry("base_footprint", "r_elbow_flex_link", true);
+    acm.setEntry("base_footprint", "r_forearm_link", true);
+    acm.setEntry("base_footprint", "r_forearm_roll_link", true);
+    acm.setEntry("base_footprint", "r_gripper_l_finger_link", true);
+    acm.setEntry("base_footprint", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("base_footprint", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("base_footprint", "r_gripper_palm_link", true);
+    acm.setEntry("base_footprint", "r_gripper_r_finger_link", true);
+    acm.setEntry("base_footprint", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("base_footprint", "r_shoulder_lift_link", true);
+    acm.setEntry("base_footprint", "r_shoulder_pan_link", true);
+    acm.setEntry("base_footprint", "r_upper_arm_link", true);
+    acm.setEntry("base_footprint", "r_upper_arm_roll_link", true);
+    acm.setEntry("base_footprint", "r_wrist_flex_link", true);
+    acm.setEntry("base_footprint", "r_wrist_roll_link", true);
+    acm.setEntry("base_footprint", "sensor_mount_link", true);
+    acm.setEntry("base_footprint", "torso_lift_link", true);
+    acm.setEntry("base_link", "bl_caster_l_wheel_link", true);
+    acm.setEntry("base_link", "bl_caster_r_wheel_link", true);
+    acm.setEntry("base_link", "bl_caster_rotation_link", true);
+    acm.setEntry("base_link", "br_caster_l_wheel_link", true);
+    acm.setEntry("base_link", "br_caster_r_wheel_link", true);
+    acm.setEntry("base_link", "br_caster_rotation_link", true);
+    acm.setEntry("base_link", "double_stereo_link", true);
+    acm.setEntry("base_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("base_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("base_link", "fl_caster_rotation_link", true);
+    acm.setEntry("base_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("base_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("base_link", "fr_caster_rotation_link", true);
+    acm.setEntry("base_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("base_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("base_link", "head_mount_link", true);
+    acm.setEntry("base_link", "head_mount_prosilica_link", true);
+    acm.setEntry("base_link", "head_pan_link", true);
+    acm.setEntry("base_link", "head_plate_frame", true);
+    acm.setEntry("base_link", "head_tilt_link", true);
+    acm.setEntry("base_link", "l_shoulder_lift_link", true);
+    acm.setEntry("base_link", "l_shoulder_pan_link", true);
+    acm.setEntry("base_link", "l_upper_arm_link", true);
+    acm.setEntry("base_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("base_link", "laser_tilt_mount_link", true);
+    acm.setEntry("base_link", "r_shoulder_lift_link", true);
+    acm.setEntry("base_link", "r_shoulder_pan_link", true);
+    acm.setEntry("base_link", "r_upper_arm_link", true);
+    acm.setEntry("base_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("base_link", "sensor_mount_link", true);
+    acm.setEntry("base_link", "torso_lift_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "bl_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "bl_caster_rotation_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "br_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "br_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "br_caster_rotation_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "double_stereo_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "fl_caster_rotation_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_mount_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_pan_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_plate_frame", true);
+    acm.setEntry("bl_caster_l_wheel_link", "head_tilt_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "l_wrist_roll_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_forearm_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_gripper_palm_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_wrist_flex_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "r_wrist_roll_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("bl_caster_l_wheel_link", "torso_lift_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "bl_caster_rotation_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "br_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "br_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "br_caster_rotation_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "double_stereo_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "fl_caster_rotation_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_mount_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_pan_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_plate_frame", true);
+    acm.setEntry("bl_caster_r_wheel_link", "head_tilt_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "l_wrist_roll_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_forearm_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_gripper_palm_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_wrist_flex_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "r_wrist_roll_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("bl_caster_r_wheel_link", "torso_lift_link", true);
+    acm.setEntry("bl_caster_rotation_link", "br_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_rotation_link", "br_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_rotation_link", "br_caster_rotation_link", true);
+    acm.setEntry("bl_caster_rotation_link", "double_stereo_link", true);
+    acm.setEntry("bl_caster_rotation_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_rotation_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_rotation_link", "fl_caster_rotation_link", true);
+    acm.setEntry("bl_caster_rotation_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("bl_caster_rotation_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("bl_caster_rotation_link", "fr_caster_rotation_link", true);
+    acm.setEntry("bl_caster_rotation_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("bl_caster_rotation_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("bl_caster_rotation_link", "head_mount_link", true);
+    acm.setEntry("bl_caster_rotation_link", "head_mount_prosilica_link", true);
+    acm.setEntry("bl_caster_rotation_link", "head_pan_link", true);
+    acm.setEntry("bl_caster_rotation_link", "head_plate_frame", true);
+    acm.setEntry("bl_caster_rotation_link", "head_tilt_link", true);
+    acm.setEntry("bl_caster_rotation_link", "l_elbow_flex_link", true);
+    acm.setEntry("bl_caster_rotation_link", "l_forearm_roll_link", true);
+    acm.setEntry("bl_caster_rotation_link", "l_shoulder_lift_link", true);
+    acm.setEntry("bl_caster_rotation_link", "l_shoulder_pan_link", true);
+    acm.setEntry("bl_caster_rotation_link", "l_upper_arm_link", true);
+    acm.setEntry("bl_caster_rotation_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("bl_caster_rotation_link", "laser_tilt_mount_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_elbow_flex_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_forearm_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_forearm_roll_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_gripper_palm_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_shoulder_lift_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_shoulder_pan_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_upper_arm_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_wrist_flex_link", true);
+    acm.setEntry("bl_caster_rotation_link", "r_wrist_roll_link", true);
+    acm.setEntry("bl_caster_rotation_link", "sensor_mount_link", true);
+    acm.setEntry("bl_caster_rotation_link", "torso_lift_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "br_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "br_caster_rotation_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "double_stereo_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "fl_caster_rotation_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_mount_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_pan_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_plate_frame", true);
+    acm.setEntry("br_caster_l_wheel_link", "head_tilt_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_forearm_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_gripper_palm_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_wrist_flex_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "l_wrist_roll_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("br_caster_l_wheel_link", "torso_lift_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "br_caster_rotation_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "double_stereo_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "fl_caster_rotation_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_mount_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_pan_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_plate_frame", true);
+    acm.setEntry("br_caster_r_wheel_link", "head_tilt_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_forearm_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_gripper_palm_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_wrist_flex_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "l_wrist_roll_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "r_wrist_roll_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("br_caster_r_wheel_link", "torso_lift_link", true);
+    acm.setEntry("br_caster_rotation_link", "double_stereo_link", true);
+    acm.setEntry("br_caster_rotation_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("br_caster_rotation_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_rotation_link", "fl_caster_rotation_link", true);
+    acm.setEntry("br_caster_rotation_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("br_caster_rotation_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("br_caster_rotation_link", "fr_caster_rotation_link", true);
+    acm.setEntry("br_caster_rotation_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("br_caster_rotation_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("br_caster_rotation_link", "head_mount_link", true);
+    acm.setEntry("br_caster_rotation_link", "head_mount_prosilica_link", true);
+    acm.setEntry("br_caster_rotation_link", "head_pan_link", true);
+    acm.setEntry("br_caster_rotation_link", "head_plate_frame", true);
+    acm.setEntry("br_caster_rotation_link", "head_tilt_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_elbow_flex_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_forearm_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_forearm_roll_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_gripper_palm_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_shoulder_lift_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_shoulder_pan_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_upper_arm_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_wrist_flex_link", true);
+    acm.setEntry("br_caster_rotation_link", "l_wrist_roll_link", true);
+    acm.setEntry("br_caster_rotation_link", "laser_tilt_mount_link", true);
+    acm.setEntry("br_caster_rotation_link", "r_elbow_flex_link", true);
+    acm.setEntry("br_caster_rotation_link", "r_forearm_roll_link", true);
+    acm.setEntry("br_caster_rotation_link", "r_shoulder_lift_link", true);
+    acm.setEntry("br_caster_rotation_link", "r_shoulder_pan_link", true);
+    acm.setEntry("br_caster_rotation_link", "r_upper_arm_link", true);
+    acm.setEntry("br_caster_rotation_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("br_caster_rotation_link", "sensor_mount_link", true);
+    acm.setEntry("br_caster_rotation_link", "torso_lift_link", true);
+    acm.setEntry("double_stereo_link", "fl_caster_l_wheel_link", true);
+    acm.setEntry("double_stereo_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("double_stereo_link", "fl_caster_rotation_link", true);
+    acm.setEntry("double_stereo_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("double_stereo_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("double_stereo_link", "fr_caster_rotation_link", true);
+    acm.setEntry("double_stereo_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("double_stereo_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("double_stereo_link", "head_mount_link", true);
+    acm.setEntry("double_stereo_link", "head_mount_prosilica_link", true);
+    acm.setEntry("double_stereo_link", "head_pan_link", true);
+    acm.setEntry("double_stereo_link", "head_plate_frame", true);
+    acm.setEntry("double_stereo_link", "head_tilt_link", true);
+    acm.setEntry("double_stereo_link", "l_elbow_flex_link", true);
+    acm.setEntry("double_stereo_link", "l_forearm_link", true);
+    acm.setEntry("double_stereo_link", "l_forearm_roll_link", true);
+    acm.setEntry("double_stereo_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("double_stereo_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("double_stereo_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("double_stereo_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("double_stereo_link", "l_shoulder_lift_link", true);
+    acm.setEntry("double_stereo_link", "l_shoulder_pan_link", true);
+    acm.setEntry("double_stereo_link", "l_upper_arm_link", true);
+    acm.setEntry("double_stereo_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("double_stereo_link", "l_wrist_flex_link", true);
+    acm.setEntry("double_stereo_link", "l_wrist_roll_link", true);
+    acm.setEntry("double_stereo_link", "laser_tilt_mount_link", true);
+    acm.setEntry("double_stereo_link", "r_elbow_flex_link", true);
+    acm.setEntry("double_stereo_link", "r_forearm_link", true);
+    acm.setEntry("double_stereo_link", "r_forearm_roll_link", true);
+    acm.setEntry("double_stereo_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("double_stereo_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("double_stereo_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("double_stereo_link", "r_shoulder_lift_link", true);
+    acm.setEntry("double_stereo_link", "r_shoulder_pan_link", true);
+    acm.setEntry("double_stereo_link", "r_upper_arm_link", true);
+    acm.setEntry("double_stereo_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("double_stereo_link", "r_wrist_flex_link", true);
+    acm.setEntry("double_stereo_link", "r_wrist_roll_link", true);
+    acm.setEntry("double_stereo_link", "sensor_mount_link", true);
+    acm.setEntry("double_stereo_link", "torso_lift_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "fl_caster_r_wheel_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "fl_caster_rotation_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_mount_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_pan_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_plate_frame", true);
+    acm.setEntry("fl_caster_l_wheel_link", "head_tilt_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_forearm_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_wrist_flex_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "r_wrist_roll_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("fl_caster_l_wheel_link", "torso_lift_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "fl_caster_rotation_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_mount_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_pan_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_plate_frame", true);
+    acm.setEntry("fl_caster_r_wheel_link", "head_tilt_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_forearm_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_wrist_flex_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "r_wrist_roll_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("fl_caster_r_wheel_link", "torso_lift_link", true);
+    acm.setEntry("fl_caster_rotation_link", "fr_caster_l_wheel_link", true);
+    acm.setEntry("fl_caster_rotation_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("fl_caster_rotation_link", "fr_caster_rotation_link", true);
+    acm.setEntry("fl_caster_rotation_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("fl_caster_rotation_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("fl_caster_rotation_link", "head_mount_link", true);
+    acm.setEntry("fl_caster_rotation_link", "head_mount_prosilica_link", true);
+    acm.setEntry("fl_caster_rotation_link", "head_pan_link", true);
+    acm.setEntry("fl_caster_rotation_link", "head_plate_frame", true);
+    acm.setEntry("fl_caster_rotation_link", "head_tilt_link", true);
+    acm.setEntry("fl_caster_rotation_link", "l_elbow_flex_link", true);
+    acm.setEntry("fl_caster_rotation_link", "l_forearm_roll_link", true);
+    acm.setEntry("fl_caster_rotation_link", "l_shoulder_lift_link", true);
+    acm.setEntry("fl_caster_rotation_link", "l_shoulder_pan_link", true);
+    acm.setEntry("fl_caster_rotation_link", "l_upper_arm_link", true);
+    acm.setEntry("fl_caster_rotation_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("fl_caster_rotation_link", "laser_tilt_mount_link", true);
+    acm.setEntry("fl_caster_rotation_link", "r_elbow_flex_link", true);
+    acm.setEntry("fl_caster_rotation_link", "r_forearm_roll_link", true);
+    acm.setEntry("fl_caster_rotation_link", "r_shoulder_lift_link", true);
+    acm.setEntry("fl_caster_rotation_link", "r_shoulder_pan_link", true);
+    acm.setEntry("fl_caster_rotation_link", "r_upper_arm_link", true);
+    acm.setEntry("fl_caster_rotation_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("fl_caster_rotation_link", "sensor_mount_link", true);
+    acm.setEntry("fl_caster_rotation_link", "torso_lift_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "fr_caster_r_wheel_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_mount_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_pan_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_plate_frame", true);
+    acm.setEntry("fr_caster_l_wheel_link", "head_tilt_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_forearm_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_wrist_flex_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "l_wrist_roll_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("fr_caster_l_wheel_link", "torso_lift_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "fr_caster_rotation_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_mount_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_mount_prosilica_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_pan_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_plate_frame", true);
+    acm.setEntry("fr_caster_r_wheel_link", "head_tilt_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_elbow_flex_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_forearm_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_forearm_roll_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_shoulder_lift_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_shoulder_pan_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_upper_arm_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_wrist_flex_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "l_wrist_roll_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "laser_tilt_mount_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "r_elbow_flex_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "r_forearm_roll_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "r_shoulder_lift_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "r_shoulder_pan_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "r_upper_arm_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "sensor_mount_link", true);
+    acm.setEntry("fr_caster_r_wheel_link", "torso_lift_link", true);
+    acm.setEntry("fr_caster_rotation_link", "head_mount_kinect_ir_link", true);
+    acm.setEntry("fr_caster_rotation_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("fr_caster_rotation_link", "head_mount_link", true);
+    acm.setEntry("fr_caster_rotation_link", "head_mount_prosilica_link", true);
+    acm.setEntry("fr_caster_rotation_link", "head_pan_link", true);
+    acm.setEntry("fr_caster_rotation_link", "head_plate_frame", true);
+    acm.setEntry("fr_caster_rotation_link", "head_tilt_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_elbow_flex_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_forearm_roll_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_shoulder_lift_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_shoulder_pan_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_upper_arm_link", true);
+    acm.setEntry("fr_caster_rotation_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("fr_caster_rotation_link", "laser_tilt_mount_link", true);
+    acm.setEntry("fr_caster_rotation_link", "r_elbow_flex_link", true);
+    acm.setEntry("fr_caster_rotation_link", "r_forearm_roll_link", true);
+    acm.setEntry("fr_caster_rotation_link", "r_shoulder_lift_link", true);
+    acm.setEntry("fr_caster_rotation_link", "r_shoulder_pan_link", true);
+    acm.setEntry("fr_caster_rotation_link", "r_upper_arm_link", true);
+    acm.setEntry("fr_caster_rotation_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("fr_caster_rotation_link", "sensor_mount_link", true);
+    acm.setEntry("fr_caster_rotation_link", "torso_lift_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "head_mount_kinect_rgb_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "head_mount_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "head_mount_prosilica_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "head_pan_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "head_plate_frame", true);
+    acm.setEntry("head_mount_kinect_ir_link", "head_tilt_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_elbow_flex_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_forearm_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_forearm_roll_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_gripper_palm_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_shoulder_lift_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_shoulder_pan_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_upper_arm_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_wrist_flex_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "l_wrist_roll_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "laser_tilt_mount_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_elbow_flex_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_forearm_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_forearm_roll_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_gripper_palm_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_shoulder_lift_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_shoulder_pan_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_upper_arm_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_wrist_flex_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "r_wrist_roll_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "sensor_mount_link", true);
+    acm.setEntry("head_mount_kinect_ir_link", "torso_lift_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "head_mount_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "head_mount_prosilica_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "head_pan_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "head_plate_frame", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "head_tilt_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_elbow_flex_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_forearm_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_forearm_roll_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_gripper_palm_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_shoulder_lift_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_shoulder_pan_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_upper_arm_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_wrist_flex_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "l_wrist_roll_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "laser_tilt_mount_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_elbow_flex_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_forearm_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_forearm_roll_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_gripper_palm_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_shoulder_lift_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_shoulder_pan_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_upper_arm_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_wrist_flex_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "r_wrist_roll_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "sensor_mount_link", true);
+    acm.setEntry("head_mount_kinect_rgb_link", "torso_lift_link", true);
+    acm.setEntry("head_mount_link", "head_mount_prosilica_link", true);
+    acm.setEntry("head_mount_link", "head_pan_link", true);
+    acm.setEntry("head_mount_link", "head_plate_frame", true);
+    acm.setEntry("head_mount_link", "head_tilt_link", true);
+    acm.setEntry("head_mount_link", "l_elbow_flex_link", true);
+    acm.setEntry("head_mount_link", "l_forearm_link", true);
+    acm.setEntry("head_mount_link", "l_forearm_roll_link", true);
+    acm.setEntry("head_mount_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_link", "l_gripper_palm_link", true);
+    acm.setEntry("head_mount_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_link", "l_shoulder_lift_link", true);
+    acm.setEntry("head_mount_link", "l_shoulder_pan_link", true);
+    acm.setEntry("head_mount_link", "l_upper_arm_link", true);
+    acm.setEntry("head_mount_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_link", "l_wrist_flex_link", true);
+    acm.setEntry("head_mount_link", "l_wrist_roll_link", true);
+    acm.setEntry("head_mount_link", "laser_tilt_mount_link", true);
+    acm.setEntry("head_mount_link", "r_elbow_flex_link", true);
+    acm.setEntry("head_mount_link", "r_forearm_link", true);
+    acm.setEntry("head_mount_link", "r_forearm_roll_link", true);
+    acm.setEntry("head_mount_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_link", "r_gripper_palm_link", true);
+    acm.setEntry("head_mount_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_link", "r_shoulder_lift_link", true);
+    acm.setEntry("head_mount_link", "r_shoulder_pan_link", true);
+    acm.setEntry("head_mount_link", "r_upper_arm_link", true);
+    acm.setEntry("head_mount_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_link", "r_wrist_flex_link", true);
+    acm.setEntry("head_mount_link", "r_wrist_roll_link", true);
+    acm.setEntry("head_mount_link", "sensor_mount_link", true);
+    acm.setEntry("head_mount_link", "torso_lift_link", true);
+    acm.setEntry("head_mount_prosilica_link", "head_pan_link", true);
+    acm.setEntry("head_mount_prosilica_link", "head_plate_frame", true);
+    acm.setEntry("head_mount_prosilica_link", "head_tilt_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_elbow_flex_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_forearm_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_forearm_roll_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_gripper_palm_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_shoulder_lift_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_shoulder_pan_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_upper_arm_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_wrist_flex_link", true);
+    acm.setEntry("head_mount_prosilica_link", "l_wrist_roll_link", true);
+    acm.setEntry("head_mount_prosilica_link", "laser_tilt_mount_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_elbow_flex_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_forearm_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_forearm_roll_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_gripper_palm_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_shoulder_lift_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_shoulder_pan_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_upper_arm_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_wrist_flex_link", true);
+    acm.setEntry("head_mount_prosilica_link", "r_wrist_roll_link", true);
+    acm.setEntry("head_mount_prosilica_link", "sensor_mount_link", true);
+    acm.setEntry("head_mount_prosilica_link", "torso_lift_link", true);
+    acm.setEntry("head_pan_link", "head_plate_frame", true);
+    acm.setEntry("head_pan_link", "head_tilt_link", true);
+    acm.setEntry("head_pan_link", "l_elbow_flex_link", true);
+    acm.setEntry("head_pan_link", "l_forearm_roll_link", true);
+    acm.setEntry("head_pan_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_pan_link", "l_shoulder_lift_link", true);
+    acm.setEntry("head_pan_link", "l_shoulder_pan_link", true);
+    acm.setEntry("head_pan_link", "l_upper_arm_link", true);
+    acm.setEntry("head_pan_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_pan_link", "laser_tilt_mount_link", true);
+    acm.setEntry("head_pan_link", "r_elbow_flex_link", true);
+    acm.setEntry("head_pan_link", "r_forearm_roll_link", true);
+    acm.setEntry("head_pan_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_pan_link", "r_shoulder_lift_link", true);
+    acm.setEntry("head_pan_link", "r_shoulder_pan_link", true);
+    acm.setEntry("head_pan_link", "r_upper_arm_link", true);
+    acm.setEntry("head_pan_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_pan_link", "sensor_mount_link", true);
+    acm.setEntry("head_pan_link", "torso_lift_link", true);
+    acm.setEntry("head_plate_frame", "head_tilt_link", true);
+    acm.setEntry("head_plate_frame", "l_elbow_flex_link", true);
+    acm.setEntry("head_plate_frame", "l_forearm_link", true);
+    acm.setEntry("head_plate_frame", "l_forearm_roll_link", true);
+    acm.setEntry("head_plate_frame", "l_gripper_l_finger_link", true);
+    acm.setEntry("head_plate_frame", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_plate_frame", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_plate_frame", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_plate_frame", "l_shoulder_lift_link", true);
+    acm.setEntry("head_plate_frame", "l_shoulder_pan_link", true);
+    acm.setEntry("head_plate_frame", "l_upper_arm_link", true);
+    acm.setEntry("head_plate_frame", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_plate_frame", "l_wrist_flex_link", true);
+    acm.setEntry("head_plate_frame", "l_wrist_roll_link", true);
+    acm.setEntry("head_plate_frame", "laser_tilt_mount_link", true);
+    acm.setEntry("head_plate_frame", "r_elbow_flex_link", true);
+    acm.setEntry("head_plate_frame", "r_forearm_link", true);
+    acm.setEntry("head_plate_frame", "r_forearm_roll_link", true);
+    acm.setEntry("head_plate_frame", "r_gripper_l_finger_link", true);
+    acm.setEntry("head_plate_frame", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("head_plate_frame", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_plate_frame", "r_gripper_palm_link", true);
+    acm.setEntry("head_plate_frame", "r_gripper_r_finger_link", true);
+    acm.setEntry("head_plate_frame", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("head_plate_frame", "r_shoulder_lift_link", true);
+    acm.setEntry("head_plate_frame", "r_shoulder_pan_link", true);
+    acm.setEntry("head_plate_frame", "r_upper_arm_link", true);
+    acm.setEntry("head_plate_frame", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_plate_frame", "r_wrist_flex_link", true);
+    acm.setEntry("head_plate_frame", "r_wrist_roll_link", true);
+    acm.setEntry("head_plate_frame", "sensor_mount_link", true);
+    acm.setEntry("head_plate_frame", "torso_lift_link", true);
+    acm.setEntry("head_tilt_link", "l_elbow_flex_link", true);
+    acm.setEntry("head_tilt_link", "l_forearm_link", true);
+    acm.setEntry("head_tilt_link", "l_forearm_roll_link", true);
+    acm.setEntry("head_tilt_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_tilt_link", "l_shoulder_lift_link", true);
+    acm.setEntry("head_tilt_link", "l_shoulder_pan_link", true);
+    acm.setEntry("head_tilt_link", "l_upper_arm_link", true);
+    acm.setEntry("head_tilt_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("head_tilt_link", "l_wrist_roll_link", true);
+    acm.setEntry("head_tilt_link", "laser_tilt_mount_link", true);
+    acm.setEntry("head_tilt_link", "r_elbow_flex_link", true);
+    acm.setEntry("head_tilt_link", "r_forearm_link", true);
+    acm.setEntry("head_tilt_link", "r_forearm_roll_link", true);
+    acm.setEntry("head_tilt_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("head_tilt_link", "r_shoulder_lift_link", true);
+    acm.setEntry("head_tilt_link", "r_shoulder_pan_link", true);
+    acm.setEntry("head_tilt_link", "r_upper_arm_link", true);
+    acm.setEntry("head_tilt_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("head_tilt_link", "r_wrist_flex_link", true);
+    acm.setEntry("head_tilt_link", "r_wrist_roll_link", true);
+    acm.setEntry("head_tilt_link", "sensor_mount_link", true);
+    acm.setEntry("head_tilt_link", "torso_lift_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_forearm_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_forearm_roll_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_gripper_palm_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_shoulder_pan_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_upper_arm_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_elbow_flex_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_elbow_flex_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_elbow_flex_link", "r_shoulder_lift_link", true);
+    acm.setEntry("l_elbow_flex_link", "r_shoulder_pan_link", true);
+    acm.setEntry("l_elbow_flex_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("l_elbow_flex_link", "sensor_mount_link", true);
+    acm.setEntry("l_elbow_flex_link", "torso_lift_link", true);
+    acm.setEntry("l_forearm_link", "l_forearm_roll_link", true);
+    acm.setEntry("l_forearm_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("l_forearm_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("l_forearm_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_forearm_link", "l_gripper_palm_link", true);
+    acm.setEntry("l_forearm_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_forearm_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_forearm_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_forearm_link", "l_upper_arm_link", true);
+    acm.setEntry("l_forearm_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_forearm_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_forearm_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_forearm_link", "sensor_mount_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_gripper_l_finger_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_gripper_palm_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_shoulder_pan_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_upper_arm_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_forearm_roll_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_forearm_roll_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_forearm_roll_link", "r_shoulder_lift_link", true);
+    acm.setEntry("l_forearm_roll_link", "r_shoulder_pan_link", true);
+    acm.setEntry("l_forearm_roll_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("l_forearm_roll_link", "sensor_mount_link", true);
+    acm.setEntry("l_forearm_roll_link", "torso_lift_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_gripper_l_finger_tip_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_gripper_palm_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_upper_arm_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_l_finger_link", "sensor_mount_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_gripper_palm_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_upper_arm_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_l_finger_tip_link", "sensor_mount_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_gripper_palm_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_upper_arm_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_motor_accelerometer_link", "sensor_mount_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_gripper_r_finger_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_upper_arm_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_gripper_palm_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "l_gripper_r_finger_tip_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "l_upper_arm_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_gripper_r_finger_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "l_shoulder_lift_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "l_upper_arm_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_gripper_r_finger_tip_link", "sensor_mount_link", true);
+    acm.setEntry("l_shoulder_lift_link", "l_shoulder_pan_link", true);
+    acm.setEntry("l_shoulder_lift_link", "l_upper_arm_link", true);
+    acm.setEntry("l_shoulder_lift_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_shoulder_lift_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_shoulder_lift_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_shoulder_lift_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_shoulder_lift_link", "r_elbow_flex_link", true);
+    acm.setEntry("l_shoulder_lift_link", "r_forearm_roll_link", true);
+    acm.setEntry("l_shoulder_lift_link", "r_shoulder_lift_link", true);
+    acm.setEntry("l_shoulder_lift_link", "r_upper_arm_link", true);
+    acm.setEntry("l_shoulder_lift_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("l_shoulder_lift_link", "sensor_mount_link", true);
+    acm.setEntry("l_shoulder_lift_link", "torso_lift_link", true);
+    acm.setEntry("l_shoulder_pan_link", "l_upper_arm_link", true);
+    acm.setEntry("l_shoulder_pan_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_shoulder_pan_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_shoulder_pan_link", "r_elbow_flex_link", true);
+    acm.setEntry("l_shoulder_pan_link", "r_forearm_roll_link", true);
+    acm.setEntry("l_shoulder_pan_link", "sensor_mount_link", true);
+    acm.setEntry("l_shoulder_pan_link", "torso_lift_link", true);
+    acm.setEntry("l_upper_arm_link", "l_upper_arm_roll_link", true);
+    acm.setEntry("l_upper_arm_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_upper_arm_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_upper_arm_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_upper_arm_link", "r_shoulder_lift_link", true);
+    acm.setEntry("l_upper_arm_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("l_upper_arm_link", "sensor_mount_link", true);
+    acm.setEntry("l_upper_arm_link", "torso_lift_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "l_wrist_flex_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "r_elbow_flex_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "r_forearm_roll_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "r_shoulder_lift_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "r_shoulder_pan_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "sensor_mount_link", true);
+    acm.setEntry("l_upper_arm_roll_link", "torso_lift_link", true);
+    acm.setEntry("l_wrist_flex_link", "l_wrist_roll_link", true);
+    acm.setEntry("l_wrist_flex_link", "sensor_mount_link", true);
+    acm.setEntry("l_wrist_roll_link", "laser_tilt_mount_link", true);
+    acm.setEntry("l_wrist_roll_link", "sensor_mount_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_elbow_flex_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_forearm_roll_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_shoulder_lift_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_shoulder_pan_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_upper_arm_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("laser_tilt_mount_link", "r_wrist_roll_link", true);
+    acm.setEntry("laser_tilt_mount_link", "sensor_mount_link", true);
+    acm.setEntry("laser_tilt_mount_link", "torso_lift_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_forearm_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_forearm_roll_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_gripper_palm_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_shoulder_pan_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_upper_arm_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_elbow_flex_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_elbow_flex_link", "sensor_mount_link", true);
+    acm.setEntry("r_elbow_flex_link", "torso_lift_link", true);
+    acm.setEntry("r_forearm_link", "r_forearm_roll_link", true);
+    acm.setEntry("r_forearm_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("r_forearm_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("r_forearm_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("r_forearm_link", "r_gripper_palm_link", true);
+    acm.setEntry("r_forearm_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_forearm_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_forearm_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_forearm_link", "r_upper_arm_link", true);
+    acm.setEntry("r_forearm_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_forearm_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_forearm_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_forearm_link", "sensor_mount_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_gripper_l_finger_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_gripper_palm_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_shoulder_pan_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_upper_arm_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_forearm_roll_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_forearm_roll_link", "sensor_mount_link", true);
+    acm.setEntry("r_forearm_roll_link", "torso_lift_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_gripper_l_finger_tip_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_gripper_palm_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_upper_arm_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_gripper_l_finger_link", "sensor_mount_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_gripper_motor_accelerometer_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_gripper_palm_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_upper_arm_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_gripper_l_finger_tip_link", "sensor_mount_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_gripper_palm_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_upper_arm_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_gripper_motor_accelerometer_link", "sensor_mount_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_gripper_r_finger_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_upper_arm_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_gripper_palm_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_gripper_palm_link", "sensor_mount_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "r_gripper_r_finger_tip_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "r_upper_arm_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_gripper_r_finger_link", "sensor_mount_link", true);
+    acm.setEntry("r_gripper_r_finger_tip_link", "r_shoulder_lift_link", true);
+    acm.setEntry("r_gripper_r_finger_tip_link", "r_upper_arm_link", true);
+    acm.setEntry("r_gripper_r_finger_tip_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_gripper_r_finger_tip_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_gripper_r_finger_tip_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_gripper_r_finger_tip_link", "sensor_mount_link", true);
+    acm.setEntry("r_shoulder_lift_link", "r_shoulder_pan_link", true);
+    acm.setEntry("r_shoulder_lift_link", "r_upper_arm_link", true);
+    acm.setEntry("r_shoulder_lift_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_shoulder_lift_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_shoulder_lift_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_shoulder_lift_link", "sensor_mount_link", true);
+    acm.setEntry("r_shoulder_lift_link", "torso_lift_link", true);
+    acm.setEntry("r_shoulder_pan_link", "r_upper_arm_link", true);
+    acm.setEntry("r_shoulder_pan_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_shoulder_pan_link", "sensor_mount_link", true);
+    acm.setEntry("r_shoulder_pan_link", "torso_lift_link", true);
+    acm.setEntry("r_upper_arm_link", "r_upper_arm_roll_link", true);
+    acm.setEntry("r_upper_arm_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_upper_arm_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_upper_arm_link", "sensor_mount_link", true);
+    acm.setEntry("r_upper_arm_link", "torso_lift_link", true);
+    acm.setEntry("r_upper_arm_roll_link", "r_wrist_flex_link", true);
+    acm.setEntry("r_upper_arm_roll_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_upper_arm_roll_link", "sensor_mount_link", true);
+    acm.setEntry("r_upper_arm_roll_link", "torso_lift_link", true);
+    acm.setEntry("r_wrist_flex_link", "r_wrist_roll_link", true);
+    acm.setEntry("r_wrist_flex_link", "sensor_mount_link", true);
+    acm.setEntry("r_wrist_roll_link", "sensor_mount_link", true);
+    acm.setEntry("sensor_mount_link", "torso_lift_link", true);
+    cspace.setAllowedCollisionMatrix(acm);
 }
 
 int main(int argc, char* argv[])
@@ -347,11 +1532,15 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "smpl_test");
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
-    sleep(1);
 
-    ros::spinOnce();
+    sbpl::VisualizerROS visualizer(nh, 100);
+    sbpl::viz::set_visualizer(&visualizer);
+
     ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>(
-            "visualization_marker_array", 100);
+            "visualization_markers", 100);
+
+    // let publishers set up
+    ros::Duration(1.0).sleep();
 
     // everyone needs to know the name of the planning frame for reasons...
     std::string planning_frame;
@@ -360,45 +1549,40 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    ROS_INFO("Planning Frame: %s", planning_frame.c_str());
+
     /////////////////
     // Robot Model //
     /////////////////
 
-    // retrieve the urdf
+    const char *robot_description_key = "robot_description";
+    std::string robot_description_param;
+    if (!nh.searchParam(robot_description_key, robot_description_param)) {
+        ROS_ERROR("Failed to find 'robot_description' key on the param server");
+        return 1;
+    }
+
     std::string urdf;
-    if (!nh.getParam("robot_description", urdf)) {
+    if (!nh.getParam(robot_description_param, urdf)) {
         ROS_ERROR("Failed to retrieve param 'robot_description' from the param server");
         return 1;
     }
 
-    // retrieve the planning group name, joints, and link; this is used to setup
-    // the specific robot we are planning for and is coupled with the group
-    // specified in the configuration for the collision checker
-    std::string group_name;
-    if (!ph.getParam("group_name", group_name)) {
-        ROS_ERROR("Failed to retrieve param 'group_name' from the param server");
+    RobotModelConfig rm_config;
+    if (!ReadRobotModelConfig(ros::NodeHandle("~robot_model"), rm_config)) {
+        ROS_ERROR("Failed to read robot model config from param server");
         return 1;
     }
 
-    std::vector<std::string> planning_joints;
-    if (!ParsePlanningJointGroup(ph, planning_joints)) {
-        ROS_ERROR("Failed to parse planning joint group");
+    const std::string &group_name(rm_config.group_name);
+    const std::vector<std::string> &planning_joints(rm_config.planning_joints);
+    const std::string &planning_link(rm_config.planning_link);
+
+    auto rm = SetupRobotModel(urdf, rm_config, planning_frame);
+    if (!rm) {
+        ROS_ERROR("Failed to set up Robot Model");
         return 1;
     }
-
-    std::string planning_link;
-    if (!ph.getParam("planning_link", planning_link)) {
-        ROS_ERROR("Failed to retrieve param 'planning_link' from the param server");
-        return 1;
-    }
-
-    std::vector<double> start_angles(planning_joints.size(), 0);
-    if (planning_joints.size() < 7) {
-        ROS_ERROR("Found %zu planning joints on the param server. I usually expect at least 7 joints...", planning_joints.size());
-    }
-
-    auto rm = SetupRobotModel(
-            ph, urdf, group_name, planning_joints, planning_link, planning_frame);
 
     ////////////////////
     // Occupancy Grid //
@@ -409,19 +1593,22 @@ int main(int argc, char* argv[])
     const double df_size_z = 3.0;
     const double df_res = 0.02;
     const double df_origin_x = -0.75;
-    const double df_origin_y = -1.25;
-    const double df_origin_z = 1.0;
-    const double max_distance = 0.2;
+    const double df_origin_y = -1.5;
+    const double df_origin_z = 0.0;
+    const double max_distance = 1.8;
+    const bool propagate_negative_distances = false;
+    const bool ref_counted = true;
 
-    auto df = std::make_shared<distance_field::PropagationDistanceField>(
+    sbpl::OccupancyGrid grid(
             df_size_x, df_size_y, df_size_z,
             df_res,
             df_origin_x, df_origin_y, df_origin_z,
-            max_distance);
-    df->reset();
+            max_distance,
+            propagate_negative_distances,
+            ref_counted);
 
-    sbpl::OccupancyGrid grid(df);
     grid.setReferenceFrame(planning_frame);
+    ma_pub.publish(grid.getBoundingBoxVisualization());
 
     ///////////////////////
     // Collision Checker //
@@ -440,33 +1627,13 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    ////////////////
-    // Action Set //
-    ////////////////
-
-    std::string action_set_filename;
-    if (!ph.getParam("action_set_filename", action_set_filename)) {
-        ROS_ERROR("Failed to retrieve param 'action_set_filename' from the param server");
-        return 1;
+    if (cc->robotCollisionModel()->name() == "pr2") {
+        initAllowedCollisionsPR2(*cc);
     }
 
-    ////////////////////////
-    // Planning Interface //
-    ////////////////////////
-
-    // planner interface
-    sbpl::motion::PlannerInterface planner(rm.get(), cc.get(), &grid);
-
-    sbpl::motion::PlanningParams params;
-    params.params["mprim_filename"] = action_set_filename;
-    if (!planner.init(params)) {
-        ROS_ERROR("Failed to initialize Arm Planner Interface");
-        return 1;
-    }
-
-    ///////////////////////
-    // Environment Setup //
-    ///////////////////////
+    /////////////////
+    // Scene Setup //
+    /////////////////
 
     std::string object_filename;
     ph.param<std::string>("object_filename", object_filename, "");
@@ -474,18 +1641,69 @@ int main(int argc, char* argv[])
     // collision objects
     moveit_msgs::PlanningScene scene;
     if (!object_filename.empty()) {
-        scene.world.collision_objects = getCollisionObjects(object_filename, planning_frame);
+        scene.world.collision_objects = GetCollisionObjects(object_filename, planning_frame);
     }
 
     // fill start state
-    if (!getInitialConfiguration(ph, scene.robot_state)) {
+    if (!ReadInitialConfiguration(ph, scene.robot_state)) {
         ROS_ERROR("Failed to get initial configuration.");
         return 0;
     }
+    scene.robot_model_name = cc->robotCollisionModel()->name();
     scene.robot_state.joint_state.header.frame_id = planning_frame;
+    scene.world.octomap.header.frame_id = planning_frame;
+    scene.world.octomap.octomap.binary = true;
+    scene.is_diff = true;
+
+    cc->setWorldToModelTransform(Eigen::Affine3d::Identity());
 
     // set planning scene
-    cc->setPlanningScene(scene);
+    if (!cc->setPlanningScene(scene)) {
+        ROS_ERROR("Failed to update Collision Checker from Planning Scene");
+        return false;
+    }
+
+    auto markers = cc->getBoundingBoxVisualization();
+    ROS_INFO("Publish %zu bounding box markers", markers.markers.size());
+    ma_pub.publish(markers);
+    markers = cc->getCollisionWorldVisualization();
+    ROS_INFO("Publish %zu collision world markers", markers.markers.size());
+    ma_pub.publish(markers);
+    markers = cc->getCollisionRobotVisualization(std::vector<double>(rm_config.planning_joints.size(), 0.0));
+    ROS_INFO("Publish %zu collision robot markers", markers.markers.size());
+    ma_pub.publish(markers);
+
+    ///////////////////
+    // Planner Setup //
+    ///////////////////
+
+    PlannerConfig planning_config;
+    if (!ReadPlannerConfig(ros::NodeHandle("~planning"), planning_config)) {
+        ROS_ERROR("Failed to read planner config");
+        return 1;
+    }
+
+    smpl::PlannerInterface planner(rm.get(), cc.get(), &grid);
+
+    smpl::PlanningParams params;
+    params.epsilon = 100.0;
+    params.planning_frame = planning_frame;
+
+    params.params["discretization"] = planning_config.discretization;
+    params.params["mprim_filename"] = planning_config.mprim_filename;
+    params.params["use_xyz_snap_mprim"] = planning_config.use_xyz_snap_mprim;
+    params.params["use_rpy_snap_mprim"] = planning_config.use_rpy_snap_mprim;
+    params.params["use_xyzrpy_snap_mprim"] = planning_config.use_xyzrpy_snap_mprim;
+    params.params["use_short_dist_mprims"] = planning_config.use_short_dist_mprims;
+    params.params["xyz_snap_dist_thresh"] = planning_config.xyz_snap_dist_thresh;
+    params.params["rpy_snap_dist_thresh"] = planning_config.rpy_snap_dist_thresh;
+    params.params["xyzrpy_snap_dist_thresh"] = planning_config.xyzrpy_snap_dist_thresh;
+    params.params["short_dist_mprims_thresh"] = planning_config.short_dist_mprims_thresh;
+
+    if (!planner.init(params)) {
+        ROS_ERROR("Failed to initialize Planner Interface");
+        return 1;
+    }
 
     //////////////
     // Planning //
@@ -503,13 +1721,18 @@ int main(int argc, char* argv[])
     moveit_msgs::MotionPlanRequest req;
     moveit_msgs::MotionPlanResponse res;
 
-    // fill start state
-    req.start_state = scene.robot_state;
-
-    // fill goal state
-    req.goal_constraints.resize(1);
-    fillConstraint(goal, planning_frame, req.goal_constraints[0]);
     req.allowed_planning_time = 60.0;
+    req.goal_constraints.resize(1);
+    FillGoalConstraint(goal, planning_frame, req.goal_constraints[0]);
+    req.group_name = rm_config.group_name;
+    req.max_acceleration_scaling_factor = 1.0;
+    req.max_velocity_scaling_factor = 1.0;
+    req.num_planning_attempts = 1;
+    req.path_constraints;
+    req.planner_id = "arastar.bfs.manip";
+    req.start_state = scene.robot_state;
+    req.trajectory_constraints;
+    req.workspace_parameters;
 
     // plan
     ROS_INFO("Calling solve...");
@@ -517,8 +1740,6 @@ int main(int argc, char* argv[])
         ROS_ERROR("Failed to plan.");
         return 1;
     }
-
-    ma_pub.publish(planner.getCollisionModelTrajectoryVisualization(res.trajectory_start, res.trajectory));
 
     ///////////////////////////////////
     // Visualizations and Statistics //
@@ -548,16 +1769,13 @@ int main(int argc, char* argv[])
     }
 
     // visualizations
-    ros::spinOnce();
     ma_pub.publish(cc->getVisualization("bounds"));
     ma_pub.publish(cc->getVisualization("distance_field"));
     ma_pub.publish(planner.getGoalVisualization());
     ma_pub.publish(cc->getVisualization("collision_objects"));
-    ma_pub.publish(cc->getCollisionModelVisualization(start_angles));
 
-    ros::spinOnce();
-
-    sleep(1);
     ROS_INFO("Done");
+
+    ros::spin();
     return 0;
 }

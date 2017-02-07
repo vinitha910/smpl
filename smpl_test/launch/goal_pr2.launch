@@ -2,16 +2,42 @@
     <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
 
     <node pkg="smpl_test" type="callPlanner" name="call_planner" output="screen">
-        <!-- robot -->
-        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
-        <rosparam command="load" file="$(find sbpl_collision_checking)/config/pr2_right_arm_model.yaml"/>
-        <param name="action_set_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+        <param name="planning_frame" value="odom_combined"/>
 
-        <!-- scene -->
+        <!-- 1. robot model (for planning) -->
+        <rosparam param="robot_model">
+            group_name: right_arm
+            planning_joints:
+                r_shoulder_pan_joint
+                r_shoulder_lift_joint
+                r_upper_arm_roll_joint
+                r_elbow_flex_joint
+                r_forearm_roll_joint
+                r_wrist_flex_joint
+                r_wrist_roll_joint
+            planning_link:
+                r_gripper_palm_link
+            kinematics_frame:
+                torso_lift_link
+            chain_tip_link:
+                r_gripper_palm_link
+        </rosparam>
+
+        <!-- collision checking -->
+        <rosparam command="load" file="$(find sbpl_collision_checking_test)/config/collision_model_pr2.yaml"/>
+
+        <!-- planner params -->
+        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
+        <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+
+        <!-- 2. scene -->
+        <!-- 2.1 robot state -->
+        <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
+
+        <!-- 2.2 world state -->
         <param name="object_filename" value="$(find smpl_test)/env/tabletop.env"/>
 
-        <!-- scenario -->
-        <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
+        <!-- 3. scenario -->
     </node>
 </launch>
 

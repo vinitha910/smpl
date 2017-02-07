@@ -1,44 +1,18 @@
 planning:
-  epsilon: 100
-  verbose: false
-  verbose_collisions: false
-  shortcut_path: false
-  interpolate_path: false
-  use_bfs_heuristic: true
-  group_name: right_arm
-  planning_joints:
-    r_shoulder_pan_joint
-    r_shoulder_lift_joint
-    r_upper_arm_roll_joint
-    r_elbow_flex_joint
-    r_forearm_roll_joint
-    r_wrist_flex_joint
-    r_wrist_roll_joint
-  discretization: 360 360 360 360 360 360 360
-
-debug:
-  print_out_path: false
-  logging:
-    expands: info
-    expands2: info
-    ik: info
-    robot_model: info
-    collisions: info
-    solution: info
-
-visualizations:
-  heuristic: false
-  goal: true
-  expanded_states: true
-  trajectory: false
-  collision_model_trajectory: false
-  trajectory_throttle: 30
-
-#  occupancy_grid:
-#    origin_x: -0.75
-#    origin_y: -1.25
-#    origin_z: -0.05
-#    size_x: 2.0
-#    size_y: 2.0
-#    size_z: 2.0
-
+  discretization:
+    r_shoulder_pan_joint    0.017453292519943295
+    r_shoulder_lift_joint   0.017453292519943295
+    r_upper_arm_roll_joint  0.017453292519943295
+    r_elbow_flex_joint      0.017453292519943295
+    r_forearm_roll_joint    0.017453292519943295
+    r_wrist_flex_joint      0.017453292519943295
+    r_wrist_roll_joint      0.017453292519943295
+  # obnoxiously, these must all be strings for now
+  use_xyz_snap_mprim: "false"
+  use_rpy_snap_mprim: "false"
+  use_xyzrpy_snap_mprim: "true"
+  use_short_dist_mprims: "true"
+  xyz_snap_dist_thresh: "0.2"
+  rpy_snap_dist_thresh: "0.0"
+  xyzrpy_snap_dist_thresh: "0.0"
+  short_dist_mprims_thresh: "0.4"
