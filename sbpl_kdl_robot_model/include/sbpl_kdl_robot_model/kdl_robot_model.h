@@ -62,25 +62,16 @@ public:
 
     static const int DEFAULT_FREE_ANGLE_INDEX = 2;
 
-    /// @brief Construct a KDL Robot Model with values from the ROS param server.
-    ///
-    /// Expects ROS Parameters:
-    ///     robot_model/chain_root_link : string
-    ///     robot_model/chain_tip_link : string
-    ///     robot_model/free_angle : int (default: 2)
     KDLRobotModel();
-
-    /// @brief Construct a KDL Robot Model.
-    KDLRobotModel(
-            const std::string& chain_root_link,
-            const std::string& chain_tip_link,
-            int free_angle = DEFAULT_FREE_ANGLE_INDEX);
 
     virtual ~KDLRobotModel();
 
     virtual bool init(
         const std::string& robot_description,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints,
+        const std::string& chain_root_link,
+        const std::string& chain_tip_link,
+        int free_angle = DEFAULT_FREE_ANGLE_INDEX);
 
     const std::string& getKinematicsFrame() const;
 

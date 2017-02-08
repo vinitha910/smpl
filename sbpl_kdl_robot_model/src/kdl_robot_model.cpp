@@ -50,25 +50,6 @@ KDLRobotModel::KDLRobotModel() :
     ik_vel_solver_(),
     fk_solver_()
 {
-    ros::NodeHandle ph("~");
-    ph.param<std::string>("robot_model/chain_root_link", chain_root_name_, " ");
-    ph.param<std::string>("robot_model/chain_tip_link", chain_tip_name_, " ");
-    ph.param("robot_model/free_angle", free_angle_, 2);
-}
-
-KDLRobotModel::KDLRobotModel(
-    const std::string& chain_root_link,
-    const std::string& chain_tip_link,
-    int free_angle)
-:
-    initialized_(false),
-    ik_solver_(),
-    ik_vel_solver_(),
-    fk_solver_(),
-    free_angle_(free_angle),
-    chain_root_name_(chain_root_link),
-    chain_tip_name_(chain_tip_link)
-{
 }
 
 KDLRobotModel::~KDLRobotModel()
@@ -77,8 +58,16 @@ KDLRobotModel::~KDLRobotModel()
 
 bool KDLRobotModel::init(
     const std::string& robot_description,
-    const std::vector<std::string>& planning_joints)
+    const std::vector<std::string>& planning_joints,
+    const std::string& chain_root_link,
+    const std::string& chain_tip_link,
+    int free_angle)
 {
+    kinematics_frame_ = chain_root_link;
+    chain_root_name_ = chain_root_link;
+    chain_tip_name_ = chain_tip_link;
+    free_angle_ = free_angle;
+
     ROS_INFO("Initialize KDL Robot Model");
     urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
     if (!urdf_->initString(robot_description)) {
@@ -303,13 +292,11 @@ bool KDLRobotModel::getJointLimits(
                     if (!joint->safety) {
                         min_limit = joint->limits->lower;
                         max_limit = joint->limits->upper;
-                    }
-                    else {
+                    } else {
                         min_limit = joint->safety->soft_lower_limit;
                         max_limit = joint->safety->soft_upper_limit;
                     }
-                }
-                else {
+                } else {
                     min_limit = -M_PI;
                     max_limit = M_PI;
                     continuous = true;
@@ -479,8 +466,7 @@ bool KDLRobotModel::computeFastIK(
     if (pose.size() == 6) {
         // RPY
         frame_des.M = KDL::Rotation::RPY(pose[3],pose[4],pose[5]);
-    }
-    else {
+    } else {
         // quaternion
         frame_des.M = KDL::Rotation::Quaternion(pose[3],pose[4],pose[5],pose[6]);
     }
@@ -524,8 +510,7 @@ bool KDLRobotModel::computeIKSearch(
     if (pose.size() == 6) {
         // RPY
         frame_des.M = KDL::Rotation::RPY(pose[3], pose[4], pose[5]);
-    }
-    else {
+    } else {
         // quaternion
         frame_des.M = KDL::Rotation::Quaternion(pose[3], pose[4], pose[5], pose[6]);
     }
@@ -568,8 +553,7 @@ bool KDLRobotModel::computeIKSearch(
     if (loop_time >= timeout) {
         ROS_DEBUG("IK Timed out in %f seconds",timeout);
         return false;
-    }
-    else {
+    } else {
         ROS_DEBUG("No IK solution was found");
         return false;
     }
@@ -604,25 +588,20 @@ bool KDLRobotModel::getCount(
         if (-count >= min_count) {
             count = -count;
             return true;
-        }
-        else if (count + 1 <= max_count) {
+        } else if (count + 1 <= max_count) {
             count = count + 1;
             return true;
-        }
-        else {
+        } else {
             return false;
         }
-    }
-    else {
+    } else {
         if (1 - count <= max_count) {
             count = 1 - count;
             return true;
-        }
-        else if (count - 1 >= min_count) {
+        } else if (count - 1 >= min_count) {
             count = count - 1;
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }

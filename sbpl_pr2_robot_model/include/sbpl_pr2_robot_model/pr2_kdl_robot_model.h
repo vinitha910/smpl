@@ -33,6 +33,7 @@
 #define sbpl_manip_pr2_kdl_robot_model_h
 
 // standard includes
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -61,33 +62,34 @@ public:
 
     PR2KDLRobotModel();
 
-    virtual ~PR2KDLRobotModel();
+    ~PR2KDLRobotModel();
 
-    /* Initialization */
-    virtual bool init(
+    /// \name Reimplemented Functions from KDLRobotModel
+    ///@{
+    bool init(
         const std::string& robot_description,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints,
+        const std::string& chain_root_link,
+        const std::string& chain_tip_link,
+        int free_angle = DEFAULT_FREE_ANGLE_INDEX) override;
 
-    /* Inverse Kinematics */
-    virtual bool computeIK(
+    bool computeIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
         std::vector<double>& solution,
-        int option = ik_option::UNRESTRICTED);
+        ik_option::IkOption option = ik_option::UNRESTRICTED) override;
 
-    virtual bool computeFastIK(
+    bool computeFastIK(
         const std::vector<double>& pose,
         const std::vector<double>& start,
-        std::vector<double>& solution);
-
-    /* Debug Output */
-    void printRobotModelInformation();
+        std::vector<double>& solution) override;
+    ///@}
 
 private:
 
-    pr2_arm_kinematics::PR2ArmIKSolver* pr2_ik_solver_;
+    std::unique_ptr<pr2_arm_kinematics::PR2ArmIKSolver> pr2_ik_solver_;
 
-    RPYSolver* rpy_solver_;
+    std::unique_ptr<RPYSolver> rpy_solver_;
 
     std::string forearm_roll_link_name_;
     std::string wrist_pitch_joint_name_;

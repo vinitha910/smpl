@@ -44,11 +44,10 @@ namespace sbpl {
 namespace motion {
 
 PR2KDLRobotModel::PR2KDLRobotModel() :
-    pr2_ik_solver_(NULL),
-    rpy_solver_(NULL)
+    KDLRobotModel(),
+    pr2_ik_solver_(),
+    rpy_solver_()
 {
-    chain_root_name_ = "torso_lift_link";
-    chain_tip_name_ = "r_gripper_palm_link";
     forearm_roll_link_name_ = "r_forearm_roll_link";
     wrist_pitch_joint_name_ = "r_wrist_flex_joint";
     end_effector_link_name_ = "r_gripper_palm_link";
@@ -56,116 +55,41 @@ PR2KDLRobotModel::PR2KDLRobotModel() :
 
 PR2KDLRobotModel::~PR2KDLRobotModel()
 {
-    if (pr2_ik_solver_) {
-        delete pr2_ik_solver_;
-    }
-
-    if (rpy_solver_) {
-        delete rpy_solver_;
-    }
 }
 
 bool PR2KDLRobotModel::init(
     const std::string& robot_description,
-    const std::vector<std::string>& planning_joints)
+    const std::vector<std::string>& planning_joints,
+    const std::string& chain_root_link,
+    const std::string& chain_tip_link,
+    int free_angle)
 {
-    urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
-    if (!urdf_->initString(robot_description)) {
-        ROS_ERROR("Failed to parse the URDF.");
-        return false;
-    }
+    ROS_INFO("Initialize PR2 KDL Robot Model");
 
-    if (!kdl_parser::treeFromUrdfModel(*urdf_, ktree_)) {
-        ROS_ERROR("Failed to parse the kdl tree from robot description.");
+    if (!KDLRobotModel::init(
+            robot_description,
+            planning_joints,
+            chain_root_link,
+            chain_tip_link,
+            free_angle))
+    {
         return false;
-    }
-
-    std::vector<std::string> segments(planning_joints.size());
-    for (size_t j = 0; j < planning_joints.size(); ++j) {
-        if (!leatherman::getSegmentOfJoint(ktree_, planning_joints[j], segments[j])) {
-            ROS_ERROR("Failed to find kdl segment for '%s'.", planning_joints_[j].c_str());
-            return false;
-        }
     }
 
     // TODO: Take in as params instead.
     if (planning_joints[0].substr(0,1).compare("l") == 0) {
-        chain_tip_name_.replace(0,1,"l");
         forearm_roll_link_name_.replace(0,1,"l");
         wrist_pitch_joint_name_.replace(0,1,"l");
         end_effector_link_name_.replace(0,1,"l");
     }
 
-    if (!ktree_.getChain(chain_root_name_, chain_tip_name_, kchain_)) {
-        ROS_ERROR("Failed to fetch the KDL chain for the robot. (root: %s, tip: %s)", chain_root_name_.c_str(), chain_tip_name_.c_str());
-        return false;
-    }
-
-    // check if our chain includes all planning joints
-    for (size_t i = 0; i < planning_joints.size(); ++i) {
-        if (planning_joints[i].empty()) {
-            ROS_ERROR("Planning joint name is empty (index: %d).", int(i));
-            return false;
-        }
-        int index;
-        if (!leatherman::getJointIndex(kchain_, planning_joints[i], index)) {
-            ROS_ERROR("Failed to find '%s' in the kinematic chain. Maybe your chain root or tip joints are wrong? (%s, %s)", planning_joints[i].c_str(), chain_root_name_.c_str(), chain_tip_name_.c_str());
-            return false;
-        }
-    }
-
-    // joint limits
-    planning_joints_ = planning_joints;
-    if (!getJointLimits(
-            planning_joints_,
-            min_limits_,
-            max_limits_,
-            continuous_,
-            vel_limits_,
-            eff_limits_))
-    {
-        ROS_ERROR("Failed to get the joint limits.");
-        return false;
-    }
-
-    ROS_INFO("Min Limits: %s", to_string(min_limits_).c_str());
-    ROS_INFO("Max Limits: %s", to_string(max_limits_).c_str());
-    ROS_INFO("Continuous: %s", to_string(continuous_).c_str());
-
-    // FK solver
-    fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kchain_));
-    jnt_pos_in_.resize(kchain_.getNrOfJoints());
-    jnt_pos_out_.resize(kchain_.getNrOfJoints());
-
-    // IK solver
-    KDL::JntArray q_min(planning_joints_.size());
-    KDL::JntArray q_max(planning_joints_.size());
-    for (size_t i = 0; i < planning_joints_.size(); ++i) {
-        q_min(i) = min_limits_[i];
-        q_max(i) = max_limits_[i];
-    }
-    ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(kchain_));
-    ik_solver_.reset(new KDL::ChainIkSolverPos_NR_JL(kchain_, q_min, q_max, *fk_solver_, *ik_vel_solver_, 200, 0.001));
-
     // PR2 Specific IK Solver
-    pr2_ik_solver_ = new pr2_arm_kinematics::PR2ArmIKSolver(*urdf_, chain_root_name_, chain_tip_name_, 0.02, 2);
+    pr2_ik_solver_.reset(new pr2_arm_kinematics::PR2ArmIKSolver(
+            *urdf_, chain_root_name_, chain_tip_name_, 0.02, 2));
     if (!pr2_ik_solver_->active_) {
         ROS_ERROR("The pr2 IK solver is NOT active. Exiting.");
+        initialized_ = false;
         return false;
-    }
-
-    // joint name -> index mapping
-    for (size_t i = 0; i < planning_joints_.size(); ++i) {
-        joint_map_[planning_joints_[i]] = i;
-    }
-
-    // TODO: figure out why the link_map_ can be initialized incorrectly in
-    // some cases causing it to seg fault in the next for loop.
-    link_map_ = std::map<std::string, int>();
-
-    // link name -> kdl index mapping
-    for (size_t i = 0; i < kchain_.getNrOfSegments(); ++i) {
-        link_map_[kchain_.getSegment(i).getName()] = i;
     }
 
     // initialize rpy solver
@@ -180,9 +104,11 @@ bool PR2KDLRobotModel::init(
             wrist_vel_limit,
             wrist_eff_limit))
     {
+        initialized_ = false;
         return false;
     }
-    rpy_solver_ = new RPYSolver(wrist_min_limit, wrist_max_limit);
+
+    rpy_solver_.reset(new RPYSolver(wrist_min_limit, wrist_max_limit));
 
     initialized_ = true;
     return true;
@@ -192,7 +118,7 @@ bool PR2KDLRobotModel::computeIK(
     const std::vector<double>& pose,
     const std::vector<double>& start,
     std::vector<double>& solution,
-    int option)
+    ik_option::IkOption option)
 {
     //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
     KDL::Frame frame_des;
@@ -203,8 +129,7 @@ bool PR2KDLRobotModel::computeIK(
     if (pose.size() == 6) {
         // RPY
         frame_des.M = KDL::Rotation::RPY(pose[3], pose[4], pose[5]);
-    }
-    else {
+    } else {
         // quaternion
         frame_des.M = KDL::Rotation::Quaternion(pose[3], pose[4], pose[5], pose[6]);
     }
@@ -241,8 +166,7 @@ bool PR2KDLRobotModel::computeIK(
         }
 
         return rpy_solver_->computeRPYOnly(rpy2, start, fpose, epose, 1, solution);
-    }
-    else {
+    } else {
         const double timeout = 0.2;
         const double consistency_limit = 2.0 * M_PI;
         if (pr2_ik_solver_->CartToJntSearch(
@@ -274,11 +198,10 @@ bool PR2KDLRobotModel::computeFastIK(
     frame_des.p.y(pose[1]);
     frame_des.p.z(pose[2]);
 
-    if(pose.size() == 6) {
+    if (pose.size() == 6) {
         // RPY
         frame_des.M = KDL::Rotation::RPY(pose[3],pose[4],pose[5]);
-    }
-    else {
+    } else {
         // quaternion
         frame_des.M = KDL::Rotation::Quaternion(pose[3],pose[4],pose[5],pose[6]);
     }
@@ -302,25 +225,6 @@ bool PR2KDLRobotModel::computeFastIK(
     }
 
     return true;
-}
-
-void PR2KDLRobotModel::printRobotModelInformation()
-{
-    leatherman::printKDLChain(kchain_, "robot_model");
-
-    ROS_INFO("Joint<->Index Map:");
-    for (std::map<std::string, int>::const_iterator iter = joint_map_.begin();
-            iter != joint_map_.end(); ++iter)
-    {
-        ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
-    }
-
-    ROS_INFO("Link<->KDL_Index Map:");
-    for (std::map<std::string, int>::const_iterator iter = link_map_.begin();
-            iter != link_map_.end(); ++iter)
-    {
-        ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
-    }
 }
 
 } // namespace motion

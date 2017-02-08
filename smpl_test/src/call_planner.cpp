@@ -212,59 +212,60 @@ bool ReadInitialConfiguration(
             ROS_WARN("initial_configuration/joint_state is not an array.");
         }
 
-        if (xlist.size() == 0) {
-            return false;
-        }
-        std::cout << xlist << std::endl;
-        for (int i = 0; i < xlist.size(); ++i) {
-            state.joint_state.name.push_back(std::string(xlist[i]["name"]));
+        if (xlist.size() > 0) {
+            std::cout << xlist << std::endl;
+            for (int i = 0; i < xlist.size(); ++i) {
+                state.joint_state.name.push_back(std::string(xlist[i]["name"]));
 
-            if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
-                state.joint_state.position.push_back(double(xlist[i]["position"]));
-            }
-            else {
-                ROS_DEBUG("Doubles in the yaml file have to contain decimal points. (Convert '0' to '0.0')");
-                if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeInt) {
-                    int pos = xlist[i]["position"];
-                    state.joint_state.position.push_back(double(pos));
+                if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
+                    state.joint_state.position.push_back(double(xlist[i]["position"]));
+                }
+                else {
+                    ROS_DEBUG("Doubles in the yaml file have to contain decimal points. (Convert '0' to '0.0')");
+                    if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeInt) {
+                        int pos = xlist[i]["position"];
+                        state.joint_state.position.push_back(double(pos));
+                    }
                 }
             }
         }
     }
     else {
-        ROS_ERROR("initial_configuration/joint_state is not on the param server.");
-        return false;
+        ROS_WARN("initial_configuration/joint_state is not on the param server.");
     }
 
-    //multi_dof_joint_state
+    // multi_dof_joint_state
     if (nh.hasParam("initial_configuration/multi_dof_joint_state")) {
         nh.getParam("initial_configuration/multi_dof_joint_state", xlist);
 
-        if (xlist.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+        if (xlist.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+            if (xlist.size() != 0) {
+                auto &multi_dof_joint_state(state.multi_dof_joint_state);
+                multi_dof_joint_state.header.frame_id = std::string(xlist[0]["frame_id"]);
+                multi_dof_joint_state.joint_names.resize(xlist.size());
+                multi_dof_joint_state.transforms.resize(xlist.size());
+                for (int i = 0; i < xlist.size(); ++i) {
+                    multi_dof_joint_state.joint_names[i] = std::string(xlist[i]["child_frame_id"]);
+
+                    geometry_msgs::Pose pose;
+                    leatherman::rpyToQuatMsg(xlist[i]["roll"], xlist[i]["pitch"], xlist[i]["yaw"], pose.orientation);
+                    multi_dof_joint_state.transforms[i].translation.x = xlist[i]["x"];
+                    multi_dof_joint_state.transforms[i].translation.y = xlist[i]["y"];
+                    multi_dof_joint_state.transforms[i].translation.z = xlist[i]["z"];
+                    multi_dof_joint_state.transforms[i].rotation.w = pose.orientation.w;
+                    multi_dof_joint_state.transforms[i].rotation.x = pose.orientation.x;
+                    multi_dof_joint_state.transforms[i].rotation.y = pose.orientation.y;
+                    multi_dof_joint_state.transforms[i].rotation.z = pose.orientation.z;
+                }
+            } else {
+                ROS_WARN("initial_configuration/multi_dof_joint_state array is empty");
+            }
+        } else {
             ROS_WARN("initial_configuration/multi_dof_joint_state is not an array.");
         }
-
-        if (xlist.size() != 0) {
-            geometry_msgs::Pose pose;
-            state.multi_dof_joint_state.header.frame_id = std::string(xlist[0]["frame_id"]);
-            state.multi_dof_joint_state.joint_names.resize(xlist.size());
-            state.multi_dof_joint_state.transforms.resize(xlist.size());
-            for (int i = 0; i < xlist.size(); ++i) {
-                state.multi_dof_joint_state.joint_names[i] = "world_pose";
-                pose.position.x = xlist[i]["x"];
-                pose.position.y = xlist[i]["y"];
-                pose.position.z = xlist[i]["z"];
-                leatherman::rpyToQuatMsg(xlist[i]["roll"], xlist[i]["pitch"], xlist[i]["yaw"], pose.orientation);
-                state.multi_dof_joint_state.transforms[i].translation.x = pose.position.x;
-                state.multi_dof_joint_state.transforms[i].translation.y = pose.position.y;
-                state.multi_dof_joint_state.transforms[i].translation.z = pose.position.z;
-                state.multi_dof_joint_state.transforms[i].rotation.w = pose.orientation.w;
-                state.multi_dof_joint_state.transforms[i].rotation.x = pose.orientation.x;
-                state.multi_dof_joint_state.transforms[i].rotation.y = pose.orientation.y;
-                state.multi_dof_joint_state.transforms[i].rotation.z = pose.orientation.z;
-            }
-        }
     }
+
+    ROS_INFO("Read initial state containing %zu joints and %zu multi-dof joints", state.joint_state.name.size(), state.multi_dof_joint_state.joint_names.size());
     return true;
 }
 
@@ -380,63 +381,47 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
     return true;
 }
 
-std::unique_ptr<sbpl::motion::RobotModel>
-SetupRobotModel(
+std::unique_ptr<smpl::KDLRobotModel> SetupRobotModel(
     const std::string& urdf,
     const RobotModelConfig &config,
     const std::string& planning_frame)
 {
-    std::unique_ptr<sbpl::motion::RobotModel> rm_ptr;
+    if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
+        ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
+        return false;
+    }
 
-    sbpl::motion::KDLRobotModel* rm = nullptr;
-    KDL::Frame f;
+    std::unique_ptr<smpl::KDLRobotModel> rm;
+
     if (config.group_name == "right_arm") {
         ROS_INFO("Construct PR2 Robot Model");
-        sbpl::motion::PR2KDLRobotModel* pr2_rm =
-                new sbpl::motion::PR2KDLRobotModel;
-        // Set the current transform from the planning frame to the kinematics
-        // frame
-        f.p.x(-0.05);
-        f.p.y(1.0);
-        f.p.z(0.789675);
-        f.M = KDL::Rotation::Quaternion(0,0,0,1);
-        pr2_rm->setKinematicsToPlanningTransform(f, planning_frame);
-        rm = pr2_rm;
-    }
-    else if (config.group_name == "arm") {
+        rm.reset(new smpl::PR2KDLRobotModel);
+    } else if (config.group_name == "arm") {
         ROS_INFO("Construct UBR1 Robot Model");
-        sbpl::motion::UBR1KDLRobotModel* ubr1_rm =
-                new sbpl::motion::UBR1KDLRobotModel;
-        // Set the current transform from the planning frame to the kinematics
-        // frame
-        f.p.x(-0.05);
-        f.p.y(0.0);
-        f.p.z(0.26);
-        f.M = KDL::Rotation::Quaternion(0,0,0,1);
-        ubr1_rm->setKinematicsToPlanningTransform(f, planning_frame);
-        rm = ubr1_rm;
-    }
-    else {
+        rm.reset(new smpl::UBR1KDLRobotModel);
+    } else {
         ROS_INFO("Construct Generic KDL Robot Model");
-        std::string kinematics_frame, chain_tip_link;
-        if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
-            ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
-            return false;
-        }
-        rm  = new sbpl::motion::KDLRobotModel(kinematics_frame, chain_tip_link);
+        rm.reset(new sbpl::motion::KDLRobotModel);
     }
 
-    if (!rm->init(urdf, config.planning_joints)) {
+    if (!rm->init(
+            urdf,
+            config.planning_joints,
+            config.kinematics_frame,
+            config.chain_tip_link))
+    {
         ROS_ERROR("Failed to initialize robot model.");
-        delete rm;
-        rm = nullptr;
-        return rm_ptr;
+        rm.reset();
+        return std::move(rm);
     }
 
-    rm->setPlanningLink(config.planning_link);
+    if (!rm->setPlanningLink(config.planning_link)) {
+        ROS_ERROR("Failed to set planning link to '%s'", config.planning_link.c_str());
+        rm.reset();
+        return std::move(rm);
+    }
 
-    rm_ptr.reset(rm);
-    return rm_ptr;
+    return std::move(rm);
 }
 
 void initAllowedCollisionsPR2(sbpl::collision::CollisionSpace &cspace)
@@ -1663,15 +1648,39 @@ int main(int argc, char* argv[])
         return false;
     }
 
+    // set the kinematics to planning transform if found in the initial
+    // configuration as a multi-dof transform...this is to account for the kdl
+    // robot model not generating forward kinematics for the robot as a whole
+    const auto &multi_dof_joint_state(scene.robot_state.multi_dof_joint_state);
+    if (multi_dof_joint_state.header.frame_id == planning_frame) {
+        ROS_INFO("Search for planning -> kinematics transform in multi-dof joint state");
+        bool found = false;
+        for (size_t i = 0; i < multi_dof_joint_state.joint_names.size(); ++i) {
+            const std::string &joint_name(multi_dof_joint_state.joint_names[i]);
+            const geometry_msgs::Transform &transform(multi_dof_joint_state.transforms[i]);
+            if (joint_name == rm->getKinematicsFrame()) {
+                KDL::Frame f;
+                tf::transformMsgToKDL(transform, f);
+                rm->setKinematicsToPlanningTransform(f, "what?");
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            ROS_WARN("You might want to provide the planning frame -> kinematics frame transform in the multi-dof joint state");
+        }
+    } else {
+        ROS_WARN("You might want to provide the planning frame -> kinematics frame transform in the multi-dof joint state");
+    }
+
     auto markers = cc->getBoundingBoxVisualization();
     ROS_INFO("Publish %zu bounding box markers", markers.markers.size());
     ma_pub.publish(markers);
     markers = cc->getCollisionWorldVisualization();
     ROS_INFO("Publish %zu collision world markers", markers.markers.size());
+    ma_pub.publish(cc->getCollisionRobotVisualization());
     ma_pub.publish(markers);
-    markers = cc->getCollisionRobotVisualization(std::vector<double>(rm_config.planning_joints.size(), 0.0));
-    ROS_INFO("Publish %zu collision robot markers", markers.markers.size());
-    ma_pub.publish(markers);
+    ma_pub.publish(cc->getOccupiedVoxelsVisualization());
 
     ///////////////////
     // Planner Setup //
@@ -1767,12 +1776,6 @@ int main(int argc, char* argv[])
             ROS_WARN("Did not find planning statistic \"%s\"", statistic.c_str());
         }
     }
-
-    // visualizations
-    ma_pub.publish(cc->getVisualization("bounds"));
-    ma_pub.publish(cc->getVisualization("distance_field"));
-    ma_pub.publish(planner.getGoalVisualization());
-    ma_pub.publish(cc->getVisualization("collision_objects"));
 
     ROS_INFO("Done");
 
