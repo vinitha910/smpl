@@ -93,8 +93,9 @@ add_library(
     src/ros/adaptive_planner_allocator.cpp
     src/ros/planner_interface.cpp
     src/ros/workspace_lattice_allocator.cpp
-    src/search/experience_graph_planner.cpp
-    src/search/adaptive_planner.cpp)
+    src/search/adaptive_planner.cpp
+    src/search/focal_mhastar_search.cpp
+    src/search/experience_graph_planner.cpp)
 
 target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})
 
