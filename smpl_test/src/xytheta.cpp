@@ -4,12 +4,16 @@
 #include <leatherman/print.h>
 #include <ros/ros.h>
 #include <sbpl/planners/araplanner.h>
+#include <sbpl/planners/mhaplanner.h>
 #include <smpl/collision_checker.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/heuristic/attractor_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
+#include <smpl/heuristic/zero_heuristic.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
+#include <smpl/search/focal_mhastar_search.h>
 
 namespace smpl = sbpl::motion;
 
@@ -320,17 +324,32 @@ int main(int argc, char* argv[])
     pspace->setActionSpace(aspace);
 
     // 7. Instantiate Heuristic
-    auto h = std::make_shared<smpl::JointDistHeuristic>(pspace, &grid);
+    auto h0 = std::make_shared<smpl::ZeroHeuristic>(pspace, &grid);
+    auto h1 = std::make_shared<smpl::JointDistHeuristic>(pspace, &grid);
+    auto h2 = std::make_shared<smpl::AttractorHeuristic>(pspace, &grid);
+    auto h3 = std::make_shared<smpl::AttractorHeuristic>(pspace, &grid);
+    std::vector<Heuristic*> heuristic_arr;
+    heuristic_arr.push_back(h1.get());
+    heuristic_arr.push_back(h2.get());
+    heuristic_arr.push_back(h3.get());
+
+    h2->setAttractor({ 0.25, 0.66 });
+    h3->setAttractor({ 0.75, 0.66 });
 
     // 8. Associate Heuristic with Planning Space (for adaptive motion
     // primitives)
-    pspace->insertHeuristic(h);
+    pspace->insertHeuristic(h0);
+    pspace->insertHeuristic(h1);
+    pspace->insertHeuristic(h2);
+    pspace->insertHeuristic(h3);
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
     const bool forward = true;
-    auto search = std::make_shared<ARAPlanner>(pspace.get(), forward);
+    auto search = std::make_shared<sbpl::FocalMHAStarSearch>(
+            pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
 
-    const double epsilon = 5.0;
+    const double epsilon = 50.0;
+//    search->set_initial_mha_eps(100.0);
     search->set_initialsolution_eps(epsilon);
     search->set_search_mode(false);
 
