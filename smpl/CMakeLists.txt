@@ -72,12 +72,14 @@ add_library(
     src/graph/robot_planning_space.cpp
     src/graph/workspace_lattice.cpp
     src/graph/workspace_lattice_base.cpp
+    src/heuristic/attractor_heuristic.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
     src/heuristic/euclid_dist_heuristic.cpp
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/heuristic/zero_heuristic.cpp
     src/ros/adaptive_workspace_lattice_allocator.cpp
     src/ros/araplanner_allocator.cpp
     src/ros/bfs_heuristic_allocator.cpp
