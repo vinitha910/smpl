@@ -134,7 +134,7 @@ int RobotPlanningSpace::GetFromToHeuristic(int from_id, int to_id)
     if (numHeuristics() == 0) {
         return 0;
     }
-    heuristic(0)->GetFromToHeuristic(from_id, to_id);
+    return heuristic(0)->GetFromToHeuristic(from_id, to_id);
 }
 
 void RobotPlanningSpace::GetLazySuccs(
