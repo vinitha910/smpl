@@ -78,17 +78,17 @@ std::ostream &operator<<(std::ostream &o, const MHASearchState &s)
     return o;
 }
 
-class FocalMHAStarSearch : public SBPLPlanner
+class FocalMultiHeuristicAstar : public SBPLPlanner
 {
 public:
 
-    FocalMHAStarSearch(
+    FocalMultiHeuristicAstar(
             DiscreteSpaceInformation* environment,
             Heuristic* hanchor,
             Heuristic** heurs,
             int hcount);
 
-    ~FocalMHAStarSearch();
+    ~FocalMultiHeuristicAstar();
 
     /// \name Required Functions from SBPLPlanner
     ///@{

@@ -13,8 +13,8 @@
 #include <smpl/heuristic/zero_heuristic.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
-#include <smpl/search/focal_mhastar_search.h>
-#include <smpl/search/meta_mhastar_dts_search.h>
+#include <smpl/search/focal_mhastar.h>
+#include <smpl/search/meta_mhastar_dts.h>
 
 namespace smpl = sbpl::motion;
 

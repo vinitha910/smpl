@@ -45,7 +45,7 @@
 // project includes
 #include <smpl/intrusive_heap.h>
 #include <smpl/time.h>
-#include <smpl/search/focal_mhastar_search.h>
+#include <smpl/search/focal_mhastar.h>
 
 namespace sbpl {
 
