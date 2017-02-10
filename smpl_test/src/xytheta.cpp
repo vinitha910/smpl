@@ -14,6 +14,7 @@
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
 #include <smpl/search/focal_mhastar_search.h>
+#include <smpl/search/meta_mhastar_dts_search.h>
 
 namespace smpl = sbpl::motion;
 
@@ -345,8 +346,10 @@ int main(int argc, char* argv[])
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
     const bool forward = true;
-    auto search = std::make_shared<sbpl::FocalMHAStarSearch>(
+    auto search = std::make_shared<sbpl::MetaMultiHeuristicAstarDTS>(
             pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
+//    auto search = std::make_shared<sbpl::FocalMHAStarSearch>(
+//            pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
 
     const double epsilon = 50.0;
 //    search->set_initial_mha_eps(100.0);
