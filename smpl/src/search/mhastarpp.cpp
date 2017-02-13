@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/search/focal_mhastar.h>
+#include <smpl/search/mhastarpp.h>
 
 // standard includes
 #include <assert.h>
@@ -48,7 +48,7 @@ static double to_secs(const sbpl::clock::duration &d)
 
 namespace sbpl {
 
-FocalMultiHeuristicAstar::FocalMultiHeuristicAstar(
+MultiHeuristicAstarPP::MultiHeuristicAstarPP(
     DiscreteSpaceInformation* environment,
     Heuristic* hanchor,
     Heuristic** heurs,
@@ -68,7 +68,8 @@ FocalMultiHeuristicAstar::FocalMultiHeuristicAstar(
     m_start_state(nullptr),
     m_goal_state(nullptr),
     m_search_states(),
-    m_open(nullptr)
+    m_open(nullptr),
+    m_max_fval_closed_anc(0)
 {
     ROS_INFO("Construct Focal MHA* Search with %d heuristics", hcount);
     environment_ = environment;
@@ -85,14 +86,14 @@ FocalMultiHeuristicAstar::FocalMultiHeuristicAstar(
     m_params.repair_time = 0.0;
 }
 
-FocalMultiHeuristicAstar::~FocalMultiHeuristicAstar()
+MultiHeuristicAstarPP::~MultiHeuristicAstarPP()
 {
     clear();
 
     delete[] m_open;
 }
 
-int FocalMultiHeuristicAstar::set_start(int start_state_id)
+int MultiHeuristicAstarPP::set_start(int start_state_id)
 {
     ROS_INFO("Set start to %d", start_state_id);
     m_start_state = get_state(start_state_id);
@@ -103,7 +104,7 @@ int FocalMultiHeuristicAstar::set_start(int start_state_id)
     }
 }
 
-int FocalMultiHeuristicAstar::set_goal(int goal_state_id)
+int MultiHeuristicAstarPP::set_goal(int goal_state_id)
 {
     ROS_INFO("Set goal to %d", goal_state_id);
     m_goal_state = get_state(goal_state_id);
@@ -114,7 +115,7 @@ int FocalMultiHeuristicAstar::set_goal(int goal_state_id)
     }
 }
 
-int FocalMultiHeuristicAstar::replan(
+int MultiHeuristicAstarPP::replan(
     double allocated_time_sec,
     std::vector<int>* solution)
 {
@@ -122,7 +123,7 @@ int FocalMultiHeuristicAstar::replan(
     return replan(allocated_time_sec, solution, &solcost);
 }
 
-int FocalMultiHeuristicAstar::replan(
+int MultiHeuristicAstarPP::replan(
     double allocated_time_sec,
     std::vector<int>* solution,
     int* solcost)
@@ -132,7 +133,7 @@ int FocalMultiHeuristicAstar::replan(
     return replan(solution, params, solcost);
 }
 
-int FocalMultiHeuristicAstar::replan(
+int MultiHeuristicAstarPP::replan(
     std::vector<int>* solution,
     ReplanParams params)
 {
@@ -140,7 +141,7 @@ int FocalMultiHeuristicAstar::replan(
     return replan(solution, params, &solcost);
 }
 
-int FocalMultiHeuristicAstar::replan(
+int MultiHeuristicAstarPP::replan(
     std::vector<int>* solution,
     ReplanParams params,
     int* solcost)
@@ -189,11 +190,14 @@ int FocalMultiHeuristicAstar::replan(
     // insert start state into PSET and place in all RANK lists
     m_start_state->od[0].f = compute_key(m_start_state, 0);
     m_open[0].push(&m_start_state->od[0]);
+    ROS_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, 0, m_start_state->od[0].f);
     for (int hidx = 1; hidx < num_heuristics(); ++hidx) {
         m_start_state->od[hidx].f = compute_key(m_start_state, hidx);
         m_open[hidx].push(&m_start_state->od[hidx]);
         ROS_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, hidx, m_start_state->od[hidx].f);
     }
+
+    m_max_fval_closed_anc = m_start_state->od[0].f; //0;
 
     auto end_time = sbpl::clock::now();
     m_elapsed += to_secs(end_time - start_time);
@@ -207,7 +211,7 @@ int FocalMultiHeuristicAstar::replan(
                 break;
             }
 
-            if (m_goal_state->g <= m_eps * get_minf(m_open[0])) {
+            if (m_goal_state->g <= m_max_fval_closed_anc) {
                 m_eps_satisfied = m_eps;
                 extract_path(solution, solcost);
                 return 1;
@@ -215,15 +219,19 @@ int FocalMultiHeuristicAstar::replan(
 
             if (!m_open[hidx].empty()) {
                 MHASearchState* s = select_state(hidx);
-                expand(s, hidx);
-                s->closed_in_add = true;
+                if (s) {
+                    expand(s, hidx);
+                    s->closed_in_add = true;
+                } else {
+                    ROS_ERROR("No state selected for expansion from heuristic %d", hidx);
+                }
             } else {
                 ROS_WARN("PSET empty during inadmissible expansions?");
             }
         }
 
         if (!m_open[0].empty()) {
-            if (m_goal_state->g <= m_eps * get_minf(m_open[0])) {
+            if (m_goal_state->g <= m_max_fval_closed_anc) {
                 m_eps_satisfied = m_eps;
                 extract_path(solution, solcost);
                 return 1;
@@ -232,6 +240,9 @@ int FocalMultiHeuristicAstar::replan(
             MHASearchState* s = state_from_open_state(m_open[0].min());
             expand(s, 0);
             s->closed_in_anc = true;
+            if (s->od[0].f > m_max_fval_closed_anc) {
+                m_max_fval_closed_anc = s->od[0].f;
+            }
         }
 
         auto end_time = sbpl::clock::now();
@@ -248,110 +259,110 @@ int FocalMultiHeuristicAstar::replan(
     return 0;
 }
 
-int FocalMultiHeuristicAstar::force_planning_from_scratch()
+int MultiHeuristicAstarPP::force_planning_from_scratch()
 {
     return 0;
 }
 
-int FocalMultiHeuristicAstar::force_planning_from_scratch_and_free_memory()
+int MultiHeuristicAstarPP::force_planning_from_scratch_and_free_memory()
 {
     return 0;
 }
 
-void FocalMultiHeuristicAstar::costs_changed(StateChangeQuery const & stateChange)
+void MultiHeuristicAstarPP::costs_changed(StateChangeQuery const & stateChange)
 {
 }
 
-int FocalMultiHeuristicAstar::set_search_mode(bool bSearchUntilFirstSolution)
+int MultiHeuristicAstarPP::set_search_mode(bool bSearchUntilFirstSolution)
 {
     return m_params.return_first_solution = bSearchUntilFirstSolution;
 }
 
-void FocalMultiHeuristicAstar::set_initialsolution_eps(double eps)
+void MultiHeuristicAstarPP::set_initialsolution_eps(double eps)
 {
     m_params.initial_eps = eps;
 }
 
-double FocalMultiHeuristicAstar::get_initial_eps()
+double MultiHeuristicAstarPP::get_initial_eps()
 {
     return m_params.initial_eps;
 }
 
-double FocalMultiHeuristicAstar::get_solution_eps() const
+double MultiHeuristicAstarPP::get_solution_eps() const
 {
     return m_eps_satisfied;
 }
 
-double FocalMultiHeuristicAstar::get_final_epsilon()
+double MultiHeuristicAstarPP::get_final_epsilon()
 {
     return m_eps_satisfied;
 }
 
-double FocalMultiHeuristicAstar::get_final_eps_planning_time()
+double MultiHeuristicAstarPP::get_final_eps_planning_time()
 {
     return m_elapsed;
 }
 
-double FocalMultiHeuristicAstar::get_initial_eps_planning_time()
+double MultiHeuristicAstarPP::get_initial_eps_planning_time()
 {
     return m_elapsed;
 }
 
-int FocalMultiHeuristicAstar::get_n_expands() const
+int MultiHeuristicAstarPP::get_n_expands() const
 {
     return m_num_expansions;
 }
 
-int FocalMultiHeuristicAstar::get_n_expands_init_solution()
+int MultiHeuristicAstarPP::get_n_expands_init_solution()
 {
     return m_num_expansions;
 }
 
-void FocalMultiHeuristicAstar::get_search_stats(std::vector<PlannerStats>* s)
+void MultiHeuristicAstarPP::get_search_stats(std::vector<PlannerStats>* s)
 {
 }
 
-void FocalMultiHeuristicAstar::set_final_eps(double eps)
+void MultiHeuristicAstarPP::set_final_eps(double eps)
 {
     m_params.final_eps = eps;
 }
 
-void FocalMultiHeuristicAstar::set_dec_eps(double eps)
+void MultiHeuristicAstarPP::set_dec_eps(double eps)
 {
     m_params.dec_eps = eps;
 }
 
-void FocalMultiHeuristicAstar::set_max_expansions(int expansion_count)
+void MultiHeuristicAstarPP::set_max_expansions(int expansion_count)
 {
     m_max_expansions = expansion_count;
 }
 
-void FocalMultiHeuristicAstar::set_max_time(double max_time)
+void MultiHeuristicAstarPP::set_max_time(double max_time)
 {
     m_params.max_time = max_time;
 }
 
-double FocalMultiHeuristicAstar::get_final_eps() const
+double MultiHeuristicAstarPP::get_final_eps() const
 {
     return m_params.final_eps;
 }
 
-double FocalMultiHeuristicAstar::get_dec_eps() const
+double MultiHeuristicAstarPP::get_dec_eps() const
 {
     return m_params.dec_eps;
 }
 
-int FocalMultiHeuristicAstar::get_max_expansions() const
+int MultiHeuristicAstarPP::get_max_expansions() const
 {
     return m_max_expansions;
 }
 
-double FocalMultiHeuristicAstar::get_max_time() const
+double MultiHeuristicAstarPP::get_max_time() const
 {
     return m_params.max_time;
 }
 
-bool FocalMultiHeuristicAstar::check_params(const ReplanParams& params)
+bool MultiHeuristicAstarPP::check_params(const ReplanParams& params)
 {
     if (params.initial_eps < 1.0) {
         SBPL_ERROR("Initial Epsilon must be greater than or equal to 1");
@@ -379,7 +390,7 @@ bool FocalMultiHeuristicAstar::check_params(const ReplanParams& params)
     return true;
 }
 
-bool FocalMultiHeuristicAstar::time_limit_reached() const
+bool MultiHeuristicAstarPP::time_limit_reached() const
 {
     if (m_params.return_first_solution) {
         return false;
@@ -392,7 +403,7 @@ bool FocalMultiHeuristicAstar::time_limit_reached() const
     }
 }
 
-MHASearchState* FocalMultiHeuristicAstar::get_state(int state_id)
+MHASearchState* MultiHeuristicAstarPP::get_state(int state_id)
 {
     if (m_graph_to_search_state.size() < state_id + 1) {
         m_graph_to_search_state.resize(state_id + 1, -1);
@@ -425,7 +436,7 @@ MHASearchState* FocalMultiHeuristicAstar::get_state(int state_id)
     }
 }
 
-void FocalMultiHeuristicAstar::clear()
+void MultiHeuristicAstarPP::clear()
 {
     clear_open_lists();
 
@@ -445,7 +456,7 @@ void FocalMultiHeuristicAstar::clear()
     m_goal_state = nullptr;
 }
 
-void FocalMultiHeuristicAstar::init_state(
+void MultiHeuristicAstarPP::init_state(
     MHASearchState* state,
     int state_id)
 {
@@ -454,7 +465,6 @@ void FocalMultiHeuristicAstar::init_state(
     state->closed_in_anc = false;
     state->closed_in_add = false;
     for (int i = 0; i < num_heuristics(); ++i) {
-        state->od[i].f = compute_heuristic(state->state_id, i);
         state->od[i].me = state;
     }
 
@@ -469,7 +479,7 @@ void FocalMultiHeuristicAstar::init_state(
 // Reinitialize the state for a new search. Maintains the state id. Resets the
 // cost-to-go to infinity. Removes the state from both closed lists. Recomputes
 // all heuristics for the state. Does NOT remove from the OPEN or PSET lists.
-void FocalMultiHeuristicAstar::reinit_state(MHASearchState* state)
+void MultiHeuristicAstarPP::reinit_state(MHASearchState* state)
 {
     if (state->call_number != m_call_number) {
         state->call_number = m_call_number;
@@ -493,28 +503,28 @@ void FocalMultiHeuristicAstar::reinit_state(MHASearchState* state)
     }
 }
 
-void FocalMultiHeuristicAstar::reinit_search()
+void MultiHeuristicAstarPP::reinit_search()
 {
     clear_open_lists();
 }
 
-void FocalMultiHeuristicAstar::clear_open_lists()
+void MultiHeuristicAstarPP::clear_open_lists()
 {
     for (int i = 0; i < num_heuristics(); ++i) {
         m_open[i].clear();
     }
 }
 
-int FocalMultiHeuristicAstar::compute_key(MHASearchState* state, int hidx)
+int MultiHeuristicAstarPP::compute_key(MHASearchState* state, int hidx)
 {
     if (hidx == 0) {
-        return state->g + state->od[hidx].h;
+        return state->g + (int)(m_eps * state->od[hidx].h);
     } else {
         return state->od[hidx].h;
     }
 }
 
-void FocalMultiHeuristicAstar::expand(MHASearchState* state, int hidx)
+void MultiHeuristicAstarPP::expand(MHASearchState* state, int hidx)
 {
     ROS_INFO("Expanding state %d in search %d", state->state_id, hidx);
 
@@ -562,13 +572,13 @@ void FocalMultiHeuristicAstar::expand(MHASearchState* state, int hidx)
     }
 }
 
-MHASearchState* FocalMultiHeuristicAstar::state_from_open_state(
+MHASearchState* MultiHeuristicAstarPP::state_from_open_state(
     MHASearchState::HeapData* open_state)
 {
     return open_state->me;
 }
 
-int FocalMultiHeuristicAstar::compute_heuristic(int state_id, int hidx)
+int MultiHeuristicAstarPP::compute_heuristic(int state_id, int hidx)
 {
     if (hidx == 0) {
         return m_hanchor->GetGoalHeuristic(state_id);
@@ -577,12 +587,12 @@ int FocalMultiHeuristicAstar::compute_heuristic(int state_id, int hidx)
     }
 }
 
-int FocalMultiHeuristicAstar::get_minf(rank_pq& pq) const
+int MultiHeuristicAstarPP::get_minf(rank_pq& pq) const
 {
     return pq.min()->f;
 }
 
-void FocalMultiHeuristicAstar::insert_or_update(MHASearchState* state, int hidx)
+void MultiHeuristicAstarPP::insert_or_update(MHASearchState* state, int hidx)
 {
     if (m_open[hidx].contains(&state->od[hidx])) {
         m_open[hidx].update(&state->od[hidx]);
@@ -591,17 +601,17 @@ void FocalMultiHeuristicAstar::insert_or_update(MHASearchState* state, int hidx)
     }
 }
 
-MHASearchState* FocalMultiHeuristicAstar::select_state(int hidx)
+MHASearchState* MultiHeuristicAstarPP::select_state(int hidx)
 {
     MHASearchState* state = state_from_open_state(m_open[hidx].min());
-    MHASearchState::HeapData* min_open = m_open[0].min();
-    if (state->od[0].f <= m_eps * min_open->f) {
+    // max to guarantee that at least the front of the OPEN list
+    if (state->g + state->od[0].h <= std::max(m_max_fval_closed_anc, m_open[0].min()->f)) {
         return state;
     }
 
     for (auto it = std::next(m_open[hidx].begin()); it != m_open[hidx].end(); ++it) {
         state = state_from_open_state(*it);
-        if (state->od[0].f <= m_eps * min_open->f) {
+        if (state->g + state->od[0].h <= std::max(m_max_fval_closed_anc, m_open[0].min()->f)) {
             return state;
         }
     }
@@ -609,13 +619,12 @@ MHASearchState* FocalMultiHeuristicAstar::select_state(int hidx)
     return nullptr;
 }
 
-void FocalMultiHeuristicAstar::extract_path(std::vector<int>* solution_path, int* solcost)
+void MultiHeuristicAstarPP::extract_path(std::vector<int>* solution_path, int* solcost)
 {
     ROS_INFO("Extracting path");
     solution_path->clear();
     *solcost = 0;
-    for (MHASearchState* state = m_goal_state; state; state = state->bp)
-    {
+    for (MHASearchState* state = m_goal_state; state; state = state->bp) {
         solution_path->push_back(state->state_id);
         if (state->bp) {
             *solcost += (state->g - state->bp->g);
@@ -626,17 +635,17 @@ void FocalMultiHeuristicAstar::extract_path(std::vector<int>* solution_path, int
     std::reverse(solution_path->begin(), solution_path->end());
 }
 
-bool FocalMultiHeuristicAstar::closed_in_anc_search(MHASearchState* state) const
+bool MultiHeuristicAstarPP::closed_in_anc_search(MHASearchState* state) const
 {
     return state->closed_in_anc;
 }
 
-bool FocalMultiHeuristicAstar::closed_in_add_search(MHASearchState* state) const
+bool MultiHeuristicAstarPP::closed_in_add_search(MHASearchState* state) const
 {
     return state->closed_in_add;
 }
 
-bool FocalMultiHeuristicAstar::closed_in_any_search(MHASearchState* state) const
+bool MultiHeuristicAstarPP::closed_in_any_search(MHASearchState* state) const
 {
     return state->closed_in_anc || state->closed_in_add;
 }

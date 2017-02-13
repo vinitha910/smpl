@@ -98,7 +98,8 @@ add_library(
     src/search/adaptive_planner.cpp
     src/search/focal_mhastar.cpp
     src/search/experience_graph_planner.cpp
-    src/search/meta_mhastar_dts.cpp)
+    src/search/meta_mhastar_dts.cpp
+    src/search/mhastarpp.cpp)
 
 target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})
 
