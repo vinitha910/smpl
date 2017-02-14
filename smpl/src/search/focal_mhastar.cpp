@@ -58,4 +58,15 @@ int FocalMultiHeuristicAstar::priority(MHASearchState* state)
     return state->g + state->od[0].h;
 }
 
+bool FocalMultiHeuristicAstar::terminated() const
+{
+    return m_goal_state->g <= m_eps * get_minf(m_open[0]);
+}
+
+bool FocalMultiHeuristicAstar::satisfies_p_criterion(
+        MHASearchState* state) const
+{
+    return state->od[0].f <= m_eps * m_open[0].min()->f;
+}
+
 } // namespace sbpl

@@ -203,6 +203,8 @@ int MultiHeuristicAStarBase<Derived>::replan(
         ROS_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, hidx, m_start_state->od[hidx].f);
     }
 
+    reinitSearch();
+
     auto end_time = sbpl::clock::now();
     m_elapsed += to_secs(end_time - start_time);
 
@@ -215,7 +217,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
                 break;
             }
 
-            if (m_goal_state->g <= m_eps * get_minf(m_open[0])) {
+            if (static_cast<Derived*>(this)->terminated()) {
                 m_eps_satisfied = m_eps;
                 extract_path(solution, solcost);
                 return 1;
@@ -231,7 +233,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
         }
 
         if (!m_open[0].empty()) {
-            if (m_goal_state->g <= m_eps * get_minf(m_open[0])) {
+            if (static_cast<Derived*>(this)->terminated()) {
                 m_eps_satisfied = m_eps;
                 extract_path(solution, solcost);
                 return 1;
@@ -240,6 +242,8 @@ int MultiHeuristicAStarBase<Derived>::replan(
             MHASearchState* s = state_from_open_state(m_open[0].min());
             expand(s, 0);
             s->closed_in_anc = true;
+
+            onClosedAnchor(s);
         }
 
         auto end_time = sbpl::clock::now();
@@ -639,13 +643,14 @@ MHASearchState* MultiHeuristicAStarBase<Derived>::select_state(int hidx)
 {
     MHASearchState* state = state_from_open_state(m_open[hidx].min());
     MHASearchState::HeapData* min_open = m_open[0].min();
-    if (state->od[0].f <= m_eps * min_open->f) {
+    Derived* derived = static_cast<Derived*>(this);
+    if (derived->satisfies_p_criterion(state)) {
         return state;
     }
 
     for (auto it = std::next(m_open[hidx].begin()); it != m_open[hidx].end(); ++it) {
         state = state_from_open_state(*it);
-        if (state->od[0].f <= m_eps * min_open->f) {
+        if (derived->satisfies_p_criterion(state)) {
             return state;
         }
     }

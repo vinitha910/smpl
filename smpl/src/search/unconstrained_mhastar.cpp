@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/search/mhastarpp.h>
+#include <smpl/search/unconstrained_mhastar.h>
 
 // standard includes
 #include <assert.h>
@@ -43,7 +43,7 @@
 
 namespace sbpl {
 
-MHAStarPP::MHAStarPP(
+UnconstrainedMHAStar::UnconstrainedMHAStar(
     DiscreteSpaceInformation* environment,
     Heuristic* hanchor,
     Heuristic** heurs,
@@ -54,32 +54,32 @@ MHAStarPP::MHAStarPP(
 {
 }
 
-void MHAStarPP::reinitSearch()
+void UnconstrainedMHAStar::reinitSearch()
 {
     m_max_fval_closed_anc = m_start_state->od[0].f; //0;
 }
 
-void MHAStarPP::on_closed_anchor(MHASearchState* s)
+void UnconstrainedMHAStar::on_closed_anchor(MHASearchState* s)
 {
     if (s->od[0].f > m_max_fval_closed_anc) {
         m_max_fval_closed_anc = s->od[0].f;
     }
 }
 
-int MHAStarPP::priority(MHASearchState* state)
+int UnconstrainedMHAStar::priority(MHASearchState* state)
 {
-    return state->g + (int)(m_eps * state->od[0].h);
+    return state->g + m_eps * state->od[0].h;
 }
 
-bool MHAStarPP::terminated() const
+bool UnconstrainedMHAStar::terminated() const
 {
-    return m_goal_state->g <= m_max_fval_closed_anc;
+    return m_goal_state->g <= m_eps * get_minf(m_open[0]);
 }
 
-bool MHAStarPP::satisfies_p_criterion(MHASearchState* state) const
+bool UnconstrainedMHAStar::satisfies_p_criterion(
+        MHASearchState* state) const
 {
-    return state->g + state->od[0].h <=
-            std::max(m_max_fval_closed_anc, m_open[0].min()->f);
+    return true;
 }
 
 } // namespace sbpl

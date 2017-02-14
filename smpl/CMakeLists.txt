@@ -99,7 +99,8 @@ add_library(
     src/search/focal_mhastar.cpp
     src/search/experience_graph_planner.cpp
     src/search/meta_mhastar_dts.cpp
-    src/search/mhastarpp.cpp)
+    src/search/mhastarpp.cpp
+    src/search/unconstrained_mhastar.cpp)
 
 target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})
 

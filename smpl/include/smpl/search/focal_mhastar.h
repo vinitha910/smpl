@@ -51,16 +51,18 @@ class FocalMultiHeuristicAstar :
 public:
 
     FocalMultiHeuristicAstar(
-            DiscreteSpaceInformation* environment,
-            Heuristic* hanchor,
-            Heuristic** heurs,
-            int hcount);
+        DiscreteSpaceInformation* environment,
+        Heuristic* hanchor,
+        Heuristic** heurs,
+        int hcount);
 
     friend class MultiHeuristicAStarBase<FocalMultiHeuristicAstar>;
 
 private:
 
     int priority(MHASearchState* state);
+    bool terminated() const;
+    bool satisfies_p_criterion(MHASearchState* state) const;
 };
 
 } // namespace sbpl

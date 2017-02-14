@@ -15,6 +15,8 @@
 #include <smpl/robot_model.h>
 #include <smpl/search/focal_mhastar.h>
 #include <smpl/search/meta_mhastar_dts.h>
+#include <smpl/search/mhastarpp.h>
+#include <smpl/search/unconstrained_mhastar.h>
 
 namespace smpl = sbpl::motion;
 
@@ -346,9 +348,14 @@ int main(int argc, char* argv[])
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
     const bool forward = true;
-    auto search = std::make_shared<sbpl::MetaMultiHeuristicAstarDTS>(
+
+//    auto search = std::make_shared<sbpl::MetaMultiHeuristicAstarDTS>(
+//            pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
+//    auto search = std::make_shared<sbpl::FocalMultiHeuristicAstar>(
+//            pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
+    auto search = std::make_shared<sbpl::MHAStarPP>(
             pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
-//    auto search = std::make_shared<sbpl::FocalMHAStarSearch>(
+//    auto search = std::make_shared<sbpl::UnconstrainedMHAStar>(
 //            pspace.get(), h0.get(), heuristic_arr.data(), heuristic_arr.size());
 
     const double epsilon = 50.0;

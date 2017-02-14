@@ -41,158 +41,35 @@
 #include <sbpl/planners/planner.h>
 
 // project includes
-#include <smpl/search/focal_mhastar.h>
 #include <smpl/intrusive_heap.h>
 #include <smpl/time.h>
+#include <smpl/search/mhastar_base.h>
 
 namespace sbpl {
 
-class MultiHeuristicAstarPP : public SBPLPlanner
+class MHAStarPP : public MultiHeuristicAStarBase<MHAStarPP>
 {
 public:
 
-    MultiHeuristicAstarPP(
-            DiscreteSpaceInformation* environment,
-            Heuristic* hanchor,
-            Heuristic** heurs,
-            int hcount);
+    MHAStarPP(
+        DiscreteSpaceInformation* environment,
+        Heuristic* hanchor,
+        Heuristic** heurs,
+        int hcount);
 
-    ~MultiHeuristicAstarPP();
-
-    /// \name Required Functions from SBPLPlanner
-    ///@{
-    int set_start(int start_state_id) override;
-    int set_goal(int goal_state_id) override;
-
-    int replan(
-        double allocated_time_sec,
-        std::vector<int>* solution) override;
-
-    int replan(
-        double allocated_time_sec,
-        std::vector<int>* solution,
-        int* solcost) override;
-
-    int force_planning_from_scratch() override;
-
-    void costs_changed(const StateChangeQuery& stateChange) override;
-
-    int set_search_mode(bool first_solution_unbounded) override;
-    ///@}
-
-    /// \name Reimplemented Functions from SBPLPlanner
-    ///@{
-    int replan(
-        std::vector<int>* solution,
-        ReplanParams params) override;
-
-    int replan(
-        std::vector<int>* solution,
-        ReplanParams params,
-        int* solcost) override;
-
-    int force_planning_from_scratch_and_free_memory() override;
-
-    void    set_initialsolution_eps(double eps) override;
-    double  get_initial_eps() override;
-
-    double  get_solution_eps() const override;
-    double  get_final_epsilon() override;
-    double  get_final_eps_planning_time() override;
-    double  get_initial_eps_planning_time() override;
-    int     get_n_expands() const override;
-    int     get_n_expands_init_solution() override;
-    void    get_search_stats(std::vector<PlannerStats>* s) override;
-    ///@}
-
-    /// \name Homogeneous accessor methods for search mode and timing parameters
-    // @{
-
-    void    set_initial_eps(double eps) { return set_initialsolution_eps(eps); }
-    void    set_final_eps(double eps);
-    void    set_dec_eps(double eps);
-    void    set_max_expansions(int expansion_count);
-    void    set_max_time(double max_time);
-
-    // double get_initial_eps();
-    double  get_final_eps() const;
-    double  get_dec_eps() const;
-    int     get_max_expansions() const;
-    double  get_max_time() const;
-
-    ///@}
+    friend class MultiHeuristicAStarBase<MHAStarPP>;
 
 private:
 
-    // Related objects
-    Heuristic* m_hanchor;
-    Heuristic** m_heurs;
-    int m_hcount;           // number of additional heuristics used
-
-    ReplanParams m_params;
-    int m_max_expansions;
-
-    double m_eps;           // current w_1
-
-    /// suboptimality bound satisfied by the last search
-    double m_eps_satisfied;
-
-    int m_num_expansions;   // current number of expansion
-    double m_elapsed;       // current amount of seconds
-
-    int m_call_number;
-
-    MHASearchState* m_start_state;
-    MHASearchState* m_goal_state;
-
-    std::vector<MHASearchState*> m_search_states;
-    std::vector<int> m_graph_to_search_state;
-
     int m_max_fval_closed_anc;
 
-    struct HeapCompare
-    {
-        bool operator()(
-            const MHASearchState::HeapData& s,
-            const MHASearchState::HeapData& t) const
-        {
-            return s.f < t.f;
-        }
-    };
+    void reinitSearch();
+    void on_closed_anchor(MHASearchState* s);
+    void on_closed_inadmissible(MHASearchState* s);
 
-    typedef intrusive_heap<MHASearchState::HeapData, HeapCompare> rank_pq;
-
-    // m_open[0] contain the actual OPEN list sorted by g(s) + h(s)
-    // m_open[i], i > 0, maintains a copy of the PSET for each additional
-    // heuristic, sorted by rank(s, i). The PSET maintains, at all times, those
-    // states which are in the OPEN list, have not been closed inadmissably,
-    // and satisfy the P-CRITERION
-    rank_pq* m_open;
-
-    bool check_params(const ReplanParams& params);
-
-    bool time_limit_reached() const;
-
-    int num_heuristics() const { return m_hcount + 1; }
-    MHASearchState* get_state(int state_id);
-    void init_state(MHASearchState* state, int state_id);
-    void reinit_state(MHASearchState* state);
-    void reinit_search();
-    void clear_open_lists();
-    void clear();
-    int compute_key(MHASearchState* state, int hidx);
-    void expand(MHASearchState* state, int hidx);
-    MHASearchState* state_from_open_state(MHASearchState::HeapData* open_state);
-    int compute_heuristic(int state_id, int hidx);
-    int get_minf(rank_pq& pq) const;
-    void insert_or_update(MHASearchState* state, int hidx);
-    MHASearchState* select_state(int hidx);
-
-    void extract_path(std::vector<int>* solution_path, int* solcost);
-
-    bool closed_in_anc_search(MHASearchState* state) const;
-    bool closed_in_add_search(MHASearchState* state) const;
-    bool closed_in_any_search(MHASearchState* state) const;
+    int priority(MHASearchState* state);
+    bool terminated() const;
+    bool satisfies_p_criterion(MHASearchState* state) const;
 };
 
 } // namespace sbpl

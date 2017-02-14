@@ -37,6 +37,8 @@
 #include <iomanip>
 
 // system includes
+#include <boost/tti/has_member_function.hpp>
+#include <boost/utility/enable_if.hpp>
 #include <sbpl/planners/planner.h>
 #include <sbpl/heuristics/heuristic.h>
 
@@ -152,6 +154,8 @@ public:
 
     ///@}
 
+    friend Derived;
+
 private:
 
     // Related objects
@@ -221,6 +225,35 @@ private:
     bool closed_in_anc_search(MHASearchState* state) const;
     bool closed_in_add_search(MHASearchState* state) const;
     bool closed_in_any_search(MHASearchState* state) const;
+
+    BOOST_TTI_HAS_MEMBER_FUNCTION(reinitSearch)
+    BOOST_TTI_HAS_MEMBER_FUNCTION(on_closed_anchor);
+
+    template <typename T = Derived>
+    void reinitSearch(
+        typename boost::enable_if_c<has_member_function_reinitSearch<void (T::*)()>::value>::type * = 0)
+    {
+        static_cast<T*>(this)->reinitSearch();
+    }
+
+    template <typename T = Derived>
+    void reinitSearch(
+        typename boost::enable_if_c<!has_member_function_reinitSearch<void (T::*)()>::value>::type * = 0)
+    { }
+
+    template <typename T = Derived>
+    void onClosedAnchor(
+        MHASearchState* s,
+        typename boost::enable_if_c<has_member_function_on_closed_anchor<void (T::*)(MHASearchState*)>::value>::type * = 0)
+    {
+        static_cast<T*>(this)->on_closed_anchor(s);
+    }
+
+    template <typename T = Derived>
+    void onClosedAnchor(
+        MHASearchState* s,
+        typename boost::enable_if_c<!has_member_function_on_closed_anchor<void (T::*)(MHASearchState*)>::value>::type * = 0)
+    { }
 };
 
 } // namespace sbpl

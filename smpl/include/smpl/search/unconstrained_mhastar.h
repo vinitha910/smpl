@@ -29,57 +29,47 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/search/mhastarpp.h>
+#ifndef SMPL_UNCONSTRAINED_MHASTAR_H
+#define SMPL_UNCONSTRAINED_MHASTAR_H
 
 // standard includes
-#include <assert.h>
-#include <stdlib.h>
-#include <time.h>
-#include <algorithm>
+#include <iomanip>
+#include <ostream>
 
 // system includes
-#include <ros/console.h>
-#include <sbpl/utils/key.h>
+#include <sbpl/heuristics/heuristic.h>
+#include <sbpl/planners/planner.h>
+
+// project includes
+#include <smpl/search/mhastar_base.h>
 
 namespace sbpl {
 
-MHAStarPP::MHAStarPP(
-    DiscreteSpaceInformation* environment,
-    Heuristic* hanchor,
-    Heuristic** heurs,
-    int hcount)
-:
-    MultiHeuristicAStarBase(environment, hanchor, heurs, hcount),
-    m_max_fval_closed_anc(0)
+class UnconstrainedMHAStar :
+    public MultiHeuristicAStarBase<UnconstrainedMHAStar>
 {
-}
+public:
 
-void MHAStarPP::reinitSearch()
-{
-    m_max_fval_closed_anc = m_start_state->od[0].f; //0;
-}
+    UnconstrainedMHAStar(
+        DiscreteSpaceInformation* environment,
+        Heuristic* hanchor,
+        Heuristic** heurs,
+        int hcount);
 
-void MHAStarPP::on_closed_anchor(MHASearchState* s)
-{
-    if (s->od[0].f > m_max_fval_closed_anc) {
-        m_max_fval_closed_anc = s->od[0].f;
-    }
-}
+    friend class MultiHeuristicAStarBase<UnconstrainedMHAStar>;
 
-int MHAStarPP::priority(MHASearchState* state)
-{
-    return state->g + (int)(m_eps * state->od[0].h);
-}
+private:
 
-bool MHAStarPP::terminated() const
-{
-    return m_goal_state->g <= m_max_fval_closed_anc;
-}
+    int m_max_fval_closed_anc;
 
-bool MHAStarPP::satisfies_p_criterion(MHASearchState* state) const
-{
-    return state->g + state->od[0].h <=
-            std::max(m_max_fval_closed_anc, m_open[0].min()->f);
-}
+    void reinitSearch();
+    void on_closed_anchor(MHASearchState* s);
+
+    int priority(MHASearchState* state);
+    bool terminated() const;
+    bool satisfies_p_criterion(MHASearchState* state) const;
+};
 
 } // namespace sbpl
+
+#endif
