@@ -509,8 +509,8 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
     // scenario
-    SV_SHOW_INFO(getBfsWallsVisualization());
-    SV_SHOW_INFO(getBfsValuesVisualization());
+    SV_SHOW_DEBUG(getBfsWallsVisualization());
+    SV_SHOW_DEBUG(getBfsValuesVisualization());
 
     ROS_WARN_NAMED(PI_LOGGER, "Planning!!!!!");
     bool b_ret = false;
