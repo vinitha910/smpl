@@ -87,6 +87,10 @@ private:
     std::unique_ptr<BFS_3D> m_bfs;
     PointProjectionExtension* m_pp;
 
+    int m_goal_x;
+    int m_goal_y;
+    int m_goal_z;
+
     void syncGridAndBfs();
     int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
 };

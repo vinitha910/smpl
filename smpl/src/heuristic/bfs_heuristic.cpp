@@ -36,6 +36,8 @@
 
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
+#include <smpl/intrusive_heap.h>
+#include <smpl/grid.h>
 
 namespace sbpl {
 namespace motion {
@@ -45,7 +47,10 @@ BfsHeuristic::BfsHeuristic(
     const OccupancyGrid* grid)
 :
     RobotHeuristic(ps, grid),
-    m_bfs()
+    m_bfs(),
+    m_goal_x(-1),
+    m_goal_y(-1),
+    m_goal_z(-1)
 {
     m_pp = ps->getExtension<PointProjectionExtension>();
     if (m_pp) {
@@ -71,6 +76,10 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
     if (!m_bfs->inBounds(gx, gy, gz)) {
         ROS_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
     }
+
+    m_goal_x = gx;
+    m_goal_y = gy;
+    m_goal_z = gz;
 
     m_bfs->run(gx, gy, gz);
 }
@@ -196,71 +205,119 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
 {
     visualization_msgs::MarkerArray ma;
 
+    if (m_goal_x < 0 || m_goal_y < 0 || m_goal_z < 0) {
+        return ma;
+    }
+
+    if (m_bfs->isWall(m_goal_x, m_goal_y, m_goal_z)) {
+        return ma;
+    }
+
     // hopefully this doesn't screw anything up too badly...this will flush the
     // bfs to a little past the start, but this would be done by the search
     // hereafter anyway
     int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
+    if (start_heur == Infinity) {
+        return ma;
+    }
+
+    ROS_INFO("Start cell heuristic: %d", start_heur);
 
     const int max_cost = (int)(1.1 * start_heur);
 
+    ROS_INFO("Get visualization of cells up to cost %d", max_cost);
+
     // ...and this will also flush the bfs...
 
-    const size_t max_points = 2048;
+    const size_t max_points = 4 * 4096;
 
     std::vector<geometry_msgs::Point> points;
     std::vector<std_msgs::ColorRGBA> colors;
-    for (int z = 0; z < grid()->numCellsZ(); ++z) {
-    for (int y = 0; y < grid()->numCellsY(); ++y) {
-    for (int x = 0; x < grid()->numCellsX(); ++x) {
-        if (points.size() >= max_points) {
+
+    struct CostCell
+    {
+        int x, y, z, g;
+    };
+    std::queue<CostCell> cells;
+    Grid3<bool> visited(grid()->numCellsX(), grid()->numCellsY(), grid()->numCellsZ(), false);
+    visited(m_goal_x, m_goal_y, m_goal_z) = true;
+    cells.push({m_goal_x, m_goal_y, m_goal_z, 0});
+    while (!cells.empty()) {
+        CostCell c = cells.front();
+        cells.pop();
+
+        if (c.g > max_cost || points.size() >= max_points) {
             break;
         }
 
-        // skip cells without valid distances from the start
-        if (m_bfs->isWall(x, y, z) || m_bfs->isUndiscovered(x, y, z)) {
-            continue;
+        {
+            double cost_pct = (double)c.g / (double)max_cost;
+
+            double hue = 300.0 - 300.0 * cost_pct;
+            double sat = 1.0;
+            double val = 1.0;
+            double r, g, b;
+            leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
+
+            std_msgs::ColorRGBA color;
+            color.r = (float)r;
+            color.g = (float)g;
+            color.b = (float)b;
+            color.a = 1.0f;
+
+            auto clamp = [](double d, double lo, double hi) {
+                if (d < lo) {
+                    return lo;
+                } else if (d > hi) {
+                    return hi;
+                } else {
+                    return d;
+                }
+            };
+
+            color.r = clamp(color.r, 0.0f, 1.0f);
+            color.g = clamp(color.g, 0.0f, 1.0f);
+            color.b = clamp(color.b, 0.0f, 1.0f);
+
+            geometry_msgs::Point p;
+            grid()->gridToWorld(c.x, c.y, c.z, p.x, p.y, p.z);
+            points.push_back(p);
+
+            colors.push_back(color);
         }
 
-        const int d = getBfsCostToGoal(*m_bfs, x, y, z);
-        double cost_pct = (double)d / (double)(max_cost);
+//        visited(c.x, c.y, c.z) = true;
 
-        if (cost_pct > 1.0) {
-            continue;
-        }
+        const int d = params()->cost_per_cell * m_bfs->getDistance(c.x, c.y, c.z);
 
-        double hue = 300.0 - 300.0 * cost_pct;
-        double sat = 1.0;
-        double val = 1.0;
-        double r, g, b;
-        leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
-
-        std_msgs::ColorRGBA color;
-        color.r = (float)r;
-        color.g = (float)g;
-        color.b = (float)b;
-        color.a = 1.0f;
-
-        auto clamp = [](double d, double lo, double hi) {
-            if (d < lo) {
-                return lo;
-            } else if (d > hi) {
-                return hi;
-            } else {
-                return d;
+        for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+        for (int dz = -1; dz <= 1; ++dz) {
+            if (!(dx | dy | dz)) {
+                continue;
             }
-        };
 
-        color.r = clamp(color.r, 0.0f, 1.0f);
-        color.g = clamp(color.g, 0.0f, 1.0f);
-        color.b = clamp(color.b, 0.0f, 1.0f);
+            int sx = c.x + dx;
+            int sy = c.y + dy;
+            int sz = c.z + dz;
 
-        geometry_msgs::Point p;
-        grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
-        points.push_back(p);
+            // check if neighbor is valid
+            if (!m_bfs->inBounds(sx, sy, sz) || m_bfs->isWall(sx, sy, sz)) {
+                continue;
+            }
 
-        colors.push_back(color);
-    }
-    }
+            // check if cost can be improved
+            if (visited(sx, sy, sz)) {
+                continue;
+            }
+
+            visited(sx, sy, sz) = true;
+
+            int dd = params()->cost_per_cell * m_bfs->getDistance(sx, sy, sz);
+            cells.push({sx, sy, sz, dd});
+        }
+        }
+        }
     }
 
     visualization_msgs::Marker marker;
