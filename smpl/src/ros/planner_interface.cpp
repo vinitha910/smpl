@@ -1102,6 +1102,10 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     m_heuristics.clear();
     m_heuristics.insert(std::make_pair(heuristic_name, heuristic));
 
+    for (const auto& entry : m_heuristics) {
+        m_pspace->insertHeuristic(entry.second);
+    }
+
     auto pait = m_planner_allocators.find(search_name);
     if (pait == m_planner_allocators.end()) {
         ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
