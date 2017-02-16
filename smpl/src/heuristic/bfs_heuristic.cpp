@@ -312,10 +312,10 @@ void BfsHeuristic::syncGridAndBfs()
 int BfsHeuristic::getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const
 {
     if (!bfs.inBounds(x, y, z)) {
-        return INT_MAX;
+        return Infinity;
     }
     else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
-        return INT_MAX;
+        return Infinity;
     }
     else {
         return params()->cost_per_cell * bfs.getDistance(x, y, z);
