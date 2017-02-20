@@ -50,8 +50,8 @@
 
 namespace sbpl {
 
-typedef std::shared_ptr<distance_field::PropagationDistanceField> PropagationDistanceFieldPtr;
-typedef std::shared_ptr<const distance_field::PropagationDistanceField> PropagationDistanceFieldConstPtr;
+typedef std::shared_ptr<distance_field::DistanceField> PropagationDistanceFieldPtr;
+typedef std::shared_ptr<const distance_field::DistanceField> PropagationDistanceFieldConstPtr;
 
 /// \brief Lightweight layer on top of the PropagationDistanceField class that
 /// carries occupancy information in some reference frame as well as the
@@ -82,7 +82,9 @@ public:
         bool propagate_negative_distances = false,
         bool ref_counted = false);
 
-    OccupancyGrid(const PropagationDistanceFieldPtr& df, bool ref_counted = false);
+    OccupancyGrid(
+        const PropagationDistanceFieldPtr& df,
+        bool ref_counted = false);
 
     OccupancyGrid(const OccupancyGrid& o);
 
