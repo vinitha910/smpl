@@ -61,6 +61,7 @@ add_library(
     src/debug/visualize.cpp
     src/debug/visualizer_ros.cpp
     src/geometry/bounding_spheres.cpp
+    src/geometry/distance_map.cpp
     src/geometry/mesh_utils.cpp
     src/geometry/voxelize.cpp
     src/graph/action_space.cpp
