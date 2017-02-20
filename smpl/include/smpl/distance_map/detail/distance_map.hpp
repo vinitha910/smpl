@@ -29,7 +29,10 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/geometry/distance_map.h>
+#ifndef SMPL_DISTANCE_MAP_HPP
+#define SMPL_DISTANCE_MAP_HPP
+
+#include "../distance_map.h"
 
 // standard includes
 #include <cmath>
@@ -45,17 +48,6 @@ struct Eigen_Vector3i_compare
         return std::tie(u.x(), u.y(), u.z()) < std::tie(v.x(), v.y(), v.z());
     }
 };
-
-void CreateNeighborUpdateList(
-    std::array<Eigen::Vector3i, 27>& neighbors,
-    std::array<int, NEIGHBOR_LIST_SIZE>& indices,
-    std::array<std::pair<int, int>, NUM_DIRECTIONS>& ranges);
-
-inline
-int dirnum(int dx, int dy, int dz, int edge = 0)
-{
-    return 27 * edge + 9 * (dx + 1) + 3 * (dy + 1) + (dz + 1);
-}
 
 #define VECTOR_BUCKET_LIST_INSERT(o, key) \
 {\
@@ -87,290 +79,27 @@ int dirnum(int dx, int dy, int dz, int edge = 0)
 #define BUCKET_UPDATE(o, key) do { VECTOR_BUCKET_LIST_UPDATE(o, key) } while (0)
 #define BUCKET_POP(s, bucket) do { VECTOR_BUCKET_LIST_POP(s, bucket) } while (0)
 
-void CreateNeighborUpdateList(
-    std::array<Eigen::Vector3i, 27>& neighbors,
-    std::array<int, NEIGHBOR_LIST_SIZE>& indices,
-    std::array<std::pair<int, int>, NUM_DIRECTIONS>& ranges)
-{
-    int i = 0;
-    int n = 0;
-    for (int edge = 0; edge < 2; ++edge) {
-    for (int sx = -1; sx <= 1; ++sx) {
-    for (int sy = -1; sy <= 1; ++sy) {
-    for (int sz = -1; sz <= 1; ++sz) {
-        if (!edge) {
-            neighbors[n++] = Eigen::Vector3i(sx, sy, sz);
-        }
-        int d = dirnum(sx, sy, sz, edge);
-        int nfirst = i;
-        for (int tx = -1; tx <= 1; ++tx) {
-        for (int ty = -1; ty <= 1; ++ty) {
-        for (int tz = -1; tz <= 1; ++tz) {
-            if (tx == 0 && ty == 0 && tz == 0) {
-                continue;
-            }
-            if (edge) {
-                if (
-                    !(((tx == -1 && sx == 1) || (tx == 1 & sx == -1)) ||
-                    ((ty == -1 && sy == 1) || (ty == 1 & sy == -1)) ||
-                    ((tz == -1 && sz == 1) || (tz == 1 & sz == -1))))
-                {
-                    indices[i++] = dirnum(tx, ty, tz);
-                }
-            } else {
-                if (tx * sx + ty * sy + tz * sz >= 0) {
-                    indices[i++] = dirnum(tx, ty, tz);
-                }
-            }
-        }
-        }
-        }
-        int nlast = i;
-        ranges[d].first = nfirst;
-        ranges[d].second = nlast;
-    }
-    }
-    }
-    }
-}
-
-DistanceMap::DistanceMap(
+template <typename Derived>
+DistanceMap<Derived>::DistanceMap(
     double origin_x, double origin_y, double origin_z,
     double size_x, double size_y, double size_z,
     double resolution,
     double max_dist)
 :
-    m_cells(),
-    m_origin_x(origin_x),
-    m_origin_y(origin_y),
-    m_origin_z(origin_z),
-    m_size_x(size_x),
-    m_size_y(size_y),
-    m_size_z(size_z),
-    m_res(resolution),
-    m_max_dist(max_dist),
-    m_inv_res(1.0 / resolution),
-    m_dmax_int((int)std::ceil(m_max_dist * m_inv_res)),
-    m_dmax_sqrd_int(m_dmax_int * m_dmax_int),
-    m_bucket(m_dmax_sqrd_int + 1),
-    m_no_update_dir(dirnum(0, 0, 0)),
-    m_neighbors(),
-    m_indices(),
-    m_neighbor_ranges(),
-    m_neighbor_offsets(),
-    m_neighbor_dirs(),
-    m_open(),
-    m_rem_stack()
+    DistanceMapBase(
+        origin_x, origin_y, origin_z,
+        size_x, size_y, size_z,
+        resolution,
+        max_dist)
 {
-    int cell_count_x = (int)(size_x * m_inv_res + 0.5) + 2;
-    int cell_count_y = (int)(size_y * m_inv_res + 0.5) + 2;
-    int cell_count_z = (int)(size_z * m_inv_res + 0.5) + 2;
-
-    m_open.resize(m_dmax_sqrd_int + 1);
-
-    // initialize non-border free cells
-    m_cells.resize(cell_count_x, cell_count_y, cell_count_z);
-    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (int y = 1; y < m_cells.ysize() - 1; ++y) {
-    for (int z = 1; z < m_cells.zsize() - 1; ++z) {
-        Cell& c = m_cells(x, y, z);
-        c.x = x;
-        c.y = y;
-        c.z = z;
-        c.dist = m_dmax_sqrd_int;
-        c.dist_new = m_dmax_sqrd_int;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        c.dist_old = m_dmax_sqrd_int;
-#endif
-        c.obs = nullptr;
-        c.bucket = -1;
-        c.dir = m_no_update_dir;
-    }
-    }
-    }
-
-    // init neighbors for forward propagation
-    CreateNeighborUpdateList(m_neighbors, m_indices, m_neighbor_ranges);
-
-    for (size_t i = 0; i < m_indices.size(); ++i) {
-        const Eigen::Vector3i& neighbor = m_neighbors[m_indices[i]];
-        m_neighbor_offsets[i] = 0;
-        m_neighbor_offsets[i] += neighbor.x() * m_cells.zsize() * m_cells.ysize();
-        m_neighbor_offsets[i] += neighbor.y() * m_cells.zsize();
-        m_neighbor_offsets[i] += neighbor.z() * 1;
-
-        if (i < NON_BORDER_NEIGHBOR_LIST_SIZE) {
-            m_neighbor_dirs[i] = dirnum(neighbor.x(), neighbor.y(), neighbor.z());
-        } else {
-            m_neighbor_dirs[i] = dirnum(neighbor.x(), neighbor.y(), neighbor.z(), 1);
-        }
-    }
-
-    auto init_obs_cell = [&](int x, int y, int z) {
-        Cell& c = m_cells(x, y, z);
-        c.x = x;
-        c.y = y;
-        c.z = z;
-        c.dist = m_dmax_sqrd_int;
-        c.dist_new = 0;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        c.dist_old = m_dmax_sqrd_int;
-#endif
-        c.obs = &c;
-        c.bucket = -1;
-
-        int src_dir_x = (x == 0) ? 1 : (x == m_cells.xsize() - 1 ? -1 : 0);
-        int src_dir_y = (y == 0) ? 1 : (y == m_cells.ysize() - 1 ? -1 : 0);
-        int src_dir_z = (z == 0) ? 1 : (z == m_cells.zsize() - 1 ? -1 : 0);
-        c.dir = dirnum(src_dir_x, src_dir_y, src_dir_z, 1);
-        updateVertex(&c);
-    };
-
-    // initialize border cells
-    for (int y = 0; y < m_cells.ysize(); ++y) {
-    for (int z = 0; z < m_cells.zsize(); ++z) {
-        init_obs_cell(0, y, z);
-        init_obs_cell(m_cells.xsize() - 1, y, z);
-    }
-    }
-    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (int z = 0; z < m_cells.zsize(); ++z) {
-        init_obs_cell(x, 0, z);
-        init_obs_cell(x, m_cells.ysize() - 1, z);
-    }
-    }
-    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (int y = 1; y < m_cells.ysize() - 1; ++y) {
-        init_obs_cell(x, y, 0);
-        init_obs_cell(x, y, m_cells.zsize() - 1);
-    }
-    }
-
     propagateBorder();
-}
-
-/// Return the size along the x axis of the bounding volume.
-double DistanceMap::sizeX() const
-{
-    return m_size_x;
-}
-
-/// Return the size along the y axis of the bounding volume.
-double DistanceMap::sizeY() const
-{
-    return m_size_y;
-}
-
-/// Return the size along the z axis of the bounding volume.
-double DistanceMap::sizeZ() const
-{
-    return m_size_z;
-}
-
-/// Return the origin along x axis.
-double DistanceMap::originX() const
-{
-    return m_origin_x;
-}
-
-/// Return the origin along the y axis.
-double DistanceMap::originY() const
-{
-    return m_origin_y;
-}
-
-/// Return the origin along the z axis.
-double DistanceMap::originZ() const
-{
-    return m_origin_z;
-}
-
-/// Return the resolution of the distance map.
-double DistanceMap::resolution() const
-{
-    return m_res;
-}
-
-/// Return the distance value for an invalid cell.
-double DistanceMap::maxDistance() const
-{
-    return m_max_dist;
-}
-
-/// Return the number of cells along the x axis.
-int DistanceMap::numCellsX() const
-{
-    return m_cells.xsize() - 2;
-}
-
-/// Return the number of cells along the y axis.
-int DistanceMap::numCellsY() const
-{
-    return m_cells.ysize() - 2;
-}
-
-/// Return the number of cells along the z axis.
-int DistanceMap::numCellsZ() const
-{
-    return m_cells.zsize() - 2;
-}
-
-/// Return the effective grid coordinates of the cell containing the given point
-/// specified in world coordinates.
-void DistanceMap::gridToWorld(
-    int x, int y, int z,
-    double& world_x, double& world_y, double& world_z) const
-{
-    world_x = (m_origin_x - m_res) + (x + 1) * m_res;
-    world_y = (m_origin_y - m_res) + (y + 1) * m_res;
-    world_z = (m_origin_z - m_res) + (z + 1) * m_res;
-}
-
-/// Return the point in world coordinates marking the center of the cell at the
-/// given effective grid coordinates.
-void DistanceMap::worldToGrid(
-    double world_x, double world_y, double world_z,
-    int& x, int& y, int& z) const
-{
-    x = (int)(m_inv_res * (world_x - (m_origin_x - m_res)) + 0.5) - 1;
-    y = (int)(m_inv_res * (world_y - (m_origin_y - m_res)) + 0.5) - 1;
-    z = (int)(m_inv_res * (world_z - (m_origin_z - m_res)) + 0.5) - 1;
-}
-
-/// Test if a cell is outside the bounding volume.
-bool DistanceMap::isCellValid(int x, int y, int z) const
-{
-    return x >= 0 && x < m_cells.xsize() - 2 &&
-        y >= 0 && y < m_cells.ysize() - 2 &&
-        z >= 0 && z < m_cells.zsize() - 2;
-}
-
-/// Return the distance of a cell from its nearest obstacle. This function will
-/// also consider the distance to the nearest border cell. A value of 0.0 is
-/// returned for obstacle cells and cells outside of the bounding volume.
-double DistanceMap::getDistance(double x, double y, double z) const
-{
-    int gx, gy, gz;
-    worldToGrid(x, y, z, gx, gy, gz);
-    return getDistance(gx, gy, gz);
-}
-
-/// Return the distance of a cell from its nearest obstacle cell. This function
-/// will also consider the distance to the nearest border cell. A value of 0.0
-/// is returned for obstacle cells and cells outside of the bounding volume.
-double DistanceMap::getDistance(int x, int y, int z) const
-{
-    if (!isCellValid(x, y, z)) {
-        return 0.0;
-    }
-
-    return sqrt(m_res * m_cells(x + 1, y + 1, z + 1).dist);
 }
 
 /// Add a set of obstacle points to the distance map and update the distance
 /// values of affected cells. Points outside the map and cells that are already
 /// marked as obstacles will be ignored.
-void DistanceMap::addPointsToMap(
+template <typename Derived>
+void DistanceMap<Derived>::addPointsToMap(
     const std::vector<Eigen::Vector3d>& points)
 {
     for (const Eigen::Vector3d& p : points) {
@@ -397,7 +126,8 @@ void DistanceMap::addPointsToMap(
 /// Remove a set of obstacle points from the distance map and update the
 /// distance values of affected cells. Points outside the map and cells that
 /// are already marked as obstacles will be ignored.
-void DistanceMap::removePointsFromMap(
+template <typename Derived>
+void DistanceMap<Derived>::removePointsFromMap(
     const std::vector<Eigen::Vector3d>& points)
 {
     for (const Eigen::Vector3d& p : points) {
@@ -452,7 +182,8 @@ void DistanceMap::removePointsFromMap(
 /// Add the set (new_points - old_points) of obstacle cells and remove the set
 /// (old_points - new_points) of obstacle cells and update the distance values
 /// of affected cells. Points outside the map will be ignored.
-void DistanceMap::updatePointsInMap(
+template <typename Derived>
+void DistanceMap<Derived>::updatePointsInMap(
     const std::vector<Eigen::Vector3d>& old_points,
     const std::vector<Eigen::Vector3d>& new_points)
 {
@@ -522,7 +253,8 @@ void DistanceMap::updatePointsInMap(
 }
 
 /// Reset all points in the distance map to their uninitialized (free) values.
-void DistanceMap::reset()
+template <typename Derived>
+void DistanceMap<Derived>::reset()
 {
     for (size_t x = 1; x < m_cells.xsize() - 1; ++x) {
     for (size_t y = 1; y < m_cells.ysize() - 1; ++y) {
@@ -542,82 +274,14 @@ void DistanceMap::reset()
     // TODO: need to propagate removed cells to maintain distance to the edge
 }
 
-inline
-void DistanceMap::updateVertex(Cell* o)
+template <typename Derived>
+int DistanceMap<Derived>::distance(const Cell& n, const Cell& s)
 {
-    const int key = std::min(o->dist, o->dist_new);
-    assert(key < m_open.size());
-    if (o->bucket >= 0) { // in heap
-        assert(o->bucket < m_open.size());
-        BUCKET_UPDATE(o, key);
-    } else { // not in the heap yet
-        BUCKET_INSERT(o, key);
-    }
-    if (key < m_bucket) {
-        m_bucket = key;
-    }
+    return static_cast<Derived*>(this)->distance(n, s);
 }
 
-inline
-int DistanceMap::distance(const Cell& n, const Cell& s) const
-{
-    return distanceEuclidSqrd(n, s);
-//    return distanceEuclidSqrdConservative(n, s);
-//    return distanceQuasiEuclid(n, s);
-}
-
-inline
-int DistanceMap::distanceEuclidSqrd(const Cell& n, const Cell& s) const
-{
-    int dx = n.x - s.obs->x;
-    int dy = n.y - s.obs->y;
-    int dz = n.z - s.obs->z;
-
-    return dx * dx + dy * dy + dz * dz;
-}
-
-inline
-int DistanceMap::distanceEuclidSqrdConservative(
-    const Cell& n,
-    const Cell& s) const
-{
-    int dx = n.x - s.obs->x;
-    int dy = n.y - s.obs->y;
-    int dz = n.z - s.obs->z;
-
-    if (dx > 0) {
-        dx -= 1;
-    } else if (dx < 0) {
-        dx += 1;
-    }
-
-    if (dy > 0) {
-        dy -= 1;
-    } else if (dy < 0) {
-        dy += 1;
-    }
-
-    if (dz > 0) {
-        dz -= 1;
-    } else if (dz < 0) {
-        dz += 1;
-    }
-
-    return dx * dx + dy * dy + dz * dz;
-}
-
-inline
-int DistanceMap::distanceQuasiEuclid(const Cell& n, const Cell& s) const
-{
-    int dx = n.x - s.x;
-    int dy = n.y - s.y;
-    int dz = n.z - s.z;
-
-    return dx * dx + dy * dy + dz * dz + s.dist_new;
-}
-
-inline
-void DistanceMap::lower(Cell* s)
+template <typename Derived>
+void DistanceMap<Derived>::lower(Cell* s)
 {
     int nfirst, nlast;
     std::tie(nfirst, nlast) = m_neighbor_ranges[s->dir];
@@ -638,8 +302,8 @@ void DistanceMap::lower(Cell* s)
     }
 }
 
-inline
-void DistanceMap::raise(Cell* s)
+template <typename Derived>
+void DistanceMap<Derived>::raise(Cell* s)
 {
     int nfirst, nlast;
     std::tie(nfirst, nlast) = m_neighbor_ranges[m_no_update_dir];
@@ -650,8 +314,8 @@ void DistanceMap::raise(Cell* s)
     waveout(s);
 }
 
-inline
-void DistanceMap::waveout(Cell* n)
+template <typename Derived>
+void DistanceMap<Derived>::waveout(Cell* n)
 {
     if (n == n->obs) {
         return;
@@ -682,7 +346,8 @@ void DistanceMap::waveout(Cell* n)
     }
 }
 
-void DistanceMap::propagate()
+template <typename Derived>
+void DistanceMap<Derived>::propagate()
 {
     int iter_count = 0;
     while (m_bucket < (int)m_open.size()) {
@@ -717,7 +382,8 @@ void DistanceMap::propagate()
     }
 }
 
-void DistanceMap::lowerBounded(Cell* s)
+template <typename Derived>
+void DistanceMap<Derived>::lowerBounded(Cell* s)
 {
     int nfirst, nlast;
     std::tie(nfirst, nlast) = m_neighbor_ranges[s->dir];
@@ -737,7 +403,8 @@ void DistanceMap::lowerBounded(Cell* s)
     }
 }
 
-void DistanceMap::propagateBorder()
+template <typename Derived>
+void DistanceMap<Derived>::propagateBorder()
 {
     while (m_bucket < (int)m_open.size()) {
         while (!m_open[m_bucket].empty()) {
@@ -765,7 +432,8 @@ void DistanceMap::propagateBorder()
     }
 }
 
-DistanceMapMoveIt::DistanceMapMoveIt(
+template <typename Derived>
+DistanceMapMoveIt<Derived>::DistanceMapMoveIt(
     double origin_x, double origin_y, double origin_z,
     double size_x, double size_y, double size_z,
     double resolution,
@@ -776,7 +444,9 @@ DistanceMapMoveIt::DistanceMapMoveIt(
 {
 }
 
-void DistanceMapMoveIt::addPointsToField(const EigenSTL::vector_Vector3d& points)
+template <typename Derived>
+void DistanceMapMoveIt<Derived>::addPointsToField(
+    const EigenSTL::vector_Vector3d& points)
 {
     std::vector<Eigen::Vector3d> pts(points.size());
     for (size_t i = 0; i < points.size(); ++i) {
@@ -786,7 +456,8 @@ void DistanceMapMoveIt::addPointsToField(const EigenSTL::vector_Vector3d& points
     m_dm.addPointsToMap(pts);
 }
 
-void DistanceMapMoveIt::removePointsFromField(
+template <typename Derived>
+void DistanceMapMoveIt<Derived>::removePointsFromField(
     const EigenSTL::vector_Vector3d& points)
 {
     std::vector<Eigen::Vector3d> pts(points.size());
@@ -797,7 +468,8 @@ void DistanceMapMoveIt::removePointsFromField(
     m_dm.removePointsFromMap(pts);
 }
 
-void DistanceMapMoveIt::updatePointsInField(
+template <typename Derived>
+void DistanceMapMoveIt<Derived>::updatePointsInField(
     const EigenSTL::vector_Vector3d& old_points,
     const EigenSTL::vector_Vector3d& new_points)
 {
@@ -813,42 +485,50 @@ void DistanceMapMoveIt::updatePointsInField(
     m_dm.updatePointsInMap(old_pts, new_pts);
 }
 
-void DistanceMapMoveIt::reset()
+template <typename Derived>
+void DistanceMapMoveIt<Derived>::reset()
 {
     m_dm.reset();
 }
 
-double DistanceMapMoveIt::getDistance(double x, double y, double z) const
+template <typename Derived>
+double DistanceMapMoveIt<Derived>::getDistance(double x, double y, double z) const
 {
     return m_dm.getDistance(x, y, z);
 }
 
-double DistanceMapMoveIt::getDistance(int x, int y, int z) const
+template <typename Derived>
+double DistanceMapMoveIt<Derived>::getDistance(int x, int y, int z) const
 {
     return m_dm.getDistance(x, y, z);
 }
 
-bool DistanceMapMoveIt::isCellValid(int x, int y, int z) const
+template <typename Derived>
+bool DistanceMapMoveIt<Derived>::isCellValid(int x, int y, int z) const
 {
     return m_dm.isCellValid(x, y, z);
 }
 
-int DistanceMapMoveIt::getXNumCells() const
+template <typename Derived>
+int DistanceMapMoveIt<Derived>::getXNumCells() const
 {
     return m_dm.numCellsX();
 }
 
-int DistanceMapMoveIt::getYNumCells() const
+template <typename Derived>
+int DistanceMapMoveIt<Derived>::getYNumCells() const
 {
     return m_dm.numCellsY();
 }
 
-int DistanceMapMoveIt::getZNumCells() const
+template <typename Derived>
+int DistanceMapMoveIt<Derived>::getZNumCells() const
 {
     return m_dm.numCellsZ();
 }
 
-bool DistanceMapMoveIt::gridToWorld(
+template <typename Derived>
+bool DistanceMapMoveIt<Derived>::gridToWorld(
     int x, int y, int z,
     double& world_x, double& world_y, double& world_z) const
 {
@@ -856,7 +536,8 @@ bool DistanceMapMoveIt::gridToWorld(
     return m_dm.isCellValid(x, y, z);
 }
 
-bool DistanceMapMoveIt::worldToGrid(
+template <typename Derived>
+bool DistanceMapMoveIt<Derived>::worldToGrid(
     double world_x, double world_y, double world_z,
     int& x, int& y, int& z) const
 {
@@ -864,19 +545,24 @@ bool DistanceMapMoveIt::worldToGrid(
     return m_dm.isCellValid(x, y, z);
 }
 
-bool DistanceMapMoveIt::writeToStream(std::ostream& stream) const
+template <typename Derived>
+bool DistanceMapMoveIt<Derived>::writeToStream(std::ostream& stream) const
 {
     return false;
 }
 
-bool DistanceMapMoveIt::readFromStream(std::istream& stream)
+template <typename Derived>
+bool DistanceMapMoveIt<Derived>::readFromStream(std::istream& stream)
 {
     return false;
 }
 
-double DistanceMapMoveIt::getUninitializedDistance() const
+template <typename Derived>
+double DistanceMapMoveIt<Derived>::getUninitializedDistance() const
 {
     return m_dm.maxDistance();
 }
 
 } // namespace sbpl
+
+#endif

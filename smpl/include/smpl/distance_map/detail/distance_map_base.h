@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_DISTANCE_MAP_H
-#define SMPL_DISTANCE_MAP_H
+#ifndef SMPL_DISTANCE_MAP_BASE_H
+#define SMPL_DISTANCE_MAP_BASE_H
 
 // standard includes
 #include <array>
@@ -49,35 +49,19 @@
 
 namespace sbpl {
 
+#define SMPL_DMAP_RETURN_CHANGED_CELLS 0
+
 static const int NUM_DIRECTIONS = 2 * 27;
 static const int NON_BORDER_NEIGHBOR_LIST_SIZE = 460;
 static const int BORDER_NEIGHBOR_LIST_SIZE = 316;
 static const int NEIGHBOR_LIST_SIZE =
         NON_BORDER_NEIGHBOR_LIST_SIZE + BORDER_NEIGHBOR_LIST_SIZE;
 
-/// An unsigned distance transform implementation that computes distance values
-/// incrementally up to a maximum threshold. The distance of each cell is
-/// determined as the closer of the distance from its nearest obstacle cell and
-/// the distance to the nearest border cell. Distances for cells outside the
-/// specified bounding volume will be reported as 0. Border cells are defined
-/// as imaginary cells that are adjacent to valid in-bounds cells but are not
-/// themselves within the bounding volume.
-///
-/// The basis for this class can be found in 'Sebastian Scherer, David Ferguson,
-/// and Sanjiv Singh, "Efficient C-Space and Cost Function Updates in 3D for
-/// Unmanned Aerial Vehicles," Proceedings International Conference on Robotics
-/// and Automation, May, 2009.', albeit with some implementation differences.
-/// Notably, it is preferred to compute the distance updates for simultaneous
-/// obstacle insertion and removal in a two-phase fashion rather than
-/// interleaving the updates for the insertion and removal of obstacles. While
-/// the latter should complete in fewer propagation iterations, it is not
-/// usually worth the additional overhead to maintain the priority queue
-/// correctly in this domain.
-class DistanceMap
+class DistanceMapBase
 {
 public:
 
-    DistanceMap(
+    DistanceMapBase(
         double origin_x, double origin_y, double origin_z,
         double size_x, double size_y, double size_z,
         double resolution,
@@ -110,15 +94,7 @@ public:
     double getDistance(double x, double y, double z) const;
     double getDistance(int x, int y, int z) const;
 
-    void addPointsToMap(const std::vector<Eigen::Vector3d>& points);
-    void removePointsFromMap(const std::vector<Eigen::Vector3d>& points);
-    void updatePointsInMap(
-        const std::vector<Eigen::Vector3d>& old_points,
-        const std::vector<Eigen::Vector3d>& new_points);
-
-    void reset();
-
-private:
+protected:
 
     struct Cell
     {
@@ -171,6 +147,8 @@ private:
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_offsets;
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_dirs;
 
+    std::vector<double> m_sqrt_table;
+
     typedef std::vector<Cell*> bucket_type;
     typedef std::vector<bucket_type> bucket_list;
     bucket_list m_open;
@@ -178,72 +156,6 @@ private:
     std::vector<Cell*> m_rem_stack;
 
     void updateVertex(Cell* c);
-
-    int distance(const Cell& n, const Cell& s) const;
-    int distanceEuclidSqrd(const Cell& n, const Cell& s) const;
-    int distanceEuclidSqrdConservative(const Cell& n, const Cell& s) const;
-    int distanceQuasiEuclid(const Cell& n, const Cell& s) const;
-
-    void lower(Cell* s);
-    void raise(Cell* s);
-    void waveout(Cell* n);
-    void propagate();
-
-    void lowerBounded(Cell* s);
-    void propagateBorder();
-};
-
-/// A wrapper around DistanceMap to provide interoperability with the
-/// DistanceField interface in MoveIt!.
-class DistanceMapMoveIt : public distance_field::DistanceField
-{
-public:
-
-    DistanceMapMoveIt(
-        double origin_x, double origin_y, double origin_z,
-        double size_x, double size_y, double size_z,
-        double resolution,
-        double max_dist);
-
-    void addPointsToField(const EigenSTL::vector_Vector3d& points) override;
-
-    void removePointsFromField(const EigenSTL::vector_Vector3d& points) override;
-
-    void updatePointsInField(
-        const EigenSTL::vector_Vector3d& old_points,
-        const EigenSTL::vector_Vector3d& new_points) override;
-
-    void reset() override;
-
-    double getDistance(double x, double y, double z) const override;
-
-    double getDistance(int x, int y, int z) const override;
-
-    bool isCellValid(int x, int y, int z) const override;
-
-    int getXNumCells() const override;
-
-    int getYNumCells() const override;
-
-    int getZNumCells() const override;
-
-    bool gridToWorld(
-        int x, int y, int z,
-        double& world_x, double& world_y, double& world_z) const override;
-
-    bool worldToGrid(
-        double world_x, double world_y, double world_z,
-        int& x, int& y, int& z) const override;
-
-    bool writeToStream(std::ostream& stream) const override;
-
-    bool readFromStream(std::istream& stream) override;
-
-    double getUninitializedDistance() const override;
-
-private:
-
-    DistanceMap m_dm;
 };
 
 } // namespace sbpl
