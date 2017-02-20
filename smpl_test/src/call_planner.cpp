@@ -1699,6 +1699,8 @@ int main(int argc, char* argv[])
     params.epsilon = 100.0;
     params.planning_frame = planning_frame;
 
+    params.planning_link_sphere_radius = 0.02;
+
     params.params["discretization"] = planning_config.discretization;
     params.params["mprim_filename"] = planning_config.mprim_filename;
     params.params["use_xyz_snap_mprim"] = planning_config.use_xyz_snap_mprim;
