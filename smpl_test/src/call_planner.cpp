@@ -32,6 +32,7 @@
 // standard includes
 #include <stdlib.h>
 #include <string>
+#include <thread>
 #include <vector>
 
 // system includes
@@ -1777,8 +1778,15 @@ int main(int argc, char* argv[])
         }
     }
 
-    ROS_INFO("Done");
+    ROS_INFO("Animate path");
 
-    ros::spin();
+    while (ros::ok()) {
+        for (const auto &point : res.trajectory.joint_trajectory.points) {
+            auto markers = cc->getCollisionRobotVisualization(point.positions);
+            ma_pub.publish(markers);
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+    }
+
     return 0;
 }
