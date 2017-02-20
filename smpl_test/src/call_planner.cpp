@@ -42,6 +42,7 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <ros/ros.h>
 #include <smpl/ros/planner_interface.h>
+#include <smpl/distance_map/edge_euclid_distance_map.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
@@ -1585,13 +1586,16 @@ int main(int argc, char* argv[])
     const bool propagate_negative_distances = false;
     const bool ref_counted = true;
 
-    sbpl::OccupancyGrid grid(
-            df_size_x, df_size_y, df_size_z,
-            df_res,
+    typedef sbpl::DistanceMapMoveIt<sbpl::EdgeEuclidDistanceMap> DistanceMapType;
+
+    ROS_INFO("Create distance map");
+    auto df = std::make_shared<DistanceMapType>(
             df_origin_x, df_origin_y, df_origin_z,
-            max_distance,
-            propagate_negative_distances,
-            ref_counted);
+            df_size_x, df_size_y, df_size_z,
+            df_res, max_distance);
+
+    ROS_INFO("Create grid");
+    sbpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
     ma_pub.publish(grid.getBoundingBoxVisualization());
