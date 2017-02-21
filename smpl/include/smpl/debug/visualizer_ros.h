@@ -37,6 +37,7 @@
 #include <unordered_set>
 
 // system includes
+#include <boost/regex.hpp>
 #include <ros/ros.h>
 
 // project includes
@@ -61,7 +62,10 @@ private:
     ros::NodeHandle m_nh;
     ros::Publisher m_pub;
 
-    std::unordered_set<std::string> m_disabled;
+//    std::unordered_set<std::string> m_disabled;
+    std::vector<boost::regex> m_disabled;
+
+    std::vector<int> m_match_index;
 
     visualization_msgs::MarkerArray m_enabled;
 };

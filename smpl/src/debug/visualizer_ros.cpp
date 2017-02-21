@@ -20,7 +20,7 @@ VisualizerROS::VisualizerROS(
                     ROS_WARN("'disabled_namespaces' element is not a string. skipping.");
                     continue;
                 }
-                m_disabled.insert((std::string&)e);
+                m_disabled.emplace_back((std::string&)e);
             }
         }
         else {
@@ -34,11 +34,17 @@ void VisualizerROS::visualize(
     const visualization_msgs::MarkerArray& markers)
 {
     size_t exclude_count = 0;
-    for (const visualization_msgs::Marker& m : markers.markers) {
-        if (std::find(m_disabled.begin(), m_disabled.end(), m.ns) !=
-                m_disabled.end())
-        {
-            ++exclude_count;
+    m_match_index.assign(markers.markers.size(), -1);
+    boost::smatch sm;
+    for (size_t i = 0; i < markers.markers.size(); ++i) {
+        const visualization_msgs::Marker& m = markers.markers[i];
+        for (size_t j = 0; j < m_disabled.size(); ++j) {
+            const boost::regex& r = m_disabled[j];
+            if (boost::regex_match(m.ns, sm, r)) {
+                m_match_index[i] = j;
+                ++exclude_count;
+                break;
+            }
         }
     }
 
@@ -52,10 +58,9 @@ void VisualizerROS::visualize(
     }
     else {
         m_enabled.markers.clear();
-        for (const visualization_msgs::Marker& m : markers.markers) {
-            if (std::find(m_disabled.begin(), m_disabled.end(), m.ns) ==
-                    m_disabled.end())
-            {
+        for (size_t i = 0; i < markers.markers.size(); ++i) {
+            const visualization_msgs::Marker& m = markers.markers[i];
+            if (m_match_index[i] == -1) {
                 m_enabled.markers.push_back(m);
             }
         }
