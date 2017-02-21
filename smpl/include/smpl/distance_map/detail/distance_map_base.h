@@ -155,6 +155,8 @@ protected:
 
     std::vector<Cell*> m_rem_stack;
 
+    void initBorderCells();
+
     void updateVertex(Cell* c);
 };
 

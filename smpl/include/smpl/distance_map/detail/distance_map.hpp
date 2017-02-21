@@ -271,7 +271,10 @@ void DistanceMap<Derived>::reset()
     }
     }
     }
-    // TODO: need to propagate removed cells to maintain distance to the edge
+
+    initBorderCells();
+
+    propagateBorder();
 }
 
 template <typename Derived>

@@ -206,45 +206,7 @@ DistanceMapBase::DistanceMapBase(
         }
     }
 
-    auto init_obs_cell = [&](int x, int y, int z) {
-        Cell& c = m_cells(x, y, z);
-        c.x = x;
-        c.y = y;
-        c.z = z;
-        c.dist = m_dmax_sqrd_int;
-        c.dist_new = 0;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        c.dist_old = m_dmax_sqrd_int;
-#endif
-        c.obs = &c;
-        c.bucket = -1;
-
-        int src_dir_x = (x == 0) ? 1 : (x == m_cells.xsize() - 1 ? -1 : 0);
-        int src_dir_y = (y == 0) ? 1 : (y == m_cells.ysize() - 1 ? -1 : 0);
-        int src_dir_z = (z == 0) ? 1 : (z == m_cells.zsize() - 1 ? -1 : 0);
-        c.dir = dirnum(src_dir_x, src_dir_y, src_dir_z, 1);
-        updateVertex(&c);
-    };
-
-    // initialize border cells
-    for (int y = 0; y < m_cells.ysize(); ++y) {
-    for (int z = 0; z < m_cells.zsize(); ++z) {
-        init_obs_cell(0, y, z);
-        init_obs_cell(m_cells.xsize() - 1, y, z);
-    }
-    }
-    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (int z = 0; z < m_cells.zsize(); ++z) {
-        init_obs_cell(x, 0, z);
-        init_obs_cell(x, m_cells.ysize() - 1, z);
-    }
-    }
-    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (int y = 1; y < m_cells.ysize() - 1; ++y) {
-        init_obs_cell(x, y, 0);
-        init_obs_cell(x, y, m_cells.zsize() - 1);
-    }
-    }
+    initBorderCells();
 }
 
 /// Return the size along the x axis of the bounding volume.
@@ -364,6 +326,49 @@ double DistanceMapBase::getDistance(int x, int y, int z) const
 
     int d2 = m_cells(x + 1, y + 1, z + 1).dist;
     return m_sqrt_table[d2];
+}
+
+void DistanceMapBase::initBorderCells()
+{
+    auto init_obs_cell = [&](int x, int y, int z) {
+        Cell& c = m_cells(x, y, z);
+        c.x = x;
+        c.y = y;
+        c.z = z;
+        c.dist = m_dmax_sqrd_int;
+        c.dist_new = 0;
+#if SMPL_DMAP_RETURN_CHANGED_CELLS
+        c.dist_old = m_dmax_sqrd_int;
+#endif
+        c.obs = &c;
+        c.bucket = -1;
+
+        int src_dir_x = (x == 0) ? 1 : (x == m_cells.xsize() - 1 ? -1 : 0);
+        int src_dir_y = (y == 0) ? 1 : (y == m_cells.ysize() - 1 ? -1 : 0);
+        int src_dir_z = (z == 0) ? 1 : (z == m_cells.zsize() - 1 ? -1 : 0);
+        c.dir = dirnum(src_dir_x, src_dir_y, src_dir_z, 1);
+        updateVertex(&c);
+    };
+
+    // initialize border cells
+    for (int y = 0; y < m_cells.ysize(); ++y) {
+    for (int z = 0; z < m_cells.zsize(); ++z) {
+        init_obs_cell(0, y, z);
+        init_obs_cell(m_cells.xsize() - 1, y, z);
+    }
+    }
+    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
+    for (int z = 0; z < m_cells.zsize(); ++z) {
+        init_obs_cell(x, 0, z);
+        init_obs_cell(x, m_cells.ysize() - 1, z);
+    }
+    }
+    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
+    for (int y = 1; y < m_cells.ysize() - 1; ++y) {
+        init_obs_cell(x, y, 0);
+        init_obs_cell(x, y, m_cells.zsize() - 1);
+    }
+    }
 }
 
 void DistanceMapBase::updateVertex(Cell* o)
