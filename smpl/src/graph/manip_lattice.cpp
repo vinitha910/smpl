@@ -516,6 +516,8 @@ ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
     return m_states[state_id];
 }
 
+/// Return the state id of the state with the given coordinate or -1 if the
+/// state has not yet been allocated.
 int ManipLattice::getHashEntry(const RobotCoord& coord)
 {
     ManipLatticeState state;
