@@ -66,7 +66,11 @@ public:
 
 private:
 
+    static constexpr double FIXED_POINT_RATIO = 1000.0;
+
     ExtractRobotStateExtension* m_ers;
+
+    double computeJointDistance(const RobotState &s, const RobotState &t) const;
 };
 
 } // namespace motion
