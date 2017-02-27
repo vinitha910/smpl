@@ -66,7 +66,8 @@ public:
 
 private:
 
-    PointProjectionExtension* m_pp;
+    PoseProjectionExtension* m_pose_ext;
+    PointProjectionExtension* m_point_ext;
 };
 
 } // namespace motion

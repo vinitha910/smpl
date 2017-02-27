@@ -64,7 +64,7 @@ ManipLattice::ManipLattice(
 :
     Extension(),
     RobotPlanningSpace(robot_model, checker, _params),
-    PointProjectionExtension(),
+    PoseProjectionExtension(),
     ExtractRobotStateExtension(),
     m_fk_iface(nullptr),
     m_min_limits(),
@@ -477,25 +477,36 @@ const RobotState& ManipLattice::extractState(int state_id)
     return m_states[state_id]->state;
 }
 
-bool ManipLattice::projectToPoint(int state_id, Eigen::Vector3d& pos)
+bool ManipLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 {
     if (state_id == getGoalStateID()) {
-        assert(goal().tgt_off_pose.size() >= 3);
-        pos.x() = goal().tgt_off_pose[0];
-        pos.y() = goal().tgt_off_pose[1];
-        pos.z() = goal().tgt_off_pose[2];
+        assert(goal().tgt_off_pose.size() >= 6);
+        Eigen::Matrix3d R;
+        angles::from_euler_zyx(
+                goal().tgt_off_pose[5],
+                goal().tgt_off_pose[4],
+                goal().tgt_off_pose[3],
+                R);
+        pose =
+                Eigen::Translation3d(
+                        goal().tgt_off_pose[0],
+                        goal().tgt_off_pose[1],
+                        goal().tgt_off_pose[2]) *
+                Eigen::Affine3d(R);
         return true;
     }
 
-    std::vector<double> pose;
-    if (!computePlanningFrameFK(m_states[state_id]->state, pose)) {
+    std::vector<double> vpose;
+    if (!computePlanningFrameFK(m_states[state_id]->state, vpose)) {
         ROS_WARN("Failed to compute fk for state %d", state_id);
         return false;
     }
 
-    pos.x() = pose[0];
-    pos.y() = pose[1];
-    pos.z() = pose[2];
+    Eigen::Matrix3d R;
+    angles::from_euler_zyx(vpose[5], vpose[4], vpose[3], R);
+    pose =
+            Eigen::Translation3d(vpose[0], vpose[1], vpose[2]) *
+            Eigen::Affine3d(R);
     return true;
 }
 
@@ -1020,7 +1031,8 @@ Extension* ManipLattice::getExtension(size_t class_code)
     if (class_code == GetClassCode<RobotPlanningSpace>() ||
         class_code == GetClassCode<PointProjectionExtension>() ||
         class_code == GetClassCode<ExtractRobotStateExtension>() ||
-        class_code == GetClassCode<ManipLattice>())
+        class_code == GetClassCode<ManipLattice>() ||
+        class_code == GetClassCode<PoseProjectionExtension>())
     {
         return this;
     }
@@ -1049,7 +1061,7 @@ double ManipLattice::getGoalDistance(double x, double y, double z)
     if (numHeuristics() == 0) {
         return 0.0;
     }
-    heuristic(0)->getMetricGoalDistance(x, y, z);
+    return heuristic(0)->getMetricGoalDistance(x, y, z);
 }
 
 // \brief Get the (heuristic) distance from the planning link pose to the goal

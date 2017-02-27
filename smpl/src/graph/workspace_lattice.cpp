@@ -119,6 +119,37 @@ bool WorkspaceLattice::init(const Params& _params)
     return true;
 }
 
+bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
+{
+    if (state_id == getGoalStateID()) {
+        assert(goal().tgt_off_pose.size() >= 6);
+        Eigen::Matrix3d R;
+        angles::from_euler_zyx(
+                goal().tgt_off_pose[5],
+                goal().tgt_off_pose[4],
+                goal().tgt_off_pose[3],
+                R);
+        pose =
+                Eigen::Translation3d(
+                        goal().tgt_off_pose[0],
+                        goal().tgt_off_pose[1],
+                        goal().tgt_off_pose[2]) *
+                Eigen::Affine3d(R);
+        return true;
+    }
+
+    WorkspaceLatticeState* state = getState(state_id);
+
+    double p[6];
+    poseCoordToWorkspace(&state->coord[0], &p[0]);
+
+    pose = Eigen::Translation3d(p[0], p[1], p[2]) *
+            Eigen::AngleAxisd(p[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(p[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(p[3], Eigen::Vector3d::UnitX());
+    return true;
+}
+
 bool WorkspaceLattice::setStart(const RobotState& state)
 {
     if (!initialized()) {
@@ -256,56 +287,58 @@ bool WorkspaceLattice::extractPath(
 Extension* WorkspaceLattice::getExtension(size_t class_code)
 {
     if (class_code == GetClassCode<WorkspaceLattice>() ||
-        class_code == GetClassCode<RobotPlanningSpace>())
+        class_code == GetClassCode<RobotPlanningSpace>() ||
+        class_code == GetClassCode<PoseProjectionExtension>() ||
+        class_code == GetClassCode<PointProjectionExtension>())
     {
         return this;
     }
     return nullptr;
 }
 
-int WorkspaceLattice::GetGoalHeuristic(int state_id)
-{
-    if (state_id == m_goal_state_id) {
-        return 0;
-    }
-
-    WorkspaceLatticeState* state = getState(state_id);
-
-    int dx = abs(state->coord[0] - m_goal_coord[0]);
-    int dy = abs(state->coord[1] - m_goal_coord[1]);
-    int dz = abs(state->coord[2] - m_goal_coord[2]);
-    int xyz_heur = (dx + dy + dz) * params()->cost_per_cell;
-
-    double rpy[3];
-    rotCoordToWorkspace(&state->coord[3], &rpy[0]);
-
-    double grpy[3];
-    rotCoordToWorkspace(&m_goal_coord[3], &grpy[0]);
-
-    Eigen::Quaterniond qstate(
-            Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()));
-
-    Eigen::Quaterniond qgoal(
-            Eigen::AngleAxisd(grpy[2], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(grpy[1], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(grpy[0], Eigen::Vector3d::UnitX()));
-
-    if (qstate.dot(qgoal) < 0.0) {
-        qgoal = Eigen::Quaterniond(-qgoal.w(), -qgoal.x(), -qgoal.y(), -qgoal.z());
-    }
-
-    double dr = angles::normalize_angle(2.0 * acos(qstate.dot(qgoal)));
-
-    int rpy_heur = (params()->cost_per_cell * dr / m_res[3]);
-
-    ROS_DEBUG_STREAM_NAMED(params()->graph_log, "id: " << state_id << ", state: " << *state);
-    ROS_DEBUG_NAMED(params()->graph_log, "(%d + %d + %d) * %d = %d", dx, dy, dz, params()->cost_per_cell, xyz_heur);
-
-    state->h = xyz_heur + rpy_heur;
-    return state->h;
-}
+//int WorkspaceLattice::GetGoalHeuristic(int state_id)
+//{
+//    if (state_id == m_goal_state_id) {
+//        return 0;
+//    }
+//
+//    WorkspaceLatticeState* state = getState(state_id);
+//
+//    int dx = abs(state->coord[0] - m_goal_coord[0]);
+//    int dy = abs(state->coord[1] - m_goal_coord[1]);
+//    int dz = abs(state->coord[2] - m_goal_coord[2]);
+//    int xyz_heur = (dx + dy + dz) * params()->cost_per_cell;
+//
+//    double rpy[3];
+//    rotCoordToWorkspace(&state->coord[3], &rpy[0]);
+//
+//    double grpy[3];
+//    rotCoordToWorkspace(&m_goal_coord[3], &grpy[0]);
+//
+//    Eigen::Quaterniond qstate(
+//            Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
+//            Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
+//            Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()));
+//
+//    Eigen::Quaterniond qgoal(
+//            Eigen::AngleAxisd(grpy[2], Eigen::Vector3d::UnitZ()) *
+//            Eigen::AngleAxisd(grpy[1], Eigen::Vector3d::UnitY()) *
+//            Eigen::AngleAxisd(grpy[0], Eigen::Vector3d::UnitX()));
+//
+//    if (qstate.dot(qgoal) < 0.0) {
+//        qgoal = Eigen::Quaterniond(-qgoal.w(), -qgoal.x(), -qgoal.y(), -qgoal.z());
+//    }
+//
+//    double dr = angles::normalize_angle(2.0 * acos(qstate.dot(qgoal)));
+//
+//    int rpy_heur = (params()->cost_per_cell * dr / m_res[3]);
+//
+//    ROS_DEBUG_STREAM_NAMED(params()->graph_log, "id: " << state_id << ", state: " << *state);
+//    ROS_DEBUG_NAMED(params()->graph_log, "(%d + %d + %d) * %d = %d", dx, dy, dz, params()->cost_per_cell, xyz_heur);
+//
+//    state->h = xyz_heur + rpy_heur;
+//    return state->h;
+//}
 
 void WorkspaceLattice::GetSuccs(
     int state_id,
@@ -542,27 +575,55 @@ WorkspaceLatticeState* WorkspaceLattice::getState(int state_id)
 bool WorkspaceLattice::isGoal(const WorkspaceState& state)
 {
     // check position
-    if (fabs(state[0] - goal().pose[0]) <= goal().xyz_tolerance[0] &&
-        fabs(state[1] - goal().pose[1]) <= goal().xyz_tolerance[1] &&
-        fabs(state[2] - goal().pose[2]) <= goal().xyz_tolerance[2])
-    {
-        // log the amount of time required for the search to get close to the goal
-        if (!m_near_goal) {
-            auto now = clock::now();
-            double time_to_goal_region =
-                    std::chrono::duration<double>(now - m_t_start).count();
-            m_near_goal = true;
-            ROS_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
-        }
-        // check orientation
-        if (angles::shortest_angle_dist(state[3], goal().pose[3]) <= goal().rpy_tolerance[0] &&
-            angles::shortest_angle_dist(state[4], goal().pose[4]) <= goal().rpy_tolerance[1] &&
-            angles::shortest_angle_dist(state[5], goal().pose[5]) <= goal().rpy_tolerance[2])
+    switch (goal().type) {
+    case GoalType::JOINT_STATE_GOAL:
+        ROS_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
+        return false;
+    case GoalType::XYZ_RPY_GOAL: {
+        double dx = std::fabs(state[0] - goal().tgt_off_pose[0]);
+        double dy = std::fabs(state[1] - goal().tgt_off_pose[1]);
+        double dz = std::fabs(state[2] - goal().tgt_off_pose[2]);
+        if (dx <= goal().xyz_tolerance[0] &&
+            dy <= goal().xyz_tolerance[1] &&
+            dz <= goal().xyz_tolerance[2])
         {
-            return true;
+            // log the amount of time required for the search to get close to the goal
+            if (!m_near_goal) {
+                auto now = clock::now();
+                double time_to_goal_region =
+                        std::chrono::duration<double>(now - m_t_start).count();
+                m_near_goal = true;
+                ROS_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
+            }
+
+            Eigen::Quaterniond qg(
+                    Eigen::AngleAxisd(goal().tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(goal().tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(goal().tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+            Eigen::Quaterniond q(
+                    Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX()));
+
+            if (q.dot(qg) < 0.0) {
+                qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
+            }
+
+//            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
+            const double theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
+            if (theta < goal().rpy_tolerance[0]) {
+                return true;
+            }
         }
+        return false;
+    }   break;
+    case GoalType::XYZ_GOAL: {
+        ROS_WARN_ONCE("WorkspaceLattice xyz goals not implemented");
+        return false;
+    }   break;
+    default:
+        return false;
     }
-    return false;
 }
 
 visualization_msgs::MarkerArray WorkspaceLattice::getStateVisualization(

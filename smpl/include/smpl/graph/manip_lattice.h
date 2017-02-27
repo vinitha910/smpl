@@ -95,7 +95,7 @@ SBPL_CLASS_FORWARD(ManipLattice);
 /// \class Discrete space constructed by expliciting discretizing each joint
 class ManipLattice :
     public RobotPlanningSpace,
-    public PointProjectionExtension,
+    public PoseProjectionExtension,
     public ExtractRobotStateExtension
 {
 public:
@@ -139,9 +139,9 @@ public:
     const RobotState& extractState(int state_id);
     ///@}
 
-    /// \name Required Public Functions from PointProjectionExtension
+    /// \name Required Public Functions from PoseProjectionExtension
     ///@{
-    bool projectToPoint(int state_id, Eigen::Vector3d& pos);
+    bool projectToPose(int state_id, Eigen::Affine3d& pos);
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpace

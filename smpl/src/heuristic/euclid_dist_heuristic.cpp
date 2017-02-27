@@ -34,6 +34,9 @@
 // standard includes
 #include <math.h>
 
+// project includes
+#include <smpl/angles.h>
+
 namespace sbpl {
 namespace motion {
 
@@ -54,9 +57,16 @@ EuclidDistHeuristic::EuclidDistHeuristic(
 :
     RobotHeuristic(pspace, grid)
 {
-    m_pp = pspace->getExtension<PointProjectionExtension>();
-    if (m_pp) {
+    m_point_ext = pspace->getExtension<PointProjectionExtension>();
+    if (m_point_ext) {
         ROS_INFO("Got Point Projection Extension!");
+    }
+    m_pose_ext = pspace->getExtension<PoseProjectionExtension>();
+    if (m_pose_ext) {
+        ROS_INFO("Got Pose Projection Extension!");
+    }
+    if (!m_pose_ext && !m_point_ext) {
+        ROS_WARN("EuclidDistHeuristic recommends PointProjectionExtension or PoseProjectionExtension");
     }
 }
 
@@ -86,21 +96,50 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
 
-    if (!m_pp) {
+    if (m_pose_ext) {
+        Eigen::Affine3d p;
+        if (!m_pose_ext->projectToPose(state_id, p)) {
+            return 0;
+        }
+
+        const std::vector<double>& goal_pose = planningSpace()->goal().pose;
+        const Eigen::Vector3d gp(goal_pose[0], goal_pose[1], goal_pose[2]);
+
+        assert(goal_pose.size() >= 6);
+        Eigen::Quaterniond qgoal(
+                Eigen::AngleAxisd(goal_pose[5], Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(goal_pose[4], Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(goal_pose[3], Eigen::Vector3d::UnitX()));
+        Eigen::Quaterniond qstate(p.rotation());
+
+        if (qstate.dot(qgoal) < 0.0) {
+            qgoal = Eigen::Quaterniond(-qgoal.w(), -qgoal.x(), -qgoal.y(), -qgoal.z());
+        }
+
+        double dp = (p.translation() - gp).norm();
+        double dr = angles::normalize_angle(2.0 * acos(qstate.dot(qgoal)));
+        dr = std::fabs(dr);
+
+        double Y, P, R;
+        angles::get_euler_zyx(p.rotation(), Y, P, R);
+        ROS_DEBUG("h(%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f) = dp: %0.3f + dr: %0.3f", p.translation()[0], p.translation()[1], p.translation()[2], Y, P, R, dr, dp);
+
+        return 50 * params()->cost_per_meter * (/*dp +*/ dr);
+    } else if (m_point_ext) {
+        Eigen::Vector3d p;
+        if (!m_point_ext->projectToPoint(state_id, p)) {
+            return 0;
+        }
+
+        const std::vector<double>& goal_pose = planningSpace()->goal().pose;
+        Eigen::Vector3d gp(goal_pose[0], goal_pose[1], goal_pose[2]);
+
+        int h = 50 * params()->cost_per_meter * (gp - p).norm();
+        ROS_DEBUG_NAMED(params()->heuristic_log, "h(%d) = %d", state_id, h);
+        return h;
+    } else {
         return 0;
     }
-
-    const std::vector<double>& goal_pose = planningSpace()->goal().pose;
-    Eigen::Vector3d gp(goal_pose[0], goal_pose[1], goal_pose[2]);
-
-    Eigen::Vector3d p;
-    if (!m_pp->projectToPoint(state_id, p)) {
-        return 0;
-    }
-
-    int h = 50 * params()->cost_per_meter * (gp - p).norm();
-    ROS_DEBUG_NAMED(params()->heuristic_log, "h(%d) = %d", state_id, h);
-    return h;
 }
 
 int EuclidDistHeuristic::GetStartHeuristic(int state_id)
@@ -110,13 +149,13 @@ int EuclidDistHeuristic::GetStartHeuristic(int state_id)
 
 int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    if (!m_pp) {
+    if (!m_point_ext) {
         return 0;
     }
 
     Eigen::Vector3d fp, tp;
-    if (!m_pp->projectToPoint(from_id, fp) ||
-        !m_pp->projectToPoint(to_id, tp))
+    if (!m_point_ext->projectToPoint(from_id, fp) ||
+        !m_point_ext->projectToPoint(to_id, tp))
     {
         return 0;
     }

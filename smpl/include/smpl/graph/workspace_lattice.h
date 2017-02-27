@@ -92,7 +92,9 @@ namespace motion {
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
-class WorkspaceLattice : public WorkspaceLatticeBase
+class WorkspaceLattice :
+    public WorkspaceLatticeBase,
+    public PoseProjectionExtension
 {
 public:
 
@@ -116,9 +118,14 @@ public:
     bool init(const Params& params) override;
     ///@}
 
+    /// \name Required Functions from PoseProjectionExtension
+    ///@{
+    bool projectToPose(int state_id, Eigen::Affine3d& pose);
+    ///@}
+
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
-    int GetGoalHeuristic(int state_id) override;
+//    int GetGoalHeuristic(int state_id) override;
     bool setStart(const RobotState& state) override;
     bool setGoal(const GoalConstraint& goal) override;
     ///@}

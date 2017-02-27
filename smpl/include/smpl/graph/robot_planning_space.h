@@ -176,6 +176,25 @@ public:
     virtual bool projectToPoint(int state_id, Eigen::Vector3d& pos) = 0;
 };
 
+class PoseProjectionExtension : public PointProjectionExtension
+{
+public:
+
+    virtual ~PoseProjectionExtension() { }
+
+    bool projectToPoint(int state_id, Eigen::Vector3d& pos) override
+    {
+        Eigen::Affine3d pose;
+        if (!projectToPose(state_id, pose)) {
+            return false;
+        }
+        pos = pose.translation();
+        return true;
+    }
+
+    virtual bool projectToPose(int state_id, Eigen::Affine3d& pose) = 0;
+};
+
 class ExtractRobotStateExtension : public virtual Extension
 {
 public:
