@@ -32,6 +32,8 @@
 #ifndef SMPL_EGRAPH_HEURISTIC_H
 #define SMPL_EGRAPH_HEURISTIC_H
 
+#include <vector>
+
 namespace sbpl {
 namespace motion {
 

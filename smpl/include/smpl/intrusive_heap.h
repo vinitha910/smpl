@@ -32,6 +32,7 @@
 #ifndef SMPL_INTRUSIVE_HEAP_H
 #define SMPL_INTRUSIVE_HEAP_H
 
+#include <cstdlib>
 #include <vector>
 
 namespace sbpl {
