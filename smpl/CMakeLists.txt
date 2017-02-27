@@ -90,6 +90,7 @@ add_library(
     src/ros/experience_graph_planner_allocator.cpp
     src/ros/euclid_dist_heuristic_allocator.cpp
     src/ros/joint_dist_heuristic_allocator.cpp
+    src/ros/joint_dist_egraph_heuristic_allocator.cpp
     src/ros/laraplanner_allocator.cpp
     src/ros/manip_lattice_allocator.cpp
     src/ros/manip_lattice_egraph_allocator.cpp
