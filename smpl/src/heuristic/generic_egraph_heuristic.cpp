@@ -29,6 +29,10 @@
 
 /// \author Andrew Dornbush
 
+// system includes
+#include <leatherman/print.h>
+
+// project includes
 #include <smpl/heuristic/generic_egraph_heuristic.h>
 
 namespace sbpl {
@@ -70,7 +74,20 @@ void GenericEgraphHeuristic::getEquivalentStates(
     int state_id,
     std::vector<int>& ids)
 {
-
+    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    auto nodes = eg->nodes();
+    int best_h = std::numeric_limits<int>::max();
+    const int equiv_thresh = 100;
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        int egraph_state_id = m_eg->getStateID(*nit);
+        int h = m_orig_h->GetFromToHeuristic(state_id, egraph_state_id);
+        if (h < best_h) {
+            best_h = h;
+        }
+        if (h <= equiv_thresh) {
+            ids.push_back(egraph_state_id);
+        }
+    }
 }
 
 void GenericEgraphHeuristic::getShortcutSuccs(
@@ -83,9 +100,9 @@ void GenericEgraphHeuristic::getShortcutSuccs(
     for (ExperienceGraph::node_id n : egraph_nodes) {
         const int comp_id = m_component_ids[n];
         for (ExperienceGraph::node_id nn : m_shortcut_nodes[comp_id]) {
-            int state_id = m_eg->getStateID(nn);
-            if (state_id != state_id) {
-                shortcut_ids.push_back(state_id);
+            int egraph_state_id = m_eg->getStateID(nn);
+            if (state_id != egraph_state_id) {
+                shortcut_ids.push_back(egraph_state_id);
             }
         }
     }
@@ -172,16 +189,16 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
         int h = m_orig_h->GetGoalHeuristic(state_id);
 
         if (m_shortcut_nodes[comp_id].empty()) {
-            m_shortcut_nodes[comp_id].push_back(*nit);
+            m_shortcut_nodes[comp_id].push_back(n);
             shortcut_heuristics[comp_id] = h;
         } else {
             int best_h = shortcut_heuristics[comp_id];
             if (h < best_h) {
                 m_shortcut_nodes[comp_id].clear();
-                m_shortcut_nodes[comp_id].push_back(*nit);
+                m_shortcut_nodes[comp_id].push_back(n);
                 shortcut_heuristics[comp_id] = h;
             } else if (h == best_h) {
-                m_shortcut_nodes[comp_id].push_back(*nit);
+                m_shortcut_nodes[comp_id].push_back(n);
             }
         }
     }
@@ -204,21 +221,23 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
             // unconditionally relaxed (goal node is the first node removed)
             for (auto nit = nodes.first; nit != nodes.second; ++nit) {
                 const ExperienceGraph::node_id nid = *nit;
+                HeuristicNode* n = &m_h_nodes[nid + 1];
                 const int state_id = m_eg->getStateID(nid);
                 const int h = m_orig_h->GetGoalHeuristic(state_id);
-                m_h_nodes[nid + 1].dist = m_eg_eps * h;
-                m_open.push(&m_h_nodes[nid + 1]);
+                n->dist = (int)(m_eg_eps * h);
+                m_open.push(n);
             }
         } else {
             // neighbors: inflated edges to all non-adjacent experience graph
             // states original cost edges to all adjacent experience graph
             // states
             const ExperienceGraph::node_id sid = nidx - 1;
+            const int s_state_id = m_eg->getStateID(sid);
             for (auto nit = nodes.first; nit != nodes.second; ++nit) {
                 const ExperienceGraph::node_id nid = *nit;
                 HeuristicNode* n = &m_h_nodes[nid + 1];
                 if (eg->edge(sid, nid)) {
-                    const int edge_cost = 1000;
+                    const int edge_cost = 10;
                     const int new_cost = s->dist + edge_cost;
                     if (new_cost < n->dist) {
                         n->dist = new_cost;
@@ -229,10 +248,9 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
                         }
                     }
                 } else {
-                    const int s_state_id = m_eg->getStateID(sid);
                     const int n_state_id = m_eg->getStateID(nid);
                     int h = m_orig_h->GetFromToHeuristic(s_state_id, n_state_id);
-                    const int new_cost = s->dist + m_eg_eps * h;
+                    const int new_cost = s->dist + (int)(m_eg_eps * h);
                     if (new_cost < n->dist) {
                         n->dist = new_cost;
                         if (m_open.contains(n)) {
@@ -258,12 +276,13 @@ int GenericEgraphHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
 
-    int best_h = m_eg_eps * m_orig_h->GetGoalHeuristic(state_id);
+    int best_h = (int)(m_eg_eps * m_orig_h->GetGoalHeuristic(state_id));
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
-        int h = m_orig_h->GetFromToHeuristic(state_id, m_eg->getStateID(*nit));
-        int dist = m_h_nodes[*nit + 1].dist;
-        int new_h = dist + m_eg_eps * h;
+        const int egraph_state_id = m_eg->getStateID(*nit);
+        const int h = m_orig_h->GetFromToHeuristic(state_id, egraph_state_id);
+        const int dist = m_h_nodes[*nit + 1].dist;
+        const int new_h = dist + (int)(m_eg_eps * h);
         if (new_h < best_h) {
             best_h = new_h;
         }
