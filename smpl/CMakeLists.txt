@@ -78,6 +78,7 @@ add_library(
     src/graph/workspace_lattice_base.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
+    src/heuristic/generic_egraph_heuristic.cpp
     src/heuristic/euclid_dist_heuristic.cpp
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
