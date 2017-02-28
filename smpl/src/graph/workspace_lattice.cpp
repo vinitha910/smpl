@@ -307,50 +307,6 @@ Extension* WorkspaceLattice::getExtension(size_t class_code)
     return nullptr;
 }
 
-//int WorkspaceLattice::GetGoalHeuristic(int state_id)
-//{
-//    if (state_id == m_goal_state_id) {
-//        return 0;
-//    }
-//
-//    WorkspaceLatticeState* state = getState(state_id);
-//
-//    int dx = abs(state->coord[0] - m_goal_coord[0]);
-//    int dy = abs(state->coord[1] - m_goal_coord[1]);
-//    int dz = abs(state->coord[2] - m_goal_coord[2]);
-//    int xyz_heur = (dx + dy + dz) * params()->cost_per_cell;
-//
-//    double rpy[3];
-//    rotCoordToWorkspace(&state->coord[3], &rpy[0]);
-//
-//    double grpy[3];
-//    rotCoordToWorkspace(&m_goal_coord[3], &grpy[0]);
-//
-//    Eigen::Quaterniond qstate(
-//            Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
-//            Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
-//            Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()));
-//
-//    Eigen::Quaterniond qgoal(
-//            Eigen::AngleAxisd(grpy[2], Eigen::Vector3d::UnitZ()) *
-//            Eigen::AngleAxisd(grpy[1], Eigen::Vector3d::UnitY()) *
-//            Eigen::AngleAxisd(grpy[0], Eigen::Vector3d::UnitX()));
-//
-//    if (qstate.dot(qgoal) < 0.0) {
-//        qgoal = Eigen::Quaterniond(-qgoal.w(), -qgoal.x(), -qgoal.y(), -qgoal.z());
-//    }
-//
-//    double dr = angles::normalize_angle(2.0 * acos(qstate.dot(qgoal)));
-//
-//    int rpy_heur = (params()->cost_per_cell * dr / m_res[3]);
-//
-//    ROS_DEBUG_STREAM_NAMED(params()->graph_log, "id: " << state_id << ", state: " << *state);
-//    ROS_DEBUG_NAMED(params()->graph_log, "(%d + %d + %d) * %d = %d", dx, dy, dz, params()->cost_per_cell, xyz_heur);
-//
-//    state->h = xyz_heur + rpy_heur;
-//    return state->h;
-//}
-
 void WorkspaceLattice::GetSuccs(
     int state_id,
     std::vector<int>* succs,

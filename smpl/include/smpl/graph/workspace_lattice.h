@@ -128,7 +128,6 @@ public:
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
-//    int GetGoalHeuristic(int state_id) override;
     bool setStart(const RobotState& state) override;
     bool setGoal(const GoalConstraint& goal) override;
     ///@}
