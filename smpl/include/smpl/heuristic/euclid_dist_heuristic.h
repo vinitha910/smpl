@@ -66,8 +66,36 @@ public:
 
 private:
 
+    static constexpr double FIXED_POINT_RATIO = 1000.0;
+
     PoseProjectionExtension* m_pose_ext;
     PointProjectionExtension* m_point_ext;
+
+    double m_x_coeff;
+    double m_y_coeff;
+    double m_z_coeff;
+    double m_rot_coeff;
+
+    void getParam(
+        const PlanningParams& params,
+        const char* name,
+        double& var,
+        double default_value) const;
+
+    Eigen::Affine3d createPose(const std::vector<double>& pose) const;
+    Eigen::Vector3d createPoint(const std::vector<double>& point) const;
+
+    Eigen::Affine3d createPose(
+        double x, double y, double z,
+        double Y, double P, double R) const;
+
+    double computeDistance(
+        const Eigen::Affine3d& a,
+        const Eigen::Affine3d& b) const;
+
+    double computeDistance(
+        const Eigen::Vector3d& u,
+        const Eigen::Vector3d& v) const;
 };
 
 } // namespace motion
