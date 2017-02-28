@@ -35,6 +35,7 @@
 // system includes
 #include <boost/functional/hash.hpp>
 #include <leatherman/print.h>
+#include <leatherman/viz.h>
 
 // project includes
 #include <smpl/angles.h>
@@ -102,6 +103,16 @@ WorkspaceLattice::~WorkspaceLattice()
     m_states.clear();
 
     // NOTE: StateID2IndexMapping cleared by DiscreteSpaceInformation
+}
+
+void WorkspaceLattice::setVisualizationFrameId(const std::string& frame_id)
+{
+    m_viz_frame_id = frame_id;
+}
+
+const std::string& WorkspaceLattice::visualizationFrameId() const
+{
+    return m_viz_frame_id;
 }
 
 bool WorkspaceLattice::init(const Params& _params)
@@ -497,11 +508,17 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         return false;
     }
 
-    // TODO/NOTE: 7 for compatibility with ManipLattice goal
     if (goal.pose.size() != 6) {
         ROS_ERROR("goal element has incorrect format");
         return false;
     }
+
+    if (goal.tgt_off_pose.size() != 6) {
+        ROS_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
+        return false;
+    }
+
+    SV_SHOW_INFO(::viz::getPosesMarkerArray({ goal.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
     ROS_DEBUG_NAMED(params()->graph_log, "set the goal state");
 

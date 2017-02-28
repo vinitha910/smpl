@@ -113,6 +113,9 @@ public:
 
     ~WorkspaceLattice();
 
+    void setVisualizationFrameId(const std::string& frame_id);
+    const std::string& visualizationFrameId() const;
+
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
     bool init(const Params& params) override;
@@ -186,6 +189,8 @@ private:
     int m_goal_coord[6];
 
     std::vector<MotionPrimitive> m_prims;
+
+    std::string m_viz_frame_id;
 
     bool initMotionPrimitives();
 

@@ -65,6 +65,8 @@ RobotPlanningSpacePtr WorkspaceLatticeAllocator::allocate(
         return RobotPlanningSpacePtr();
     }
 
+    pspace->setVisualizationFrameId(m_grid->getReferenceFrame());
+
     return pspace;
 }
 
