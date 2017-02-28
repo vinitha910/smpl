@@ -374,8 +374,7 @@ void WorkspaceLattice::GetSuccs(
 
         costs->push_back(30);
 
-        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_id);
+        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
         ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
@@ -620,7 +619,7 @@ void WorkspaceLattice::getActions(
     WorkspaceState cont_state;
     stateCoordToWorkspace(entry.coord, cont_state);
 
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "create actions for state: " << cont_state);
+    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "  create actions for state: " << cont_state);
 
     for (size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
         const auto& prim = m_prims[pidx];
