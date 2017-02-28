@@ -35,6 +35,7 @@
 #include "../intrusive_heap.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 namespace sbpl {
 

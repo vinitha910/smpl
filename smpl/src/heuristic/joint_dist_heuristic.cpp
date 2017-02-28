@@ -72,6 +72,7 @@ int JointDistHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
     if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
+        ROS_WARN_ONCE("Joint Distance Heuristic can only compute goal heuristics for Joint Goals");
         return 0;
     }
 
@@ -79,23 +80,55 @@ int JointDistHeuristic::GetGoalHeuristic(int state_id)
     const RobotState& state = m_ers->extractState(state_id);
     assert(goal_state.size() == state.size());
 
-    double dsum = 0.0;
-    for (size_t i = 0; i < state.size(); ++i) {
-        double dj = (state[i] - goal_state[i]);
-        dsum += dj * dj;
-    }
-    dsum = 1000.0 * std::sqrt(dsum);
-    return (int)dsum;
+    return (int)(FIXED_POINT_RATIO * computeJointDistance(state, goal_state));
 }
 
 int JointDistHeuristic::GetStartHeuristic(int state_id)
 {
-    return 0;
+    if (!m_ers) {
+        return 0;
+    }
+
+    if (state_id == planningSpace()->getStartStateID()) {
+        return 0;
+    }
+
+    const RobotState& s = planningSpace()->startState();
+    const RobotState& t = m_ers->extractState(state_id);
+    return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
 }
 
 int JointDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
-    return 0;
+    if (!m_ers) {
+        return 0;
+    }
+
+    if (from_id == planningSpace()->getGoalStateID()) {
+        const RobotState& s = planningSpace()->goal().angles;
+        const RobotState& t = m_ers->extractState(to_id);
+        return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
+    } else if (to_id == planningSpace()->getGoalStateID()) {
+        const RobotState& s = m_ers->extractState(from_id);
+        const RobotState& t = planningSpace()->goal().angles;
+        return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
+    } else {
+        const RobotState& s = m_ers->extractState(from_id);
+        const RobotState& t = m_ers->extractState(to_id);
+        return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
+    }
+}
+
+double JointDistHeuristic::computeJointDistance(
+    const RobotState& s,
+    const RobotState& t) const
+{
+    double dsum = 0.0;
+    for (size_t i = 0; i < s.size(); ++i) {
+        double dj = (s[i] - t[i]);
+        dsum += dj * dj;
+    }
+    return std::sqrt(dsum);
 }
 
 } // namespace motion

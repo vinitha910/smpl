@@ -68,6 +68,7 @@
 #include <smpl/ros/euclid_dist_heuristic_allocator.h>
 #include <smpl/ros/experience_graph_planner_allocator.h>
 #include <smpl/ros/joint_dist_heuristic_allocator.h>
+#include <smpl/ros/joint_dist_egraph_heuristic_allocator.h>
 #include <smpl/ros/laraplanner_allocator.h>
 #include <smpl/ros/manip_lattice_allocator.h>
 #include <smpl/ros/manip_lattice_egraph_allocator.h>
@@ -104,24 +105,36 @@ PlannerInterface::PlannerInterface(
     }
 
     m_pspace_allocators.insert(std::make_pair(
-            "manip", std::make_shared<ManipLatticeAllocator>(m_grid)));
+            "manip",
+            std::make_shared<ManipLatticeAllocator>(m_grid)));
     m_pspace_allocators.insert(std::make_pair(
-            "manip_lattice_egraph", std::make_shared<ManipLatticeEgraphAllocator>()));
+            "manip_lattice_egraph",
+            std::make_shared<ManipLatticeEgraphAllocator>()));
     m_pspace_allocators.insert(std::make_pair(
-            "workspace", std::make_shared<WorkspaceLatticeAllocator>(m_grid)));
+            "workspace",
+            std::make_shared<WorkspaceLatticeAllocator>(m_grid)));
     m_pspace_allocators.insert(std::make_pair(
-            "adaptive_workspace_lattice", std::make_shared<AdaptiveWorkspaceLatticeAllocator>(m_grid)));
+            "adaptive_workspace_lattice",
+            std::make_shared<AdaptiveWorkspaceLatticeAllocator>(m_grid)));
 
     m_heuristic_allocators.insert(std::make_pair(
-            "mfbfs", std::make_shared<MultiFrameBfsHeuristicAllocator>(m_grid)));
+            "mfbfs",
+            std::make_shared<MultiFrameBfsHeuristicAllocator>(m_grid)));
     m_heuristic_allocators.insert(std::make_pair(
-            "bfs", std::make_shared<BfsHeuristicAllocator>(m_grid)));
+            "bfs",
+            std::make_shared<BfsHeuristicAllocator>(m_grid)));
     m_heuristic_allocators.insert(std::make_pair(
-            "euclid", std::make_shared<EuclidDistHeuristicAllocator>(m_grid)));
+            "euclid",
+            std::make_shared<EuclidDistHeuristicAllocator>(m_grid)));
     m_heuristic_allocators.insert(std::make_pair(
-            "joint_distance", std::make_shared<JointDistHeuristicAllocator>(m_grid)));
+            "joint_distance",
+            std::make_shared<JointDistHeuristicAllocator>(m_grid)));
     m_heuristic_allocators.insert(std::make_pair(
-            "bfs_egraph", std::make_shared<DijkstraEgraph3dHeuristicAllocator>(m_grid)));
+            "bfs_egraph",
+            std::make_shared<DijkstraEgraph3dHeuristicAllocator>(m_grid)));
+    m_heuristic_allocators.insert(std::make_pair(
+            "joint_distance_egraph",
+            std::make_shared<JointDistEgraphHeuristicAllocator>(m_grid)));
 
     m_planner_allocators.insert(std::make_pair(
             "arastar", std::make_shared<ARAPlannerAllocator>()));

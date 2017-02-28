@@ -273,7 +273,7 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
         ROS_INFO("Create hash entries for experience graph states");
 
-        const RobotState& pp = egraph_states.front(); // previous robot state
+        const RobotState& pp = egraph_states.front();  // previous robot state
         RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
         stateToCoord(egraph_states.front(), pdp);
 

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016, Andrew Dornbush
+// Copyright (c) 2017, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,48 +29,27 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_JOINT_DIST_HEURISTIC_H
-#define SMPL_JOINT_DIST_HEURISTIC_H
+#ifndef SMPL_JOINT_DIST_EGRAPH_HEURISTIC_ALLOCATOR_H
+#define SMPL_JOINT_DIST_EGRAPH_HEURISTIC_ALLOCATOR_H
 
 // project includes
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/occupancy_grid.h>
+#include <smpl/ros/heuristic_allocator.h>
 
 namespace sbpl {
 namespace motion {
 
-class JointDistHeuristic : public RobotHeuristic
+class JointDistEgraphHeuristicAllocator : public HeuristicAllocator
 {
 public:
 
-    JointDistHeuristic(
-        const RobotPlanningSpacePtr& ps,
-        const OccupancyGrid* grid);
+    JointDistEgraphHeuristicAllocator(OccupancyGrid* grid) : m_grid(grid) { }
 
-    /// \name Required Public Functions from RobotHeuristic
-    ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
-    ///@}
-
-    /// \name Required Public Functions from Extension
-    ///@{
-    Extension* getExtension(size_t class_code) override;
-    ///@}
-
-    /// \name Required Public Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
-    ///@}
+    RobotHeuristicPtr allocate(const RobotPlanningSpacePtr& pspace) override;
 
 private:
 
-    static constexpr double FIXED_POINT_RATIO = 1000.0;
-
-    ExtractRobotStateExtension* m_ers;
-
-    double computeJointDistance(const RobotState &s, const RobotState &t) const;
+    OccupancyGrid* m_grid;
 };
 
 } // namespace motion

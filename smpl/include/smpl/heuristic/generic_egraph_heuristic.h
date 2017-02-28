@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016, Andrew Dornbush
+// Copyright (c) 2017, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,35 +29,53 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_JOINT_DIST_HEURISTIC_H
-#define SMPL_JOINT_DIST_HEURISTIC_H
+#ifndef SMPL_GENERIC_EGRAPH_HEURISTIC_H
+#define SMPL_GENERIC_EGRAPH_HEURISTIC_H
 
 // project includes
+#include <smpl/intrusive_heap.h>
+#include <smpl/graph/experience_graph_extension.h>
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/egraph_heuristic.h>
 
 namespace sbpl {
 namespace motion {
 
-class JointDistHeuristic : public RobotHeuristic
+class GenericEgraphHeuristic :
+    public RobotHeuristic,
+    public ExperienceGraphHeuristicExtension
 {
 public:
 
-    JointDistHeuristic(
-        const RobotPlanningSpacePtr& ps,
-        const OccupancyGrid* grid);
+    GenericEgraphHeuristic(
+        const RobotPlanningSpacePtr& pspace,
+        const OccupancyGrid *grid,
+        const RobotHeuristicPtr& h);
 
-    /// \name Required Public Functions from RobotHeuristic
+    /// \name Required Functions from ExperienceGraphHeuristicExtension
     ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
+    void getEquivalentStates(int state_id, std::vector<int>& ids) override;
+
+    void getShortcutSuccs(int state_id, std::vector<int>& ids) override;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name Required Functions from RobotHeuristic
+    ///@{
+    double getMetricStartDistance(double x, double y, double z) override;
+    double getMetricGoalDistance(double x, double y, double z) override;
+    ///@}
+
+    /// \name Required Functions from Extension
     ///@{
     Extension* getExtension(size_t class_code) override;
     ///@}
 
-    /// \name Required Public Functions from Heuristic
+    /// \name Reimplemented Functions from RobotPlanningSpaceObserver
+    ///@{
+    void updateGoal(const GoalConstraint& goal) override;
+    ///@}
+
+    /// \name Required Functions from Heuristic
     ///@{
     int GetGoalHeuristic(int state_id) override;
     int GetStartHeuristic(int state_id) override;
@@ -66,11 +84,37 @@ public:
 
 private:
 
-    static constexpr double FIXED_POINT_RATIO = 1000.0;
+    static const int Unknown = std::numeric_limits<int>::max() >> 1;
+    static const int Wall = std::numeric_limits<int>::max();
+    static const int Infinity = Unknown;
 
-    ExtractRobotStateExtension* m_ers;
+    RobotHeuristicPtr m_orig_h;
 
-    double computeJointDistance(const RobotState &s, const RobotState &t) const;
+    ExperienceGraphExtension* m_eg;
+
+    double m_eg_eps;
+
+    std::vector<int> m_component_ids;
+    std::vector<std::vector<ExperienceGraph::node_id>> m_shortcut_nodes;
+
+    struct HeuristicNode : public heap_element
+    {
+        int dist;
+
+        HeuristicNode() = default;
+        HeuristicNode(int d) : heap_element(), dist(d) { }
+    };
+
+    struct NodeCompare
+    {
+        bool operator()(const HeuristicNode& a, const HeuristicNode& b) const
+        {
+            return a.dist < b.dist;
+        }
+    };
+
+    std::vector<HeuristicNode> m_h_nodes;
+    intrusive_heap<HeuristicNode, NodeCompare> m_open;
 };
 
 } // namespace motion
