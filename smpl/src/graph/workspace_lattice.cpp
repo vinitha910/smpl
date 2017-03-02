@@ -333,7 +333,7 @@ void WorkspaceLattice::GetSuccs(
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(parent_entry->state).c_str());
 
-    SV_SHOW_INFO(getStateVisualization(parent_entry->state, "expansion"));
+    SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
 
     std::vector<Action> actions;
     getActions(*parent_entry, actions);
