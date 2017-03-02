@@ -98,28 +98,30 @@ protected:
     size_t freeAngleCount() const { return m_fangle_indices.size(); }
 
     // conversions between robot states, workspace states, and workspace coords
-    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate);
-    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord);
-    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate);
-    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord);
-    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state);
-    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state);
+    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate) const;
+    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord) const;
+    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate) const;
+    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord) const;
+    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state) const;
+    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state) const;
 
     bool stateWorkspaceToRobot(
-        const WorkspaceState& state, const RobotState& seed, RobotState& ostate);
+        const WorkspaceState& state, const RobotState& seed, RobotState& ostate) const;
 
     // TODO: variants of workspace -> robot that don't restrict redundant angles
     // TODO: variants of workspace -> robot that take in a full seed state
 
     // conversions from discrete coordinates to continuous states
-    void posWorkspaceToCoord(const double* wp, int* gp);
-    void posCoordToWorkspace(const int* gp, double* wp);
-    void rotWorkspaceToCoord(const double* wr, int* gr);
-    void rotCoordToWorkspace(const int* gr, double* wr);
-    void poseWorkspaceToCoord(const double* wp, int* gp);
-    void poseCoordToWorkspace(const int* gp, double* wp);
-    void favWorkspaceToCoord(const double* wa, int* ga);
-    void favCoordToWorkspace(const int* ga, double* wa);
+    void posWorkspaceToCoord(const double* wp, int* gp) const;
+    void posCoordToWorkspace(const int* gp, double* wp) const;
+    void rotWorkspaceToCoord(const double* wr, int* gr) const;
+    void rotCoordToWorkspace(const int* gr, double* wr) const;
+    void poseWorkspaceToCoord(const double* wp, int* gp) const;
+    void poseCoordToWorkspace(const int* gp, double* wp) const;
+    void favWorkspaceToCoord(const double* wa, int* ga) const;
+    void favCoordToWorkspace(const int* ga, double* wa) const;
+
+    void normalizeEulerAngles(double *wr) const;
 };
 
 } // namespace motion
