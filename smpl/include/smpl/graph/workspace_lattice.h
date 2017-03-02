@@ -183,7 +183,7 @@ private:
     std::vector<WorkspaceLatticeState*> m_states;
 
     clock::time_point m_t_start;
-    bool m_near_goal;
+    mutable bool m_near_goal; // mutable for assignment in isGoal
 
     int m_goal_coord[6];
 
@@ -197,7 +197,7 @@ private:
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
 
     int createState(const WorkspaceCoord& coord);
-    WorkspaceLatticeState* getState(int state_id);
+    WorkspaceLatticeState* getState(int state_id) const;
 
     void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
 
@@ -207,7 +207,7 @@ private:
         double& dist,
         RobotState* final_rstate = nullptr);
 
-    bool isGoal(const WorkspaceState& state);
+    bool isGoal(const WorkspaceState& state) const;
 
     visualization_msgs::MarkerArray getStateVisualization(
         const RobotState& state,

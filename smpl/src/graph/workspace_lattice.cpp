@@ -213,6 +213,14 @@ bool WorkspaceLattice::setGoal(const GoalConstraint& goal)
 
 int WorkspaceLattice::getStartStateID() const
 {
+    if (m_start_state_id >= 0 && m_goal_state_id >= 0) {
+        WorkspaceLatticeState* start_state = getState(m_start_state_id);
+        WorkspaceState cont_state;
+        stateCoordToWorkspace(start_state->coord, cont_state);
+        if (isGoal(cont_state)) {
+            return m_goal_state_id;
+        }
+    }
     return m_start_state_id;
 }
 
@@ -560,13 +568,13 @@ int WorkspaceLattice::createState(const WorkspaceCoord& coord)
 /// The id is not checked for validity and the state is assumed to have already
 /// been created, either by GetSuccs during a search or by designating a new
 /// start or goal state.
-WorkspaceLatticeState* WorkspaceLattice::getState(int state_id)
+WorkspaceLatticeState* WorkspaceLattice::getState(int state_id) const
 {
     assert(state_id >= 0 && state_id < m_states.size());
     return m_states[state_id];
 }
 
-bool WorkspaceLattice::isGoal(const WorkspaceState& state)
+bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
 {
     // check position
     switch (goal().type) {
@@ -656,10 +664,7 @@ void WorkspaceLattice::getActions(
                 final_state[d] += delta_state[d];
             }
 
-            // handle wrapping of euler angles
-//            Eigen::Matrix3d rot;
-//            angles::from_euler_zyx(final_state[5], final_state[4], final_state[3], rot);
-//            angles::get_euler_zyx(rot, final_state[5], final_state[4], final_state[3]);
+            normalizeEulerAngles(&final_state[3]);
 
             action.push_back(final_state);
         }
