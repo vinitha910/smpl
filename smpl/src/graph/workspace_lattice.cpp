@@ -231,6 +231,28 @@ bool WorkspaceLattice::extractPath(
         return true;
     }
 
+    if (ids.size() == 1) {
+        const int state_id = ids[0];
+        if (state_id == getGoalStateID()) {
+            const WorkspaceLatticeState* entry = getState(m_start_state_id);
+            if (!entry) {
+                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", m_start_state_id);
+                return false;
+            }
+            path.push_back(entry->state);
+        } else {
+            const WorkspaceLatticeState* entry = getState(state_id);
+            if (!entry) {
+                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
+                return false;
+            }
+            path.push_back(entry->state);
+        }
+
+        SV_SHOW_INFO(getStateVisualization(path.back(), "goal_state"));
+        return true;
+    }
+
     WorkspaceLatticeState* start_entry = getState(ids[0]);
     path.push_back(start_entry->state);
 
