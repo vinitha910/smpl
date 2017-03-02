@@ -72,10 +72,9 @@ bool all_equal(InputIt first, InputIt last, typename std::iterator_traits<InputI
 WorkspaceLattice::WorkspaceLattice(
     RobotModel* robot,
     CollisionChecker* checker,
-    const PlanningParams* params,
-    OccupancyGrid* grid)
+    const PlanningParams* params)
 :
-    WorkspaceLatticeBase(robot, checker, params, grid),
+    WorkspaceLatticeBase(robot, checker, params),
     m_goal_entry(nullptr),
     m_goal_state_id(-1),
     m_start_entry(nullptr),

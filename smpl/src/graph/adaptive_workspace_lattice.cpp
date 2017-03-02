@@ -80,7 +80,8 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
     OccupancyGrid* grid)
 :
     Extension(),
-    WorkspaceLatticeBase(robot, checker, params, grid),
+    WorkspaceLatticeBase(robot, checker, params),
+    m_grid(grid),
     m_goal_state(nullptr),
     m_goal_state_id(-1),
     m_start_state(nullptr),

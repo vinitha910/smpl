@@ -44,11 +44,9 @@ namespace motion {
 WorkspaceLatticeBase::WorkspaceLatticeBase(
     RobotModel* robot,
     CollisionChecker* checker,
-    const PlanningParams* params,
-    OccupancyGrid* grid)
+    const PlanningParams* params)
 :
     RobotPlanningSpace(robot, checker, params),
-    m_grid(grid),
     m_fk_iface(nullptr),
     m_ik_iface(nullptr),
     m_rm_iface(nullptr),
@@ -88,9 +86,9 @@ bool WorkspaceLatticeBase::init(const Params& _params)
     m_res.resize(m_dof_count);
     m_val_count.resize(m_dof_count);
 
-    m_res[0] = m_grid->getResolution();
-    m_res[1] = m_grid->getResolution();
-    m_res[2] = m_grid->getResolution();
+    m_res[0] = _params.res_x;
+    m_res[1] = _params.res_y;
+    m_res[2] = _params.res_z;
     // TODO: limit these ranges and handle discretization appropriately
     m_res[3] = 2.0 * M_PI / _params.R_count;
     m_res[4] = M_PI       / _params.P_count;
@@ -211,12 +209,30 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
 
 void WorkspaceLatticeBase::posWorkspaceToCoord(const double* wp, int* gp) const
 {
-    m_grid->worldToGrid(wp[0], wp[1], wp[2], gp[0], gp[1], gp[2]);
+    if (wp[0] >= 0.0) {
+        gp[0] = (int)(wp[0] / m_res[0]);
+    } else {
+        gp[0] = (int)(wp[0] / m_res[0]) - 1;
+    }
+
+    if (wp[1] >= 0.0) {
+        gp[1] = (int)(wp[1] / m_res[1]);
+    } else {
+        gp[1] = (int)(wp[1] / m_res[1]) - 1;
+    }
+
+    if (wp[2] >= 0.0) {
+        gp[2] = (int)(wp[2] / m_res[2]);
+    } else {
+        gp[2] = (int)(wp[2] / m_res[2]) - 1;
+    }
 }
 
 void WorkspaceLatticeBase::posCoordToWorkspace(const int* gp, double* wp) const
 {
-    m_grid->gridToWorld(gp[0], gp[1], gp[2], wp[0], wp[1], wp[2]);
+    wp[0] = gp[0] * m_res[0] + 0.5 * m_res[0];
+    wp[1] = gp[1] * m_res[1] + 0.5 * m_res[1];
+    wp[2] = gp[2] * m_res[2] + 0.5 * m_res[2];
 }
 
 void WorkspaceLatticeBase::rotWorkspaceToCoord(const double* wr, int* gr) const

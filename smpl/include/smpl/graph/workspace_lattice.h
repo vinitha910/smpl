@@ -43,7 +43,6 @@
 
 // project includes
 #include <smpl/collision_checker.h>
-#include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/time.h>
@@ -108,8 +107,7 @@ public:
     WorkspaceLattice(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* params,
-        OccupancyGrid* grid);
+        const PlanningParams* params);
 
     ~WorkspaceLattice();
 

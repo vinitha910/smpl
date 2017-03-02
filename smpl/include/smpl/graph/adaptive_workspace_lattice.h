@@ -40,6 +40,7 @@
 
 // project includes
 #include <smpl/grid.h>
+#include <smpl/occupancy_grid.h>
 #include <smpl/types.h>
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/motion_primitive.h>
@@ -178,6 +179,8 @@ public:
     ///@}
 
 private:
+
+    OccupancyGrid* m_grid;
 
     AdaptiveState* m_goal_state;
     int m_goal_state_id;

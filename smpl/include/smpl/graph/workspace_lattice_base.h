@@ -33,7 +33,6 @@
 #define SMPL_WORKSPACE_LATTICE_BASE_H
 
 // project includes
-#include <smpl/occupancy_grid.h>
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
@@ -62,7 +61,9 @@ public:
 
     struct Params
     {
-        // NOTE: (x, y, z) resolutions defined by the input occupancy grid
+        double res_x;
+        double res_y;
+        double res_z;
 
         int R_count;
         int P_count;
@@ -74,8 +75,7 @@ public:
     WorkspaceLatticeBase(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* params,
-        OccupancyGrid* grid);
+        const PlanningParams* params);
 
     virtual bool init(const Params& _params);
     virtual bool initialized() const;
@@ -85,7 +85,6 @@ public:
 
 protected:
 
-    OccupancyGrid* m_grid;
     ForwardKinematicsInterface* m_fk_iface;
     InverseKinematicsInterface* m_ik_iface;
     RedundantManipulatorInterface* m_rm_iface;
