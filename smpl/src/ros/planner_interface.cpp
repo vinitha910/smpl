@@ -771,13 +771,12 @@ PlannerInterface::getCollisionModelTrajectoryVisualization(
     const moveit_msgs::RobotTrajectory& res_traj) const
 {
     visualization_msgs::MarkerArray ma, ma1;
-    std::vector<RobotState> traj;
 
     if (res_traj.joint_trajectory.points.empty()) {
-        ROS_ERROR("No trajectory found to visualize yet. Plan a path first.");
         return ma;
     }
 
+    std::vector<RobotState> traj;
     traj.resize(res_traj.joint_trajectory.points.size());
     double cinc = 1.0/double(res_traj.joint_trajectory.points.size());
     for (size_t i = 0; i < res_traj.joint_trajectory.points.size(); ++i) {
