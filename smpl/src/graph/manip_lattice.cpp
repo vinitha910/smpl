@@ -426,14 +426,14 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
         stateToCoord(action.back(), succ_coord);
 
-        std::vector<double> tgt_off_pose;
-        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-            ROS_WARN("Failed to compute FK for planning frame");
-            continue;
-        }
-
         // check whether this action leads to the child state
         if (goal_edge) {
+            std::vector<double> tgt_off_pose;
+            if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
+                ROS_WARN("Failed to compute FK for planning frame");
+                continue;
+            }
+
             // skip actions which don't end up at a goal state
             if (!isGoal(action.back(), tgt_off_pose)) {
                 continue;
@@ -458,8 +458,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
         assert(succ_entry);
 
-        const bool is_goal = isGoal(action.back(), tgt_off_pose);
-        const int edge_cost = cost(parent_entry, succ_entry, is_goal);
+        const int edge_cost = cost(parent_entry, succ_entry, goal_edge);
         if (edge_cost < best_cost) {
             best_cost = edge_cost;
         }
