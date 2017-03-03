@@ -182,27 +182,24 @@ void OccupancyGrid::getOrigin(double& wx, double& wy, double& wz) const
 }
 
 void OccupancyGrid::getOccupiedVoxels(
-    const geometry_msgs::Pose& pose,
+    const Eigen::Affine3d& pose,
     const std::vector<double>& dim,
     std::vector<Eigen::Vector3d>& voxels) const
 {
-    Eigen::Vector3d vin, vout, v(pose.position.x, pose.position.y, pose.position.z);
-    Eigen::Matrix3d m(Eigen::Quaterniond(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z));
+    Eigen::Vector3d pos(pose.translation());
+    Eigen::Matrix3d m(pose.rotation());
 
-    for (double x = 0 - dim[0] / 2.0; x <= dim[0] / 2.0; x += m_grid->getResolution()) {
-        for (double y = 0 - dim[1] / 2.0; y <= dim[1] / 2.0; y += m_grid->getResolution()) {
-            for (double z = 0 - dim[2] / 2.0; z <= dim[2] / 2.0; z += m_grid->getResolution()) {
-                vin(0) = x;
-                vin(1) = y;
-                vin(2) = z;
-                vout = m * vin;
-                vout += v;
+    for (double x = 0 - 0.5 * dim[0]; x <= 0.5 * dim[0]; x += m_grid->getResolution()) {
+    for (double y = 0 - 0.5 * dim[1]; y <= 0.5 * dim[1]; y += m_grid->getResolution()) {
+    for (double z = 0 - 0.5 * dim[2]; z <= 0.5 * dim[2]; z += m_grid->getResolution()) {
+        Eigen::Vector3d point(x, y, z);
+        point = pose * point;
 
-                if (getDistanceFromPoint(v.x(), v.y(), v.z()) <= 0.0) {
-                    voxels.push_back(vout);
-                }
-            }
+        if (getDistanceFromPoint(point.x(), point.y(), point.z()) <= 0.0) {
+            voxels.push_back(point);
         }
+    }
+    }
     }
 }
 

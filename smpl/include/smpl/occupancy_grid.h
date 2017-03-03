@@ -176,7 +176,7 @@ public:
 
     /// \brief Get all occupied voxels within a cubic region of the grid
     void getOccupiedVoxels(
-        const geometry_msgs::Pose& pose,
+        const Eigen::Affine3d& pose,
         const std::vector<double>& dim,
         std::vector<Eigen::Vector3d>& voxels) const;
 

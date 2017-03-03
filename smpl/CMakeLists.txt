@@ -10,7 +10,6 @@ find_package(catkin
     REQUIRED
     COMPONENTS
         cmake_modules
-        geometry_msgs
         leatherman
         moveit_core
         moveit_msgs
@@ -29,7 +28,6 @@ catkin_package(
     LIBRARIES
         smpl
     CATKIN_DEPENDS
-        geometry_msgs
         leatherman
         moveit_core
         moveit_msgs
