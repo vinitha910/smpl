@@ -1041,38 +1041,6 @@ Extension* ManipLattice::getExtension(size_t class_code)
     return nullptr;
 }
 
-/// \brief Get the (heuristic) distance from the planning link pose to the start
-double ManipLattice::getStartDistance(double x, double y, double z)
-{
-    if (numHeuristics() == 0) {
-        return 0.0;
-    }
-    return heuristic(0)->getMetricStartDistance(x, y, z);
-}
-
-double ManipLattice::getStartDistance(const std::vector<double>& pose)
-{
-    std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
-    return getStartDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
-}
-
-/// \brief Get the (heuristic) distance from the planning frame position to the
-///     goal
-double ManipLattice::getGoalDistance(double x, double y, double z)
-{
-    if (numHeuristics() == 0) {
-        return 0.0;
-    }
-    return heuristic(0)->getMetricGoalDistance(x, y, z);
-}
-
-// \brief Get the (heuristic) distance from the planning link pose to the goal
-double ManipLattice::getGoalDistance(const std::vector<double>& pose)
-{
-    std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
-    return getGoalDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
-}
-
 /// \brief Return the ID of the goal state or -1 if no goal has been set.
 int ManipLattice::getGoalStateID() const
 {

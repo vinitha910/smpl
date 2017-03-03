@@ -113,12 +113,6 @@ public:
 
     RobotState getStartConfiguration() const;
 
-    double getStartDistance(double x, double y, double z);
-    double getStartDistance(const std::vector<double>& pose);
-
-    double getGoalDistance(double x, double y, double z);
-    double getGoalDistance(const std::vector<double>& pose);
-
     void getExpandedStates(std::vector<RobotState>& states) const;
 
     void setVisualizationFrameId(const std::string& frame_id);
