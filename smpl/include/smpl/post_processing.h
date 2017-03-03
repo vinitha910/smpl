@@ -55,17 +55,9 @@ void ShortcutPath(
     std::vector<RobotState>& pout,
     ShortcutType type);
 
-void ShortcutTrajectory(
-    RobotModel* rm,
-    CollisionChecker* cc,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out,
-    ShortcutType type);
-
-bool InterpolateTrajectory(
-    CollisionChecker* cc,
-    const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out);
+bool InterpolatePath(
+    CollisionChecker& cc,
+    std::vector<RobotState>& path);
 
 bool CreatePositionVelocityPath(
     RobotModel* rm,

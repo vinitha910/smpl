@@ -117,9 +117,7 @@ public:
     visualization_msgs::MarkerArray getBfsValuesVisualization() const;
 
     visualization_msgs::MarkerArray getCollisionModelTrajectoryVisualization(
-        const moveit_msgs::RobotState& ref_state,
-        const moveit_msgs::RobotTrajectory& traj) const;
-
+        const std::vector<RobotState>& path) const;
     ///@}
 
 protected:
@@ -205,16 +203,12 @@ protected:
     bool reinitPlanner(const std::string& planner_id);
 
     bool isPathValid(const std::vector<RobotState>& path) const;
-    void postProcessPath(
-        const std::vector<RobotState>& path,
-        trajectory_msgs::JointTrajectory& traj) const;
+    void postProcessPath(std::vector<RobotState>& path) const;
     void convertJointVariablePathToJointTrajectory(
         const std::vector<RobotState>& path,
         trajectory_msgs::JointTrajectory& traj) const;
     void profilePath(trajectory_msgs::JointTrajectory& traj) const;
-    void visualizePath(
-        const moveit_msgs::RobotState& traj_start,
-        const moveit_msgs::RobotTrajectory& traj) const;
+    void visualizePath(const std::vector<RobotState>& path) const;
 
     bool writePath(
         const moveit_msgs::RobotState& ref,

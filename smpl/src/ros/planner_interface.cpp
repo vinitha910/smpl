@@ -266,10 +266,21 @@ bool PlannerInterface::solve(
         return false;
     }
 
-    postProcessPath(path, res.trajectory.joint_trajectory);
-    visualizePath(res.trajectory_start, res.trajectory);
+    postProcessPath(path);
+    visualizePath(path);
     if (!m_params.plan_output_dir.empty()) {
         writePath(res.trajectory_start, res.trajectory);
+    }
+
+    auto& traj = res.trajectory.joint_trajectory;
+    convertJointVariablePathToJointTrajectory(path, traj);
+    traj.header.seq = 0;
+    traj.header.stamp = ros::Time::now();
+
+    profilePath(traj);
+
+    if (m_params.print_path) {
+        leatherman::printJointTrajectory(traj, "path");
     }
 
     auto now = clock::now();
@@ -767,29 +778,22 @@ std::map<std::string, double> PlannerInterface::getPlannerStats()
 
 visualization_msgs::MarkerArray
 PlannerInterface::getCollisionModelTrajectoryVisualization(
-    const moveit_msgs::RobotState& ref_state,
-    const moveit_msgs::RobotTrajectory& res_traj) const
+    const std::vector<RobotState>& path) const
 {
-    visualization_msgs::MarkerArray ma, ma1;
+    visualization_msgs::MarkerArray ma;
 
-    if (res_traj.joint_trajectory.points.empty()) {
+    if (path.empty()) {
         return ma;
     }
 
-    std::vector<RobotState> traj;
-    traj.resize(res_traj.joint_trajectory.points.size());
-    double cinc = 1.0/double(res_traj.joint_trajectory.points.size());
-    for (size_t i = 0; i < res_traj.joint_trajectory.points.size(); ++i) {
-        traj[i].resize(res_traj.joint_trajectory.points[i].positions.size());
-        for (size_t j = 0; j < res_traj.joint_trajectory.points[i].positions.size(); j++) {
-            traj[i][j] = res_traj.joint_trajectory.points[i].positions[j];
-        }
-
-        ma1 = m_checker->getCollisionModelVisualization(traj[i]);
+    double cinc = 1.0 / double(path.size());
+    for (size_t i = 0; i < path.size(); ++i) {
+        visualization_msgs::MarkerArray ma1 =
+                m_checker->getCollisionModelVisualization(path[i]);
 
         for (size_t j = 0; j < ma1.markers.size(); ++j) {
             ma1.markers[j].color.r = 0.1;
-            ma1.markers[j].color.g = cinc * double(res_traj.joint_trajectory.points.size() - (i + 1));
+            ma1.markers[j].color.g = cinc * double(path.size() - (i + 1));
             ma1.markers[j].color.b = cinc * double(i);
         }
         ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
@@ -1207,48 +1211,34 @@ bool PlannerInterface::isPathValid(
     return true;
 }
 
-void PlannerInterface::postProcessPath(
-    const std::vector<RobotState>& path,
-    trajectory_msgs::JointTrajectory& traj) const
+void PlannerInterface::postProcessPath(std::vector<RobotState>& path) const
 {
     const bool check_planned_path = true;
     if (check_planned_path && !isPathValid(path)) {
         ROS_ERROR("Planned path is invalid");
     }
 
-    convertJointVariablePathToJointTrajectory(path, traj);
-
-    traj.header.seq = 0;
-    traj.header.stamp = ros::Time::now();
-
     // shortcut path
     if (m_params.shortcut_path) {
-        trajectory_msgs::JointTrajectory straj;
-        if (!InterpolateTrajectory(m_checker, traj.points, straj.points)) {
-            ROS_WARN_NAMED(PI_LOGGER, "Failed to interpolate planned trajectory with %zu waypoints before shortcutting.", traj.points.size());
-            trajectory_msgs::JointTrajectory otraj = traj;
-            ShortcutTrajectory(
-                    m_robot, m_checker, otraj.points, traj.points, m_params.shortcut_type);
+        if (!InterpolatePath(*m_checker, path)) {
+            ROS_WARN_NAMED(PI_LOGGER, "Failed to interpolate planned path with %zu waypoints before shortcutting.", path.size());
+            std::vector<RobotState> ipath = path;
+            path.clear();
+            ShortcutPath(m_robot, m_checker, ipath, path, m_params.shortcut_type);
         }
         else {
-            ShortcutTrajectory(
-                    m_robot, m_checker, straj.points, traj.points, m_params.shortcut_type);
+            std::vector<RobotState> ipath = path;
+            path.clear();
+            ShortcutPath(m_robot, m_checker, ipath, path, m_params.shortcut_type);
         }
     }
 
     // interpolate path
     if (m_params.interpolate_path) {
-        trajectory_msgs::JointTrajectory itraj = traj;
-        if (!InterpolateTrajectory(m_checker, itraj.points, traj.points)) {
+        if (!InterpolatePath(*m_checker, path)) {
             ROS_WARN_NAMED(PI_LOGGER, "Failed to interpolate trajectory");
         }
     }
-
-    if (m_params.print_path) {
-        leatherman::printJointTrajectory(traj, "path");
-    }
-
-    profilePath(traj);
 }
 
 void PlannerInterface::convertJointVariablePathToJointTrajectory(
@@ -1266,11 +1256,9 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
     }
 }
 
-void PlannerInterface::visualizePath(
-    const moveit_msgs::RobotState& traj_start,
-    const moveit_msgs::RobotTrajectory& traj) const
+void PlannerInterface::visualizePath(const std::vector<RobotState>& path) const
 {
-    SV_SHOW_INFO(getCollisionModelTrajectoryVisualization(traj_start, traj));
+    SV_SHOW_INFO(getCollisionModelTrajectoryVisualization(path));
 }
 
 bool PlannerInterface::writePath(
