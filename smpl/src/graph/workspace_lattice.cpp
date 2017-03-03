@@ -405,12 +405,13 @@ void WorkspaceLattice::GetSuccs(
             succs->push_back(succ_id);
         }
 
-        costs->push_back(30);
+        const int edge_cost = 30;
+        costs->push_back(edge_cost);
 
         ROS_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
         ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
         ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
+        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
     }
 }
 
@@ -439,6 +440,134 @@ void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
         ROS_WARN_NAMED(params()->graph_log, "%s", ss.str().c_str());
     } else {
         fprintf(fout, "%s\n", ss.str().c_str());
+    }
+}
+
+void WorkspaceLattice::GetLazySuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs,
+    std::vector<bool>* true_costs)
+{
+    assert(state_id >= 0 && state_id < m_states.size());
+
+    succs->clear();
+    costs->clear();
+
+    ROS_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
+
+    // goal state should be absorbing
+    if (state_id == m_goal_state_id) {
+        return;
+    }
+
+    WorkspaceLatticeState* state_entry = getState(state_id);
+
+    assert(state_entry);
+    assert(state_entry->coord.size() == m_dof_count);
+
+    ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
+    ROS_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(state_entry->state).c_str());
+
+    SV_SHOW_DEBUG(getStateVisualization(state_entry->state, "expansion"));
+
+    std::vector<Action> actions;
+    getActions(*state_entry, actions);
+
+    ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+
+    for (size_t i = 0; i < actions.size(); ++i) {
+        const Action& action = actions[i];
+
+        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
+        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+
+        double dist;
+        RobotState final_rstate;
+        if (!checkLazyAction(state_entry->state, action, dist, &final_rstate)) {
+            continue;
+        }
+
+        const WorkspaceState& final_state = action.back();
+        WorkspaceCoord succ_coord;
+        stateWorkspaceToCoord(final_state, succ_coord);
+
+        // check if hash entry already exists, if not then create one
+        int succ_id = createState(succ_coord);
+        WorkspaceLatticeState* succ_state = getState(succ_id);
+        succ_state->state = final_rstate;
+
+        // check if this state meets the goal criteria
+        const bool is_goal_succ = isGoal(final_state);
+
+        // put successor on successor list with the proper cost
+        if (is_goal_succ) {
+            succs->push_back(m_goal_state_id);
+        } else {
+            succs->push_back(succ_id);
+        }
+
+        const int edge_cost = 30;
+        costs->push_back(edge_cost);
+
+        true_costs->push_back(false);
+
+        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
+        ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
+        ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
+        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
+    }
+}
+
+int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
+{
+    ROS_DEBUG_NAMED(params()->expands_log, "Evaluate cost of transition %d -> %d", parent_id, child_id);
+
+    assert(parent_id >= 0 && parent_id < (int)m_states.size());
+    assert(child_id >= 0 && child_id < (int)m_states.size());
+
+    WorkspaceLatticeState* parent_entry = getState(parent_id);
+    WorkspaceLatticeState* child_entry = getState(child_id);
+    assert(parent_entry && parent_entry->coord.size() == m_dof_count);
+    assert(child_entry && child_entry->coord.size() == m_dof_count);
+
+    std::vector<Action> actions;
+    getActions(*parent_entry, actions);
+
+    const bool goal_edge = (child_id == m_goal_state_id);
+
+    WorkspaceCoord succ_coord;
+    int best_cost = std::numeric_limits<int>::max();
+    for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
+        const Action& action = actions[aidx];
+
+        stateWorkspaceToCoord(action.back(), succ_coord);
+
+        if (goal_edge) {
+            if (!isGoal(action.back())) {
+                continue;
+            }
+        } else {
+            if (succ_coord != child_entry->coord) {
+                continue;
+            }
+        }
+
+        double dist;
+        if (!checkAction(parent_entry->state, action, dist, nullptr)) {
+            continue;
+        }
+
+        const int edge_cost = 30;
+        if (edge_cost < best_cost) {
+            best_cost = edge_cost;
+        }
+    }
+
+    if (best_cost != std::numeric_limits<int>::max()) {
+        return best_cost;
+    } else {
+        return -1;
     }
 }
 
@@ -756,6 +885,52 @@ bool WorkspaceLattice::checkAction(
     if (violation_mask) {
         return false;
     }
+
+    if (final_rstate) {
+        *final_rstate = wptraj.back();
+    }
+    return true;
+}
+
+bool WorkspaceLattice::checkLazyAction(
+    const RobotState& state,
+    const Action& action,
+    double& dist,
+    RobotState* final_rstate)
+{
+    std::vector<RobotState> wptraj;
+    wptraj.reserve(action.size());
+
+    std::uint32_t violation_mask = 0x00000000;
+
+    // check waypoints for ik solutions and joint limits
+    for (size_t widx = 0; widx < action.size(); ++widx) {
+        const WorkspaceState& istate = action[widx];
+
+        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
+
+        RobotState irstate;
+        if (!stateWorkspaceToRobot(istate, state, irstate)) {
+            ROS_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
+            violation_mask |= 0x00000001;
+            break;
+        }
+
+        wptraj.push_back(irstate);
+
+        if (!robot()->checkJointLimits(irstate)) {
+            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            violation_mask |= 0x00000002;
+            break;
+        }
+    }
+
+    if (violation_mask) {
+        return false;
+    }
+
+    // check for collisions between the waypoints
+    assert(wptraj.size() == action.size());
 
     if (final_rstate) {
         *final_rstate = wptraj.back();

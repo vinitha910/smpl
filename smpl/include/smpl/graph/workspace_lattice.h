@@ -163,6 +163,16 @@ public:
         FILE* fout = nullptr) override;
     ///@}
 
+    /// \name Reimplemented Functions from DiscreteSpaceInformation
+    ///@{
+    void GetLazySuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs,
+        std::vector<bool>* true_costs) override;
+    int GetTrueCost(int parent_id, int child_id) override;
+    ///@}
+
 private:
 
     WorkspaceLatticeState* m_goal_entry;
@@ -202,6 +212,12 @@ private:
     void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
 
     bool checkAction(
+        const RobotState& state,
+        const Action& action,
+        double& dist,
+        RobotState* final_rstate = nullptr);
+
+    bool checkLazyAction(
         const RobotState& state,
         const Action& action,
         double& dist,
