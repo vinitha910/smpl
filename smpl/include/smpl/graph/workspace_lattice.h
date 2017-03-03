@@ -186,6 +186,8 @@ private:
     int m_goal_coord[6];
 
     std::vector<MotionPrimitive> m_prims;
+    bool m_ik_amp_enabled;
+    double m_ik_amp_thresh;
 
     std::string m_viz_frame_id;
 
