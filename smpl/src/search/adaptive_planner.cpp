@@ -128,7 +128,8 @@ void AdaptivePlanner::set_initialsolution_eps(double initialsolution_eps)
 
 int AdaptivePlanner::replan(double allowed_time, std::vector<int>* solution)
 {
-    return 0;
+    int cost;
+    return replan(allowed_time, solution, &cost);
 }
 
 int AdaptivePlanner::replan(
