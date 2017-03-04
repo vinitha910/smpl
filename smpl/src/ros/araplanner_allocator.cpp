@@ -32,7 +32,8 @@
 #include <smpl/ros/araplanner_allocator.h>
 
 // system includes
-#include <sbpl/planners/araplanner.h>
+//#include <sbpl/planners/araplanner.h>
+#include <smpl/search/arastar.h>
 
 namespace sbpl {
 namespace motion {
@@ -42,7 +43,7 @@ SBPLPlannerPtr ARAPlannerAllocator::allocate(
     const RobotHeuristicPtr& heuristic)
 {
     const bool forward_search = true;
-    auto search = std::make_shared<ARAPlanner>(pspace.get(), forward_search);
+    auto search = std::make_shared<ARAStar>(pspace.get(), heuristic.get());
     search->set_initialsolution_eps(pspace->params()->epsilon);
     search->set_search_mode(pspace->params()->search_mode);
     return search;

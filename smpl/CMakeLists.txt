@@ -97,6 +97,7 @@ add_library(
     src/ros/adaptive_planner_allocator.cpp
     src/ros/planner_interface.cpp
     src/ros/workspace_lattice_allocator.cpp
+    src/search/arastar.cpp
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp)
 
