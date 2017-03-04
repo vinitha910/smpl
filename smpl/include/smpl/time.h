@@ -121,6 +121,18 @@ typedef ::std::chrono::high_resolution_clock clock;
 #error "Unrecognized clock API configuration"
 #endif
 
+template <class Rep, class Period>
+double to_seconds(const std::chrono::duration<Rep, Period>& d)
+{
+    return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
+}
+
+inline clock::duration to_duration(double seconds)
+{
+    return std::chrono::duration_cast<clock::duration>(
+            std::chrono::duration<double>(seconds));
+}
+
 } // namespace sbpl
 
 #endif
