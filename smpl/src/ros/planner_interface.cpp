@@ -1076,6 +1076,12 @@ void PlannerInterface::clearGraphStateToPlannerStateMap()
 
 bool PlannerInterface::reinitPlanner(const std::string& planner_id)
 {
+    if (planner_id == m_planner_id) {
+        // TODO: check for specification of default planning components when
+        // they may not have been previously specified
+        return true;
+    }
+
     ROS_INFO_NAMED(PI_LOGGER, "Initialize planner");
 
     std::string search_name;
