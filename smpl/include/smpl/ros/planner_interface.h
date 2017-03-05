@@ -94,6 +94,17 @@ public:
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res) const;
 
+    const RobotPlanningSpacePtr& space() const { return m_pspace; }
+    const SBPLPlannerPtr& search() const { return m_planner; }
+
+    std::pair<
+        std::map<std::string, RobotHeuristicPtr>::const_iterator,
+        std::map<std::string, RobotHeuristicPtr>::const_iterator>
+    heuristics() const
+    {
+        return std::make_pair(m_heuristics.begin(), m_heuristics.end());
+    }
+
     /// @brief Return planning statistics from the last call to solve.
     ///
     /// Possible keys to statistics include:
