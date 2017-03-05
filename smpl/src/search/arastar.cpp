@@ -122,6 +122,7 @@ int ARAStar::replan(
 enum ReplanResultCode
 {
     SUCCESS = 0,
+    PARTIAL_SUCCESS,
     START_NOT_SET,
     GOAL_NOT_SET,
     TIMED_OUT,
@@ -221,6 +222,11 @@ int ARAStar::replan(
     m_expand_count += num_expansions;
 
     if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
+        if (m_allow_partial_solutions && !m_open.empty()) {
+            SearchState* next_state = m_open.min();
+            extractPath(next_state, *solution, *cost);
+            return !SUCCESS;
+        }
         return !err;
     }
 
