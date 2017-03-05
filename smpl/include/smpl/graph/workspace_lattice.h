@@ -193,8 +193,6 @@ private:
     clock::time_point m_t_start;
     mutable bool m_near_goal; // mutable for assignment in isGoal
 
-    int m_goal_coord[6];
-
     std::vector<MotionPrimitive> m_prims;
     bool m_ik_amp_enabled;
     double m_ik_amp_thresh;

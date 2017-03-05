@@ -83,8 +83,7 @@ WorkspaceLattice::WorkspaceLattice(
     m_state_to_id(),
     m_states(),
     m_t_start(),
-    m_near_goal(false),
-    m_goal_coord()
+    m_near_goal(false)
 {
     // this should serve as a reasonable dummy state since no valid state should
     // have an empty coordinate vector
@@ -651,9 +650,6 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     ROS_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
     ROS_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", goal.pose[3], goal.pose[4], goal.pose[5]);
     ROS_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
-
-    posWorkspaceToCoord(&goal.tgt_off_pose[0], &m_goal_coord[0]);
-    rotWorkspaceToCoord(&goal.tgt_off_pose[3], &m_goal_coord[3]);
 
     m_near_goal = false;
     m_t_start = clock::now();
