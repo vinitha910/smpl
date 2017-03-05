@@ -41,6 +41,7 @@
 // project includes
 #include <smpl/grid.h>
 #include <smpl/occupancy_grid.h>
+#include <smpl/time.h>
 #include <smpl/types.h>
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/motion_primitive.h>
@@ -158,6 +159,12 @@ public:
         std::vector<RobotState>& path) override;
     ///@}
 
+    /// \name Reimplemneted Functions from RobotPlanningSpace
+    ///@{
+    bool setStart(const RobotState& state) override;
+    bool setGoal(const GoalConstraint& goal) override;
+    ///@}
+
     /// \name Required Public Functions from Extension
     ///@{
     Extension* getExtension(size_t class_code) override;
@@ -200,6 +207,9 @@ private:
 
     std::vector<AdaptiveState*> m_states;
 
+    clock::time_point m_t_start;
+    mutable bool m_near_goal;
+
     std::vector<Eigen::Vector3d> m_lo_prims;
     std::vector<MotionPrimitive> m_hi_prims;
 
@@ -219,6 +229,8 @@ private:
     Grid3<AdaptiveGridCell> m_dim_grid;
 
     bool initMotionPrimitives();
+
+    bool setGoalPose(const GoalConstraint& goal);
 
     void GetSuccs(
         const AdaptiveGridState& state,
