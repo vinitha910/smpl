@@ -42,12 +42,45 @@
 
 namespace sbpl {
 
+/// An implementation of the ARA* (Anytime Repairing A*) search algorithm. This
+/// algorithm runs a series of weighted A* searches with decreasing bounds on
+/// suboptimality to return the best solution found within a given time bound.
+/// The search intelligently reuses its search tree between successive
+/// iterations for improved efficiency, rather than starting each new
+/// weighted-A* iteration from scratch.
+///
+/// This class maintains the state of the search procedure between calls to
+/// replan(), allowing the search to resume from where it left off when the
+/// scenario (start, goal, and edge costs in the graph) doesn't change between
+/// calls. This can be used to dedicate more time to searching in the event the
+/// search fails to find a solution within the given time and to allow solutions
+/// to be returned quickly and allowing the search to continue improving the
+/// solution given more time. To implement this, several assumptions about the
+/// implementation of the graph and heuristic are made:
+///
+/// * The state IDs are constant between calls to replan(). If the state ID for
+///   any state the search has encountered so far (via state expansions or
+///   setting the start or goal) changes, the search will be invalid.
+///
+/// * Changes to the goal state are reflected by changes to the goal state ID.
+///   Often, many graph representations that support multiple or underdefined
+///   goal states will represent the goal state given to the planner using a
+///   single goal state ID. If this is the case, the caller will have to assert
+///   whether or not the goal has changed, and force the planner to reinitialize
+///   by calls for force_planning_from_scratch (TODO: shouldn't require full
+///   reinitialization)
+///
+/// * The heuristics for any encountered states remain constant, unless the goal
+///   state ID has changed.
 class ARAStar : public SBPLPlanner
 {
 public:
 
     ARAStar(DiscreteSpaceInformation* space, Heuristic* heuristic);
     ~ARAStar();
+
+    void allowPartialSolutions(bool enabled) { m_allow_partial_solutions = enabled; }
+    bool allowPartialSolutions() const { return m_allow_partial_solutions; }
 
     /// \name Required Functions from SBPLPlanner
     ///@{
@@ -80,13 +113,15 @@ private:
 
     struct SearchState : public heap_element
     {
-        int state_id;
-        unsigned int g;
-        unsigned int h;
-        unsigned int f;
+        int state_id;       // corresponding graph state
+        unsigned int g;     // cost-to-come
+        unsigned int h;     // estimated cost-to-go
+        unsigned int f;     // (g + eps * h) at time of insertion into OPEN
+        unsigned int eg;    // g-value at time of expansion
         unsigned short iteration_closed;
         unsigned short call_number;
         SearchState* bp;
+        bool incons;
     };
 
     struct SearchStateCompare
@@ -105,11 +140,17 @@ private:
         bool bounded;
         bool improve;
         enum TimingType { EXPANSIONS, TIME } type;
-        int min_expansions;
+        int max_expansions_init;
         int max_expansions;
-        clock::duration min_allowed_time;
+        clock::duration max_allowed_time_init;
         clock::duration max_allowed_time;
     } m_time_params;
+
+    double m_initial_eps;
+    double m_final_eps;
+    double m_delta_eps;
+
+    bool m_allow_partial_solutions;
 
     std::vector<SearchState*> m_states;
 
@@ -123,7 +164,8 @@ private:
     // search state (not including the values of g, f, back pointers, and
     // closed list from m_stats)
     intrusive_heap<SearchState, SearchStateCompare> m_open;
-    double m_eps;
+    std::vector<SearchState*> m_incons;
+    double m_curr_eps;
     int m_iteration;
 
     int m_call_number;          // for lazy reinitialization of search states
@@ -131,16 +173,27 @@ private:
     int m_last_goal_state_id;   // for updating the search tree when the goal changes
     double m_last_eps;          // for updating the search tree when heuristics change
 
+    int m_expand_count_init;
+    clock::duration m_search_time_init;
     int m_expand_count;
     clock::duration m_search_time;
+
+    double m_satisfied_eps;
 
     bool timedOut(
         int elapsed_expansions,
         const clock::duration& elapsed_time) const;
 
+    int improvePath(
+        const clock::time_point& start_time,
+        SearchState* goal_state,
+        int& elapsed_expansions,
+        clock::duration& elapsed_time);
+
+    void expand(SearchState* s);
+
     void recomputeHeuristics();
-    void recomputeKeys();
-    void reorderOpenList();
+    void reorderOpen();
     int computeKey(SearchState* s) const;
 
     SearchState* getSearchState(int state_id);
