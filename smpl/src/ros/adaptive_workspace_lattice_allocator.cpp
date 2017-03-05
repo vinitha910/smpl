@@ -50,6 +50,9 @@ RobotPlanningSpacePtr AdaptiveWorkspaceLatticeAllocator::allocate(
             std::make_shared<AdaptiveWorkspaceLattice>(
                     robot, checker, params, m_grid);
     WorkspaceLatticeBase::Params wsp;
+    wsp.res_x = m_grid->getResolution();
+    wsp.res_y = m_grid->getResolution();
+    wsp.res_z = m_grid->getResolution();
     wsp.R_count = 360;
     wsp.P_count = 180 + 1;
     wsp.Y_count = 360;
