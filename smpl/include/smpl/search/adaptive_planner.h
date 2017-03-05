@@ -34,12 +34,12 @@
 
 // system includes
 #include <sbpl/planners/planner.h>
-#include <sbpl/planners/araplanner.h>
 
 // project includes
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/search/arastar.h>
 
 namespace sbpl {
 namespace motion {
@@ -84,14 +84,15 @@ public:
 
 private:
 
-    ARAPlanner m_planner;
-    ARAPlanner m_tracker;
+    ARAStar m_planner;
+    ARAStar m_tracker;
 
     AdaptiveGraphExtension* m_adaptive_graph;
 
-    int m_start_id;
-    int m_goal_id;
+    int m_start_state_id;
+    int m_goal_state_id;
 
+    double m_eps_plan;
     double m_eps_track;
 };
 
