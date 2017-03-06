@@ -160,6 +160,7 @@ public:
     static const std::string DefaultExpandsLog;
     static const std::string DefaultPostProcessingLog;
     static const std::string DefaultSolutionLog;
+    static const std::string DefaultSuccessorsLog;
 
     // TODO: visualization parameters
 
@@ -213,6 +214,7 @@ public:
     std::string graph_log;
     std::string heuristic_log;
     std::string expands_log;
+    std::string successors_log;
     std::string robot_log;
     std::string post_processing_log;
     std::string solution_log;

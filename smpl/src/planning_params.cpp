@@ -45,6 +45,7 @@ const std::string PlanningParams::DefaultHeuristicLog = "heuristic";
 const std::string PlanningParams::DefaultExpandsLog = "expands";
 const std::string PlanningParams::DefaultPostProcessingLog = "post_process";
 const std::string PlanningParams::DefaultSolutionLog = "solution";
+const std::string PlanningParams::DefaultSuccessorsLog = "successors";
 
 std::string to_string(ShortcutType type)
 {
@@ -91,6 +92,7 @@ PlanningParams::PlanningParams() :
     graph_log(DefaultGraphLog),
     heuristic_log(DefaultHeuristicLog),
     expands_log(DefaultExpandsLog),
+    successors_log(DefaultSuccessorsLog),
     post_processing_log(DefaultPostProcessingLog),
     solution_log(DefaultSolutionLog)
 {
