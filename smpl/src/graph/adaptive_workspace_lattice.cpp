@@ -92,6 +92,8 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
     m_states(),
     m_t_start(),
     m_near_goal(false),
+    m_region_radius(1),
+    m_tunnel_radius(1),
     m_dim_grid()
 {
     m_dim_grid.assign(
@@ -189,7 +191,7 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
 
     ROS_INFO_NAMED(params()->graph_log, "Region center: (%d, %d, %d)", gp.x(), gp.y(), gp.z());
 
-    if (!m_dim_grid.in_bounds(gp.x(), gp.y(), gp.z())) {
+    if (!m_grid->isInBounds(gp.x(), gp.y(), gp.z())) {
         ROS_INFO_NAMED(params()->graph_log, " -> out of bounds");
         return false;
     }
@@ -198,16 +200,20 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
     const int radius = m_region_radius * m_dim_grid(gp.x(), gp.y(), gp.z()).grow_count;
 
     // TODO: mark cells as in high-dimensional region
+    int marked = 0;
     for (int dx = -radius; dx <= radius; ++dx) {
     for (int dy = -radius; dy <= radius; ++dy) {
     for (int dz = -radius; dz <= radius; ++dz) {
         Eigen::Vector3i p = gp + Eigen::Vector3i(dx, dy, dz);
-        if (p.x() >= 0 && p.y() >= 0 && p.z() >= 0 && m_dim_grid.in_bounds(p.x(), p.y(), p.z())) {
+        if (m_grid->isInBounds(p.x(), p.y(), p.z())) {
             m_dim_grid(p.x(), p.y(), p.z()).hid = true;
+            ++marked;
         }
     }
     }
     }
+
+    ROS_INFO_NAMED(params()->graph_log, "Marked %d cells as high-dimensional", marked);
 
     return true;
 }
@@ -222,31 +228,53 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
 
     std::vector<Eigen::Vector3i> tunnel;
     for (int state_id : states) {
-        int px, py, pz;
+        double px, py, pz;
 
         AdaptiveState* state = m_states[state_id];
         if (state->hid) {
             AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
-            px = hi_state->coord[0];
-            py = hi_state->coord[1];
-            pz = hi_state->coord[2];
+            WorkspaceState wstate;
+            stateCoordToWorkspace(hi_state->coord, wstate);
+            px = wstate[0];
+            py = wstate[1];
+            pz = wstate[2];
         } else {
             AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
-            px = lo_state->gx;
-            py = lo_state->gy;
-            pz = lo_state->gz;
+            px = lo_state->x;
+            py = lo_state->y;
+            pz = lo_state->z;
         }
 
-        if (!m_dim_grid.in_bounds(px, py, pz)) {
-            ROS_ERROR_NAMED(params()->graph_log, "Failed to create tunnel. State (%d, %d, %d) out of bounds", px, py, pz);
+        int gx, gy, gz;
+        m_grid->worldToGrid(px, py, pz, gx, gy, gz);
+
+        if (!m_grid->isInBounds(gx, gy, gz)) {
+            ROS_ERROR_NAMED(params()->graph_log, "Failed to create tunnel. State (%d, %d, %d) out of bounds", gx, gy, gz);
             return false;
         }
 
-        tunnel.emplace_back(px, py, pz);
+        tunnel.emplace_back(gx, gy, gz);
     }
 
     // TODO: dijkstra/breadth-first search out from tunnel to fill states at
     // tunnel-width away
+    int marked = 0;
+    for (const Eigen::Vector3i& gp : tunnel) {
+        const int radius = m_tunnel_radius;
+
+        for (int dx = -radius; dx <= radius; ++dx) {
+        for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dz = -radius; dz <= radius; ++dz) {
+            Eigen::Vector3i p = gp + Eigen::Vector3i(dx, dy, dz);
+            if (m_grid->isInBounds(p.x(), p.y(), p.z())) {
+                m_dim_grid(p.x(), p.y(), p.z()).tracking_hd = true;
+                ++marked;
+            }
+        }
+        }
+        }
+    }
+    ROS_INFO_NAMED(params()->graph_log, "Marked %d cells as tunnel cells", marked);
 
     return true;
 }
@@ -443,11 +471,12 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     AdaptiveState* state = m_states[state_id];
     if (state->hid) {
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
-        return GetSuccs(*hi_state, succs, costs);
+        GetSuccs(*hi_state, succs, costs);
     } else {
         AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
-        return GetSuccs(*lo_state, succs, costs);
+        GetSuccs(*lo_state, succs, costs);
     }
+    ROS_DEBUG_NAMED(params()->expands_log, " -> %zu successors", succs->size());
 }
 
 void AdaptiveWorkspaceLattice::GetPreds(
@@ -595,48 +624,98 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<int>* costs)
 {
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f)", state.gx, state.gy, state.gz, state.x, state.y, state.z);
-    for (const Eigen::Vector3d& dx : m_lo_prims) {
-        double tx = state.x + dx.x();
-        double ty = state.y + dx.y();
-        double tz = state.z + dx.z();
+
+    ROS_DEBUG_NAMED(params()->successors_log, "  actions: %zu", m_lo_prims.size());
+    for (size_t aidx = 0; aidx < m_lo_prims.size(); ++aidx) {
+        const Eigen::Vector3d& dx = m_lo_prims[aidx];
+
+        ROS_DEBUG_NAMED(params()->successors_log, "    action %zu", aidx);
+
+        double succ_pos[3] =
+        {
+            state.x + dx.x(),
+            state.y + dx.y(),
+            state.z + dx.z()
+        };
 
         int tgx, tgy, tgz;
-        m_grid->worldToGrid(tx, ty, tz, tgz, tgy, tgz);
+        m_grid->worldToGrid(
+                succ_pos[0], succ_pos[1], succ_pos[2],
+                tgx, tgy, tgz);
 
         if (!m_grid->isInBounds(tgx, tgy, tgz)) {
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> out of bounds (%d, %d, %d)", tgx, tgy, tgz);
             continue;
         }
 
         if (m_grid->getDistance(tgx, tgy, tgz) == 0.0) {
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> in collision (%d, %d, %d)", tgx, tgy, tgz);
             continue;
         }
 
         if (m_dim_grid(tgx, tgy, tgz)) {
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> high-dimensional");
             // TODO: high-dimensional transitions
             // sample roll, pitch, yaw, and free angles
 
-            WorkspaceState succ_state;
-            WorkspaceCoord succ_coord;
-            RobotState final_rstate;
+            WorkspaceState succ_state(m_dof_count);
+            succ_state[0] = succ_pos[0];
+            succ_state[1] = succ_pos[1];
+            succ_state[2] = succ_pos[2];
+            int yaw_samples = 8;
+            int pitch_samples = 5;
+            int roll_samples = 8;
+            // TODO: sampling of free angle vector
+//            std::vector<double> fav_samples(freeAngleCount, 4);
+            for (int y = 0; y < yaw_samples; ++y) {
+            for (int p = 0; p < pitch_samples; ++p) {
+            for (int r = 0; r < roll_samples; ++r) {
+                double yaw = y * (2.0 * M_PI) / (double)yaw_samples;
+                double pitch = p * (M_PI / (double)(pitch_samples - 1));
+                double roll = r * (2.0 * M_PI) / (double)roll_samples;
+                succ_state[3] = roll;
+                succ_state[4] = pitch;
+                succ_state[5] = yaw;
 
-            int succ_id = getHiHashEntry(succ_coord);
+                WorkspaceCoord succ_coord;
+                RobotState final_rstate;
+                stateWorkspaceToCoord(succ_state, succ_coord);
+                stateWorkspaceToRobot(succ_state, final_rstate);
+
+                int succ_id = getHiHashEntry(succ_coord);
+                if (succ_id < 0) {
+                    succ_id = createHiState(succ_coord, final_rstate);
+                }
+
+                if (isGoal(succ_state)) {
+                    succs->push_back(m_goal_state_id);
+                } else {
+                    succs->push_back(succ_id);
+                }
+                costs->push_back(30);
+            }
+            }
+            }
+        } else {
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> low-dimensional");
+
+            int succ_coord[3];
+            posWorkspaceToCoord(succ_pos, succ_coord);
+
+            int succ_id = getLoHashEntry(tgx, tgy, tgz);
             if (succ_id < 0) {
-                succ_id = createHiState(succ_coord, final_rstate);
+                succ_id = createLoState(
+                    succ_coord[0], succ_coord[1], succ_coord[2],
+                    succ_pos[0], succ_pos[1], succ_pos[2]);
             }
 
-            if (isGoal(succ_state)) {
+            if (isLoGoal(succ_pos[0], succ_pos[1], succ_pos[2])) {
                 succs->push_back(m_goal_state_id);
             } else {
                 succs->push_back(succ_id);
             }
             costs->push_back(30);
-        } else {
-            int succ_id = getLoHashEntry(tgx, tgy, tgz);
-            if (succ_id < 0) {
-                succ_id = createLoState(tgx, tgy, tgz, tx, ty, tz);
-            }
-            succs->push_back(succ_id);
-            costs->push_back(30);
+            ROS_DEBUG_NAMED(params()->successors_log, "          succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], succ_pos[0], succ_pos[1], succ_pos[2], costs->back());
         }
     }
 }
@@ -653,12 +732,12 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<Action> actions;
     getActions(state, actions);
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    ROS_DEBUG_NAMED(params()->successors_log, "  actions: %zu", actions.size());
     for (std::size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        ROS_DEBUG_NAMED(params()->successors_log, "    action %zu", i);
+        ROS_DEBUG_NAMED(params()->successors_log, "      waypoints: %zu", action.size());
 
         double dist;
         RobotState final_rstate;
@@ -673,12 +752,13 @@ void AdaptiveWorkspaceLattice::GetSuccs(
         m_grid->worldToGrid(
                 final_state[0], final_state[1], final_state[2], gx, gy, gz);
 
-        if (gx < 0 || gy < 0 || gz < 0 || !m_dim_grid.in_bounds(gx, gy, gz)) {
+        if (!m_grid->isInBounds(gx, gy, gz)) {
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> out of bounds (%d, %d, %d)", gx, gy, gz);
             continue;
         }
 
         if (m_dim_grid(gx, gy, gz)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "      -> high-dimensional");
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> high-dimensional");
             WorkspaceCoord succ_coord;
             stateWorkspaceToCoord(final_state, succ_coord);
             int succ_id = getHiHashEntry(succ_coord);
@@ -694,9 +774,9 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             }
             costs->push_back(30);
 
-            ROS_DEBUG_NAMED(params()->expands_log, "         succ: { id: %d, coord: %s, state: %s, cost: %d }", succs->back(), to_string(succ_coord).c_str(), to_string(final_rstate).c_str(), costs->back());
+            ROS_DEBUG_NAMED(params()->successors_log, "         succ: { id: %d, coord: %s, state: %s, cost: %d }", succs->back(), to_string(succ_coord).c_str(), to_string(final_rstate).c_str(), costs->back());
         } else {
-            ROS_DEBUG_NAMED(params()->expands_log, "      -> low-dimensional");
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> low-dimensional");
             WorkspaceCoord succ_coord;
             stateWorkspaceToCoord(final_state, succ_coord);
             int succ_id = getLoHashEntry(succ_coord[0], succ_coord[1], succ_coord[2]);
@@ -705,9 +785,13 @@ void AdaptiveWorkspaceLattice::GetSuccs(
                         succ_coord[0], succ_coord[1], succ_coord[2],
                         final_state[0], final_state[1], final_state[2]);
             }
-            succs->push_back(succ_id);
+            if (isLoGoal(final_state[0], final_state[1], final_state[2])) {
+                succs->push_back(m_goal_state_id);
+            } else {
+                succs->push_back(succ_id);
+            }
             costs->push_back(30);
-            ROS_DEBUG_NAMED(params()->expands_log, "         succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], final_state[0], final_state[1], final_state[2], costs->back());
+            ROS_DEBUG_NAMED(params()->successors_log, "         succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], final_state[0], final_state[1], final_state[2], costs->back());
         }
     }
 }
@@ -826,7 +910,7 @@ void AdaptiveWorkspaceLattice::getActions(
     WorkspaceState cont_state;
     stateCoordToWorkspace(state.coord, cont_state);
 
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "Create actions for state: " << cont_state);
+    ROS_DEBUG_STREAM_NAMED(params()->successors_log, "Create actions for state: " << cont_state);
 
     for (std::size_t pidx = 0; pidx < m_hi_prims.size(); ++pidx) {
         const auto& prim = m_hi_prims[pidx];
@@ -861,11 +945,11 @@ bool AdaptiveWorkspaceLattice::checkAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
+        ROS_DEBUG_NAMED(params()->successors_log, "        %zu: %s", widx, to_string(istate).c_str());
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
+            ROS_DEBUG_NAMED(params()->successors_log, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
         }
@@ -873,7 +957,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
         wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            ROS_DEBUG_NAMED(params()->successors_log, "        -> violates joint limits");
             violation_mask |= 0x00000002;
             break;
         }
@@ -889,7 +973,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
     int plen = 0;
     int nchecks = 0;
     if (!collisionChecker()->isStateToStateValid(state, wptraj[0], plen, nchecks, dist)) {
-        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
+        ROS_DEBUG_NAMED(params()->successors_log, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
 
@@ -901,7 +985,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
         const RobotState& prev_istate = wptraj[widx - 1];
         const RobotState& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate, plen, nchecks, dist)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
+            ROS_DEBUG_NAMED(params()->successors_log, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
             break;
         }
@@ -925,6 +1009,13 @@ bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
             angles::shortest_angle_dist(state[3], goal().pose[3]) <= goal().rpy_tolerance[0] &&
             angles::shortest_angle_dist(state[4], goal().pose[4]) <= goal().rpy_tolerance[1] &&
             angles::shortest_angle_dist(state[5], goal().pose[5]) <= goal().rpy_tolerance[2];
+}
+
+bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
+{
+    return std::fabs(x - goal().pose[0]) <= goal().xyz_tolerance[0] &&
+            std::fabs(y - goal().pose[1]) <= goal().xyz_tolerance[1] &&
+            std::fabs(z - goal().pose[2]) <= goal().xyz_tolerance[2];
 }
 
 visualization_msgs::MarkerArray AdaptiveWorkspaceLattice::getStateVisualization(

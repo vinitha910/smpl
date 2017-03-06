@@ -265,6 +265,7 @@ private:
         RobotState* final_rstate = nullptr);
 
     bool isGoal(const WorkspaceState& state) const;
+    bool isLoGoal(double x, double y, double z) const;
 
     visualization_msgs::MarkerArray getStateVisualization(
         const RobotState& state,
