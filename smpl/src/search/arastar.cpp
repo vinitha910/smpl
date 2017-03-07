@@ -164,12 +164,14 @@ int ARAStar::replan(
         return !GOAL_NOT_SET;
     }
 
+    // TODO: replace planner API
     m_time_params.max_allowed_time_init = to_duration(params.max_time);
     if (params.repair_time > 0.0) {
         m_time_params.max_allowed_time = to_duration(params.repair_time);
     } else {
         m_time_params.max_allowed_time = m_time_params.max_allowed_time_init;
     }
+    m_time_params.improve = !params.return_first_solution;
 
     SearchState* start_state = getSearchState(m_start_state_id);
     SearchState* goal_state = getSearchState(m_goal_state_id);
@@ -216,7 +218,10 @@ int ARAStar::replan(
 
     int err;
     while (m_satisfied_eps > m_final_eps) {
-        if (m_curr_eps == m_satisfied_eps && m_time_params.improve) {
+        if (m_curr_eps == m_satisfied_eps) {
+            if (!m_time_params.improve) {
+                break;
+            }
             // begin a new search iteration
             ++m_iteration;
             m_curr_eps -= m_delta_eps;
