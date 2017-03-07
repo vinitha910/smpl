@@ -48,6 +48,8 @@ public:
     virtual bool addHighDimRegion(int state_id) = 0;
     virtual bool setTunnel(const std::vector<int>& states) = 0;
     virtual bool isExecutable(const std::vector<int>& states) const = 0;
+    virtual bool setPlanMode() = 0;
+    virtual bool setTrackMode(const std::vector<int>& states) = 0;
 };
 
 } // namespace motion

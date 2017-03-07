@@ -93,7 +93,7 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
     m_t_start(),
     m_near_goal(false),
     m_region_radius(1),
-    m_tunnel_radius(1),
+    m_tunnel_radius(3),
     m_dim_grid()
 {
     m_dim_grid.assign(
@@ -139,16 +139,13 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
     int state_id,
     Eigen::Vector3d& pos)
 {
+    AdaptiveState* state = m_states[state_id];
     if (state_id == m_goal_state_id) {
         assert(goal().tgt_off_pose.size() >= 3);
         pos.x() = goal().tgt_off_pose[0];
         pos.y() = goal().tgt_off_pose[1];
         pos.z() = goal().tgt_off_pose[2];
-        return true;
-    }
-
-    AdaptiveState* state = m_states[state_id];
-    if (state->hid) {
+    } else if (state->hid) {
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         WorkspaceState state;
         stateCoordToWorkspace(hi_state->coord, state);
@@ -198,6 +195,7 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
 
     ++m_dim_grid(gp.x(), gp.y(), gp.z()).grow_count;
     const int radius = m_region_radius * m_dim_grid(gp.x(), gp.y(), gp.z()).grow_count;
+    ROS_INFO_NAMED(params()->graph_log, "  radius: %d", radius);
 
     // TODO: mark cells as in high-dimensional region
     int marked = 0;
@@ -206,7 +204,7 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
     for (int dz = -radius; dz <= radius; ++dz) {
         Eigen::Vector3i p = gp + Eigen::Vector3i(dx, dy, dz);
         if (m_grid->isInBounds(p.x(), p.y(), p.z())) {
-            m_dim_grid(p.x(), p.y(), p.z()).hid = true;
+            m_dim_grid(p.x(), p.y(), p.z()).plan_hd = true;
             ++marked;
         }
     }
@@ -223,7 +221,7 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
     // clear the tunnel grid
     // TODO: retain the list of points in the tunnel and clear only those points
     for (auto it = m_dim_grid.begin(); it != m_dim_grid.end(); ++it) {
-        it->tracking_hd = false;
+        it->trak_hd = false;
     }
 
     std::vector<Eigen::Vector3i> tunnel;
@@ -231,7 +229,13 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
         double px, py, pz;
 
         AdaptiveState* state = m_states[state_id];
-        if (state->hid) {
+
+        if (state_id == m_goal_state_id) {
+            px = goal().tgt_off_pose[0];
+            py = goal().tgt_off_pose[1];
+            pz = goal().tgt_off_pose[2];
+        }
+        else if (state->hid) {
             AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
             WorkspaceState wstate;
             stateCoordToWorkspace(hi_state->coord, wstate);
@@ -267,7 +271,7 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
         for (int dz = -radius; dz <= radius; ++dz) {
             Eigen::Vector3i p = gp + Eigen::Vector3i(dx, dy, dz);
             if (m_grid->isInBounds(p.x(), p.y(), p.z())) {
-                m_dim_grid(p.x(), p.y(), p.z()).tracking_hd = true;
+                m_dim_grid(p.x(), p.y(), p.z()).trak_hd = true;
                 ++marked;
             }
         }
@@ -288,6 +292,23 @@ bool AdaptiveWorkspaceLattice::isExecutable(
             return false;
         }
     }
+    return true;
+}
+
+bool AdaptiveWorkspaceLattice::setTrackMode(const std::vector<int>& tunnel)
+{
+    if (!setTunnel(tunnel)) {
+        return false;
+    }
+    m_plan_mode = false;
+    SV_SHOW_INFO(getAdaptiveGridVisualization(m_plan_mode));
+    return true;
+}
+
+bool AdaptiveWorkspaceLattice::setPlanMode()
+{
+    m_plan_mode = true;
+    SV_SHOW_INFO(getAdaptiveGridVisualization(m_plan_mode));
     return true;
 }
 
@@ -625,6 +646,10 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 {
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f)", state.gx, state.gy, state.gz, state.x, state.y, state.z);
 
+    auto m = ::viz::getSphereMarker(state.x, state.y, state.z, m_grid->resolution(), 30, m_grid->getReferenceFrame(), "expansion_lo", 0);
+    visualization_msgs::MarkerArray ma; ma.markers.push_back(m);
+    SV_SHOW_INFO(ma);
+
     ROS_DEBUG_NAMED(params()->successors_log, "  actions: %zu", m_lo_prims.size());
     for (size_t aidx = 0; aidx < m_lo_prims.size(); ++aidx) {
         const Eigen::Vector3d& dx = m_lo_prims[aidx];
@@ -653,7 +678,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             continue;
         }
 
-        if (m_dim_grid(tgx, tgy, tgz)) {
+        if (isHighDimensional(tgx, tgy, tgz)) {
             ROS_DEBUG_NAMED(params()->successors_log, "      -> high-dimensional");
             // TODO: high-dimensional transitions
             // sample roll, pitch, yaw, and free angles
@@ -727,7 +752,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 {
     ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state.coord).c_str());
     ROS_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(state.state).c_str());
-    SV_SHOW_INFO(getStateVisualization(state.state, "expansion"));
+    SV_SHOW_DEBUG(getStateVisualization(state.state, "expansion"));
 
     std::vector<Action> actions;
     getActions(state, actions);
@@ -757,10 +782,10 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             continue;
         }
 
-        if (m_dim_grid(gx, gy, gz)) {
+        WorkspaceCoord succ_coord;
+        stateWorkspaceToCoord(final_state, succ_coord);
+        if (isHighDimensional(gx, gy, gz)) {
             ROS_DEBUG_NAMED(params()->successors_log, "      -> high-dimensional");
-            WorkspaceCoord succ_coord;
-            stateWorkspaceToCoord(final_state, succ_coord);
             int succ_id = getHiHashEntry(succ_coord);
             if (succ_id < 0) {
                 succ_id = createHiState(succ_coord, final_rstate);
@@ -772,13 +797,11 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             } else {
                 succs->push_back(succ_id);
             }
-            costs->push_back(30);
+            costs->push_back(120);
 
             ROS_DEBUG_NAMED(params()->successors_log, "         succ: { id: %d, coord: %s, state: %s, cost: %d }", succs->back(), to_string(succ_coord).c_str(), to_string(final_rstate).c_str(), costs->back());
-        } else {
+        } else if (m_plan_mode) {
             ROS_DEBUG_NAMED(params()->successors_log, "      -> low-dimensional");
-            WorkspaceCoord succ_coord;
-            stateWorkspaceToCoord(final_state, succ_coord);
             int succ_id = getLoHashEntry(succ_coord[0], succ_coord[1], succ_coord[2]);
             if (succ_id < 0) {
                 succ_id = createLoState(
@@ -790,8 +813,10 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             } else {
                 succs->push_back(succ_id);
             }
-            costs->push_back(30);
+            costs->push_back(120);
             ROS_DEBUG_NAMED(params()->successors_log, "         succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], final_state[0], final_state[1], final_state[2], costs->back());
+        } else {
+            ROS_DEBUG_NAMED(params()->successors_log, "      -> outside tunnel");
         }
     }
 }
@@ -817,6 +842,15 @@ int AdaptiveWorkspaceLattice::reserveHashEntry(bool hid)
     StateID2IndexMapping.push_back(pinds);
 
     return state_id;
+}
+
+bool AdaptiveWorkspaceLattice::isHighDimensional(int gx, int gy, int gz) const
+{
+    if (m_plan_mode) {
+        return m_dim_grid(gx, gy, gz).plan_hd;
+    } else {
+        return m_dim_grid(gx, gy, gz).trak_hd;
+    }
 }
 
 AdaptiveState* AdaptiveWorkspaceLattice::getHashEntry(int state_id) const
@@ -914,6 +948,7 @@ void AdaptiveWorkspaceLattice::getActions(
 
     for (std::size_t pidx = 0; pidx < m_hi_prims.size(); ++pidx) {
         const auto& prim = m_hi_prims[pidx];
+
         Action action;
         action.reserve(prim.action.size());
 
@@ -922,6 +957,8 @@ void AdaptiveWorkspaceLattice::getActions(
             for (int d = 0; d < dofCount(); ++d) {
                 final_state[d] += delta_state[d];
             }
+
+            normalizeEulerAngles(&final_state[3]);
 
             action.push_back(final_state);
         }
@@ -1003,19 +1040,19 @@ bool AdaptiveWorkspaceLattice::checkAction(
 
 bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
 {
-    return std::fabs(state[0] - goal().pose[0]) <= goal().xyz_tolerance[0] &&
-            std::fabs(state[1] - goal().pose[1]) <= goal().xyz_tolerance[1] &&
-            std::fabs(state[2] - goal().pose[2]) <= goal().xyz_tolerance[2] &&
-            angles::shortest_angle_dist(state[3], goal().pose[3]) <= goal().rpy_tolerance[0] &&
-            angles::shortest_angle_dist(state[4], goal().pose[4]) <= goal().rpy_tolerance[1] &&
-            angles::shortest_angle_dist(state[5], goal().pose[5]) <= goal().rpy_tolerance[2];
+    return std::fabs(state[0] - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
+            std::fabs(state[1] - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
+            std::fabs(state[2] - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2] &&
+            angles::shortest_angle_dist(state[3], goal().tgt_off_pose[3]) <= goal().rpy_tolerance[0] &&
+            angles::shortest_angle_dist(state[4], goal().tgt_off_pose[4]) <= goal().rpy_tolerance[1] &&
+            angles::shortest_angle_dist(state[5], goal().tgt_off_pose[5]) <= goal().rpy_tolerance[2];
 }
 
 bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
 {
-    return std::fabs(x - goal().pose[0]) <= goal().xyz_tolerance[0] &&
-            std::fabs(y - goal().pose[1]) <= goal().xyz_tolerance[1] &&
-            std::fabs(z - goal().pose[2]) <= goal().xyz_tolerance[2];
+    return std::fabs(x - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
+            std::fabs(y - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
+            std::fabs(z - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2];
 }
 
 visualization_msgs::MarkerArray AdaptiveWorkspaceLattice::getStateVisualization(
@@ -1026,6 +1063,41 @@ visualization_msgs::MarkerArray AdaptiveWorkspaceLattice::getStateVisualization(
     for (auto& marker : ma.markers) {
         marker.ns = ns;
     }
+    return ma;
+}
+
+visualization_msgs::MarkerArray
+AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
+{
+    visualization_msgs::MarkerArray ma;
+    visualization_msgs::Marker m;
+    m.header.frame_id = m_grid->getReferenceFrame();
+    m.header.stamp = ros::Time::now();
+    m.ns = plan_mode ? "adaptive_grid_plan" : "adaptive_grid_track";
+    m.id = 0;
+    m.type = visualization_msgs::Marker::CUBE_LIST;
+    m.action = visualization_msgs::Marker::ADD;
+    m.pose.orientation.w = 1.0;
+    m.scale.x = m.scale.y = m.scale.z = 0.5 * m_grid->resolution();
+    if (m_plan_mode) {
+        m.color.r = m.color.a = 1.0;
+    } else {
+        m.color.b = m.color.a = 1.0;
+    }
+    m.lifetime = ros::Duration(0);
+    for (int x = 0; x < m_grid->numCellsX(); ++x) {
+    for (int y = 0; y < m_grid->numCellsY(); ++y) {
+    for (int z = 0; z < m_grid->numCellsZ(); ++z) {
+        if (isHighDimensional(x, y, z)) {
+            geometry_msgs::Point p;
+            m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
+            m.points.push_back(p);
+        }
+    }
+    }
+    }
+    ROS_INFO("Visualize %zu/%zu adaptive cells", m.points.size(), m_dim_grid.size());
+    ma.markers.push_back(m);
     return ma;
 }
 

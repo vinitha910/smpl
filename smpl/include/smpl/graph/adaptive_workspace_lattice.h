@@ -147,6 +147,8 @@ public:
     bool addHighDimRegion(int state_id) override;
     bool setTunnel(const std::vector<int>& states) override;
     bool isExecutable(const std::vector<int>& states) const override;
+    bool setTrackMode(const std::vector<int>& tunnel) override;
+    bool setPlanMode();
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpcae
@@ -216,15 +218,15 @@ private:
     int m_region_radius;
     int m_tunnel_radius;
 
+    bool m_plan_mode;
+
     struct AdaptiveGridCell
     {
         int grow_count;
-        bool hid; //planning_hd;
-        bool tracking_hd;
+        bool plan_hd; //planning_hd;
+        bool trak_hd;
 
-        AdaptiveGridCell() : grow_count(0), hid(false), tracking_hd(false) { }
-
-        operator bool() { return hid; }
+        AdaptiveGridCell() : grow_count(0), plan_hd(false), trak_hd(false) { }
     };
     Grid3<AdaptiveGridCell> m_dim_grid;
 
@@ -243,6 +245,8 @@ private:
         std::vector<int>* costs);
 
     int reserveHashEntry(bool hid);
+
+    bool isHighDimensional(int gx, int gy, int gz) const;
 
     AdaptiveState* getHashEntry(int state_id) const;
     AdaptiveWorkspaceState* getHiHashEntry(int state_id) const;
@@ -270,6 +274,9 @@ private:
     visualization_msgs::MarkerArray getStateVisualization(
         const RobotState& state,
         const std::string& ns);
+
+    visualization_msgs::MarkerArray
+    getAdaptiveGridVisualization(bool plan_mode) const;
 };
 
 } // namespace motion
