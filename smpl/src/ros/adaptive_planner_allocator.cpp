@@ -41,7 +41,9 @@ SBPLPlannerPtr AdaptivePlannerAllocator::allocate(
     const RobotPlanningSpacePtr& pspace,
     const RobotHeuristicPtr& heuristic)
 {
-    return std::make_shared<AdaptivePlanner>(pspace, heuristic);
+    auto search = std::make_shared<AdaptivePlanner>(pspace, heuristic);
+    search->set_initialsolution_eps(pspace->params()->epsilon);
+    return search;
 }
 
 } // namespace motion
