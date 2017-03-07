@@ -126,8 +126,8 @@ void AdaptivePlanner::get_search_stats(std::vector<PlannerStats>* s)
 
 void AdaptivePlanner::set_initialsolution_eps(double initialsolution_eps)
 {
-    m_eps_plan = std::sqrt(initialsolution_eps);
-    m_eps_track = std::sqrt(initialsolution_eps);
+    m_eps_plan = initialsolution_eps; //std::sqrt(initialsolution_eps);
+    m_eps_track = initialsolution_eps; //std::sqrt(initialsolution_eps);
 }
 
 int AdaptivePlanner::replan(double allowed_time, std::vector<int>* solution)
@@ -205,6 +205,7 @@ int AdaptivePlanner::replan(
         ROS_INFO("Time remaining: %0.3fs. Plan low-dimensional path", allowed_time);
         ReplanParams plan_time_params(time_remaining);
         plan_time_params.repair_time = 1.0;
+        plan_time_params.return_first_solution = true;
         res = m_planner.replan(&plan_path, plan_time_params, &plan_cost);
         auto plan_finish = clock::now();
 
@@ -240,7 +241,7 @@ int AdaptivePlanner::replan(
         auto track_start = clock::now();
         m_adaptive_graph->setTrackMode(plan_path);
         m_tracker.force_planning_from_scratch();
-        res = m_tracker.replan(1.0, &track_path, &track_cost);
+        res = m_tracker.replan(2.0, &track_path, &track_cost);
         auto track_finish = clock::now();
 
         ROS_INFO("Tracker terminated");
