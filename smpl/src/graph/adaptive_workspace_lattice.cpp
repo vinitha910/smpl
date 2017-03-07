@@ -40,6 +40,7 @@
 // project includes
 #include <smpl/angles.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/heuristic/robot_heuristic.h>
 
 auto std::hash<sbpl::motion::AdaptiveGridState>::operator()(
     const argument_type& s) const -> result_type
@@ -105,6 +106,9 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
     m_goal_state_id = reserveHashEntry(true);
     m_goal_state = getHashEntry(m_goal_state_id);
     ROS_DEBUG_NAMED(params->graph_log, " goal state has state ID %d", m_goal_state_id);
+
+    m_ik_amp_enabled = true;
+    m_ik_amp_thresh = 0.2;
 }
 
 AdaptiveWorkspaceLattice::~AdaptiveWorkspaceLattice()
@@ -964,6 +968,22 @@ void AdaptiveWorkspaceLattice::getActions(
         }
 
         actions.push_back(std::move(action));
+    }
+
+    if (m_ik_amp_enabled && numHeuristics() > 0) {
+        RobotHeuristicPtr h = heuristic(0);
+        double goal_dist = h->getMetricGoalDistance(
+                cont_state[0], cont_state[1], cont_state[2]);
+        if (goal_dist < m_ik_amp_thresh) {
+            std::vector<double> ik_sol;
+            if (m_ik_iface->computeIK(goal().tgt_off_pose, state.state, ik_sol)) {
+                WorkspaceState final_state;
+                stateRobotToWorkspace(ik_sol, final_state);
+                Action action(1);
+                action[0] = final_state;
+                actions.push_back(std::move(action));
+            }
+        }
     }
 }
 

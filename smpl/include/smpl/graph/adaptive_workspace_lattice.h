@@ -215,6 +215,9 @@ private:
     std::vector<Eigen::Vector3d> m_lo_prims;
     std::vector<MotionPrimitive> m_hi_prims;
 
+    bool m_ik_amp_enabled;
+    double m_ik_amp_thresh;
+
     int m_region_radius;
     int m_tunnel_radius;
 
