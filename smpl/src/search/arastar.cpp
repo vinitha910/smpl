@@ -134,6 +134,25 @@ int ARAStar::replan(
     std::vector<int>* solution,
     int* cost)
 {
+    ReplanParams params(allowed_time);
+    params.repair_time = -1.0;
+    // TODO: wtf with the non-homogenous call
+    return replan(solution, params, cost);
+}
+
+int ARAStar::replan(
+    std::vector<int>* solution,
+    ReplanParams params)
+{
+    int cost;
+    return replan(solution, params, &cost);
+}
+
+int ARAStar::replan(
+    std::vector<int>* solution,
+    ReplanParams params,
+    int* cost)
+{
     ROS_DEBUG_NAMED(SLOG, "Find path to goal");
 
     if (m_start_state_id < 0) {
@@ -145,8 +164,12 @@ int ARAStar::replan(
         return !GOAL_NOT_SET;
     }
 
-    m_time_params.max_allowed_time = to_duration(allowed_time);
-    m_time_params.max_allowed_time_init = std::max(m_time_params.max_allowed_time_init, to_duration(allowed_time));
+    m_time_params.max_allowed_time_init = to_duration(params.max_time);
+    if (params.repair_time > 0.0) {
+        m_time_params.max_allowed_time = to_duration(params.repair_time);
+    } else {
+        m_time_params.max_allowed_time = m_time_params.max_allowed_time_init;
+    }
 
     SearchState* start_state = getSearchState(m_start_state_id);
     SearchState* goal_state = getSearchState(m_goal_state_id);
@@ -232,22 +255,6 @@ int ARAStar::replan(
 
     extractPath(goal_state, *solution, *cost);
     return !SUCCESS;
-}
-
-int ARAStar::replan(
-    std::vector<int>* solution,
-    ReplanParams params)
-{
-    int cost;
-    return replan(params.max_time, solution, &cost);
-}
-
-int ARAStar::replan(
-    std::vector<int>* solution,
-    ReplanParams params,
-    int* cost)
-{
-    return replan(params.max_time, solution, cost);
 }
 
 /// Force the planner to forget previous search efforts, begin from scratch,
