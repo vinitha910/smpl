@@ -32,6 +32,9 @@
 #ifndef SMPL_ADAPTIVE_PLANNER_H
 #define SMPL_ADAPTIVE_PLANNER_H
 
+// standard includes
+#include <random>
+
 // system includes
 #include <sbpl/planners/planner.h>
 
@@ -88,6 +91,8 @@ private:
     ARAStar m_tracker;
 
     AdaptiveGraphExtension* m_adaptive_graph;
+
+    std::default_random_engine m_rng;
 
     int m_start_state_id;
     int m_goal_state_id;

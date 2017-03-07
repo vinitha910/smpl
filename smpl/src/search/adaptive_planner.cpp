@@ -35,6 +35,7 @@
 #include <chrono>
 
 // project includes
+#include <leatherman/print.h>
 #include <smpl/time.h>
 
 namespace sbpl {
@@ -154,7 +155,7 @@ int AdaptivePlanner::replan(
 {
     if (m_start_state_id == -1 || m_goal_state_id == -1) {
         ROS_ERROR("Start or goal state is not set");
-        return NO_START_OR_GOAL_SET;
+        return !NO_START_OR_GOAL_SET;
     }
 
     if (!m_adaptive_graph) {
@@ -170,13 +171,17 @@ int AdaptivePlanner::replan(
     m_adaptive_graph->addHighDimRegion(m_goal_state_id);
 
     // search G^ad for a least-cost path
-    if (!m_planner.set_start(m_start_state_id)) {
+    if (!m_planner.set_start(m_start_state_id) ||
+        !m_tracker.set_start(m_start_state_id))
+    {
         ROS_ERROR("Failed to set start state");
-        return FAILED_TO_SET_START;
+        return !FAILED_TO_SET_START;
     }
-    if (!m_planner.set_goal(m_goal_state_id)) {
+    if (!m_planner.set_goal(m_goal_state_id) ||
+        !m_tracker.set_goal(m_goal_state_id))
+    {
         ROS_ERROR("Failed to set goal state");
-        return FAILED_TO_SET_GOAL;
+        return !FAILED_TO_SET_GOAL;
     }
 
     m_planner.set_initialsolution_eps(m_eps_plan);
@@ -193,28 +198,33 @@ int AdaptivePlanner::replan(
         ++iter_count;
 
         plan_path.clear();
-        int plan_cost = 0;
+        int plan_cost = -1;
         auto plan_start = clock::now();
+        m_adaptive_graph->setPlanMode();
         m_planner.force_planning_from_scratch();
         ROS_INFO("Time remaining: %0.3fs. Plan low-dimensional path", allowed_time);
-        res = m_planner.replan(time_remaining, &plan_path, &plan_cost);
+        ReplanParams plan_time_params(time_remaining);
+        plan_time_params.repair_time = 1.0;
+        res = m_planner.replan(&plan_path, plan_time_params, &plan_cost);
         auto plan_finish = clock::now();
 
         ROS_INFO("Planner terminated");
+        ROS_INFO("  Path: %s", to_string(plan_path).c_str());
+        ROS_INFO("  Cost: %d", plan_cost);
         ROS_INFO("  Time: %0.3f", m_planner.get_final_eps_planning_time());
         ROS_INFO("  Expansions: %d", m_planner.get_n_expands());
         ROS_INFO("  Suboptimality Bound: %0.3f", m_planner.get_solution_eps());
 
         if (!res) {
             ROS_WARN("Failed to find least-cost path in G^ad");
-            return FAILED_TO_FIND_PATH;
+            return !FAILED_TO_FIND_PATH;
         }
 
         if (m_adaptive_graph->isExecutable(plan_path)) {
             ROS_INFO("Found path during planning on iteration %d", iter_count);
             *solution = std::move(plan_path);
             *cost = plan_cost;
-            return SUCCESS;
+            return !SUCCESS;
         }
 
         time_remaining -= to_seconds(plan_finish - plan_start);
@@ -222,64 +232,80 @@ int AdaptivePlanner::replan(
 
         if (time_remaining == 0.0) {
             ROS_WARN("No time to track!");
-            return TIMED_OUT;
+            return !TIMED_OUT;
         }
 
-        m_adaptive_graph->setTunnel(plan_path);
         track_path.clear();
-        int track_cost = 0;
+        int track_cost = -1;
         auto track_start = clock::now();
+        m_adaptive_graph->setTrackMode(plan_path);
         m_tracker.force_planning_from_scratch();
-        res = m_tracker.replan(allowed_time, &track_path, &track_cost);
+        res = m_tracker.replan(1.0, &track_path, &track_cost);
         auto track_finish = clock::now();
 
-        time_remaining = to_seconds(plan_finish - plan_start);
+        ROS_INFO("Tracker terminated");
+        ROS_INFO("  Path: %s", to_string(track_path).c_str());
+        ROS_INFO("  Cost: %d", track_cost);
+        ROS_INFO("  Time: %0.3f", m_tracker.get_final_eps_planning_time());
+        ROS_INFO("  Expansions: %d", m_tracker.get_n_expands());
+        ROS_INFO("  Suboptimality Bound: %0.3f", m_tracker.get_solution_eps());
+
+        time_remaining -= to_seconds(plan_finish - plan_start);
         time_remaining = std::max(0.0, time_remaining);
 
-        auto select_random_path_state = [](const std::vector<int>& path)
+        auto select_random_path_state = [this](const std::vector<int>& path)
         {
-            std::default_random_engine rng;
             std::uniform_int_distribution<int> dist(0, path.size() - 1);
-            int ridx = dist(rng);
+            int ridx = dist(m_rng);
             return path[ridx];
         };
 
-        bool goal_reached =
-                res && !track_path.empty() && track_path.back() == m_goal_state_id;
+        if (res) { // tracker found a (partial) solution
+            bool finished =
+                    !track_path.empty() && track_path.back() == m_goal_state_id;
 
-        if (goal_reached) {
-            // tracker failed to find a solution
-            if (time_remaining == 0.0) {
-                ROS_WARN("Ran out of time after tracking phase");
-                return TIMED_OUT;
+            if (finished) {
+                if (track_cost <= m_eps_track * plan_cost) {
+                    ROS_INFO("Solution accepted (%d <= %0.3f * %d)", track_cost, m_eps_track, plan_cost);
+                    // solution quality is acceptable
+                    done = true;
+                    *solution = track_path;
+                    *cost = track_cost;
+                    return !SUCCESS;
+                } else {
+                    ROS_INFO("Solution rejected (%d > %0.3f * %d)", track_cost, m_eps_track, plan_cost);
+                    if (time_remaining == 0.0) {
+                        ROS_WARN("Ran out of time after tracking phase");
+                        return !TIMED_OUT;
+                    }
+                    // tracker solution quality is poor: identify the largest
+                    // cost discrepancy between the adaptive path and the
+                    // returned path and introduce a sphere there
+                    int worst_state_id = select_random_path_state(plan_path);
+                    m_adaptive_graph->addHighDimRegion(worst_state_id);
+                }
+            } else {
+                if (time_remaining == 0.0) {
+                    ROS_WARN("Ran out of time after tracking phase");
+                    return !TIMED_OUT;
+                }
+                ROS_INFO("Add/Grow sphere at (terminal) state %d", track_path.back());
+                m_adaptive_graph->addHighDimRegion(track_path.back());
             }
-            int best_state_id = select_random_path_state(plan_path);
-//                    m_tracker.getBestState();
-            m_adaptive_graph->addHighDimRegion(best_state_id);
-        } else if (track_cost > m_eps_track * plan_cost) {
-            // tracker solution quality is poor
-            if (time_remaining == 0.0) {
-                ROS_WARN("Ran out of time after tracking phase");
-                return TIMED_OUT;
-            }
-            // identify the largest cost discrepancy between the adaptive path
-            // and the returned path and introduce a sphere there
-            std::default_random_engine rng;
-            std::uniform_int_distribution<int> dist(0, plan_path.size() - 1);
-            int ridx = dist(rng);
-            int worst_state_id = select_random_path_state(plan_path);
-//                    m_tracker->selectLargestCostDifference(plan_path, track_path);
-            m_adaptive_graph->addHighDimRegion(worst_state_id);
         } else {
-            done = true;
-            *solution = track_path;
-            *cost = track_cost;
-            return SUCCESS;
+            if (time_remaining == 0.0) {
+                ROS_WARN("Ran out of time after tracking phase");
+                return !TIMED_OUT;
+            }
+            // tracker failed to find a solution
+            int best_state_id = select_random_path_state(plan_path);
+            ROS_INFO("Add/Grow sphere at (random) state %d", best_state_id);
+            m_adaptive_graph->addHighDimRegion(best_state_id);
         }
     }
 
     ROS_INFO("Failed to find solution");
-    return SUCCESS;
+    return !TIMED_OUT;
 }
 
 int AdaptivePlanner::set_goal(int goal_state_id)
