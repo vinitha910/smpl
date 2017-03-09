@@ -205,6 +205,25 @@ private:
     double sphereDistance(
         const CollisionSphereState& s1,
         const CollisionSphereState& s2) const;
+
+    bool getRobotVoxelsStateCollisionDetails(CollisionDetails& details);
+    bool getAttachedBodyVoxelsStateCollisionDetails(CollisionDetails& details);
+
+    bool getRobotSpheresStateCollisionDetails(CollisionDetails& details);
+    bool getRobotSpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
+
+    bool getAttachedBodySpheresStateCollisionDetails(CollisionDetails& details);
+    bool getAttachedBodySpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
+
+    bool getRobotAttachedBodySpheresStateCollisionDetails(
+        CollisionDetails& details);
+    bool getRobotAttachedBodySpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
 };
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
@@ -486,23 +505,14 @@ bool SelfCollisionModelImpl::collisionDetails(
 
     prepareState(gidx, state);
 
-    double dist;
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
-    if (!checkRobotVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkRobotSpheresStateCollisions(dist)) {
-        ++details.sphere_collision_count;
-    }
-    if (!checkAttachedBodySpheresStateCollisions(dist)) {
-        ++details.sphere_collision_count;
-    }
-
-    return !(details.voxels_collision_count | details.sphere_collision_count);
+    bool res = true;
+    res &= getRobotVoxelsStateCollisionDetails(details);
+    res &= getAttachedBodyVoxelsStateCollisionDetails(details);
+    res &= getRobotSpheresStateCollisionDetails(details);
+    res &= getAttachedBodySpheresStateCollisionDetails(details);
+    return res;
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
@@ -521,20 +531,12 @@ bool SelfCollisionModelImpl::collisionDetails(
     double dist;
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
-    if (!checkRobotVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkRobotSpheresStateCollisions(aci, dist)) {
-        ++details.sphere_collision_count;
-    }
-    if (!checkAttachedBodySpheresStateCollisions(aci, dist)) {
-        ++details.sphere_collision_count;
-    }
-
-    return !(details.voxels_collision_count | details.sphere_collision_count);
+    bool res = true;
+    res &= getRobotVoxelsStateCollisionDetails(details);
+    res &= getAttachedBodyVoxelsStateCollisionDetails(details);
+    res &= getRobotSpheresStateCollisionDetails(aci, details);
+    res &= getAttachedBodySpheresStateCollisionDetails(aci, details);
+    return res;
 }
 
 /// Switch to checking for a new collision group
@@ -1576,6 +1578,105 @@ double SelfCollisionModelImpl::sphereDistance(
     const CollisionSphereState& s2) const
 {
     return (s2.pos - s1.pos).norm() - s1.model->radius - s2.model->radius;
+}
+
+bool SelfCollisionModelImpl::getRobotVoxelsStateCollisionDetails(
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkRobotVoxelsStateCollisions(dist)) {
+        ++details.voxels_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getAttachedBodyVoxelsStateCollisionDetails(
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
+        ++details.voxels_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getRobotSpheresStateCollisionDetails(
+    CollisionDetails& details)
+{
+    size_t old_size = details.details.size();
+
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check robot links vs robot links");
+
+    for (const auto& ss_pair : m_checked_spheres_states) {
+        int ss1i = ss_pair.first;
+        int ss2i = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
+        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
+
+        double dist;
+        if (!checkSpheresStateCollision(
+                m_rcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
+        {
+            CollisionDetail detail;
+            detail.first_link = m_rcs.model()->linkName(ss1.model->link_index);
+            detail.second_link = m_rcs.model()->linkName(ss2.model->link_index);
+            detail.penetration = dist;
+            details.details.push_back(detail);
+        }
+    }
+
+    details.sphere_collision_count = details.details.size() - old_size;
+    return details.details.size() == old_size;
+}
+
+bool SelfCollisionModelImpl::getRobotSpheresStateCollisionDetails(
+    const AllowedCollisionsInterface& aci,
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkRobotSpheresStateCollisions(aci, dist)) {
+        ++details.sphere_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getAttachedBodySpheresStateCollisionDetails(
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkAttachedBodySpheresStateCollisions(dist)) {
+        ++details.sphere_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getAttachedBodySpheresStateCollisionDetails(
+    const AllowedCollisionsInterface& aci,
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkAttachedBodySpheresStateCollisions(aci, dist)) {
+        ++details.sphere_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getRobotAttachedBodySpheresStateCollisionDetails(
+    CollisionDetails& details)
+{
+    return false;
+}
+
+bool SelfCollisionModelImpl::getRobotAttachedBodySpheresStateCollisionDetails(
+    const AllowedCollisionsInterface& aci,
+    CollisionDetails& details)
+{
+    return false;
 }
 
 ///////////////////////////////////////
