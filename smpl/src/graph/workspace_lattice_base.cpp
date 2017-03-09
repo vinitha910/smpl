@@ -162,8 +162,6 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
         seed[m_fangle_indices[fai]] = state[6 + fai];
     }
 
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "pose: " << pose << ", seed: " << seed);
-
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
 
@@ -200,8 +198,6 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
     RobotState& ostate) const
 {
     SixPose pose(state.begin(), state.begin() + 6);
-
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "pose: " << pose << ", seed: " << seed);
 
     // TODO: unrestricted variant?
     return m_rm_iface->computeFastIK(pose, seed, ostate);
