@@ -153,30 +153,7 @@ void DistanceMap<Derived>::removePointsFromMap(
         m_rem_stack.push_back(&c);
     }
 
-    while (!m_rem_stack.empty()) {
-        Cell* s = m_rem_stack.back();
-        m_rem_stack.pop_back();
-
-        int nfirst, nlast;
-        std::tie(nfirst, nlast) = m_neighbor_ranges[m_no_update_dir];
-        for (int i = nfirst; i != nlast; ++i) {
-            Cell* n = s + m_neighbor_offsets[i];
-            auto valid = [](Cell* c) { return c && c->obs == c; };
-            if (!valid(n->obs)) {
-                if (n->dist_new != m_dmax_sqrd_int) {
-                    n->dist_new = m_dmax_sqrd_int;
-                    n->dist = m_dmax_sqrd_int;
-                    n->obs = nullptr;
-                    n->dir = m_no_update_dir;
-                    m_rem_stack.push_back(n);
-                }
-            } else {
-                updateVertex(n);
-            }
-        }
-    }
-
-    propagateBorder();
+    propagateRemovals();
 }
 
 /// Add the set (new_points - old_points) of obstacle cells and remove the set
@@ -223,30 +200,31 @@ void DistanceMap<Derived>::updatePointsInMap(
             std::inserter(new_not_old, new_not_old.end()),
             comp);
 
-    std::vector<Eigen::Vector3i> new_not_in_current;
-    for (const Eigen::Vector3i& v : new_not_old) {
-        const Cell& c = m_cells(v.x(), v.y(), v.z());
-        if (c.dist_new > 0) {
-            new_not_in_current.push_back(v);
-        }
-    }
-
+    // remove obstacle cells that were in the old cloud but not the new cloud
     for (const Eigen::Vector3i& p : old_not_new) {
         Cell& c = m_cells(p.x(), p.y(), p.z());
-        c.dist_new = m_dmax_sqrd_int;
-        c.obs = nullptr;
-        if (c.dist < m_dmax_sqrd_int) {
-            updateVertex(&c);
+        if (c.obs != &c) {
+            continue; // skip already-free cells
         }
+        c.dir = m_no_update_dir;
+        c.dist_new = m_dmax_sqrd_int;
+        c.dist = m_dmax_sqrd_int;
+        c.obs = nullptr;
+        m_rem_stack.push_back(&c);
     }
 
-    for (const Eigen::Vector3i& p : new_not_in_current) {
+    propagateRemovals();
+
+    // add obstacle cells that are in the new cloud but not the old cloud
+    for (const Eigen::Vector3i& p : new_not_old) {
         Cell& c = m_cells(p.x(), p.y(), p.z());
-        if (c.dist_new > 0) {
-            c.dist_new = 0;
-            c.obs = &c;
-            updateVertex(&c);
+        if (c.dist_new == 0) {
+            continue; // skip already-obstacle cells
         }
+        c.dir = m_no_update_dir;
+        c.dist_new = 0;
+        c.obs = &c;
+        updateVertex(&c);
     }
 
     propagate();
@@ -404,6 +382,35 @@ void DistanceMap<Derived>::lowerBounded(Cell* s)
             }
         }
     }
+}
+
+template <typename Derived>
+void DistanceMap<Derived>::propagateRemovals()
+{
+    while (!m_rem_stack.empty()) {
+        Cell* s = m_rem_stack.back();
+        m_rem_stack.pop_back();
+
+        int nfirst, nlast;
+        std::tie(nfirst, nlast) = m_neighbor_ranges[m_no_update_dir];
+        for (int i = nfirst; i != nlast; ++i) {
+            Cell* n = s + m_neighbor_offsets[i];
+            auto valid = [](Cell* c) { return c && c->obs == c; };
+            if (!valid(n->obs)) {
+                if (n->dist_new != m_dmax_sqrd_int) {
+                    n->dist_new = m_dmax_sqrd_int;
+                    n->dist = m_dmax_sqrd_int;
+                    n->obs = nullptr;
+                    n->dir = m_no_update_dir;
+                    m_rem_stack.push_back(n);
+                }
+            } else {
+                updateVertex(n);
+            }
+        }
+    }
+
+    propagateBorder();
 }
 
 template <typename Derived>

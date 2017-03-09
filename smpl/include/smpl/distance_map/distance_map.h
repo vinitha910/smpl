@@ -114,6 +114,7 @@ private:
     void propagate();
 
     void lowerBounded(Cell* s);
+    void propagateRemovals();
     void propagateBorder();
 };
 
