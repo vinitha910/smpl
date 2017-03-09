@@ -588,16 +588,15 @@ bool AdaptiveWorkspaceLattice::initMotionPrimitives()
     // create 26-connected ld position motions
     m_lo_prims.clear();
     for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                if (dx == 0 && dy == 0 && dz == 0) {
-                    continue;
-                }
-
-                m_lo_prims.emplace_back(
-                        m_res[0] * dx, m_res[1] * dy, m_res[2] * dz);
-            }
+    for (int dy = -1; dy <= 1; ++dy) {
+    for (int dz = -1; dz <= 1; ++dz) {
+        if (dx == 0 && dy == 0 && dz == 0) {
+            continue;
         }
+
+         m_lo_prims.emplace_back(m_res[0] * dx, m_res[1] * dy, m_res[2] * dz);
+    }
+    }
     }
 
     return true;
@@ -691,9 +690,9 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             succ_state[0] = succ_pos[0];
             succ_state[1] = succ_pos[1];
             succ_state[2] = succ_pos[2];
-            int yaw_samples = 8;
-            int pitch_samples = 5;
-            int roll_samples = 8;
+            int yaw_samples = 4;
+            int pitch_samples = 3;
+            int roll_samples = 4;
             // TODO: sampling of free angle vector
 //            std::vector<double> fav_samples(freeAngleCount, 4);
             for (int y = 0; y < yaw_samples; ++y) {
