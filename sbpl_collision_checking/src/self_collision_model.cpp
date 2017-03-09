@@ -1010,6 +1010,14 @@ bool SelfCollisionModelImpl::checkRobotAttachedBodySpheresStateCollisions(
     return true;
 }
 
+/// \tparam StateA RobotCollisionState or AttachedBodiesCollisionState
+/// \tparam StateB RobotCollisionState or AttachedBodiesCollisionState
+/// \param ss1i The index of the first spheres state
+/// \param ss2i The index of the second spheres state
+/// \param ss1 The first spheres state
+/// \param ss2 The second spheres state
+/// \param[out] The squared distance between the first two spheres that were
+///     found in collision; unmodified if no collision was found
 template <typename StateA, typename StateB>
 bool SelfCollisionModelImpl::checkSpheresStateCollision(
     StateA& stateA,
