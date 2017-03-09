@@ -269,6 +269,8 @@ void SelfCollisionModelImpl::initAllowedCollisionMatrix()
             m_acm.setEntry(link_name, child_link_name, true);
         }
     }
+    // NOTE: no need to update checked sphere indices here, they will be updated
+    // when the first request with a valid group index is received
 }
 
 /// Check that the input states are related to the collision models passed to
