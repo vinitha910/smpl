@@ -43,6 +43,21 @@ SBPLPlannerPtr AdaptivePlannerAllocator::allocate(
 {
     auto search = std::make_shared<AdaptivePlanner>(pspace, heuristic);
     search->set_initialsolution_eps(pspace->params()->epsilon);
+    AdaptivePlanner::TimeParameters tparams;
+    tparams.planning.bounded = true;
+    tparams.planning.improve = false;
+    tparams.planning.type = ARAStar::TimeParameters::TIME;
+    tparams.planning.max_allowed_time_init = clock::duration::zero();
+    tparams.planning.max_allowed_time = clock::duration::zero();
+
+    tparams.tracking.bounded = true;
+    tparams.tracking.improve = false;
+    tparams.tracking.type = ARAStar::TimeParameters::TIME;
+    tparams.tracking.max_allowed_time_init = std::chrono::seconds(5);
+    tparams.tracking.max_allowed_time = clock::duration::zero();
+
+    search->set_time_parameters(tparams);
+
     return search;
 }
 

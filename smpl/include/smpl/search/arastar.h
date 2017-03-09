@@ -76,11 +76,28 @@ class ARAStar : public SBPLPlanner
 {
 public:
 
+    // parameters for controlling how long the search runs
+    struct TimeParameters
+    {
+        bool bounded;
+        bool improve;
+        enum TimingType { EXPANSIONS, TIME } type;
+        int max_expansions_init;
+        int max_expansions;
+        clock::duration max_allowed_time_init;
+        clock::duration max_allowed_time;
+    };
+
     ARAStar(DiscreteSpaceInformation* space, Heuristic* heuristic);
     ~ARAStar();
 
     void allowPartialSolutions(bool enabled) { m_allow_partial_solutions = enabled; }
     bool allowPartialSolutions() const { return m_allow_partial_solutions; }
+
+    int replan(
+        const TimeParameters &params,
+        std::vector<int>* solution,
+        int* cost);
 
     /// \name Required Functions from SBPLPlanner
     ///@{
@@ -134,17 +151,7 @@ private:
     DiscreteSpaceInformation* m_space;
     Heuristic* m_heur;
 
-    // parameters for controlling how long the search runs
-    struct TimingParameters
-    {
-        bool bounded;
-        bool improve;
-        enum TimingType { EXPANSIONS, TIME } type;
-        int max_expansions_init;
-        int max_expansions;
-        clock::duration max_allowed_time_init;
-        clock::duration max_allowed_time;
-    } m_time_params;
+    TimeParameters m_time_params;
 
     double m_initial_eps;
     double m_final_eps;

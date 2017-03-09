@@ -77,7 +77,7 @@ ARAStar::ARAStar(
 
     m_time_params.bounded = true;
     m_time_params.improve = true;
-    m_time_params.type = TimingParameters::TIME;
+    m_time_params.type = TimeParameters::TIME;
     m_time_params.max_expansions_init = 0;
     m_time_params.max_expansions = 0;
     m_time_params.max_allowed_time_init = clock::duration::zero();
@@ -91,34 +91,6 @@ ARAStar::~ARAStar()
     }
 }
 
-int ARAStar::replan(
-    double allowed_time,
-    std::vector<int>* solution)
-{
-    int cost;
-    return replan(allowed_time, solution, &cost);
-}
-
-// decide whether to start the search from scratch
-//
-// if start changed
-//     reset the search to its initial state
-// if goal changed
-//     reevaluate heuristics
-//     reorder the open list
-//
-// case scenario_hasnt_changed (start and goal the same)
-//   case have solution for previous epsilon
-//       case epsilon lowered
-//           reevaluate heuristics and reorder the open list
-//       case epsilon raised
-//           pass
-//   case dont have solution
-//       case epsilon lowered
-//           reevaluate heuristics and reorder the open list
-//       case epsilon raised
-//           reevaluate heuristics and reorder the open list
-// case scenario_changed
 enum ReplanResultCode
 {
     SUCCESS = 0,
@@ -130,27 +102,8 @@ enum ReplanResultCode
 };
 
 int ARAStar::replan(
-    double allowed_time,
+    const TimeParameters& params,
     std::vector<int>* solution,
-    int* cost)
-{
-    ReplanParams params(allowed_time);
-    params.repair_time = -1.0;
-    // TODO: wtf with the non-homogenous call
-    return replan(solution, params, cost);
-}
-
-int ARAStar::replan(
-    std::vector<int>* solution,
-    ReplanParams params)
-{
-    int cost;
-    return replan(solution, params, &cost);
-}
-
-int ARAStar::replan(
-    std::vector<int>* solution,
-    ReplanParams params,
     int* cost)
 {
     ROS_DEBUG_NAMED(SLOG, "Find path to goal");
@@ -164,14 +117,7 @@ int ARAStar::replan(
         return !GOAL_NOT_SET;
     }
 
-    // TODO: replace planner API
-    m_time_params.max_allowed_time_init = to_duration(params.max_time);
-    if (params.repair_time > 0.0) {
-        m_time_params.max_allowed_time = to_duration(params.repair_time);
-    } else {
-        m_time_params.max_allowed_time = m_time_params.max_allowed_time_init;
-    }
-    m_time_params.improve = !params.return_first_solution;
+    m_time_params = params;
 
     SearchState* start_state = getSearchState(m_start_state_id);
     SearchState* goal_state = getSearchState(m_goal_state_id);
@@ -260,6 +206,75 @@ int ARAStar::replan(
 
     extractPath(goal_state, *solution, *cost);
     return !SUCCESS;
+}
+
+int ARAStar::replan(
+    double allowed_time,
+    std::vector<int>* solution)
+{
+    int cost;
+    return replan(allowed_time, solution, &cost);
+}
+
+// decide whether to start the search from scratch
+//
+// if start changed
+//     reset the search to its initial state
+// if goal changed
+//     reevaluate heuristics
+//     reorder the open list
+//
+// case scenario_hasnt_changed (start and goal the same)
+//   case have solution for previous epsilon
+//       case epsilon lowered
+//           reevaluate heuristics and reorder the open list
+//       case epsilon raised
+//           pass
+//   case dont have solution
+//       case epsilon lowered
+//           reevaluate heuristics and reorder the open list
+//       case epsilon raised
+//           reevaluate heuristics and reorder the open list
+// case scenario_changed
+int ARAStar::replan(
+    double allowed_time,
+    std::vector<int>* solution,
+    int* cost)
+{
+    ReplanParams params(allowed_time);
+    params.repair_time = -1.0;
+    // TODO: wtf with the non-homogenous call
+    return replan(solution, params, cost);
+}
+
+int ARAStar::replan(
+    std::vector<int>* solution,
+    ReplanParams params)
+{
+    int cost;
+    return replan(solution, params, &cost);
+}
+
+int ARAStar::replan(
+    std::vector<int>* solution,
+    ReplanParams params,
+    int* cost)
+{
+    TimeParameters tparams;
+
+    tparams.type = TimeParameters::TIME;
+
+    tparams.bounded = true;
+    tparams.improve = !params.return_first_solution;
+
+    tparams.max_allowed_time_init = to_duration(params.max_time);
+    if (params.repair_time > 0.0) {
+        tparams.max_allowed_time = to_duration(params.repair_time);
+    } else {
+        tparams.max_allowed_time = tparams.max_allowed_time_init;
+    }
+
+    return replan(tparams, solution, cost);
 }
 
 /// Force the planner to forget previous search efforts, begin from scratch,
@@ -391,13 +406,13 @@ bool ARAStar::timedOut(
     }
 
     switch (m_time_params.type) {
-    case TimingParameters::EXPANSIONS:
+    case TimeParameters::EXPANSIONS:
         if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
             return elapsed_expansions >= m_time_params.max_expansions_init;
         } else {
             return elapsed_expansions >= m_time_params.max_expansions;
         }
-    case TimingParameters::TIME:
+    case TimeParameters::TIME:
         if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
             return elapsed_time >= m_time_params.max_allowed_time_init;
         } else {

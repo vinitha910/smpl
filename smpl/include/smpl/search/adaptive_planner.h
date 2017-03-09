@@ -51,18 +51,28 @@ class AdaptivePlanner : public SBPLPlanner
 {
 public:
 
+    struct TimeParameters
+    {
+        enum TimingType { EXPANSIONS, TIME };
+
+        ARAStar::TimeParameters planning;
+        ARAStar::TimeParameters tracking;
+    };
+
     AdaptivePlanner(
         const RobotPlanningSpacePtr& pspace,
         const RobotHeuristicPtr& heur);
 
     ~AdaptivePlanner();
 
+    void set_time_parameters(const TimeParameters& params) { m_time_params = params; }
     /// \name Reimplemented Public Functions from SBPLPlanner
     ///@{
     int replan(std::vector<int>* solution, ReplanParams params) override;
     int replan(std::vector<int>* solution, ReplanParams params, int* cost) override;
 
     int     force_planning_from_scratch_and_free_memory() override;
+
     double  get_solution_eps() const override;
     int     get_n_expands() const override;
     double  get_initial_eps() override;
@@ -71,6 +81,7 @@ public:
     int     get_n_expands_init_solution() override;
     double  get_final_epsilon() override;
     void    get_search_stats(std::vector<PlannerStats>* s) override;
+
     void    set_initialsolution_eps(double initialsolution_eps) override;
     ///@}
 
@@ -91,6 +102,8 @@ private:
     ARAStar m_tracker;
 
     AdaptiveGraphExtension* m_adaptive_graph;
+
+    TimeParameters m_time_params;
 
     std::default_random_engine m_rng;
 

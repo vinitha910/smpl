@@ -202,11 +202,11 @@ int AdaptivePlanner::replan(
         auto plan_start = clock::now();
         m_adaptive_graph->setPlanMode();
         m_planner.force_planning_from_scratch();
-        ROS_INFO("Time remaining: %0.3fs. Plan low-dimensional path", allowed_time);
-        ReplanParams plan_time_params(time_remaining);
-        plan_time_params.repair_time = 1.0;
-        plan_time_params.return_first_solution = true;
-        res = m_planner.replan(&plan_path, plan_time_params, &plan_cost);
+        ROS_INFO("Time remaining: %0.3fs. Plan low-dimensional path", time_remaining);
+        ARAStar::TimeParameters time_params = m_time_params.planning;
+        time_params.max_allowed_time_init = to_duration(time_remaining);
+        time_params.max_allowed_time = std::min(time_params.max_allowed_time, to_duration(time_remaining));
+        res = m_planner.replan(time_params, &plan_path, &plan_cost);
         auto plan_finish = clock::now();
 
         ROS_INFO("Planner terminated");
@@ -241,7 +241,11 @@ int AdaptivePlanner::replan(
         auto track_start = clock::now();
         m_adaptive_graph->setTrackMode(plan_path);
         m_tracker.force_planning_from_scratch();
-        res = m_tracker.replan(2.0, &track_path, &track_cost);
+        ROS_INFO("Time remaining: %0.3fs. Track low-dimensional path", time_remaining);
+        time_params = m_time_params.tracking;
+        time_params.max_allowed_time_init = to_duration(time_remaining);
+        time_params.max_allowed_time = std::min(time_params.max_allowed_time, to_duration(time_remaining));
+        res = m_tracker.replan(time_params, &track_path, &track_cost);
         auto track_finish = clock::now();
 
         ROS_INFO("Tracker terminated");
