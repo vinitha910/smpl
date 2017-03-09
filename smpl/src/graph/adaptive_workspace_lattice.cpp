@@ -676,7 +676,8 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             continue;
         }
 
-        if (m_grid->getDistance(tgx, tgy, tgz) == 0.0) {
+        const double sphere_radius = 0.02;
+        if (m_grid->getDistance(tgx, tgy, tgz) < sphere_radius) {
             ROS_DEBUG_NAMED(params()->successors_log, "      -> in collision (%d, %d, %d)", tgx, tgy, tgz);
             continue;
         }
