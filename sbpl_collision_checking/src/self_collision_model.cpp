@@ -1064,10 +1064,12 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
             if (m_acm.getEntry(s1m->name, s2m->name, type)) {
                 if (type != collision_detection::AllowedCollision::ALWAYS) {
                     ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                    dist = cd2;
                     return false;
                 }
             } else {
                 ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                dist = cd2;
                 return false;
             }
             // collision between leaves is ok
