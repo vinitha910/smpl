@@ -37,12 +37,30 @@
 namespace sbpl {
 namespace motion {
 
+static const char *PI_LOGGER = "simple";
+
 SBPLPlannerPtr AdaptivePlannerAllocator::allocate(
     const RobotPlanningSpacePtr& pspace,
     const RobotHeuristicPtr& heuristic)
 {
     auto search = std::make_shared<AdaptivePlanner>(pspace, heuristic);
-    search->set_initialsolution_eps(pspace->params()->epsilon);
+
+    const auto& params = pspace->params()->params;
+
+    auto it = params.find("epsilon_plan");
+    if (it == params.end()) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'epsilon_plan' not found in planning parameters");
+        return SBPLPlannerPtr();
+    }
+    search->set_plan_eps(std::stod(it->second));
+
+    it = params.find("epsilon_track");
+    if (it == params.end()) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'epsilon_track' not found in planning parameters");
+        return SBPLPlannerPtr();
+    }
+    search->set_track_eps(std::stod(it->second));
+
     AdaptivePlanner::TimeParameters tparams;
     tparams.planning.bounded = true;
     tparams.planning.improve = false;

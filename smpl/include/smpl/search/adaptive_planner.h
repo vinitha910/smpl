@@ -66,6 +66,11 @@ public:
     ~AdaptivePlanner();
 
     void set_time_parameters(const TimeParameters& params) { m_time_params = params; }
+    void set_plan_eps(double eps) { m_eps_plan = eps; }
+    void set_track_eps(double eps) { m_eps_track = eps; }
+    double get_plan_eps() const { return m_eps_plan; }
+    double get_track_eps() const { return m_eps_track; }
+
     /// \name Reimplemented Public Functions from SBPLPlanner
     ///@{
     int replan(std::vector<int>* solution, ReplanParams params) override;
