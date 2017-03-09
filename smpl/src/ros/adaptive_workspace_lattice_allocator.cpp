@@ -53,9 +53,9 @@ RobotPlanningSpacePtr AdaptiveWorkspaceLatticeAllocator::allocate(
     wsp.res_x = m_grid->getResolution();
     wsp.res_y = m_grid->getResolution();
     wsp.res_z = m_grid->getResolution();
-    wsp.R_count = 360;
-    wsp.P_count = 180 + 1;
-    wsp.Y_count = 360;
+    wsp.R_count = 36; //360;
+    wsp.P_count = 19; //180 + 1;
+    wsp.Y_count = 36; //360;
 
     RedundantManipulatorInterface* rmi =
             robot->getExtension<RedundantManipulatorInterface>();
