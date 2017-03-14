@@ -168,14 +168,16 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
 
 bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
 {
-    if (state_id == m_goal_state_id) {
-        ROS_INFO_NAMED(params()->graph_log, "Skip adding high-dimensional region around goal");
-        return true;
-    }
+    AdaptiveState* state = m_states[state_id];
 
     Eigen::Vector3i gp;
-    AdaptiveState* state = m_states[state_id];
-    if (state->hid) {
+
+    if (state_id == m_goal_state_id) {
+        ROS_INFO_NAMED(params()->graph_log, "Skip adding high-dimensional region around goal");
+        m_grid->worldToGrid(
+                goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
+                gp.x(), gp.y(), gp.z());
+    } else if (state->hid) {
         ROS_INFO_NAMED(params()->graph_log, "Grow high-dimensional region around hi state %d", state_id);
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         WorkspaceState work_state;
