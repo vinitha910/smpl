@@ -709,7 +709,9 @@ void AdaptiveWorkspaceLattice::GetSuccs(
                 WorkspaceCoord succ_coord;
                 RobotState final_rstate;
                 stateWorkspaceToCoord(succ_state, succ_coord);
-                stateWorkspaceToRobot(succ_state, final_rstate);
+                if (!stateWorkspaceToRobot(succ_state, final_rstate)) {
+                    continue;
+                }
 
                 int succ_id = getHiHashEntry(succ_coord);
                 if (succ_id < 0) {
@@ -1070,9 +1072,12 @@ bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
 
 bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
 {
-    return std::fabs(x - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
-            std::fabs(y - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
-            std::fabs(z - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2];
+    const double dx = std::fabs(x - goal().tgt_off_pose[0]);
+    const double dy = std::fabs(y - goal().tgt_off_pose[1]);
+    const double dz = std::fabs(z - goal().tgt_off_pose[2]);
+    return dx <= goal().xyz_tolerance[0] &&
+            dy <= goal().xyz_tolerance[1] &&
+            dz <= goal().xyz_tolerance[2];
 }
 
 visualization_msgs::MarkerArray AdaptiveWorkspaceLattice::getStateVisualization(
