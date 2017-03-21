@@ -58,13 +58,7 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     ExperienceGraphHeuristicExtension(),
     m_pp(nullptr)
 {
-    auto it = params()->params.find("egraph_epsilon");
-    if (it == params()->params.end()) {
-        ROS_WARN_NAMED(params()->heuristic_log, "missing param egraph_epsilon. default to 1.0");
-        m_eg_eps = 1.0;
-    } else {
-        m_eg_eps = std::stod(params()->params.at("egraph_epsilon"));
-    }
+    params()->param("egraph_epsilon", m_eg_eps, 1.0);
     ROS_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
 
     m_pp = ps->getExtension<PointProjectionExtension>();

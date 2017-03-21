@@ -48,11 +48,14 @@ SBPLPlannerPtr MHAPlannerAllocator::allocate(
     auto search = std::make_shared<MHAPlanner>(
             pspace.get(), m_heur_vec[0], &m_heur_vec[0], m_heur_vec.size());
 
-    const double mha_eps = 2.0;
+    double mha_eps;
+    pspace->params()->param("epsilon_mha", mha_eps, 1.0);
     search->set_initial_mha_eps(mha_eps);
 
     search->set_initialsolution_eps(pspace->params()->epsilon);
-    search->set_search_mode(pspace->params()->search_mode);
+    bool search_mode;
+    pspace->params()->param("search_mode", search_mode, false);
+    search->set_search_mode(search_mode);
     return search;
 }
 

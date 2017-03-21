@@ -32,9 +32,11 @@
 
 #include <smpl/planning_params.h>
 
+// standard includes
+#include <sstream>
+
 // system includes
-#include <leatherman/utils.h>
-#include <leatherman/print.h>
+#include <ros/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -63,39 +65,419 @@ std::string to_string(ShortcutType type)
     }
 }
 
+
+Parameter::Parameter(const Parameter& o)
+{
+    copy(o);
+}
+
+Parameter& Parameter::operator=(const Parameter& value)
+{
+    if (this != &value) {
+        copy(value);
+    }
+    return *this;
+}
+
+Parameter& Parameter::operator=(bool value)
+{
+    if (isDynamic()) {
+        destroy();
+    }
+    m_type = Type::Bool;
+    m_value.asBool = value;
+    return *this;
+}
+
+Parameter& Parameter::operator=(int value)
+{
+    if (isDynamic()) {
+        destroy();
+    }
+    m_type = Type::Int;
+    m_value.asInt = value;
+    return *this;
+}
+
+Parameter& Parameter::operator=(double value)
+{
+    if (isDynamic()) {
+        destroy();
+    }
+    m_type = Type::Double;
+    m_value.asDouble = value;
+    return *this;
+}
+
+Parameter& Parameter::operator=(const std::string &value)
+{
+    if (m_type != Type::String) {
+        if (isDynamic()) {
+            destroy();
+        }
+        m_type = Type::String;
+        m_value.asString = new std::string(value);
+    } else {
+        *m_value.asString = value;
+    }
+    return *this;
+}
+
+Parameter& Parameter::operator=(const char* value)
+{
+    if (m_type != Type::String) {
+        if (isDynamic()) {
+            destroy();
+        }
+        m_type = Type::String;
+        m_value.asString = new std::string(value);
+    } else {
+        m_value.asString->assign(value);
+    }
+    return *this;
+}
+
+Parameter::~Parameter()
+{
+    switch (m_type) {
+    case Type::String:
+        delete m_value.asString;
+        break;
+    }
+}
+
+Parameter::operator bool&()
+{
+    if (m_type != Type::Bool) {
+        throw ParameterException("parameter is not a boolean");
+    }
+    return m_value.asBool;
+}
+
+Parameter::operator int&()
+{
+    if (m_type != Type::Int) {
+        throw ParameterException("parameter is not an int");
+    }
+    return m_value.asInt;
+}
+
+Parameter::operator double&()
+{
+    if (m_type != Type::Double) {
+        throw ParameterException("parameter is not a double");
+    }
+    return m_value.asDouble;
+}
+
+Parameter::operator std::string&()
+{
+    if (m_type != Type::String) {
+        throw ParameterException("parameter is not a string");
+    }
+    return *m_value.asString;
+}
+
+Parameter::operator const bool&() const
+{ return const_cast<Parameter*>(this)->operator bool&(); }
+
+Parameter::operator const int&() const
+{ return const_cast<Parameter*>(this)->operator int&(); }
+
+Parameter::operator const double&() const
+{ return const_cast<Parameter*>(this)->operator double&(); }
+
+Parameter::operator const std::string&() const
+{ return const_cast<Parameter*>(this)->operator std::string&(); }
+
+void Parameter::destroy()
+{
+    switch (m_type) {
+    case Type::String:
+        if (m_value.asString) {
+            delete m_value.asString;
+            m_value.asString = nullptr;
+        }
+        break;
+    }
+    m_type = Type::Invalid;
+}
+
+void Parameter::copy(const Parameter& o)
+{
+    destroy();
+
+    m_type = o.m_type;
+    if (o.m_type == Type::String) {
+        m_value.asString = new std::string(*o.m_value.asString);
+    } else {
+        m_value = o.m_value;
+    }
+}
+
 PlanningParams::PlanningParams() :
     planning_frame(),
 
-    cost_multiplier(DefaultCostMultiplier),
     cost_per_cell(DefaultCostPerCell),
-    cost_per_meter(DefaultCostPerMeter),
-    cost_per_second(DefaultCostPerSecond),
-    time_per_cell(DefaultTimePerCell),
-    max_mprim_offset(DefaultMaxMprimOffset),
 
     planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
     epsilon(DefaultEpsilon),
-    allowed_time(DefaultAllowedTime),
-    search_mode(DefaultSearchMode),
 
     shortcut_path(DefaultShortcutPath),
     interpolate_path(DefaultInterpolatePath),
-    waypoint_time(DefaultWaypointTime),
     shortcut_type(DefaultShortcutType),
 
     print_path(true),
-    verbose(false),
-    verbose_heuristics(false),
-    verbose_collisions(false),
     robot_log(DefaultRobotModelLog),
     graph_log(DefaultGraphLog),
     heuristic_log(DefaultHeuristicLog),
     expands_log(DefaultExpandsLog),
     successors_log(DefaultSuccessorsLog),
     post_processing_log(DefaultPostProcessingLog),
-    solution_log(DefaultSolutionLog)
+    solution_log(DefaultSolutionLog),
+
+    m_warn_defaults(false)
 {
+}
+
+template <typename T>
+std::string construct_warn_string(const std::string& name, T def)
+{
+    std::stringstream ss;
+    ss << "Missing parameter '" << name << "'. Default set to " << def;
+    return ss.str();
+}
+
+void PlanningParams::addParam(const std::string& name, bool val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::addParam(const std::string& name, int val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::addParam(const std::string& name, double val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::addParam(const std::string& name, const std::string& val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::param(const std::string& name, bool& val, bool def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        std::stringstream ss;
+        val = def;
+        if (m_warn_defaults) {
+            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToBool(it->second, val);
+}
+
+void PlanningParams::param(const std::string& name, int& val, int def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToInt(it->second, val);
+}
+
+void PlanningParams::param(
+    const std::string& name,
+    double& val,
+    double def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToDouble(it->second, val);
+}
+
+void PlanningParams::param(
+    const std::string& name,
+    std::string& val,
+    const std::string& def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToString(it->second, val);
+}
+
+bool PlanningParams::getParam(const std::string& name, bool& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToBool(it->second, val);
+    return true;
+}
+
+bool PlanningParams::getParam(const std::string& name, int& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToInt(it->second, val);
+    return true;
+}
+
+bool PlanningParams::getParam(const std::string& name, double& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToDouble(it->second, val);
+    return true;
+}
+
+bool PlanningParams::getParam(const std::string& name, std::string& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToString(it->second, val);
+    return true;
+}
+
+bool PlanningParams::hasParam(const std::string& name) const
+{
+    auto it = params.find(name);
+    return it != params.end();
+}
+
+void PlanningParams::convertToBool(const Parameter& p, bool& val) const
+{
+    switch (p.type()) {
+    case Parameter::Bool:
+        val = (bool&)p;
+        break;
+    case Parameter::Int:
+        val = (bool)((int&)p);
+        break;
+    case Parameter::Double:
+        val = (bool)((double&)p);
+        break;
+    case Parameter::String: {
+        const std::string& pstr(p);
+        if (pstr == "true") {
+            val = true;
+        } else if (pstr == "false") {
+            val = false;
+        }
+        throw ParameterException("Could not convert parameter string to bool");
+    }   break;
+    default:
+        throw ParameterException("Parameter is untyped");
+        break;
+    }
+}
+
+void PlanningParams::convertToInt(const Parameter& p, int& val) const
+{
+    switch (p.type()) {
+    case Parameter::Bool:
+        val = (int)((bool&)p);
+        break;
+    case Parameter::Int:
+        val = ((int&)p);
+        break;
+    case Parameter::Double:
+        val = (int)((double&)p);
+        break;
+    case Parameter::String:
+        try {
+            val = std::stoi((std::string&)p);
+        } catch (const std::exception& ex) {
+            throw ParameterException("Failed to convert string to int");
+        }
+        break;
+    default:
+        throw ParameterException("Parameter is untyped");
+        break;
+    }
+}
+
+void PlanningParams::convertToDouble(const Parameter& p, double& val) const
+{
+    switch (p.type()) {
+    case Parameter::Bool:
+        val = (double)((bool&)p);
+        break;
+    case Parameter::Int:
+        val = (double)((int&)p);
+        break;
+    case Parameter::Double:
+        val = ((double&)p);
+        break;
+    case Parameter::String:
+        try {
+            val = std::stod((std::string&)p);
+        } catch (const std::exception& ex) {
+            throw ParameterException("Failed to convert string to double");
+        }
+        break;
+    default:
+        throw ParameterException("Parameter is untyped");
+        break;
+    }
+}
+
+void PlanningParams::convertToString(const Parameter& p, std::string& val) const
+{
+    switch (p.type()) {
+    case Parameter::Bool:
+        val = ((bool&)p) ? "true" : "false";
+        break;
+    case Parameter::Int:
+        val = std::to_string((int&)p);
+        break;
+    case Parameter::Double:
+        val = std::to_string((double&)p);
+        break;
+    case Parameter::String:
+        val = ((std::string&)p);
+        break;
+    default:
+        throw ParameterException("Parameter is untyped");
+        break;
+    }
 }
 
 } // namespace motion

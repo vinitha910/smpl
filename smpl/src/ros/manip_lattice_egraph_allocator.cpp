@@ -62,13 +62,13 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
     double xyzrpy_snap_thresh;
     double short_dist_mprims_thresh;
 
-    auto it = params->params.find("discretization");
-    if (it == params->params.end()) {
+    std::string disc_string;
+    if (!params->getParam("discretization", disc_string)) {
         ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
         return RobotPlanningSpacePtr();
     }
     std::map<std::string, double> disc;
-    std::stringstream ss(it->second);
+    std::stringstream ss(disc_string);
     std::string joint;
     double jres;
     while (ss >> joint >> jres) {
@@ -86,73 +86,22 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
         resolutions[vidx] = dit->second;
     }
 
-    it = params->params.find("mprim_filename");
-    if (it == params->params.end()) {
+    if (!params->getParam("mprim_filename", mprim_filename)) {
         ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
         return RobotPlanningSpacePtr();
     }
-    mprim_filename = it->second;
 
-    it = params->params.find("use_xyz_snap_mprim");
-    if (it == params->params.end()) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'use_xyz_snap_mprim' not found in planning params");
-        return RobotPlanningSpacePtr();
-    }
-    use_xyz_snap_mprim = it->second == "true";
+    params->param("use_multiple_ik_solutions", use_multiple_ik_solutions, false);
 
-    it = params->params.find("use_rpy_snap_mprim");
-    if (it == params->params.end()) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'use_rpy_snap_mprim' not found in planning params");
-        return RobotPlanningSpacePtr();
-    }
-    use_rpy_snap_mprim = it->second == "true";
+    params->param("use_xyz_snap_mprim", use_xyz_snap_mprim, false);
+    params->param("use_rpy_snap_mprim", use_rpy_snap_mprim, false);
+    params->param("use_xyzrpy_snap_mprim", use_xyzrpy_snap_mprim, false);
+    params->param("use_short_dist_mprims", use_short_dist_mprims, false);
 
-    it = params->params.find("use_xyzrpy_snap_mprim");
-    if (it == params->params.end()) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'use_xyzrpy_snap_mprim' not found in planning params");
-        return RobotPlanningSpacePtr();
-    }
-    use_xyzrpy_snap_mprim = it->second == "true";
-
-    it = params->params.find("use_short_dist_mprims");
-    if (it == params->params.end()) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'use_short_dist_mprims' not found in planning params");
-        return RobotPlanningSpacePtr();
-    }
-    use_short_dist_mprims = it->second == "true";
-
-    try {
-        it = params->params.find("xyz_snap_dist_thresh");
-        if (it == params->params.end()) {
-            ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'xyz_snap_dist_thresh' not found in planning params");
-            return RobotPlanningSpacePtr();
-        }
-        xyz_snap_thresh = std::stod(it->second);
-
-        it = params->params.find("rpy_snap_dist_thresh");
-        if (it == params->params.end()) {
-            ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'rpy_snap_dist_thresh' not found in planning params");
-            return RobotPlanningSpacePtr();
-        }
-        rpy_snap_thresh = std::stod(it->second);
-
-        it = params->params.find("xyzrpy_snap_dist_thresh");
-        if (it == params->params.end()) {
-            ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'xyzrpy_snap_dist_thresh' not found in planning params");
-            return RobotPlanningSpacePtr();
-        }
-        xyzrpy_snap_thresh = std::stod(it->second);
-
-        it = params->params.find("short_dist_mprims_thresh");
-        if (it == params->params.end()) {
-            ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'short_dist_mprims_thresh' not found in planning params");
-            return RobotPlanningSpacePtr();
-        }
-        short_dist_mprims_thresh = std::stod(it->second);
-    } catch (const std::logic_error& ex) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Failed to convert amp distance thresholds to floating-point values");
-        return RobotPlanningSpacePtr();
-    }
+    params->param("xyz_snap_dist_thresh", xyz_snap_thresh, 0.0);
+    params->param("rpy_snap_dist_thresh", rpy_snap_thresh, 0.0);
+    params->param("xyzrpy_snap_dist_thresh", xyzrpy_snap_thresh, 0.0);
+    params->param("short_dist_mprims_thresh", short_dist_mprims_thresh, 0.0);
 
     auto pspace = std::make_shared<ManipLatticeEgraph>(robot, checker, params);
     if (!pspace->init(resolutions)) {
@@ -185,10 +134,10 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
         return RobotPlanningSpacePtr();
     }
 
-    auto pit = params->params.find("egraph_path");
-    if (pit != params->params.end()) {
+    std::string egraph_path;
+    if (params->getParam("egraph_path", egraph_path)) {
         // warning printed within, allow to fail silently
-        (void)pspace->loadExperienceGraph(pit->second);
+        (void)pspace->loadExperienceGraph(egraph_path);
     } else {
         ROS_WARN("No experience graph file parameter");
     }

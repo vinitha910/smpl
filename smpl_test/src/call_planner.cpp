@@ -1705,16 +1705,16 @@ int main(int argc, char* argv[])
 
     params.planning_link_sphere_radius = 0.02;
 
-    params.params["discretization"] = planning_config.discretization;
-    params.params["mprim_filename"] = planning_config.mprim_filename;
-    params.params["use_xyz_snap_mprim"] = planning_config.use_xyz_snap_mprim;
-    params.params["use_rpy_snap_mprim"] = planning_config.use_rpy_snap_mprim;
-    params.params["use_xyzrpy_snap_mprim"] = planning_config.use_xyzrpy_snap_mprim;
-    params.params["use_short_dist_mprims"] = planning_config.use_short_dist_mprims;
-    params.params["xyz_snap_dist_thresh"] = planning_config.xyz_snap_dist_thresh;
-    params.params["rpy_snap_dist_thresh"] = planning_config.rpy_snap_dist_thresh;
-    params.params["xyzrpy_snap_dist_thresh"] = planning_config.xyzrpy_snap_dist_thresh;
-    params.params["short_dist_mprims_thresh"] = planning_config.short_dist_mprims_thresh;
+    params.addParam("discretization", planning_config.discretization);
+    params.addParam("mprim_filename", planning_config.mprim_filename);
+    params.addParam("use_xyz_snap_mprim", planning_config.use_xyz_snap_mprim);
+    params.addParam("use_rpy_snap_mprim", planning_config.use_rpy_snap_mprim);
+    params.addParam("use_xyzrpy_snap_mprim", planning_config.use_xyzrpy_snap_mprim);
+    params.addParam("use_short_dist_mprims", planning_config.use_short_dist_mprims);
+    params.addParam("xyz_snap_dist_thresh", planning_config.xyz_snap_dist_thresh);
+    params.addParam("rpy_snap_dist_thresh", planning_config.rpy_snap_dist_thresh);
+    params.addParam("xyzrpy_snap_dist_thresh", planning_config.xyzrpy_snap_dist_thresh);
+    params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
 
     if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Planner Interface");

@@ -248,10 +248,6 @@ private:
     /// \name costs
     ///@{
     void computeCostPerCell();
-    int getActionCost(
-        const RobotState& first,
-        const RobotState& last,
-        int dist);
     ///@}
 };
 

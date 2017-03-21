@@ -188,7 +188,7 @@ protected:
         moveit_msgs::MotionPlanResponse& res);
 
     // Retrieve plan from sbpl
-    bool plan(std::vector<RobotState>& path);
+    bool plan(double allowed_time, std::vector<RobotState>& path);
 
     bool extractGoalPoseFromGoalConstraints(
         const moveit_msgs::Constraints& goal_constraints,

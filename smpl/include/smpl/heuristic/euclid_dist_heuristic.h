@@ -76,12 +76,6 @@ private:
     double m_z_coeff;
     double m_rot_coeff;
 
-    void getParam(
-        const PlanningParams& params,
-        const char* name,
-        double& var,
-        double default_value) const;
-
     Eigen::Affine3d createPose(const std::vector<double>& pose) const;
     Eigen::Vector3d createPoint(const std::vector<double>& point) const;
 

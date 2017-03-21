@@ -45,21 +45,13 @@ SBPLPlannerPtr AdaptivePlannerAllocator::allocate(
 {
     auto search = std::make_shared<AdaptivePlanner>(pspace, heuristic);
 
-    const auto& params = pspace->params()->params;
+    double epsilon_plan;
+    pspace->params()->param("epsilon_plan", epsilon_plan, 1.0);
+    search->set_plan_eps(epsilon_plan);
 
-    auto it = params.find("epsilon_plan");
-    if (it == params.end()) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'epsilon_plan' not found in planning parameters");
-        return SBPLPlannerPtr();
-    }
-    search->set_plan_eps(std::stod(it->second));
-
-    it = params.find("epsilon_track");
-    if (it == params.end()) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'epsilon_track' not found in planning parameters");
-        return SBPLPlannerPtr();
-    }
-    search->set_track_eps(std::stod(it->second));
+    double epsilon_track;
+    pspace->params()->param("epsilon_track", epsilon_track, 1.0);
+    search->set_track_eps(epsilon_track);
 
     AdaptivePlanner::TimeParameters tparams;
     tparams.planning.bounded = true;

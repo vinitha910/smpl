@@ -161,13 +161,10 @@ bool PlannerInterface::init(const PlanningParams& params)
     ROS_INFO_NAMED(PI_LOGGER, "  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
 
     ROS_INFO_NAMED(PI_LOGGER, "  Epsilon: %0.3f", params.epsilon);
-    ROS_INFO_NAMED(PI_LOGGER, "  Allowed Time: %0.3f", params.allowed_time);
-    ROS_INFO_NAMED(PI_LOGGER, "  Search Mode: %s", params.search_mode ? "true" : "false");
 
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
     ROS_INFO_NAMED(PI_LOGGER, "  Interpolate Path: %s", params.interpolate_path ? "true" : "false");
-    ROS_INFO_NAMED(PI_LOGGER, "  Waypoint Time: %0.3f", params.waypoint_time);
 
     if (!checkConstructionArgs()) {
         return false;
@@ -239,8 +236,7 @@ bool PlannerInterface::solve(
 
     // plan
     res.trajectory_start = planning_scene.robot_state;
-    m_params.allowed_time = req.allowed_planning_time;
-    ROS_INFO_NAMED(PI_LOGGER, "Allowed Time (s): %0.3f", m_params.allowed_time);
+    ROS_INFO_NAMED(PI_LOGGER, "Allowed Time (s): %0.3f", req.allowed_planning_time);
 
     auto then = clock::now();
 
@@ -249,20 +245,20 @@ bool PlannerInterface::solve(
         ROS_INFO_NAMED(PI_LOGGER, "Planning to position!");
         if (!planToPose(req, path, res)) {
             auto now = clock::now();
-            res.planning_time = std::chrono::duration<double>(now - then).count();
+            res.planning_time = to_seconds(now - then);
             return false;
         }
     } else if (req.goal_constraints.front().joint_constraints.size() > 0) {
         ROS_INFO_NAMED(PI_LOGGER, "Planning to joint configuration!");
         if (!planToConfiguration(req, path, res)) {
             auto now = clock::now();
-            res.planning_time = std::chrono::duration<double>(now - then).count();
+            res.planning_time = to_seconds(now - then);
             return false;
         }
     } else {
         ROS_ERROR("Both position and joint constraints empty!");
         auto now = clock::now();
-        res.planning_time = std::chrono::duration<double>(now - then).count();
+        res.planning_time = to_seconds(now - then);
         return false;
     }
 
@@ -284,7 +280,7 @@ bool PlannerInterface::solve(
     }
 
     auto now = clock::now();
-    res.planning_time = std::chrono::duration<double>(now - then).count();
+    res.planning_time = to_seconds(now - then);
     m_res = res; // record the last result
     return true;
 }
@@ -292,15 +288,6 @@ bool PlannerInterface::solve(
 bool PlannerInterface::checkParams(
     const PlanningParams& params) const
 {
-    if (params.allowed_time < 0.0) {
-        return false;
-    }
-
-    if (params.waypoint_time < 0.0) {
-        return false;
-    }
-
-    // TODO: check for frame in robot model?
     if (params.planning_frame.empty()) {
         return false;
     }
@@ -311,23 +298,7 @@ bool PlannerInterface::checkParams(
         return false;
     }
 
-    if (params.cost_multiplier < 0) {
-        return false;
-    }
-
     if (params.cost_per_cell < 0) {
-        return false;
-    }
-
-    if (params.cost_per_meter < 0) {
-        return false;
-    }
-
-    if (params.cost_per_second < 0) {
-        return false;
-    }
-
-    if (params.time_per_cell < 0.0) {
         return false;
     }
 
@@ -528,7 +499,7 @@ bool PlannerInterface::setGoalPosition(
     return true;
 }
 
-bool PlannerInterface::plan(std::vector<RobotState>& path)
+bool PlannerInterface::plan(double allowed_time, std::vector<RobotState>& path)
 {
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
@@ -544,7 +515,7 @@ bool PlannerInterface::plan(std::vector<RobotState>& path)
     m_planner->force_planning_from_scratch();
 
     // plan
-    ReplanParams replan_params(m_params.allowed_time);
+    ReplanParams replan_params(allowed_time);
     replan_params.initial_eps = m_params.epsilon;
     replan_params.final_eps = 1.0;
     replan_params.dec_eps = 0.2;
@@ -602,8 +573,8 @@ bool PlannerInterface::planToPose(
         return false;
     }
 
-    if (!plan(path)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions)", m_params.allowed_time, m_planner->get_n_expands());
+    if (!plan(req.allowed_planning_time, path)) {
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions)", req.allowed_planning_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }
@@ -635,8 +606,8 @@ bool PlannerInterface::planToConfiguration(
         return false;
     }
 
-    if (!plan(path)) {
-        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions)", m_params.allowed_time, m_planner->get_n_expands());
+    if (!plan(req.allowed_planning_time, path)) {
+        ROS_ERROR("Failed to plan within alotted time frame (%0.2f seconds, %d expansions)", req.allowed_planning_time, m_planner->get_n_expands());
         res.error_code.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
         return false;
     }

@@ -69,10 +69,10 @@ EuclidDistHeuristic::EuclidDistHeuristic(
         ROS_WARN_NAMED(params()->heuristic_log, "EuclidDistHeuristic recommends PointProjectionExtension or PoseProjectionExtension");
     }
 
-    getParam(*params(), "x_coeff", m_x_coeff, 1.0);
-    getParam(*params(), "y_coeff", m_y_coeff, 1.0);
-    getParam(*params(), "z_coeff", m_z_coeff, 1.0);
-    getParam(*params(), "rot_coeff", m_rot_coeff, 1.0);
+    params()->param("x_coeff", m_x_coeff, 1.0);
+    params()->param("y_coeff", m_y_coeff, 1.0);
+    params()->param("z_coeff", m_z_coeff, 1.0);
+    params()->param("rot_coeff", m_rot_coeff, 1.0);
 }
 
 double EuclidDistHeuristic::getMetricGoalDistance(double x, double y, double z)
@@ -195,28 +195,6 @@ int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
         }
     } else {
         return 0;
-    }
-}
-
-void EuclidDistHeuristic::getParam(
-    const PlanningParams& params,
-    const char* name,
-    double& var,
-    double default_value) const
-{
-    auto it = params.params.find(name);
-    if (it == params.params.end()) {
-        var = default_value;
-    } else {
-        try {
-            var = std::stod(it->second);
-        } catch (const std::invalid_argument &ex) {
-            ROS_WARN("Failed to convert '%s' to double. Default to %f.", name, default_value);
-            var = default_value;
-        } catch (const std::out_of_range &ex) {
-            ROS_WARN("Failed to convert '%s' to double. Default to %f.", name, default_value);
-            var = default_value;
-        }
     }
 }
 

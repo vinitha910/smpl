@@ -34,14 +34,9 @@
 #define SMPL_PLANNING_PARAMS_H
 
 // standard includes
-#include <iostream>
-#include <sstream>
+#include <stdexcept>
 #include <string>
-#include <vector>
-
-// system includes
-#include <boost/algorithm/string.hpp>
-#include <ros/ros.h>
+#include <unordered_map>
 
 namespace sbpl {
 namespace motion {
@@ -57,96 +52,86 @@ enum ShortcutType
 
 std::string to_string(ShortcutType type);
 
-#define PARAMETER_EXPERIMENTAL 0
-#if PARAMETER_EXPERIMENTAL
-struct PlanningParameter
+struct ParameterException : public std::runtime_error
 {
-    typedef std::vector<PlanningParameter>              ParameterArray;
-    typedef std::map<std::string, PlanningParameter>    ParameterMap;
-    typedef ParameterMap::iterator                      iterator;
+    ParameterException(const std::string& what) : std::runtime_error(what) { }
+    ParameterException(const char* what) : std::runtime_error(what) { }
+};
 
+struct Parameter
+{
     enum Type
     {
-        TypeInvalid,
-        TypeBoolean,
-        TypeInt,
-        TypeDouble,
-        TypeString,
-        TypeArray,
-        TypeMap,
-    }
+        Invalid = 0,
+        Bool    = 1,
+        Int     = 2,
+        Double  = 3,
+        String  = 4,
+    };
 
     Type type() const { return m_type; }
 
-    PlanningParameter() : m_type(TypeInvalid), m_value() { }
-    PlanningParameter(bool value) : m_type(TypeBoolean) { m_value.b = value; }
-    PlanningParameter(int value) : m_type(TypeInt) { m_value.i = value; }
-    PlanningParameter(double value) : m_type(TypeDouble) { m_value.d = value; }
-    PlanningParameter(const std::string& value) : m_type(TypeString) {
-        m_value.s = new std::string(value);
-    }
-    PlanningParameter(const char* value) : m_type(TypeString) {
-        m_value.s = new std::string(value);
-    }
+    Parameter() : m_type(Invalid), m_value() { }
 
-    ~PlanningParameter();
+    Parameter(bool value) : m_type(Bool) { m_value.asBool = value; }
+    Parameter(int value) : m_type(Int) { m_value.asInt = value; }
+    Parameter(double value) : m_type(Double) { m_value.asDouble = value; }
+
+    Parameter(const std::string& value) : m_type(String)
+    { m_value.asString = new std::string(value); }
+
+    Parameter(const char* value) : m_type(String)
+    { m_value.asString = new std::string(value); }
+
+    Parameter(const Parameter& o);
+
+    Parameter& operator=(const Parameter& value);
+    Parameter& operator=(bool value);
+    Parameter& operator=(int value);
+    Parameter& operator=(double value);
+    Parameter& operator=(const std::string &value);
+    Parameter& operator=(const char* value);
+
+    ~Parameter();
 
     operator bool&();
     operator int&();
     operator double&();
     operator std::string&();
-    operator std::map<std::string, PlanningParameter>&();
-    operator std::vector<PlanningParameter>&();
 
-    size_t size() const;
-
-    PlanningParameter& operator[](size_t i);
-    const PlanningParameter& operator[](size_t i) const;
-
-    bool hasMember(const std::string& name) const;
-
-    PlanningParameter& operator[](const std::string& key);
-    const PlanningParameter& operator[](const std::string& key);
-
-    iterator begin() { return m_value.m->begin(); }
-    iterator end() { return m_value.m->end(); }
+    operator const bool&() const;
+    operator const int&() const;
+    operator const double&() const;
+    operator const std::string&() const;
 
 private:
 
     Type m_type;
+
     union
     {
-        bool            b;
-        int             i;
-        double          d;
-        std::string*    s;
-        ParameterArray* a;
-        ParameterMap*   m;
+        bool            asBool;
+        int             asInt;
+        double          asDouble;
+        std::string*    asString;
     } m_value;
+
+    bool isDynamic() const { return m_type == Type::String; }
+    void destroy();
+    void copy(const Parameter& o);
 };
-#endif
 
 class PlanningParams
 {
 public:
 
-    static const int DefaultCostMultiplier = 1000;
     static const int DefaultCostPerCell = 100;
-    static const int DefaultCostPerMeter = 1000;
-    static const int DefaultCostPerSecond = DefaultCostMultiplier;
-    static constexpr double DefaultTimePerCell = 0.05;
-    static constexpr double DefaultMaxMprimOffset = 0.0;
 
     // heuristic parameters
     static constexpr double DefaultPlanningLinkSphereRadius = 0.08;
 
     // search parameters
-    static const bool DefaultSearchMode = false;
-    static constexpr double DefaultAllowedTime = 10.0;
     static constexpr double DefaultEpsilon = 10.0;
-
-    // profiling parameters
-    static constexpr double DefaultWaypointTime = 0.35;
 
     // post processing parameters
     static const bool DefaultShortcutPath = false;
@@ -171,45 +156,28 @@ public:
     std::string planning_frame;
     ///@}
 
-    /// \name Costs
-    ///@{
-    int cost_multiplier;           ///< uniform cost of actions
-    int cost_per_cell;             ///< uniform cost of cells in heuristic
-    int cost_per_meter;            ///< euclidean distance heuristic cost
-    int cost_per_second;
-    double time_per_cell;
-    double max_mprim_offset;
-    ///@}
-
     /// \name Heuristic
     ///@{
+    int cost_per_cell;             ///< uniform cost of cells in heuristic
     double planning_link_sphere_radius;
     ///@}
 
     /// \name Search
     ///@{
     double epsilon;
-    double allowed_time;
-    bool search_mode; // true => stop after first solution
     ///@}
 
     /// \name Post-Processing
     ///@{
     bool shortcut_path;
     bool interpolate_path;
-    double waypoint_time;
     ShortcutType shortcut_type;
     ///@}
-
-    std::map<std::string, std::string> params;
 
     /// \name Logging
     ///@{
     std::string plan_output_dir;
     bool print_path;
-    bool verbose;
-    bool verbose_heuristics;
-    bool verbose_collisions;
 
     std::string graph_log;
     std::string heuristic_log;
@@ -219,25 +187,38 @@ public:
     std::string post_processing_log;
     std::string solution_log;
     ///@}
-};
 
-#if PARAMETER_EXPERIMENTAL
-inline
-PlanningParameter::~PlanningParameter()
-{
-    switch (type) {
-    case Type::TypeString:
-        delete m_value.s;
-        break;
-    case Type::TypeArray:
-        delete m_value.a;
-        break;
-    case Type::TypeMap:
-        delete m_value.m;
-        break;
-    }
-}
-#endif
+    void addParam(const std::string& name, bool val);
+    void addParam(const std::string& name, int val);
+    void addParam(const std::string& name, double val);
+    void addParam(const std::string& name, const std::string& val);
+
+    void param(const std::string& name, bool& val, bool def) const;
+    void param(const std::string& name, int& val, int def) const;
+    void param(const std::string& name, double& val, double def) const;
+    void param(
+        const std::string& name,
+        std::string& val,
+        const std::string& def) const;
+
+    bool getParam(const std::string& name, bool& val) const;
+    bool getParam(const std::string& name, int& val) const;
+    bool getParam(const std::string& name, double& val) const;
+    bool getParam(const std::string& name, std::string& val) const;
+
+    bool hasParam(const std::string& name) const;
+
+private:
+
+    std::unordered_map<std::string, Parameter> params;
+
+    bool m_warn_defaults;
+
+    void convertToBool(const Parameter& p, bool& val) const;
+    void convertToInt(const Parameter& p, int& val) const;
+    void convertToDouble(const Parameter& p, double& val) const;
+    void convertToString(const Parameter& p, std::string& val) const;
+};
 
 } // namespace motion
 } // namespace sbpl

@@ -605,7 +605,8 @@ int ManipLattice::cost(
     ManipLatticeState* HashEntry2,
     bool bState2IsGoal) const
 {
-    return params()->cost_multiplier;
+    const int DefaultCostMultiplier = 1000;
+    return DefaultCostMultiplier;
 }
 
 bool ManipLattice::checkAction(
@@ -763,42 +764,6 @@ visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
         marker.ns = ns;
     }
     return ma;
-}
-
-int ManipLattice::getActionCost(
-    const RobotState& first,
-    const RobotState& last,
-    int dist)
-{
-    int num_prims = 0, cost = 0;
-    double diff = 0, max_diff = 0;
-
-    if (first.size() != last.size()) {
-        return -1;
-    }
-
-    /* NOTE: Not including forearm roll OR wrist roll movement to calculate mprim cost */
-
-    for (size_t i = 0; i < 6; i++) {
-        if (i == 4) {
-            continue;
-        }
-
-        diff = angles::shortest_angle_dist(first[i], last[i]);
-        if (max_diff < diff) {
-            max_diff = diff;
-        }
-    }
-
-    num_prims = max_diff / params()->max_mprim_offset + 0.5;
-    cost = num_prims * params()->cost_multiplier;
-
-    RobotState from_config_norm(first.size());
-    for (size_t i = 0; i < first.size(); ++i) {
-        from_config_norm[i] = angles::normalize_angle(first[i]);
-    }
-
-    return cost;
 }
 
 bool ManipLattice::setStart(const RobotState& state)
