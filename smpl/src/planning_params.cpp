@@ -65,7 +65,6 @@ std::string to_string(ShortcutType type)
     }
 }
 
-
 Parameter::Parameter(const Parameter& o)
 {
     copy(o);
@@ -386,13 +385,13 @@ void PlanningParams::convertToBool(const Parameter& p, bool& val) const
 {
     switch (p.type()) {
     case Parameter::Bool:
-        val = (bool&)p;
+        val = (const bool&)p;
         break;
     case Parameter::Int:
-        val = (bool)((int&)p);
+        val = (bool)((const int&)p);
         break;
     case Parameter::Double:
-        val = (bool)((double&)p);
+        val = (bool)((const double&)p);
         break;
     case Parameter::String: {
         const std::string& pstr(p);
@@ -400,8 +399,9 @@ void PlanningParams::convertToBool(const Parameter& p, bool& val) const
             val = true;
         } else if (pstr == "false") {
             val = false;
+        } else {
+            throw ParameterException("Could not convert parameter string to bool");
         }
-        throw ParameterException("Could not convert parameter string to bool");
     }   break;
     default:
         throw ParameterException("Parameter is untyped");
@@ -413,17 +413,17 @@ void PlanningParams::convertToInt(const Parameter& p, int& val) const
 {
     switch (p.type()) {
     case Parameter::Bool:
-        val = (int)((bool&)p);
+        val = (int)((const bool&)p);
         break;
     case Parameter::Int:
-        val = ((int&)p);
+        val = ((const int&)p);
         break;
     case Parameter::Double:
-        val = (int)((double&)p);
+        val = (int)((const double&)p);
         break;
     case Parameter::String:
         try {
-            val = std::stoi((std::string&)p);
+            val = std::stoi((const std::string&)p);
         } catch (const std::exception& ex) {
             throw ParameterException("Failed to convert string to int");
         }
@@ -438,17 +438,17 @@ void PlanningParams::convertToDouble(const Parameter& p, double& val) const
 {
     switch (p.type()) {
     case Parameter::Bool:
-        val = (double)((bool&)p);
+        val = (double)((const bool&)p);
         break;
     case Parameter::Int:
-        val = (double)((int&)p);
+        val = (double)((const int&)p);
         break;
     case Parameter::Double:
-        val = ((double&)p);
+        val = ((const double&)p);
         break;
     case Parameter::String:
         try {
-            val = std::stod((std::string&)p);
+            val = std::stod((const std::string&)p);
         } catch (const std::exception& ex) {
             throw ParameterException("Failed to convert string to double");
         }
@@ -463,16 +463,16 @@ void PlanningParams::convertToString(const Parameter& p, std::string& val) const
 {
     switch (p.type()) {
     case Parameter::Bool:
-        val = ((bool&)p) ? "true" : "false";
+        val = ((const bool&)p) ? "true" : "false";
         break;
     case Parameter::Int:
-        val = std::to_string((int&)p);
+        val = std::to_string((const int&)p);
         break;
     case Parameter::Double:
-        val = std::to_string((double&)p);
+        val = std::to_string((const double&)p);
         break;
     case Parameter::String:
-        val = ((std::string&)p);
+        val = ((const std::string&)p);
         break;
     default:
         throw ParameterException("Parameter is untyped");
