@@ -318,14 +318,14 @@ struct PlannerConfig
 {
     std::string discretization;
     std::string mprim_filename;
-    std::string use_xyz_snap_mprim;
-    std::string use_rpy_snap_mprim;
-    std::string use_xyzrpy_snap_mprim;
-    std::string use_short_dist_mprims;
-    std::string xyz_snap_dist_thresh;
-    std::string rpy_snap_dist_thresh;
-    std::string xyzrpy_snap_dist_thresh;
-    std::string short_dist_mprims_thresh;
+    bool use_xyz_snap_mprim;
+    bool use_rpy_snap_mprim;
+    bool use_xyzrpy_snap_mprim;
+    bool use_short_dist_mprims;
+    double xyz_snap_dist_thresh;
+    double rpy_snap_dist_thresh;
+    double xyzrpy_snap_dist_thresh;
+    double short_dist_mprims_thresh;
 };
 
 bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
