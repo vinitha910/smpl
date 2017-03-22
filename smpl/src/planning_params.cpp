@@ -65,7 +65,7 @@ std::string to_string(ShortcutType type)
     }
 }
 
-Parameter::Parameter(const Parameter& o)
+Parameter::Parameter(const Parameter& o) : m_type(Type::Invalid)
 {
     copy(o);
 }
