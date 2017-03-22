@@ -43,7 +43,9 @@ SBPLPlannerPtr LARAPlannerAllocator::allocate(
 {
     const bool forward_search = true;
     auto search = std::make_shared<LazyARAPlanner>(pspace.get(), forward_search);
-    search->set_initialsolution_eps(pspace->params()->epsilon);
+    double epsilon;
+    pspace->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
     bool search_mode;
     pspace->params()->param("search_mode", search_mode, false);
     search->set_search_mode(search_mode);

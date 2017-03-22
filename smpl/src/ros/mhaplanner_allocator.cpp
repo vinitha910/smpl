@@ -52,7 +52,10 @@ SBPLPlannerPtr MHAPlannerAllocator::allocate(
     pspace->params()->param("epsilon_mha", mha_eps, 1.0);
     search->set_initial_mha_eps(mha_eps);
 
-    search->set_initialsolution_eps(pspace->params()->epsilon);
+    double epsilon;
+    pspace->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+
     bool search_mode;
     pspace->params()->param("search_mode", search_mode, false);
     search->set_search_mode(search_mode);

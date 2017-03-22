@@ -1700,7 +1700,6 @@ int main(int argc, char* argv[])
     smpl::PlannerInterface planner(rm.get(), cc.get(), &grid);
 
     smpl::PlanningParams params;
-    params.epsilon = 100.0;
     params.planning_frame = planning_frame;
 
     params.planning_link_sphere_radius = 0.02;
@@ -1715,6 +1714,8 @@ int main(int argc, char* argv[])
     params.addParam("rpy_snap_dist_thresh", planning_config.rpy_snap_dist_thresh);
     params.addParam("xyzrpy_snap_dist_thresh", planning_config.xyzrpy_snap_dist_thresh);
     params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
+
+    params.addParam("epsilon", 100.0);
 
     if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Planner Interface");

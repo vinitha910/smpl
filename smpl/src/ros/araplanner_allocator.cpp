@@ -44,7 +44,10 @@ SBPLPlannerPtr ARAPlannerAllocator::allocate(
 {
     const bool forward_search = true;
     auto search = std::make_shared<ARAStar>(pspace.get(), heuristic.get());
-    search->set_initialsolution_eps(pspace->params()->epsilon);
+
+    double epsilon;
+    pspace->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
 
     bool search_mode;
     pspace->params()->param("search_mode", search_mode, false);

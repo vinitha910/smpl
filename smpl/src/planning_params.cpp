@@ -221,8 +221,6 @@ PlanningParams::PlanningParams() :
 
     planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
-    epsilon(DefaultEpsilon),
-
     shortcut_path(DefaultShortcutPath),
     interpolate_path(DefaultInterpolatePath),
     shortcut_type(DefaultShortcutType),

@@ -160,8 +160,6 @@ bool PlannerInterface::init(const PlanningParams& params)
 
     ROS_INFO_NAMED(PI_LOGGER, "  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
 
-    ROS_INFO_NAMED(PI_LOGGER, "  Epsilon: %0.3f", params.epsilon);
-
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
     ROS_INFO_NAMED(PI_LOGGER, "  Interpolate Path: %s", params.interpolate_path ? "true" : "false");
@@ -293,10 +291,6 @@ bool PlannerInterface::checkParams(
     }
 
     // TODO: check for existence of planning joints in robot model
-
-    if (params.epsilon < 1.0) {
-        return false;
-    }
 
     if (params.cost_per_cell < 0) {
         return false;
@@ -515,14 +509,7 @@ bool PlannerInterface::plan(double allowed_time, std::vector<RobotState>& path)
     m_planner->force_planning_from_scratch();
 
     // plan
-    ReplanParams replan_params(allowed_time);
-    replan_params.initial_eps = m_params.epsilon;
-    replan_params.final_eps = 1.0;
-    replan_params.dec_eps = 0.2;
-    replan_params.return_first_solution = false;
-    // replan_params.max_time = m_params.allowed_time_;
-    replan_params.repair_time = 1.0;
-    b_ret = m_planner->replan(&solution_state_ids, replan_params, &m_sol_cost);
+    b_ret = m_planner->replan(allowed_time, &solution_state_ids, &m_sol_cost);
 
     // check if an empty plan was received.
     if (b_ret && solution_state_ids.size() <= 0) {

@@ -130,9 +130,6 @@ public:
     // heuristic parameters
     static constexpr double DefaultPlanningLinkSphereRadius = 0.08;
 
-    // search parameters
-    static constexpr double DefaultEpsilon = 10.0;
-
     // post processing parameters
     static const bool DefaultShortcutPath = false;
     static const bool DefaultInterpolatePath = false;
@@ -160,11 +157,6 @@ public:
     ///@{
     int cost_per_cell;             ///< uniform cost of cells in heuristic
     double planning_link_sphere_radius;
-    ///@}
-
-    /// \name Search
-    ///@{
-    double epsilon;
     ///@}
 
     /// \name Post-Processing
