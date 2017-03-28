@@ -129,10 +129,12 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
     // TODO: depth-first or post-traversal reordering to keep dependent
     // joints/links next to one another
 
+    m_joint_var_indices.emplace_back(0, 0);
     m_joint_transforms.push_back(ComputeFixedJointTransform);
     m_joint_origins.push_back(Eigen::Affine3d::Identity());
     m_joint_axes.push_back(Eigen::Vector3d::Zero());
     m_joint_parent_links.push_back(-1);
+    m_joint_types.push_back(JointType::FIXED);
 
     // breadth-first traversal of all links in the robot
     typedef std::pair<boost::shared_ptr<const urdf::Link>, int>
@@ -186,10 +188,13 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 }
             }
 
+            m_joint_var_indices.emplace_back(m_jvar_names.size(), 0);
+
             switch (joint->type) {
             case urdf::Joint::FIXED:
             {
                 m_joint_transforms.push_back(ComputeFixedJointTransform);
+                m_joint_types.push_back(FIXED);
             }   break;
             case urdf::Joint::REVOLUTE:
             {
@@ -198,6 +203,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(has_position_limit);
                 m_jvar_min_positions.push_back(min_position_limit);
                 m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
 
                 m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
 
@@ -213,6 +219,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 else {
                     m_joint_transforms.push_back(ComputeRevoluteJointTransform);
                 }
+                m_joint_types.push_back(REVOLUTE);
             }   break;
             case urdf::Joint::PRISMATIC:
             {
@@ -221,10 +228,12 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(has_position_limit);
                 m_jvar_min_positions.push_back(min_position_limit);
                 m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
 
                 m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputePrismaticJointTransform);
+                m_joint_types.push_back(PRISMATIC);
             }   break;
             case urdf::Joint::CONTINUOUS:
             {
@@ -233,6 +242,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(has_position_limit);
                 m_jvar_min_positions.push_back(min_position_limit);
                 m_jvar_max_positions.push_back(max_position_limit);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
 
                 m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
 
@@ -248,6 +258,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 else {
                     m_joint_transforms.push_back(ComputeRevoluteJointTransform);
                 }
+                m_joint_types.push_back(CONTINUOUS);
             }   break;
             case urdf::Joint::PLANAR:
             {
@@ -260,6 +271,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(false);
                 m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
                 m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/y";
@@ -268,6 +280,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(false);
                 m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
                 m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/theta";
@@ -276,9 +289,11 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(false);
                 m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
                 m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputePlanarJointTransform);
+                m_joint_types.push_back(PLANAR);
             }   break;
             case urdf::Joint::FLOATING:
             {
@@ -291,6 +306,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(false);
                 m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
                 m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/trans_y";
@@ -299,6 +315,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(false);
                 m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
                 m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/trans_z";
@@ -307,6 +324,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(false);
                 m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
                 m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/rot_x";
@@ -315,6 +333,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(true);
                 m_jvar_min_positions.push_back(-1.0);
                 m_jvar_max_positions.push_back(1.0);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/rot_y";
@@ -323,6 +342,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(true);
                 m_jvar_min_positions.push_back(-1.0);
                 m_jvar_max_positions.push_back(1.0);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/rot_z";
@@ -331,6 +351,7 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(true);
                 m_jvar_min_positions.push_back(-1.0);
                 m_jvar_max_positions.push_back(1.0);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 var_name = joint_name + "/rot_w";
@@ -339,9 +360,11 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 m_jvar_has_position_bounds.push_back(true);
                 m_jvar_min_positions.push_back(-1.0);
                 m_jvar_max_positions.push_back(1.0);
+                m_jvar_joint_indices.push_back(m_joint_transforms.size());
                 m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
 
                 m_joint_transforms.push_back(ComputeFloatingJointTransform);
+                m_joint_types.push_back(FLOATING);
             }   break;
             default:
             {
@@ -349,6 +372,8 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
                 return false;
             }   break;
             }
+
+            m_joint_var_indices.back().second = m_jvar_names.size();
 
             m_link_children_joints[lidx].push_back(m_joint_origins.size());
 
@@ -415,14 +440,16 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
     }
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Joints:");
     for (size_t jidx = 0; jidx < m_joint_origins.size(); ++jidx) {
-        ROS_DEBUG_NAMED(RCM_LOGGER, "    Origin: %s, Axis: (%0.3f, %0.3f, %0.3f), Transform Function: %p, Parent Link: %s, Child Link: %s",
+        ROS_DEBUG_NAMED(RCM_LOGGER, "    Origin: %s, Axis: (%0.3f, %0.3f, %0.3f), Transform Function: %p, Parent Link: %s, Child Link: %s, Joint Variables: [%d,%d)",
                 AffineToString(m_joint_origins[jidx]).c_str(),
                 m_joint_axes[jidx].x(),
                 m_joint_axes[jidx].y(),
                 m_joint_axes[jidx].z(),
                 m_joint_transforms[jidx],
                 (m_joint_parent_links[jidx] != -1) ? m_link_names[m_joint_parent_links[jidx]].c_str() : "(null)",
-                m_link_names[m_joint_child_links[jidx]].c_str());
+                m_link_names[m_joint_child_links[jidx]].c_str(),
+                m_joint_var_indices[jidx].first,
+                m_joint_var_indices[jidx].second);
     }
     ROS_DEBUG_NAMED(RCM_LOGGER, "  Links:");
     for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {

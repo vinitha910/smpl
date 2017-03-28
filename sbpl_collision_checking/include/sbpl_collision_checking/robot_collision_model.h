@@ -64,6 +64,16 @@ class RobotCollisionModel;
 typedef std::shared_ptr<RobotCollisionModel> RobotCollisionModelPtr;
 typedef std::shared_ptr<const RobotCollisionModel> RobotCollisionModelConstPtr;
 
+enum JointType
+{
+    FIXED,
+    REVOLUTE,
+    PRISMATIC,
+    CONTINUOUS,
+    PLANAR,
+    FLOATING
+};
+
 /// \brief Represents the collision model of the robot used for planning.
 class RobotCollisionModel
 {
@@ -100,6 +110,8 @@ public:
     bool   jointVarHasPositionBounds(int jidx) const;
     double jointVarMinPosition(int jidx) const;
     double jointVarMaxPosition(int jidx) const;
+
+    int    jointVarJointIndex(int vidx) const;
     ///@}
 
     /// \name Robot Model - Joint Information
@@ -112,6 +124,11 @@ public:
     auto   jointOrigin(int jidx) const -> const Eigen::Affine3d&;
     auto   jointAxis(int jidx) const -> const Eigen::Vector3d&;
     auto   jointTransformFn(int jidx) const -> JointTransformFunction;
+
+    int    jointVarIndexFirst(int jidx) const;
+    int    jointVarIndexLast(int jidx) const;
+
+    auto   jointType(int jidx) const -> JointType;
 
     bool   isDescendantJoint(int jidx, int pjidx) const;
     ///@}
@@ -176,6 +193,7 @@ private:
     std::vector<double>                     m_jvar_min_positions;
     std::vector<double>                     m_jvar_max_positions;
     hash_map<std::string, int>              m_jvar_name_to_index;
+    std::vector<int>                        m_jvar_joint_indices;
 
     std::vector<bool>                       m_desc_joint_matrix;
 
@@ -184,6 +202,8 @@ private:
     std::vector<JointTransformFunction>     m_joint_transforms;
     std::vector<int>                        m_joint_parent_links;
     std::vector<int>                        m_joint_child_links;
+    std::vector<std::pair<int, int>>        m_joint_var_indices;
+    std::vector<JointType>                  m_joint_types;
 
     std::vector<std::string>                m_link_names;
     std::vector<int>                        m_link_parent_joints;
@@ -350,6 +370,12 @@ double RobotCollisionModel::jointVarMaxPosition(
 }
 
 inline
+int RobotCollisionModel::jointVarJointIndex(int vidx) const
+{
+    return m_jvar_joint_indices[vidx];
+}
+
+inline
 bool RobotCollisionModel::jointVarIsContinuous(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_jvar_continuous, jidx);
@@ -416,6 +442,27 @@ JointTransformFunction RobotCollisionModel::jointTransformFn(int jidx) const
 {
     ASSERT_VECTOR_RANGE(m_joint_transforms, jidx);
     return m_joint_transforms[jidx];
+}
+
+inline
+int RobotCollisionModel::jointVarIndexFirst(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_var_indices, jidx);
+    return m_joint_var_indices[jidx].first;
+}
+
+inline
+int RobotCollisionModel::jointVarIndexLast(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_var_indices, jidx);
+    return m_joint_var_indices[jidx].second;
+}
+
+inline
+JointType RobotCollisionModel::jointType(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_types, jidx);
+    return m_joint_types[jidx];
 }
 
 inline
