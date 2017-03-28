@@ -47,7 +47,7 @@
 namespace sbpl {
 namespace collision {
 
-SBPL_CLASS_FORWARD(RobotCollisionMotionModel);
+SBPL_CLASS_FORWARD(RobotMotionCollisionModel);
 
 /// This class is responsible for on-the-fly linear interpolation of motions,
 /// given a desired number of evenly-spaced (in joint space) waypoints along the
@@ -85,11 +85,11 @@ struct MotionInterpolation
 /// determine any additional buffers required to guarantee safe motion between
 /// the two states. The robot is assumed to follow a linear motion between the
 /// initial and final states of the path.
-class RobotCollisionMotionModel
+class RobotMotionCollisionModel
 {
 public:
 
-    RobotCollisionMotionModel(const RobotCollisionModel* rcm);
+    RobotMotionCollisionModel(const RobotCollisionModel* rcm);
 
     const Eigen::Vector3d& motionCenter(int jidx) const;
     double motionRadius(int jidx) const;
@@ -143,13 +143,13 @@ private:
 };
 
 inline
-const Eigen::Vector3d& RobotCollisionMotionModel::motionCenter(int jidx) const
+const Eigen::Vector3d& RobotMotionCollisionModel::motionCenter(int jidx) const
 {
     return m_motion_centers[jidx];
 }
 
 inline
-double RobotCollisionMotionModel::motionRadius(int jidx) const
+double RobotMotionCollisionModel::motionRadius(int jidx) const
 {
     return m_motion_radii[jidx];
 }

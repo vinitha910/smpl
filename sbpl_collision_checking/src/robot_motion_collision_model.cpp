@@ -29,16 +29,14 @@
 
 /// \author Andrew Dornbush
 
-#include <sbpl_collision_checking/robot_collision_motion_model.h>
-
-// system includes
 #include <ros/console.h>
+#include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <smpl/angles.h>
 
 namespace sbpl {
 namespace collision {
 
-RobotCollisionMotionModel::RobotCollisionMotionModel(
+RobotMotionCollisionModel::RobotMotionCollisionModel(
     const RobotCollisionModel* rcm)
 :
     m_rcm(rcm),
@@ -253,7 +251,7 @@ RobotCollisionMotionModel::RobotCollisionMotionModel(
     m_motion_radii = std::move(motion_radii);
 }
 
-double RobotCollisionMotionModel::getMaxSphereMotion(
+double RobotMotionCollisionModel::getMaxSphereMotion(
     const motion::RobotState& start,
     const motion::RobotState& finish,
     const std::vector<int>& collision_joint_model_indices) const

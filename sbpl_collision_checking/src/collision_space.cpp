@@ -496,7 +496,7 @@ bool CollisionSpace::isStateToStateValid(
     const double res = 0.05;
 
     MotionInterpolation interp;
-    m_rcmm->fillMotionInterpolation(
+    m_rmcm->fillMotionInterpolation(
             start, finish,
             m_planning_joint_to_collision_model_indices, res,
             interp);
@@ -570,7 +570,7 @@ bool CollisionSpace::interpolatePath(
     const double res = 0.05;
 
     MotionInterpolation interp;
-    m_rcmm->fillMotionInterpolation(
+    m_rmcm->fillMotionInterpolation(
             start, finish,
             m_planning_joint_to_collision_model_indices, res,
             interp);
@@ -638,7 +638,7 @@ CollisionSpace::getVisualization(const std::string& type)
 CollisionSpace::CollisionSpace() :
     m_grid(),
     m_rcm(),
-    m_rcmm(),
+    m_rmcm(),
     m_abcm(),
     m_rcs(),
     m_abcs(),
@@ -722,7 +722,7 @@ bool CollisionSpace::init(
     m_group_name = group_name;
     m_gidx = m_rcm->groupIndex(m_group_name);
 
-    m_rcmm = std::make_shared<RobotCollisionMotionModel>(m_rcm.get());
+    m_rmcm = std::make_shared<RobotMotionCollisionModel>(m_rcm.get());
     m_abcm = std::make_shared<AttachedBodiesCollisionModel>(m_rcm.get()),
     m_rcs = std::make_shared<RobotCollisionState>(m_rcm.get());
     m_abcs = std::make_shared<AttachedBodiesCollisionState>(m_abcm.get(), m_rcs.get());

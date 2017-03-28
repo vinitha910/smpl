@@ -54,7 +54,7 @@
 #include <sbpl_collision_checking/allowed_collisions_interface.h>
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
-#include <sbpl_collision_checking/robot_collision_motion_model.h>
+#include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/self_collision_model.h>
 #include <sbpl_collision_checking/world_collision_model.h>
@@ -190,7 +190,7 @@ private:
     RobotCollisionModelConstPtr         m_rcm;
     AttachedBodiesCollisionModelPtr     m_abcm;
 
-    RobotCollisionMotionModelConstPtr   m_rcmm;
+    RobotMotionCollisionModelConstPtr   m_rmcm;
 
     RobotCollisionStatePtr          m_rcs;
     AttachedBodiesCollisionStatePtr m_abcs;
