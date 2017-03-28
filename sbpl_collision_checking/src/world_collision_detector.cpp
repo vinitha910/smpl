@@ -77,6 +77,53 @@ bool WorldCollisionDetector::checkCollision(
             checkAttachedBodySpheresStateCollisions(ab_state, gidx, dist);
 }
 
+bool WorldCollisionDetector::checkMotionCollision(
+    RobotCollisionState& state,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist) const
+{
+    const double res = 0.05;
+    MotionInterpolation interp;
+    rmcm.fillMotionInterpolation(start, finish, res, interp);
+
+    motion::RobotState interm;
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, interm);
+        state.setJointVarPositions(interm.data());
+        if (!checkCollision(state, gidx, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool WorldCollisionDetector::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist) const
+{
+    const double res = 0.05;
+    MotionInterpolation interp;
+    rmcm.fillMotionInterpolation(start, finish, res, interp);
+
+    motion::RobotState interm;
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, interm);
+        state.setJointVarPositions(interm.data());
+        if (!checkCollision(state, ab_state, gidx, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /// logical const, but not thread-safe, since it makes use of an internal
 /// stack to traverse the sphere tree hierarchy.
 bool WorldCollisionDetector::checkRobotSpheresStateCollisions(

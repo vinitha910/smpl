@@ -41,6 +41,7 @@
 // project includes
 #include <sbpl_collision_checking/world_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
+#include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
 
 namespace sbpl {
@@ -62,6 +63,23 @@ public:
     bool checkCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
+        const int gidx,
+        double& dist) const;
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist) const;
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
         const int gidx,
         double& dist) const;
 
