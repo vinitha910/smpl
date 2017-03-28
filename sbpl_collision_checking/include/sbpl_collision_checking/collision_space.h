@@ -119,8 +119,8 @@ public:
     const std::string& getGroupName() const;
 
     const RobotCollisionModelConstPtr&  robotCollisionModel() const;
-    const WorldCollisionModelConstPtr&  worldCollisionModel() const;
-    const SelfCollisionModelConstPtr&   selfCollisionModel() const;
+    WorldCollisionModelConstPtr  worldCollisionModel() const;
+    SelfCollisionModelConstPtr   selfCollisionModel() const;
 
     /// \name Visualization
     ///@{
@@ -266,13 +266,13 @@ const RobotCollisionModelConstPtr& CollisionSpace::robotCollisionModel() const
 }
 
 inline
-const WorldCollisionModelConstPtr& CollisionSpace::worldCollisionModel() const
+WorldCollisionModelConstPtr CollisionSpace::worldCollisionModel() const
 {
     return m_wcm;
 }
 
 inline
-const SelfCollisionModelConstPtr& CollisionSpace::selfCollisionModel() const
+SelfCollisionModelConstPtr CollisionSpace::selfCollisionModel() const
 {
     return m_scm;
 }
