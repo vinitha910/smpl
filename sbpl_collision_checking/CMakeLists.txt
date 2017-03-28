@@ -77,6 +77,7 @@ add_library(
     src/self_collision_model.cpp
     src/types.cpp
     src/voxel_operations.cpp
+    src/world_collision_detector.cpp
     src/world_collision_model.cpp)
 target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES})
 

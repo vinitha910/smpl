@@ -66,6 +66,9 @@ public:
         const WorldCollisionModelImpl& o,
         OccupancyGrid* grid);
 
+    OccupancyGrid* grid();
+    const OccupancyGrid* grid() const;
+
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
     bool moveShapes(const ObjectConstPtr& object);
@@ -83,17 +86,7 @@ public:
     visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
 
     void setPadding(double padding);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        const int gidx,
-        double& dist) const;
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        double& dist) const;
+    double padding() const;
 
 private:
 
@@ -107,17 +100,6 @@ private:
     std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
 
     double m_padding;
-
-    mutable std::vector<const CollisionSphereState*> m_vq;
-
-    bool checkRobotSpheresStateCollisions(
-        RobotCollisionState& state,
-        int gidx,
-        double& dist) const;
-    bool checkAttachedBodySpheresStateCollisions(
-        AttachedBodiesCollisionState& state,
-        int gidx,
-        double& dist) const;
 
     ////////////////////
     // Generic Shapes //
@@ -196,6 +178,16 @@ WorldCollisionModelImpl::WorldCollisionModelImpl(
     // differ, need to do a deep copy + revoxelization of the objects over just
     // a simple deep copy
     *grid = *m_grid;
+}
+
+OccupancyGrid* WorldCollisionModelImpl::grid()
+{
+    return m_grid;
+}
+
+const OccupancyGrid* WorldCollisionModelImpl::grid() const
+{
+    return m_grid;
 }
 
 bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
@@ -308,7 +300,8 @@ bool WorldCollisionModelImpl::processCollisionObject(
     }
 }
 
-bool WorldCollisionModelImpl::insertOctomap(const octomap_msgs::OctomapWithPose& octomap)
+bool WorldCollisionModelImpl::insertOctomap(
+    const octomap_msgs::OctomapWithPose& octomap)
 {
     if (!checkInsertOctomap(octomap)) {
         ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
@@ -388,72 +381,9 @@ void WorldCollisionModelImpl::setPadding(double padding)
     m_padding = padding;
 }
 
-bool WorldCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
-    const int gidx,
-    double& dist) const
+double WorldCollisionModelImpl::padding() const
 {
-    if (gidx < 0 || gidx >= state.model()->groupCount()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
-        return false;
-    }
-
-    return checkRobotSpheresStateCollisions(state, gidx, dist);
-}
-
-bool WorldCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
-    const int gidx,
-    double& dist) const
-{
-    if (gidx < 0 || gidx >= state.model()->groupCount() ||
-            gidx >= ab_state.model()->groupCount())
-    {
-        ROS_ERROR_NAMED(WCM_LOGGER, "World Collision Check is for non-existent group");
-        return false;
-    }
-
-    return checkRobotSpheresStateCollisions(state, gidx, dist) &&
-            checkAttachedBodySpheresStateCollisions(ab_state, gidx, dist);
-}
-
-/// logical const, but not thread-safe, since it makes use of an internal
-/// stack to traverse the sphere tree hierarchy.
-bool WorldCollisionModelImpl::checkRobotSpheresStateCollisions(
-    RobotCollisionState& state,
-    int gidx,
-    double& dist) const
-{
-    // TODO: refactor commonality with self collision model here
-    auto& q = m_vq;
-    q.clear();
-
-    for (const int ssidx : state.groupSpheresStateIndices(gidx)) {
-        const auto& ss = state.spheresState(ssidx);
-        const CollisionSphereState* s = ss.spheres.root();
-        q.push_back(s);
-    }
-
-    return CheckVoxelsCollisions(state, q, *m_grid, m_padding, dist);
-}
-
-bool WorldCollisionModelImpl::checkAttachedBodySpheresStateCollisions(
-    AttachedBodiesCollisionState& state,
-    int gidx,
-    double& dist) const
-{
-    // TODO: see note in checkRobotSpheresStateCollisions()
-    auto& q = m_vq;
-    q.clear();
-
-    for (const int ssidx : state.groupSpheresStateIndices(gidx)) {
-        const auto& ss = state.spheresState(ssidx);
-        const CollisionSphereState* s = ss.spheres.root();
-        q.push_back(s);
-    }
-
-    return CheckVoxelsCollisions(state, q, *m_grid, m_padding, dist);
+    return m_padding;
 }
 
 bool WorldCollisionModelImpl::haveObject(const std::string& name) const
@@ -790,6 +720,16 @@ WorldCollisionModel::~WorldCollisionModel()
 {
 }
 
+OccupancyGrid* WorldCollisionModel::grid()
+{
+    return m_impl->grid();
+}
+
+const OccupancyGrid* WorldCollisionModel::grid() const
+{
+    return m_impl->grid();
+}
+
 bool WorldCollisionModel::insertObject(const ObjectConstPtr& object)
 {
     return m_impl->insertObject(object);
@@ -854,21 +794,9 @@ void WorldCollisionModel::setPadding(double padding)
     return m_impl->setPadding(padding);
 }
 
-bool WorldCollisionModel::checkCollision(
-    RobotCollisionState& state,
-    const int gidx,
-    double& dist) const
+double WorldCollisionModel::padding() const
 {
-    return m_impl->checkCollision(state, gidx, dist);
-}
-
-bool WorldCollisionModel::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
-    const int gidx,
-    double& dist) const
-{
-    return m_impl->checkCollision(state, ab_state, gidx, dist);
+    return m_impl->padding();
 }
 
 } // namespace collision

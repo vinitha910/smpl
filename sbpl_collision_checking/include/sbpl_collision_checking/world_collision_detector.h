@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016, Andrew Dornbush
+// Copyright (c) 2017, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,75 +29,60 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_world_collision_model_h
-#define sbpl_collision_world_collision_model_h
+#ifndef SBPL_COLLISION_WORLD_COLLISION_DETECTOR_H
+#define SBPL_COLLISION_WORLD_COLLISION_DETECTOR_H
 
 // standard includes
-#include <memory>
-#include <string>
 #include <vector>
 
 // system includes
-#include <moveit_msgs/CollisionObject.h>
-#include <octomap_msgs/OctomapWithPose.h>
-#include <smpl/occupancy_grid.h>
-#include <shape_msgs/MeshTriangle.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <smpl/forward.h>
 
 // project includes
-#include <sbpl_collision_checking/attached_bodies_collision_state.h>
+#include <sbpl_collision_checking/world_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
-#include <sbpl_collision_checking/types.h>
+#include <sbpl_collision_checking/attached_bodies_collision_state.h>
 
 namespace sbpl {
 namespace collision {
 
-class WorldCollisionModelImpl;
+SBPL_CLASS_FORWARD(WorldCollisionDetector);
 
-class WorldCollisionModel
+class WorldCollisionDetector
 {
 public:
 
-    WorldCollisionModel(OccupancyGrid* grid);
-    WorldCollisionModel(const WorldCollisionModel& o, OccupancyGrid* grid);
+    WorldCollisionDetector(WorldCollisionModel* wcm);
 
-    ~WorldCollisionModel();
+    bool checkCollision(
+        RobotCollisionState& state,
+        const int gidx,
+        double& dist) const;
 
-    OccupancyGrid* grid();
-    const OccupancyGrid* grid() const;
-
-    bool insertObject(const ObjectConstPtr& object);
-    bool removeObject(const ObjectConstPtr& object);
-    bool moveShapes(const ObjectConstPtr& object);
-    bool insertShapes(const ObjectConstPtr& object);
-    bool removeShapes(const ObjectConstPtr& object);
-
-    bool processCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool insertOctomap(const octomap_msgs::OctomapWithPose& octomap);
-
-    bool removeObject(const std::string& object_name);
-
-    /// \brief Reset the underlying occupancy grid.
-    ///
-    /// Resets the WorldCollisionModel by clearing the underlying occupancy grid and
-    /// revoxelizing all of the managed objects.
-    void reset();
-
-    visualization_msgs::MarkerArray getWorldVisualization() const;
-    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
-
-    void setPadding(double padding);
-    double padding() const;
+    bool checkCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const int gidx,
+        double& dist) const;
 
 private:
 
-    std::unique_ptr<WorldCollisionModelImpl> m_impl;
+    WorldCollisionModel* m_wcm;
+
+    mutable std::vector<const CollisionSphereState*> m_vq;
+
+    bool checkRobotSpheresStateCollisions(
+        RobotCollisionState& state,
+        int gidx,
+        double& dist) const;
+
+    bool checkAttachedBodySpheresStateCollisions(
+        AttachedBodiesCollisionState& state,
+        int gidx,
+        double& dist) const;
 };
 
-typedef std::shared_ptr<WorldCollisionModel> WorldCollisionModelPtr;
-typedef std::shared_ptr<const WorldCollisionModel> WorldCollisionModelConstPtr;
+#endif
 
 } // namespace collision
 } // namespace sbpl
-
-#endif

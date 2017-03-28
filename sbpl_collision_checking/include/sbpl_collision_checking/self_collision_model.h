@@ -53,7 +53,7 @@ namespace collision {
 
 class SelfCollisionModelImpl;
 
-SBPL_CLASS_FORWARD(SelfCollisionModel)
+SBPL_CLASS_FORWARD(SelfCollisionModel);
 class SelfCollisionModel
 {
 public:
