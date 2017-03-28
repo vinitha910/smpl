@@ -1,5 +1,5 @@
 world_collision_model:
-  frame: odom_combined
+  frame_id: odom_combined
   size_x: 2.0
   size_y: 3.0
   size_z: 2.0
@@ -10,7 +10,7 @@ world_collision_model:
   max_distance_m: 0.6
 
 self_collision_model:
-  frame: base_footprint
+  frame_id: base_footprint
   size_x: 3.0
   size_y: 3.0
   size_z: 2.0
