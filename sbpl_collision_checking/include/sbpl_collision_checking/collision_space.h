@@ -54,6 +54,7 @@
 #include <sbpl_collision_checking/allowed_collisions_interface.h>
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/robot_collision_motion_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/self_collision_model.h>
 #include <sbpl_collision_checking/world_collision_model.h>
@@ -117,9 +118,9 @@ public:
 
     const std::string& getGroupName() const;
 
-    const RobotCollisionModelConstPtr& robotCollisionModel() const;
-    WorldCollisionModelConstPtr worldCollisionModel() const;
-    SelfCollisionModelConstPtr selfCollisionModel() const;
+    const RobotCollisionModelConstPtr&  robotCollisionModel() const;
+    const WorldCollisionModelConstPtr&  worldCollisionModel() const;
+    const SelfCollisionModelConstPtr&   selfCollisionModel() const;
 
     /// \name Visualization
     ///@{
@@ -155,7 +156,7 @@ public:
         const std::vector<double>& state,
         CollisionDetails& details);
 
-    /// \name Reimplemented Public Functions
+    /// \name Reimplemented Functions from CollisionChecker
     ///@{
     bool isStateValid(
         const motion::RobotState& state,
@@ -186,8 +187,11 @@ private:
 
     OccupancyGrid*                  m_grid;
 
-    RobotCollisionModelConstPtr     m_rcm;
-    AttachedBodiesCollisionModelPtr m_abcm;
+    RobotCollisionModelConstPtr         m_rcm;
+    AttachedBodiesCollisionModelPtr     m_abcm;
+
+    RobotCollisionMotionModelConstPtr   m_rcmm;
+
     RobotCollisionStatePtr          m_rcs;
     AttachedBodiesCollisionStatePtr m_abcs;
     std::vector<double>             m_joint_vars;
@@ -238,14 +242,6 @@ private:
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
 
-    bool checkAttachedObjectCollision(
-        bool verbose, bool visualize, double& dist);
-
-    double isValidLineSegment(
-        const std::vector<int>& a,
-        const std::vector<int>& b,
-        const int radius);
-
     friend class CollisionSpaceBuilder;
 };
 
@@ -270,13 +266,13 @@ const RobotCollisionModelConstPtr& CollisionSpace::robotCollisionModel() const
 }
 
 inline
-WorldCollisionModelConstPtr CollisionSpace::worldCollisionModel() const
+const WorldCollisionModelConstPtr& CollisionSpace::worldCollisionModel() const
 {
     return m_wcm;
 }
 
 inline
-SelfCollisionModelConstPtr CollisionSpace::selfCollisionModel() const
+const SelfCollisionModelConstPtr& CollisionSpace::selfCollisionModel() const
 {
     return m_scm;
 }

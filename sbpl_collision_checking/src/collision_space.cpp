@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <limits>
 #include <utility>
+#include <queue>
 
 // system includes
 #include <eigen_conversions/eigen_msg.h>
@@ -492,39 +493,36 @@ bool CollisionSpace::isStateToStateValid(
     int& num_checks,
     double &dist)
 {
+    const double res = 0.05;
+
+    MotionInterpolation interp;
+    m_rcmm->fillMotionInterpolation(
+            start, finish,
+            m_planning_joint_to_collision_model_indices, res,
+            interp);
+
     const bool verbose = false;
 
-    int inc_cc = 5;
-    double dist_temp = 0;
-    motion::RobotState start_norm(start);
-    motion::RobotState end_norm(finish);
-    std::vector<motion::RobotState> path;
-    dist = 100;
-    num_checks = 0;
-
-    if (!interpolatePath(start_norm, end_norm, path)) {
-        path_length = 0;
-        ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
-        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  start: %s", to_string(start_norm).c_str());
-        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  finish: %s", to_string(end_norm).c_str());
-        return false;
-    }
+    const int inc_cc = 5;
+    double dist_temp = std::numeric_limits<double>::infinity();
 
     // for debugging & statistical purposes
-    path_length = path.size();
+    path_length = interp.waypointCount();
+
+    motion::RobotState interm;
 
     // TODO: Looks like the idea here is to collision check the path starting at
     // the most coarse resolution (just the endpoints) and increasing the
     // granularity until all points are checked. This could probably be made
     // irrespective of the number of waypoints by bisecting the path and
     // checking the endpoints recursively.
-
-    // try to find collisions that might come later in the path earlier
-    if (int(path.size()) > inc_cc) {
+    if (interp.waypointCount() > inc_cc) {
+        // try to find collisions that might come later in the path earlier
         for (int i = 0; i < inc_cc; i++) {
-            for (size_t j = i; j < path.size(); j = j + inc_cc) {
+            for (size_t j = i; j < interp.waypointCount(); j = j + inc_cc) {
                 num_checks++;
-                if (!isStateValid(path[j], verbose, false, dist_temp)) {
+                interp.interpolate(j, m_planning_joint_to_collision_model_indices, interm);
+                if (!isStateValid(interm, verbose, false, dist_temp)) {
                     dist = dist_temp;
                     return false;
                 }
@@ -536,9 +534,10 @@ bool CollisionSpace::isStateToStateValid(
         }
     }
     else {
-        for (size_t i = 0; i < path.size(); i++) {
+        for (size_t i = 0; i < interp.waypointCount(); i++) {
             num_checks++;
-            if (!isStateValid(path[i], verbose, false, dist_temp)) {
+            interp.interpolate(i, m_planning_joint_to_collision_model_indices, interm);
+            if (!isStateValid(interm, verbose, false, dist_temp)) {
                 dist = dist_temp;
                 return false;
             }
@@ -561,54 +560,25 @@ bool CollisionSpace::interpolatePath(
             finish.size() == m_planning_joint_to_collision_model_indices.size());
 
     // check joint limits on the start and finish points
-    if (!(withinJointPositionLimits(start) &&
-            withinJointPositionLimits(finish)))
+    if (withinJointPositionLimits(start) ||
+        withinJointPositionLimits(finish))
     {
         ROS_ERROR_NAMED(CC_LOGGER, "Joint limits violated");
         return false;
     }
 
-    // compute distance traveled by each joint
-    std::vector<double> diffs(planningVariableCount(), 0.0);
-    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
-        if (isContinuous(vidx)) {
-            diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
-        }
-        else {
-            diffs[vidx] = finish[vidx] - start[vidx];
-        }
+    const double res = 0.05;
+
+    MotionInterpolation interp;
+    m_rcmm->fillMotionInterpolation(
+            start, finish,
+            m_planning_joint_to_collision_model_indices, res,
+            interp);
+    opath.resize(interp.waypointCount());
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, m_planning_joint_to_collision_model_indices, opath[i]);
     }
 
-    // compute the number of intermediate waypoints including start and end
-    int waypoint_count = 0;
-    for (size_t vidx = 0; vidx < planningVariableCount(); vidx++) {
-        int angle_waypoints = (int)(std::fabs(diffs[vidx]) / m_increments[vidx]) + 1;
-        waypoint_count = std::max(waypoint_count, angle_waypoints);
-    }
-    waypoint_count = std::max(waypoint_count, 2);
-
-    // fill intermediate waypoints
-    std::vector<motion::RobotState> path(
-            waypoint_count,
-            motion::RobotState(planningVariableCount(), 0.0));
-    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
-        for (size_t widx = 0; widx < waypoint_count; ++widx) {
-            double alpha = (double)widx / (double)(waypoint_count - 1);
-            double pos = start[vidx] + alpha * diffs[vidx];
-            path[widx][vidx] = pos;
-        }
-    }
-
-    // normalize output angles
-    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
-        if (isContinuous(vidx)) {
-            for (size_t widx = 0; widx < waypoint_count; ++widx) {
-                path[widx][vidx] = angles::normalize_angle(path[widx][vidx]);
-            }
-        }
-    }
-
-    opath = std::move(path);
     return true;
 }
 
@@ -668,6 +638,7 @@ CollisionSpace::getVisualization(const std::string& type)
 CollisionSpace::CollisionSpace() :
     m_grid(),
     m_rcm(),
+    m_rcmm(),
     m_abcm(),
     m_rcs(),
     m_abcs(),
@@ -675,8 +646,7 @@ CollisionSpace::CollisionSpace() :
     m_scm(),
     m_group_name(),
     m_gidx(-1),
-    m_planning_joint_to_collision_model_indices(),
-    m_increments()
+    m_planning_joint_to_collision_model_indices()
 {
 }
 
@@ -752,6 +722,7 @@ bool CollisionSpace::init(
     m_group_name = group_name;
     m_gidx = m_rcm->groupIndex(m_group_name);
 
+    m_rcmm = std::make_shared<RobotCollisionMotionModel>(m_rcm.get());
     m_abcm = std::make_shared<AttachedBodiesCollisionModel>(m_rcm.get()),
     m_rcs = std::make_shared<RobotCollisionState>(m_rcm.get());
     m_abcs = std::make_shared<AttachedBodiesCollisionState>(m_abcm.get(), m_rcs.get());
@@ -779,7 +750,6 @@ bool CollisionSpace::setPlanningJoints(
     // map planning joint indices to collision model indices
     m_planning_joint_to_collision_model_indices.resize(joint_names.size(), -1);
 
-    m_increments.resize(joint_names.size(), angles::to_radians(2.0));
     for (size_t i = 0; i < joint_names.size(); ++i) {
         const std::string& joint_name = joint_names[i];;
         int jidx = m_rcm->jointVarIndex(joint_name);
@@ -823,71 +793,6 @@ bool CollisionSpace::withinJointPositionLimits(
         }
     }
     return inside;
-}
-
-/// \brief TODO
-/// \return TODO
-bool CollisionSpace::checkAttachedObjectCollision(
-    bool verbose,
-    bool visualize,
-    double& dist)
-{
-    return true;
-}
-
-/// \brief Return the distance from a line segment to the nearest occupied cell
-double CollisionSpace::isValidLineSegment(
-    const std::vector<int>& a,
-    const std::vector<int>& b,
-    const int radius)
-{
-    leatherman::bresenham3d_param_t params;
-    int nXYZ[3], retvalue = 1;
-    double cell_val, min_dist = 100.0;
-    leatherman::CELL3V tempcell;
-    std::vector<leatherman::CELL3V>* pTestedCells = NULL;
-
-    //iterate through the points on the segment
-    leatherman::get_bresenham3d_parameters(a[0], a[1], a[2], b[0], b[1], b[2], &params);
-    do {
-        leatherman::get_current_point3d(&params, &(nXYZ[0]), &(nXYZ[1]), &(nXYZ[2]));
-
-        if (!m_grid->isInBounds(nXYZ[0], nXYZ[1], nXYZ[2]))
-            return 0;
-
-        cell_val = m_grid->getDistance(nXYZ[0], nXYZ[1], nXYZ[2]);
-        if (cell_val <= radius) {
-            if (pTestedCells == NULL)
-                return cell_val;   //return 0
-            else
-                retvalue = 0;
-        }
-
-        if (cell_val < min_dist)
-            min_dist = cell_val;
-
-        //insert the tested point
-        if (pTestedCells) {
-            if (cell_val <= radius) {
-                tempcell.bIsObstacle = true;
-            }
-            else {
-                tempcell.bIsObstacle = false;
-            }
-            tempcell.x = nXYZ[0];
-            tempcell.y = nXYZ[1];
-            tempcell.z = nXYZ[2];
-            pTestedCells->push_back(tempcell);
-        }
-    }
-    while (leatherman::get_next_point3d(&params));
-
-    if (retvalue) {
-        return min_dist;
-    }
-    else {
-        return 0;
-    }
 }
 
 CollisionSpacePtr CollisionSpaceBuilder::build(
