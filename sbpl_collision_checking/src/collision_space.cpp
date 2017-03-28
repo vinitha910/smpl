@@ -521,7 +521,7 @@ bool CollisionSpace::isStateToStateValid(
         for (int i = 0; i < inc_cc; i++) {
             for (size_t j = i; j < interp.waypointCount(); j = j + inc_cc) {
                 num_checks++;
-                interp.interpolate(j, m_planning_joint_to_collision_model_indices, interm);
+                interp.interpolate(j, interm);
                 if (!isStateValid(interm, verbose, false, dist_temp)) {
                     dist = dist_temp;
                     return false;
@@ -536,7 +536,7 @@ bool CollisionSpace::isStateToStateValid(
     else {
         for (size_t i = 0; i < interp.waypointCount(); i++) {
             num_checks++;
-            interp.interpolate(i, m_planning_joint_to_collision_model_indices, interm);
+            interp.interpolate(i, interm);
             if (!isStateValid(interm, verbose, false, dist_temp)) {
                 dist = dist_temp;
                 return false;
@@ -576,7 +576,7 @@ bool CollisionSpace::interpolatePath(
             interp);
     opath.resize(interp.waypointCount());
     for (int i = 0; i < interp.waypointCount(); ++i) {
-        interp.interpolate(i, m_planning_joint_to_collision_model_indices, opath[i]);
+        interp.interpolate(i, opath[i]);
     }
 
     return true;

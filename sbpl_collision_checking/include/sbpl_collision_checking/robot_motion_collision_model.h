@@ -64,14 +64,11 @@ struct MotionInterpolation
 
     int waypointCount() const { return waypoint_count; }
 
-    void interpolate(
-        int n,
-        const std::vector<int>& collision_model_joint_indices,
-        motion::RobotState& state)
+    void interpolate(int n, motion::RobotState& state)
     {
-        state.resize(collision_model_joint_indices.size());
+        state.resize(start.size());
         const double alpha = (double)n * waypoint_count_inv;
-        for (size_t vidx = 0; vidx < collision_model_joint_indices.size(); ++vidx) {
+        for (size_t vidx = 0; vidx < start.size(); ++vidx) {
             state[vidx] = start[vidx] + alpha * diffs[vidx];
         }
     }
@@ -96,42 +93,70 @@ public:
 
     double getMaxSphereMotion(
         const motion::RobotState& start,
+        const motion::RobotState& finish) const;
+
+    double getMaxSphereMotion(
+        const motion::RobotState& diff) const;
+
+    double getMaxSphereMotion(
+        const motion::RobotState& start,
         const motion::RobotState& finish,
-        const std::vector<int>& collision_model_joint_indices) const;
+        const std::vector<int>& variables) const;
+
+    double getMaxSphereMotion(
+        const motion::RobotState& diff,
+        const std::vector<int>& variables) const;
 
     void fillMotionInterpolation(
         const motion::RobotState& start,
         const motion::RobotState& finish,
-        const std::vector<int>& collision_model_joint_indices,
+        double res,
+        MotionInterpolation& motion) const
+    {
+        motion.start = start;
+        motion.diffs.resize(m_rcm->jointVarCount());
+        for (size_t vidx = 0; vidx < m_rcm->jointVarCount(); ++vidx) {
+            if (m_rcm->jointVarIsContinuous(vidx)) {
+                motion.diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
+            } else {
+                motion.diffs[vidx] = finish[vidx] - start[vidx];
+            }
+        }
+        double max_motion = getMaxSphereMotion(start, finish);
+        if (max_motion == 0.0) {
+            motion.waypoint_count = 0;
+        } else {
+            motion.waypoint_count = std::max(2, (int)std::ceil(max_motion / res) + 1);
+            motion.waypoint_count_inv = 1.0 / (double)(motion.waypoint_count - 1);
+        }
+    }
+
+    void fillMotionInterpolation(
+        const motion::RobotState& start,
+        const motion::RobotState& finish,
+        const std::vector<int>& variables,
         double res,
         MotionInterpolation& motion) const
     {
         motion.start = start;
 
-        motion.diffs.resize(start.size());
-
         // compute distance traveled by each joint
-        std::vector<double> diffs(collision_model_joint_indices.size(), 0.0);
-        for (size_t vidx = 0; vidx < collision_model_joint_indices.size(); ++vidx) {
+        motion.diffs.resize(start.size());
+        for (size_t vidx = 0; vidx < variables.size(); ++vidx) {
             if (m_rcm->jointVarIsContinuous(vidx)) {
                 motion.diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
-            }
-            else {
+            } else {
                 motion.diffs[vidx] = finish[vidx] - start[vidx];
             }
         }
 
-        double maxMotion =
-                getMaxSphereMotion(start, finish, collision_model_joint_indices);
-        int waypoint_count = 2;
-        if (maxMotion == 0.0) {
+        double max_motion = getMaxSphereMotion(start, finish, variables);
+        if (max_motion == 0.0) {
             motion.waypoint_count = 0;
             // waypoint_count_inv irrelevant
         } else {
-            double maxMotionInv = 1.0 / maxMotion;
-            waypoint_count = std::max(waypoint_count, (int)std::ceil(maxMotion / res) + 1);
-            motion.waypoint_count = waypoint_count;
-            motion.waypoint_count_inv = 1.0 / (double)(waypoint_count - 1);
+            motion.waypoint_count = std::max(2, (int)std::ceil(max_motion / res) + 1);
+            motion.waypoint_count_inv = 1.0 / (double)(motion.waypoint_count - 1);
         }
     }
 

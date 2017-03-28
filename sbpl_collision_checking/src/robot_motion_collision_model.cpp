@@ -253,17 +253,14 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
 
 double RobotMotionCollisionModel::getMaxSphereMotion(
     const motion::RobotState& start,
-    const motion::RobotState& finish,
-    const std::vector<int>& collision_joint_model_indices) const
+    const motion::RobotState& finish) const
 {
-    assert(start.size() == finish.size());
-    assert(start.size() == collision_joint_model_indices.size());
+    assert(start.size() == m_rcm->jointVarCount());
+    assert(finish.size() == m_rcm->jointVarCount());
 
     double motion = 0.0;
-    for (size_t i = 0; i < start.size(); ++i) {
-        int vidx = collision_joint_model_indices[i];
-
-        int jidx = m_rcm->jointVarJointIndex(vidx);
+    for (size_t i = 0; i < m_rcm->jointVarCount(); ++i) {
+        const int jidx = m_rcm->jointVarJointIndex(i);
 
         double dist = 0.0;
         switch (m_rcm->jointType(jidx)) {
@@ -279,6 +276,110 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             break;
         case JointType::PRISMATIC:
             dist = std::fabs(finish[i] - start[i]);
+            motion += dist;
+            break;
+        case JointType::PLANAR:
+        case JointType::FLOATING:
+            break;
+        }
+    }
+
+    return motion;
+}
+
+double RobotMotionCollisionModel::getMaxSphereMotion(
+    const motion::RobotState& diff) const
+{
+    assert(diff.size() == m_rcm->jointVarCount());
+
+    double motion = 0.0;
+    for (size_t i = 0; i < m_rcm->jointVarCount(); ++i) {
+        const int jidx = m_rcm->jointVarJointIndex(i);
+
+        double dist = 0.0;
+        switch (m_rcm->jointType(jidx)) {
+        case JointType::FIXED:
+            break;
+        case JointType::CONTINUOUS:
+        case JointType::REVOLUTE:
+            dist = std::fabs(diff[i]);
+            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            break;
+        case JointType::PRISMATIC:
+            dist = std::fabs(diff[i]);
+            motion += dist;
+            break;
+        case JointType::PLANAR:
+        case JointType::FLOATING:
+            break;
+        }
+    }
+
+    return motion;
+}
+
+/// Return an upper bound on the distance any sphere might travel given the
+/// motion of a subset of joints.
+double RobotMotionCollisionModel::getMaxSphereMotion(
+    const motion::RobotState& start,
+    const motion::RobotState& finish,
+    const std::vector<int>& variables) const
+{
+    assert(start.size() == finish.size());
+    assert(start.size() == variables.size());
+
+    double motion = 0.0;
+    for (size_t i = 0; i < start.size(); ++i) {
+        const int vidx = variables[i];
+        const int jidx = m_rcm->jointVarJointIndex(vidx);
+
+        double dist = 0.0;
+        switch (m_rcm->jointType(jidx)) {
+        case JointType::FIXED:
+            break;
+        case JointType::CONTINUOUS:
+            dist = angles::shortest_angle_dist(finish[i], start[i]);
+            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            break;
+        case JointType::REVOLUTE:
+            dist = std::fabs(finish[i] - start[i]);
+            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            break;
+        case JointType::PRISMATIC:
+            dist = std::fabs(finish[i] - start[i]);
+            motion += dist;
+            break;
+        case JointType::PLANAR:
+        case JointType::FLOATING:
+            break;
+        }
+    }
+
+    return motion;
+}
+
+double RobotMotionCollisionModel::getMaxSphereMotion(
+    const motion::RobotState& diff,
+    const std::vector<int>& variables) const
+{
+    assert(diff.size() == variables.size());
+
+    double motion = 0.0;
+    for (size_t i = 0; i < diff.size(); ++i) {
+        const int vidx = variables[i];
+        const int jidx = m_rcm->jointVarJointIndex(vidx);
+
+        double dist = 0.0;
+        switch (m_rcm->jointType(jidx)) {
+        case JointType::FIXED:
+            break;
+        case JointType::CONTINUOUS:
+        case JointType::REVOLUTE:
+            dist = std::fabs(diff[i]);
+            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            break;
+        case JointType::PRISMATIC:
+            dist = std::fabs(diff[i]);
             motion += dist;
             break;
         case JointType::PLANAR:
