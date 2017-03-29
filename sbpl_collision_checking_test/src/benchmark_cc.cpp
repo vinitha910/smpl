@@ -1454,6 +1454,8 @@ int main(int argc, char *argv[])
             ROS_INFO("checks / second: %g", res.check_count / time_limit);
             ROS_INFO("seconds / check: %g", time_limit / res.check_count);
         }
+    } else if (0 == strcmp(cmd, "load")) {
+        return 0;
     }
 
     return 0;
