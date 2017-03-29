@@ -605,7 +605,7 @@ const CollisionVoxelsModel& RobotCollisionModel::voxelsModel(int vmidx) const
 inline
 int RobotCollisionModel::linkSpheresModelIndex(int lidx) const
 {
-    ASSERT_VECTOR_RANGE(m_link_spheres_states, lidx);
+    ASSERT_VECTOR_RANGE(m_link_spheres_models, lidx);
     const CollisionSpheresModel* ss = m_link_spheres_models[lidx];
     if (ss) {
         return std::distance(m_spheres_models.data(), ss);
