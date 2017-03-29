@@ -76,6 +76,25 @@ public:
         const int gidx,
         double& dist);
 
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
     double collisionDistance(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
@@ -149,9 +168,9 @@ private:
         const AttachedBodiesCollisionState& ab_state,
         const int gidx) const;
 
-    void prepareState(int gidx, const RobotCollisionState& state);
+    void prepareState(int gidx, const double* state);
     void updateGroup(int gidx);
-    void copyState(const RobotCollisionState& state);
+    void copyState(const double* state);
     void updateVoxelsStates();
 
     // update the state of outside-group voxels and check for collisions between
@@ -319,7 +338,7 @@ bool SelfCollisionModelImpl::checkCommonInputs(
 /// Prepare internal collision states with a query state and group
 void SelfCollisionModelImpl::prepareState(
     int gidx,
-    const RobotCollisionState& state)
+    const double* state)
 {
     updateGroup(gidx);
     copyState(state);
@@ -395,7 +414,7 @@ bool SelfCollisionModelImpl::checkCollision(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -419,7 +438,7 @@ bool SelfCollisionModelImpl::checkCollision(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -432,6 +451,55 @@ bool SelfCollisionModelImpl::checkCollision(
     return true;
 }
 
+bool SelfCollisionModelImpl::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    const double res = 0.05;
+    MotionInterpolation interp;
+    rmcm.fillMotionInterpolation(start, finish, res, interp);
+
+    motion::RobotState interm;
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, interm);
+        state.setJointVarPositions(interm.data());
+        if (!checkCollision(state, ab_state, gidx, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    const double res = 0.05;
+    MotionInterpolation interp;
+    rmcm.fillMotionInterpolation(start, finish, res, interp);
+
+    motion::RobotState interm;
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, interm);
+        state.setJointVarPositions(interm.data());
+        if (!checkCollision(state, ab_state, aci, gidx, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 double SelfCollisionModelImpl::collisionDistance(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
@@ -441,7 +509,7 @@ double SelfCollisionModelImpl::collisionDistance(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     double tmp;
 
@@ -472,7 +540,7 @@ double SelfCollisionModelImpl::collisionDistance(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     double tmp;
 
@@ -503,7 +571,7 @@ bool SelfCollisionModelImpl::collisionDetails(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
@@ -526,7 +594,7 @@ bool SelfCollisionModelImpl::collisionDetails(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     double dist;
     details.voxels_collision_count = 0;
@@ -691,9 +759,9 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     updateCheckedSpheresIndices();
 }
 
-void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
+void SelfCollisionModelImpl::copyState(const double* state)
 {
-    m_rcs.setJointVarPositions(state.getJointVarPositions());
+    m_rcs.setJointVarPositions(state);
 }
 
 /// Lazily update the state of the occupancy grid, representing areas filled by
@@ -1740,6 +1808,31 @@ bool SelfCollisionModel::checkCollision(
     double& dist)
 {
     return m_impl->checkCollision(state, ab_state, aci, gidx, dist);
+}
+
+bool SelfCollisionModel::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    return m_impl->checkMotionCollision(state, ab_state, rmcm, start, finish, gidx, dist);
+}
+
+bool SelfCollisionModel::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    return m_impl->checkMotionCollision(state, ab_state, aci, rmcm, start, finish, gidx, dist);
 }
 
 double SelfCollisionModel::collisionDistance(

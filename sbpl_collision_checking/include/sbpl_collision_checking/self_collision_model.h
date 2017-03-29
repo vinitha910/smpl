@@ -45,6 +45,7 @@
 #include <sbpl_collision_checking/attached_bodies_collision_model.h>
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/types.h>
 
@@ -83,6 +84,25 @@ public:
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
+        const int gidx,
+        double& dist);
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
         const int gidx,
         double& dist);
 
