@@ -142,9 +142,8 @@ public:
     int    linkIndex(const std::string& link_name) const;
     auto   linkName(int lidx) const -> const std::string&;
 
-    int   linkParentJointIndex(int lidx) const;
-    auto  linkChildJointIndices(int lidx) const ->
-            const std::vector<int>&;
+    int    linkParentJointIndex(int lidx) const;
+    auto   linkChildJointIndices(int lidx) const -> const std::vector<int>&;
     ///@}
 
     /// \name Collision Model
@@ -171,8 +170,7 @@ public:
 
     auto   groupLinkIndices(const std::string& group_name) const ->
             const std::vector<int>&;
-    auto   groupLinkIndices(int gidx) const ->
-            const std::vector<int>&;
+    auto   groupLinkIndices(int gidx) const -> const std::vector<int>&;
 
     double maxLeafSphereRadius() const;
     double maxSphereRadius() const;
@@ -187,6 +185,7 @@ private:
     ///@{
     std::string                             m_name;
     std::string                             m_model_frame;
+
     std::vector<std::string>                m_jvar_names;
     std::vector<bool>                       m_jvar_continuous;
     std::vector<bool>                       m_jvar_has_position_bounds;
@@ -195,15 +194,16 @@ private:
     hash_map<std::string, int>              m_jvar_name_to_index;
     std::vector<int>                        m_jvar_joint_indices;
 
-    std::vector<bool>                       m_desc_joint_matrix;
-
+    std::vector<std::string>                m_joint_names;
     Affine3dVector                          m_joint_origins;
     std::vector<Eigen::Vector3d>            m_joint_axes;
+    std::vector<std::pair<int, int>>        m_joint_var_indices;
     std::vector<JointTransformFunction>     m_joint_transforms;
+    std::vector<JointType>                  m_joint_types;
     std::vector<int>                        m_joint_parent_links;
     std::vector<int>                        m_joint_child_links;
-    std::vector<std::pair<int, int>>        m_joint_var_indices;
-    std::vector<JointType>                  m_joint_types;
+
+    std::vector<bool>                       m_desc_joint_matrix;
 
     std::vector<std::string>                m_link_names;
     std::vector<int>                        m_link_parent_joints;
@@ -242,7 +242,24 @@ private:
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
-    bool initRobotModel(const urdf::ModelInterface& urdf);
+    // this function will take care of appending joint information independent
+    // of the type of joint including, name, origin, axis, and offsets into
+    // joint variable array
+    void addJoint(const urdf::Joint& joint);
+
+    // each of these functions is responsible for appending its corresponding
+    // per-variable names, flags, and bounds, the type of the joint, and the
+    // function used for computing joint transforms
+    void addFixedJoint(const urdf::Joint& joint);
+    void addRevoluteJoint(const urdf::Joint& joint);
+    void addPrismaticJoint(const urdf::Joint& joint);
+    void addContinuousJoint(const urdf::Joint& joint);
+    void addPlanarJoint(const urdf::Joint& joint);
+    void addFloatingJoint(const urdf::Joint& joint);
+
+    bool initRobotModel(
+        const urdf::ModelInterface& urdf,
+        const WorldJointConfig& config);
     bool initCollisionModel(
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);

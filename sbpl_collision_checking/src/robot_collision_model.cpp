@@ -104,7 +104,7 @@ bool RobotCollisionModel::init(
     const CollisionModelConfig& config)
 {
     bool success = true;
-    success = success && initRobotModel(urdf);
+    success = success && initRobotModel(urdf, config.world_joint);
     success = success && initCollisionModel(urdf, config);
 
     if (success) {
@@ -114,7 +114,9 @@ bool RobotCollisionModel::init(
     return success;
 }
 
-bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
+bool RobotCollisionModel::initRobotModel(
+    const urdf::ModelInterface& urdf,
+    const WorldJointConfig& config)
 {
     m_name = urdf.getName();
 
@@ -129,12 +131,27 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
     // TODO: depth-first or post-traversal reordering to keep dependent
     // joints/links next to one another
 
-    m_joint_var_indices.emplace_back(0, 0);
-    m_joint_transforms.push_back(ComputeFixedJointTransform);
-    m_joint_origins.push_back(Eigen::Affine3d::Identity());
-    m_joint_axes.push_back(Eigen::Vector3d::Zero());
+    urdf::Joint world_joint;
+    world_joint.child_link_name = root_link->name;
+    world_joint.name = config.name;
+    world_joint.parent_to_joint_origin_transform.position =
+            urdf::Vector3(0.0, 0.0, 0.0);
+    world_joint.parent_to_joint_origin_transform.rotation =
+            urdf::Rotation(0.0, 0.0, 0.0, 1.0);
+    world_joint.axis = urdf::Vector3(0.0, 0.0, 0.0);
+    if (config.type == "floating") {
+        world_joint.type = urdf::Joint::FLOATING;
+    } else if (config.type == "planar") {
+        world_joint.type = urdf::Joint::PLANAR;
+    } else if (config.type == "fixed") {
+        world_joint.type = urdf::Joint::FIXED;
+    } else {
+        ROS_ERROR("World joint config has invalid type");
+        return false;
+    }
+    addJoint(world_joint);
+
     m_joint_parent_links.push_back(-1);
-    m_joint_types.push_back(JointType::FIXED);
 
     // breadth-first traversal of all links in the robot
     typedef std::pair<boost::shared_ptr<const urdf::Link>, int>
@@ -143,12 +160,10 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
     std::queue<link_parent_joint_idx_pair> links;
     links.push(std::make_pair(root_link, 0));
 
-    std::vector<std::string> joint_names;
     while (!links.empty()) {
         boost::shared_ptr<const urdf::Link> link;
         int parent_joint_idx;
         std::tie(link, parent_joint_idx) = links.front();
-
         links.pop();
 
         m_link_names.push_back(link->name);
@@ -159,247 +174,41 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
 
         m_link_children_joints.push_back(std::vector<int>());
 
-        // for each joint
         for (const auto& joint : link->child_joints) {
-            const std::string& joint_name = joint->name;
+            addJoint(*joint);
 
-            joint_names.push_back(joint_name);
-
-            auto limits = joint->limits;
-
-            double min_position_limit = std::numeric_limits<double>::lowest();
-            double max_position_limit = std::numeric_limits<double>::max();
-            bool has_position_limit = false;
-            bool continuous = (joint->type == urdf::Joint::CONTINUOUS);
-
-            urdf::Pose origin = joint->parent_to_joint_origin_transform;
-            urdf::Vector3 axis = joint->axis;
-
-            if (limits) {
-                has_position_limit = true;
-                auto safety = joint->safety;
-                if (safety) {
-                    min_position_limit = safety->soft_lower_limit;
-                    max_position_limit = safety->soft_upper_limit;
-                }
-                else {
-                    min_position_limit = limits->lower;
-                    max_position_limit = limits->upper;
-                }
-            }
-
-            m_joint_var_indices.emplace_back(m_jvar_names.size(), 0);
-
-            switch (joint->type) {
-            case urdf::Joint::FIXED:
-            {
-                m_joint_transforms.push_back(ComputeFixedJointTransform);
-                m_joint_types.push_back(FIXED);
-            }   break;
-            case urdf::Joint::REVOLUTE:
-            {
-                m_jvar_names.push_back(joint_name);
-                m_jvar_continuous.push_back(continuous);
-                m_jvar_has_position_bounds.push_back(has_position_limit);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-
-                m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
-
-                if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
-                }
-                else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransformY);
-                }
-                else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransformZ);
-                }
-                else {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransform);
-                }
-                m_joint_types.push_back(REVOLUTE);
-            }   break;
-            case urdf::Joint::PRISMATIC:
-            {
-                m_jvar_names.push_back(joint_name);
-                m_jvar_continuous.push_back(continuous);
-                m_jvar_has_position_bounds.push_back(has_position_limit);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-
-                m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
-
-                m_joint_transforms.push_back(ComputePrismaticJointTransform);
-                m_joint_types.push_back(PRISMATIC);
-            }   break;
-            case urdf::Joint::CONTINUOUS:
-            {
-                m_jvar_names.push_back(joint_name);
-                m_jvar_continuous.push_back(continuous);
-                m_jvar_has_position_bounds.push_back(has_position_limit);
-                m_jvar_min_positions.push_back(min_position_limit);
-                m_jvar_max_positions.push_back(max_position_limit);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-
-                m_jvar_name_to_index[joint_name] = m_jvar_names.size() - 1;
-
-                if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
-                }
-                else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransformY);
-                }
-                else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransformZ);
-                }
-                else {
-                    m_joint_transforms.push_back(ComputeRevoluteJointTransform);
-                }
-                m_joint_types.push_back(CONTINUOUS);
-            }   break;
-            case urdf::Joint::PLANAR:
-            {
-                // NOTE: local joint variable names follow moveit conventions
-                std::string var_name;
-
-                var_name = joint_name + "/x";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/y";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/theta";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(true);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                m_joint_transforms.push_back(ComputePlanarJointTransform);
-                m_joint_types.push_back(PLANAR);
-            }   break;
-            case urdf::Joint::FLOATING:
-            {
-                // NOTE: local joint variable names follow moveit conventions
-                std::string var_name;
-
-                var_name = joint_name + "/trans_x";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/trans_y";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/trans_z";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(true);
-                m_jvar_has_position_bounds.push_back(false);
-                m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
-                m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/rot_x";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(true);
-                m_jvar_min_positions.push_back(-1.0);
-                m_jvar_max_positions.push_back(1.0);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/rot_y";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(false);
-                m_jvar_has_position_bounds.push_back(true);
-                m_jvar_min_positions.push_back(-1.0);
-                m_jvar_max_positions.push_back(1.0);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/rot_z";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(true);
-                m_jvar_has_position_bounds.push_back(true);
-                m_jvar_min_positions.push_back(-1.0);
-                m_jvar_max_positions.push_back(1.0);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                var_name = joint_name + "/rot_w";
-                m_jvar_names.push_back(var_name);
-                m_jvar_continuous.push_back(true);
-                m_jvar_has_position_bounds.push_back(true);
-                m_jvar_min_positions.push_back(-1.0);
-                m_jvar_max_positions.push_back(1.0);
-                m_jvar_joint_indices.push_back(m_joint_transforms.size());
-                m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
-
-                m_joint_transforms.push_back(ComputeFloatingJointTransform);
-                m_joint_types.push_back(FLOATING);
-            }   break;
-            default:
-            {
-                ROS_ERROR_NAMED(RCM_LOGGER, "Unknown joint type encountered");
-                return false;
-            }   break;
-            }
-
-            m_joint_var_indices.back().second = m_jvar_names.size();
-
-            m_link_children_joints[lidx].push_back(m_joint_origins.size());
-
-            m_joint_origins.push_back(poseUrdfToEigen(origin));
-            m_joint_axes.push_back(Eigen::Vector3d(axis.x, axis.y, axis.z));
+            m_link_children_joints[lidx].push_back(m_joint_names.size() - 1);
 
             m_joint_parent_links.push_back(lidx);
 
-            // NOTE: can't push child link indices here since we don't yet know
-            // what those indices will be, at least not without some effort
+            // NOTE: can't map joint to child link indices here since we don't
+            // yet know what those indices will be
 
             // push the child link onto the queue
             auto child_link = urdf.getLink(joint->child_link_name);
-            links.push(std::make_pair(child_link, m_joint_axes.size() - 1));
+            links.push(std::make_pair(child_link, m_joint_names.size() - 1));
         }
     }
 
-    auto get_jidx = [&](const std::string& joint_name) {
-        auto it = std::find(joint_names.begin(), joint_names.end(), joint_name);
-        return std::distance(joint_names.begin(), it);
+    auto get_jidx = [&](const std::string& joint_name)
+    {
+        auto it = std::find(m_joint_names.begin(), m_joint_names.end(), joint_name);
+        return std::distance(m_joint_names.begin(), it);
     };
 
-    m_desc_joint_matrix.resize(joint_names.size() * joint_names.size(), false);
-    for (const std::string& joint_name : joint_names) {
+    m_desc_joint_matrix.resize(m_joint_names.size() * m_joint_names.size(), false);
+    for (const std::string& joint_name : m_joint_names) {
         int jidx = get_jidx(joint_name);
         auto joint = urdf.getJoint(joint_name);
+
+        if (!joint) {
+            // skip the world joint, not found in the urdf
+            continue;
+        }
+
+        // every joint is descendant from the world joint
+        m_desc_joint_matrix[jidx * m_joint_names.size()] = true;
+
         while (joint) {
             // get the parent joint
             auto plink = urdf.getLink(joint->parent_link_name);
@@ -407,14 +216,14 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
             if (joint) {
                 // set an entry
                 int pjidx = get_jidx(joint->name);
-                m_desc_joint_matrix[jidx * joint_names.size() + pjidx] = true;
+                m_desc_joint_matrix[jidx * m_joint_names.size() + pjidx] = true;
             }
         }
     }
 
     // map joint -> child link
-    m_joint_child_links.resize(m_joint_transforms.size());
-    for (size_t lidx = 0; lidx < m_link_parent_joints.size(); ++lidx) {
+    m_joint_child_links.resize(m_joint_names.size());
+    for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {
         int pjidx = m_link_parent_joints[lidx];
         m_joint_child_links[pjidx] = lidx;
     }
@@ -461,6 +270,235 @@ bool RobotCollisionModel::initRobotModel(const urdf::ModelInterface& urdf)
     }
 
     return true;
+}
+
+void RobotCollisionModel::addJoint(const urdf::Joint& joint)
+{
+    m_joint_names.push_back(joint.name);
+    m_joint_origins.push_back(
+            poseUrdfToEigen(joint.parent_to_joint_origin_transform));
+    m_joint_axes.push_back(
+            Eigen::Vector3d(joint.axis.x, joint.axis.y, joint.axis.z));
+
+    m_joint_var_indices.emplace_back(m_jvar_names.size(), 0);
+
+    switch (joint.type) {
+    case urdf::Joint::FIXED: {
+        addFixedJoint(joint);
+    }   break;
+    case urdf::Joint::REVOLUTE: {
+        addRevoluteJoint(joint);
+    }   break;
+    case urdf::Joint::PRISMATIC: {
+        addPrismaticJoint(joint);
+    }   break;
+    case urdf::Joint::CONTINUOUS: {
+        addContinuousJoint(joint);
+    }   break;
+    case urdf::Joint::PLANAR: {
+        addPlanarJoint(joint);
+    }   break;
+    case urdf::Joint::FLOATING: {
+        addFloatingJoint(joint);
+    }   break;
+    default: {
+        ROS_ERROR_NAMED(RCM_LOGGER, "Unknown joint type encountered");
+    }   break;
+    }
+
+    m_joint_var_indices.back().second = m_jvar_names.size();
+}
+
+void RobotCollisionModel::addFixedJoint(const urdf::Joint& joint)
+{
+    m_joint_transforms.push_back(ComputeFixedJointTransform);
+    m_joint_types.push_back(FIXED);
+}
+
+void RobotCollisionModel::addRevoluteJoint(const urdf::Joint& joint)
+{
+    m_jvar_names.push_back(joint.name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back((bool)joint.limits);
+
+    if (joint.safety) {
+        m_jvar_min_positions.push_back(joint.safety->soft_lower_limit);
+        m_jvar_max_positions.push_back(joint.safety->soft_upper_limit);
+    } else {
+        m_jvar_min_positions.push_back(joint.limits->lower);
+        m_jvar_max_positions.push_back(joint.limits->upper);
+    }
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+
+    m_jvar_name_to_index[joint.name] = m_jvar_names.size() - 1;
+
+    m_joint_types.push_back(REVOLUTE);
+    const urdf::Vector3& axis = joint.axis;
+    if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
+    } else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransformY);
+    } else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransformZ);
+    } else {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransform);
+    }
+}
+
+void RobotCollisionModel::addPrismaticJoint(const urdf::Joint& joint)
+{
+    m_jvar_names.push_back(joint.name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back((bool)joint.limits);
+
+    if (joint.safety) {
+        m_jvar_min_positions.push_back(joint.safety->soft_lower_limit);
+        m_jvar_max_positions.push_back(joint.safety->soft_upper_limit);
+    } else {
+        m_jvar_min_positions.push_back(joint.limits->lower);
+        m_jvar_max_positions.push_back(joint.limits->upper);
+    }
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+
+    m_jvar_name_to_index[joint.name] = m_jvar_names.size() - 1;
+
+    m_joint_types.push_back(PRISMATIC);
+    m_joint_transforms.push_back(ComputePrismaticJointTransform);
+}
+
+void RobotCollisionModel::addContinuousJoint(const urdf::Joint& joint)
+{
+    m_jvar_names.push_back(joint.name);
+    m_jvar_continuous.push_back(true);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+
+    m_jvar_name_to_index[joint.name] = m_jvar_names.size() - 1;
+
+    m_joint_types.push_back(CONTINUOUS);
+    const urdf::Vector3& axis = joint.axis;
+    if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
+    }
+    else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransformY);
+    }
+    else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransformZ);
+    }
+    else {
+        m_joint_transforms.push_back(ComputeRevoluteJointTransform);
+    }
+}
+
+void RobotCollisionModel::addPlanarJoint(const urdf::Joint& joint)
+{
+    // NOTE: local joint variable names follow moveit conventions
+    std::string var_name;
+
+    var_name = joint.name + "/x";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/y";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/theta";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(true);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    m_joint_types.push_back(PLANAR);
+    m_joint_transforms.push_back(ComputePlanarJointTransform);
+}
+
+void RobotCollisionModel::addFloatingJoint(const urdf::Joint& joint)
+{
+    // NOTE: local joint variable names follow moveit conventions
+    std::string var_name;
+
+    var_name = joint.name + "/trans_x";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/trans_y";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/trans_z";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(true);
+    m_jvar_has_position_bounds.push_back(false);
+    m_jvar_min_positions.push_back(-std::numeric_limits<double>::infinity());
+    m_jvar_max_positions.push_back(std::numeric_limits<double>::infinity());
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/rot_x";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back(true);
+    m_jvar_min_positions.push_back(-1.0);
+    m_jvar_max_positions.push_back(1.0);
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/rot_y";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(false);
+    m_jvar_has_position_bounds.push_back(true);
+    m_jvar_min_positions.push_back(-1.0);
+    m_jvar_max_positions.push_back(1.0);
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/rot_z";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(true);
+    m_jvar_has_position_bounds.push_back(true);
+    m_jvar_min_positions.push_back(-1.0);
+    m_jvar_max_positions.push_back(1.0);
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    var_name = joint.name + "/rot_w";
+    m_jvar_names.push_back(var_name);
+    m_jvar_continuous.push_back(true);
+    m_jvar_has_position_bounds.push_back(true);
+    m_jvar_min_positions.push_back(-1.0);
+    m_jvar_max_positions.push_back(1.0);
+    m_jvar_joint_indices.push_back(m_joint_transforms.size());
+    m_jvar_name_to_index[var_name] = m_jvar_names.size() - 1;
+
+    m_joint_types.push_back(FLOATING);
+    m_joint_transforms.push_back(ComputeFloatingJointTransform);
 }
 
 bool RobotCollisionModel::initCollisionModel(

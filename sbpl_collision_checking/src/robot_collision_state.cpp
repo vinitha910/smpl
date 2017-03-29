@@ -63,13 +63,15 @@ bool RobotCollisionState::setJointVarPosition(int vidx, double position)
         ROS_DEBUG_NAMED(RCS_LOGGER, "Setting joint position of joint %d to %0.3f", vidx, position);
 
         m_jvar_positions[vidx] = position;
-        m_dirty_joint_transforms[m_jvar_joints[vidx]] = true;
+
+        const int jidx = m_model->jointVarJointIndex(vidx);
+
+        m_dirty_joint_transforms[jidx] = true;
 
         // TODO: cache affected link transforms in a per-joint array?
 
         std::vector<int>& q = m_q;
         q.clear();
-        int jidx = m_jvar_joints[vidx];
         q.push_back(m_model->jointChildLinkIndex(jidx));
         while (!q.empty()) {
             int lidx = q.back();
@@ -107,7 +109,7 @@ bool RobotCollisionState::setJointVarPositions(const double* positions)
     for (size_t vidx = 0; vidx < m_jvar_positions.size(); ++vidx) {
         if (m_jvar_positions[vidx] != positions[vidx]) {
             m_jvar_positions[vidx] = positions[vidx];
-            int jidx = m_jvar_joints[vidx];
+            const int jidx = m_model->jointVarJointIndex(vidx);
             m_dirty_joint_transforms[jidx] = true;
             bool add = true;
             for (int& ancestor : ancestors) {
@@ -218,43 +220,6 @@ void RobotCollisionState::initRobotState()
                         );
                 ROS_DEBUG_NAMED(RCS_LOGGER, "Set joint variable %zu to position %0.3f", vidx, m_jvar_positions[vidx]);
             }
-        }
-    }
-
-    // map joints to joint variable arrays and vice versa
-    m_jvar_joints.reserve(m_model->jointVarCount());
-    m_joint_var_offsets.resize(m_model->jointCount());
-    double* d = m_jvar_positions.data();
-    for (size_t jidx = 0; jidx < m_model->jointCount(); ++jidx) {
-        m_joint_var_offsets[jidx] = d;
-        JointTransformFunction f = m_model->jointTransformFn(jidx);
-        size_t var_count;
-        if (f == ComputeFixedJointTransform) {
-            var_count = 0;
-        }
-        else if (f == ComputeRevoluteJointTransform ||
-                f == ComputeContinuousJointTransform ||
-                f == ComputePrismaticJointTransform ||
-                f == ComputeRevoluteJointTransformX ||
-                f == ComputeRevoluteJointTransformY ||
-                f == ComputeRevoluteJointTransformZ)
-        {
-            var_count = 1;
-        }
-        else if (f == ComputePlanarJointTransform) {
-            var_count = 3;
-        }
-        else if (f == ComputeFloatingJointTransform) {
-            var_count = 7;
-        }
-        else {
-            ROS_ERROR_NAMED(RCS_LOGGER, "Unrecognized JointTransformFunction");
-            throw std::runtime_error("Unrecognized JointTransformFunction");
-        }
-
-        d += var_count;
-        for (size_t i = 0; i < var_count; ++i) {
-            m_jvar_joints.push_back(jidx);
         }
     }
 
