@@ -21,6 +21,9 @@ self_collision_model:
   max_distance_m: 0.2
 
 robot_collision_model:
+  world_joint:
+    name: world_joint
+    type: planar # fixed, floating
   voxels_models:
     - { link_name: base_link, res: 0.01 }
     - { link_name: bl_caster_rotation_link, res: 0.01 }
