@@ -118,6 +118,45 @@ bool LoadConfigArray(
     return true;
 }
 
+bool WorldJointConfig::Load(XmlRpc::XmlRpcValue& config, WorldJointConfig& cfg)
+{
+    if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
+        !config.hasMember("name") ||
+        !config.hasMember("type"))
+    {
+        ROS_ERROR("World joint config is malformed");
+        return false;
+    }
+
+    XmlRpc::XmlRpcValue& name_value = config["name"];
+    XmlRpc::XmlRpcValue& type_value = config["type"];
+    if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+        ROS_ERROR("World joint config 'name' element must be a string");
+        return false;
+    }
+
+    if (type_value.getType() != XmlRpc::XmlRpcValue::TypeString) {
+        ROS_ERROR("World joint config 'name' element must be a string");
+        return false;
+    }
+
+    cfg.name = (std::string)name_value;
+    cfg.type = (std::string)type_value;
+
+    if (cfg.type != "floating" && cfg.type != "planar" && cfg.type != "fixed") {
+        ROS_ERROR("World joint config 'type' element must be one of the following: [ 'floating', 'planer', 'fixed' ]");
+        return false;
+    }
+
+    return true;
+}
+
+std::ostream& operator<<(std::ostream& o, const WorldJointConfig& cfg)
+{
+    o << "{ name: " << cfg.name << ", type: " << cfg.type << " }";
+    return o;
+}
+
 bool CollisionSphereConfig::Load(
     XmlRpc::XmlRpcValue& config,
     CollisionSphereConfig& cfg)
@@ -488,6 +527,18 @@ bool CollisionModelConfig::Load(
     if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
         ROS_ERROR("robot_collision_model config is malformed (Type: %s, Expected: %s)", XmlRpcValueTypeToString(config.getType()), XmlRpcValueTypeToString(XmlRpc::XmlRpcValue::Type::TypeString));
         return false;
+    }
+
+    if (config.hasMember("world_joint")) {
+        if (!WorldJointConfig::Load(config["world_joint"], cfg.world_joint)) {
+            ROS_ERROR("Failed to load World Joint Config");
+            return false;
+        }
+    } else {
+        cfg.world_joint.name = "world_joint";
+        cfg.world_joint.type = "floating";
+        ROS_WARN("No key 'world_joint' found in robot collision model config");
+        ROS_WARN_STREAM("  Default to " << cfg.world_joint);
     }
 
     const char* spheres_models_param_name = "spheres_models";
