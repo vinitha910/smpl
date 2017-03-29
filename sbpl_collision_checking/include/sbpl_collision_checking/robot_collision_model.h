@@ -138,9 +138,9 @@ public:
     size_t linkCount() const;
     auto   linkNames() const -> const std::vector<std::string>&;
 
-    bool  hasLink(const std::string& link_name) const;
-    int   linkIndex(const std::string& link_name) const;
-    auto  linkName(int lidx) const -> const std::string&;
+    bool   hasLink(const std::string& link_name) const;
+    int    linkIndex(const std::string& link_name) const;
+    auto   linkName(int lidx) const -> const std::string&;
 
     int   linkParentJointIndex(int lidx) const;
     auto  linkChildJointIndices(int lidx) const ->

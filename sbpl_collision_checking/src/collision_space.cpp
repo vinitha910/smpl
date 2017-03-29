@@ -131,8 +131,7 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
     AllowedCollisionMatrix acm(scene.allowed_collision_matrix);
     if (scene.is_diff) {
         m_scm->updateAllowedCollisionMatrix(acm);
-    }
-    else {
+    } else {
         m_scm->setAllowedCollisionMatrix(acm);
     }
 
@@ -172,8 +171,7 @@ bool CollisionSpace::setJointPosition(
         int jidx = m_rcm->jointVarIndex(name);
         m_joint_vars[jidx] = position;
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -532,8 +530,7 @@ bool CollisionSpace::isStateToStateValid(
                 }
             }
         }
-    }
-    else {
+    } else {
         for (size_t i = 0; i < interp.waypointCount(); i++) {
             num_checks++;
             interp.interpolate(i, interm);
@@ -613,24 +610,18 @@ CollisionSpace::getVisualization(const std::string& type)
 {
     if (type == "world") {
         return getWorldVisualization();
-    }
-    else if (type == "collision_world") {
+    } else if (type == "collision_world") {
         return getCollisionWorldVisualization();
-    }
-    else if (type == "robot") {
+    } else if (type == "robot") {
         return getRobotVisualization();
-    }
-    else if (type == "collision_robot") {
+    } else if (type == "collision_robot") {
         return getCollisionRobotVisualization();
-    }
-    else if (type == "collision_details") {
+    } else if (type == "collision_details") {
         // TODO: save the last state checked for collision?
-        return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0));
-    }
+        return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0)); }
     else if (type == "attached_object") {
         return visualization_msgs::MarkerArray();
-    }
-    else {
+    } else {
         return m_grid->getVisualization(type);
     }
 }
@@ -805,8 +796,7 @@ CollisionSpacePtr CollisionSpaceBuilder::build(
     CollisionSpacePtr cspace(new CollisionSpace);
     if (cspace->init(grid, urdf_string, config, group_name, planning_joints)) {
         return cspace;
-    }
-    else {
+    } else {
         return CollisionSpacePtr();
     }
 }
@@ -821,8 +811,7 @@ CollisionSpacePtr CollisionSpaceBuilder::build(
     CollisionSpacePtr cspace(new CollisionSpace);
     if (cspace->init(grid, urdf, config, group_name, planning_joints)) {
         return cspace;
-    }
-    else {
+    } else {
         return CollisionSpacePtr();
     }
 }
@@ -836,8 +825,7 @@ CollisionSpacePtr CollisionSpaceBuilder::build(
     CollisionSpacePtr cspace(new CollisionSpace);
     if (cspace->init(grid, rcm, group_name, planning_joints)) {
         return cspace;
-    }
-    else {
+    } else {
         return CollisionSpacePtr();
     }
 }
