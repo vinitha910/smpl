@@ -253,15 +253,20 @@ bool ReadInitialConfiguration(
                 for (int i = 0; i < xlist.size(); ++i) {
                     multi_dof_joint_state.joint_names[i] = std::string(xlist[i]["child_frame_id"]);
 
-                    geometry_msgs::Pose pose;
-                    leatherman::rpyToQuatMsg(xlist[i]["roll"], xlist[i]["pitch"], xlist[i]["yaw"], pose.orientation);
+                    Eigen::Quaterniond q;
+                    sbpl::angles::from_euler_zyx(
+                            (double)xlist[i]["yaw"], (double)xlist[i]["pitch"], (double)xlist[i]["roll"], q);
+
+                    geometry_msgs::Quaternion orientation;
+                    tf::quaternionEigenToMsg(q, orientation);
+
                     multi_dof_joint_state.transforms[i].translation.x = xlist[i]["x"];
                     multi_dof_joint_state.transforms[i].translation.y = xlist[i]["y"];
                     multi_dof_joint_state.transforms[i].translation.z = xlist[i]["z"];
-                    multi_dof_joint_state.transforms[i].rotation.w = pose.orientation.w;
-                    multi_dof_joint_state.transforms[i].rotation.x = pose.orientation.x;
-                    multi_dof_joint_state.transforms[i].rotation.y = pose.orientation.y;
-                    multi_dof_joint_state.transforms[i].rotation.z = pose.orientation.z;
+                    multi_dof_joint_state.transforms[i].rotation.w = orientation.w;
+                    multi_dof_joint_state.transforms[i].rotation.x = orientation.x;
+                    multi_dof_joint_state.transforms[i].rotation.y = orientation.y;
+                    multi_dof_joint_state.transforms[i].rotation.z = orientation.z;
                 }
             } else {
                 ROS_WARN("initial_configuration/multi_dof_joint_state array is empty");
