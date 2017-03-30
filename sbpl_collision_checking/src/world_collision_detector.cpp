@@ -41,7 +41,11 @@ namespace collision {
 
 static const char* WCM_LOGGER = "world_collision";
 
-WorldCollisionDetector::WorldCollisionDetector(WorldCollisionModel* wcm) :
+WorldCollisionDetector::WorldCollisionDetector(
+    const RobotCollisionModel* rcm,
+    const WorldCollisionModel* wcm)
+:
+    m_rcm(rcm),
     m_wcm(wcm),
     m_vq()
 {
@@ -86,7 +90,7 @@ bool WorldCollisionDetector::checkMotionCollision(
     double& dist) const
 {
     const double res = 0.05;
-    MotionInterpolation interp;
+    MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
     motion::RobotState interm;
@@ -110,7 +114,7 @@ bool WorldCollisionDetector::checkMotionCollision(
     double& dist) const
 {
     const double res = 0.05;
-    MotionInterpolation interp;
+    MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
     motion::RobotState interm;

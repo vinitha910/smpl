@@ -493,7 +493,7 @@ bool CollisionSpace::isStateToStateValid(
 {
     const double res = 0.05;
 
-    MotionInterpolation interp;
+    MotionInterpolation interp(m_rcm.get());
     m_rmcm->fillMotionInterpolation(
             start, finish,
             m_planning_joint_to_collision_model_indices, res,
@@ -566,7 +566,7 @@ bool CollisionSpace::interpolatePath(
 
     const double res = 0.05;
 
-    MotionInterpolation interp;
+    MotionInterpolation interp(m_rcm.get());
     m_rmcm->fillMotionInterpolation(
             start, finish,
             m_planning_joint_to_collision_model_indices, res,

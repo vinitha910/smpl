@@ -461,7 +461,7 @@ bool SelfCollisionModelImpl::checkMotionCollision(
     double& dist)
 {
     const double res = 0.05;
-    MotionInterpolation interp;
+    MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
     motion::RobotState interm;
@@ -486,7 +486,7 @@ bool SelfCollisionModelImpl::checkMotionCollision(
     double& dist)
 {
     const double res = 0.05;
-    MotionInterpolation interp;
+    MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
     motion::RobotState interm;

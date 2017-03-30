@@ -53,7 +53,9 @@ class WorldCollisionDetector
 {
 public:
 
-    WorldCollisionDetector(WorldCollisionModel* wcm);
+    WorldCollisionDetector(
+        const RobotCollisionModel* rcm,
+        const WorldCollisionModel* wcm);
 
     bool checkCollision(
         RobotCollisionState& state,
@@ -85,7 +87,8 @@ public:
 
 private:
 
-    WorldCollisionModel* m_wcm;
+    const RobotCollisionModel* m_rcm;
+    const WorldCollisionModel* m_wcm;
 
     mutable std::vector<const CollisionSphereState*> m_vq;
 
