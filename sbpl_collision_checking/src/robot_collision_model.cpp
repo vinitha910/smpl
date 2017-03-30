@@ -41,7 +41,7 @@
 
 // system includes
 #include <leatherman/print.h>
-#include <leatherman/utils.h>
+#include <leatherman/mesh_resource.h>
 #include <leatherman/viz.h>
 #include <ros/console.h>
 #include <smpl/geometry/voxelize.h>
