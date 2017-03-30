@@ -43,7 +43,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     m_motion_centers(),
     m_motion_radii()
 {
-    ROS_INFO("Compute motion spheres");
+    ROS_DEBUG("Compute motion spheres");
 
     // queue of joints to be processed
     std::vector<int> q_joint(rcm->jointCount(), -1);
@@ -58,7 +58,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
         if (rcm->linkChildJointIndices(lidx).empty()) {
             const int jidx = rcm->linkParentJointIndex(lidx);
             q_joint[q_tail++] = jidx;
-            ROS_INFO("Insert parent joint %d of link %s", jidx, rcm->linkName(lidx).c_str());
+            ROS_DEBUG("Insert parent joint %d of link %s", jidx, rcm->linkName(lidx).c_str());
         }
     }
 
@@ -76,7 +76,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     while (q_head != q_tail) {
         int jidx = q_joint[q_head++];
 
-        ROS_INFO("Compute motion sphere for joint %d (link %s)", jidx, rcm->linkName(rcm->jointChildLinkIndex(jidx)).c_str());
+        ROS_DEBUG("Compute motion sphere for joint %d (link %s)", jidx, rcm->linkName(rcm->jointChildLinkIndex(jidx)).c_str());
 
         // construct MR(n) = R(n) + M_samples(n+1)
 
@@ -101,7 +101,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
             joint_frame_sample_centers.push_back(root->center);
             joint_frame_sample_radii.push_back(root->radius);
 
-            ROS_INFO("  R(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, root->center.x(), root->center.y(), root->center.z(), root->radius);
+            ROS_DEBUG("  R(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, root->center.x(), root->center.y(), root->center.z(), root->radius);
         }
 
         // M_samples(n+1)
@@ -116,9 +116,9 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
                     joint_frame_sample_radii.push_back(sample_radii[cjidx]);
                     ++child_mr_samples;
                 }
-                ROS_INFO("  samples from MR(%d): %zu", cjidx, child_mr_samples);
+                ROS_DEBUG("  samples from MR(%d): %zu", cjidx, child_mr_samples);
             } else {
-                ROS_WARN("  skip null motion sphere samples from child joint %d", cjidx);
+                ROS_DEBUG("  skip null motion sphere samples from child joint %d", cjidx);
             }
         }
 
@@ -138,7 +138,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
         }
 
 
-        ROS_INFO("  MR(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, mr_center.x(), mr_center.y(), mr_center.z(), mr_radius);
+        ROS_DEBUG("  MR(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, mr_center.x(), mr_center.y(), mr_center.z(), mr_radius);
 
         // M(n) = sample joint variable values, update MR, and compute M
         std::vector<Eigen::Vector3d> sample_motion_sphere_centers;
@@ -150,7 +150,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
                 int vidx = rcm->jointVarIndexFirst(jidx);
                 double span = rcm->jointVarMaxPosition(vidx) - rcm->jointVarMinPosition(vidx);
                 int sample_count = (int)std::round(span / res) + 1;
-                ROS_INFO("  sample revolute joint [%0.3f, %0.3f] with %d samples", rcm->jointVarMinPosition(vidx), rcm->jointVarMaxPosition(vidx), sample_count);
+                ROS_DEBUG("  sample revolute joint [%0.3f, %0.3f] with %d samples", rcm->jointVarMinPosition(vidx), rcm->jointVarMaxPosition(vidx), sample_count);
                 res = span / (sample_count - 1);
                 for (int i = 0; i < sample_count; ++i) {
                     // interpolate between min and max position
@@ -166,7 +166,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
                 }
             } else if (rcm->jointType(jidx) == JointType::CONTINUOUS) {
                 int sample_count = (int)std::round(2.0 * M_PI / res);
-                ROS_INFO("  sample continuous joint with %d samples", sample_count);
+                ROS_DEBUG("  sample continuous joint with %d samples", sample_count);
                 res = 2.0 * M_PI / sample_count;
                 for (int i = 0; i < sample_count; ++i) {
                     double val = i * res;
@@ -183,7 +183,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
                 double span = rcm->jointVarMaxPosition(vidx) -
                         rcm->jointVarMinPosition(vidx);
                 int sample_count = (int)std::round(span / res) + 1;
-                ROS_INFO("  sample prismatic joint with %d samples", sample_count);
+                ROS_DEBUG("  sample prismatic joint with %d samples", sample_count);
                 res = span / (sample_count - 1);
                 for (int i = 0; i < sample_count; ++i) {
                     // interpolate between min and max position
@@ -202,13 +202,13 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
             } else if (rcm->jointType(jidx) == JointType::PLANAR) {
                 ROS_ERROR("TODO: Cannot sample planar joint transform");
             } else if (rcm->jointType(jidx) == JointType::FIXED) {
-                ROS_INFO("  sample fixed joint with 1 sample");
+                ROS_DEBUG("  sample fixed joint with 1 sample");
                 const Eigen::Affine3d T_joint_link(rcm->jointOrigin(jidx));
                 sample_motion_sphere_centers.push_back(T_joint_link * mr_center);
             }
         }
 
-        ROS_INFO("  MR(%d) samples: %zu", jidx, sample_motion_sphere_centers.size());
+        ROS_DEBUG("  MR(%d) samples: %zu", jidx, sample_motion_sphere_centers.size());
 
         // store MR(n) samples and MR(n) radius for constructing MR(n-1)
         sample_spheres[jidx] = sample_motion_sphere_centers;
@@ -217,7 +217,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
         // M(n)
         Eigen::Vector3d m_center(Eigen::Vector3d::Zero());
         double m_radius = 0.0;
-        ROS_INFO("  Compute M(%d) from %zu samples", jidx, sample_motion_sphere_centers.size());
+        ROS_DEBUG("  Compute M(%d) from %zu samples", jidx, sample_motion_sphere_centers.size());
         if (!sample_motion_sphere_centers.empty()) {
             for (const Eigen::Vector3d& center : sample_motion_sphere_centers) {
                 m_center += center;
@@ -230,7 +230,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
 
         motion_centers[jidx] = m_center;
         motion_radii[jidx] = m_radius;
-        ROS_INFO("  M(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, m_center.x(), m_center.y(), m_center.z(), m_radius);
+        ROS_DEBUG("  M(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, m_center.x(), m_center.y(), m_center.z(), m_radius);
 
         // update the position of the spheres on the current link
         // update the position of the bounding sphere of the child link
