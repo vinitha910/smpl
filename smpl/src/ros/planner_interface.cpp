@@ -316,7 +316,11 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     RobotState initial_positions;
     std::vector<std::string> missing;
     if (!leatherman::getJointPositions(
-            state.joint_state, m_robot->getPlanningJoints(), initial_positions, missing))
+            state.joint_state,
+            state.multi_dof_joint_state,
+            m_robot->getPlanningJoints(),
+            initial_positions,
+            missing))
     {
         ROS_ERROR("start state is missing planning joints: %s", to_string(missing).c_str());
         return false;
@@ -709,7 +713,7 @@ bool PlannerInterface::canServiceRequest(
     {
         ROS_ERROR("Position or orientation constraint is empty");
         ROS_ERROR("Joint constraint is empty");
-        ROS_ERROR("Expecting a 6D end effector pose constraint or 7D joint constraint");
+        ROS_ERROR("PlannerInterface expects a 6D pose constraint or set of joint constraints");
         return false;
     }
 
