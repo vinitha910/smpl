@@ -147,10 +147,17 @@ void get_euler_zyx(const Eigen::Matrix<T, 3, 3>& rot, T& y, T& p, T& r)
 template <typename T>
 void from_euler_zyx(T y, T p, T r, Eigen::Matrix<T, 3, 3>& rot)
 {
-    // TODO: non-doubles
-    rot = Eigen::AngleAxisd(y, Eigen::Vector3d::UnitZ()) *
-        Eigen::AngleAxisd(p, Eigen::Vector3d::UnitY()) *
-        Eigen::AngleAxisd(r, Eigen::Vector3d::UnitX());
+    rot = Eigen::AngleAxis<T>(y, Eigen::Matrix<T, 3, 1>::UnitZ()) *
+        Eigen::AngleAxis<T>(p, Eigen::Matrix<T, 3, 1>::UnitY()) *
+        Eigen::AngleAxis<T>(r, Eigen::Matrix<T, 3, 1>::UnitX());
+}
+
+template <typename T>
+void from_euler_zyx(T y, T p, T r, Eigen::Quaternion<T>& q)
+{
+    Eigen::Matrix<T, 3, 3> R;
+    from_euler_zyx(y, p, r, R);
+    q = Eigen::Quaternion<T>(R);
 }
 
 } // namespace angles

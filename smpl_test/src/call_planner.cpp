@@ -36,6 +36,7 @@
 #include <vector>
 
 // system includes
+#include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <moveit_msgs/GetMotionPlan.h>
@@ -48,6 +49,7 @@
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/ubr1_kdl_robot_model.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <smpl/angles.h>
 #include <smpl/debug/visualizer_ros.h>
 
 namespace smpl = sbpl::motion;
@@ -76,7 +78,9 @@ void FillGoalConstraint(
 //    goals.position_constraints[0].position.y = pose[1];
 //    goals.position_constraints[0].position.z = pose[2];
 
-    leatherman::rpyToQuatMsg(pose[3], pose[4], pose[5], goals.orientation_constraints[0].orientation);
+    Eigen::Quaterniond q;
+    sbpl::angles::from_euler_zyx(pose[5], pose[4], pose[3], q);
+    tf::quaternionEigenToMsg(q, goals.orientation_constraints[0].orientation);
 
     geometry_msgs::Pose p;
     p.position = goals.position_constraints[0].constraint_region.primitive_poses[0].position;
