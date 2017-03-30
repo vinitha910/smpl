@@ -770,56 +770,6 @@ PlannerInterface::getCollisionModelTrajectoryVisualization(
 }
 
 visualization_msgs::MarkerArray
-PlannerInterface::getGoalVisualization() const
-{
-    const moveit_msgs::Constraints& goal_constraints = m_req.goal_constraints.front();
-    if (goal_constraints.position_constraints.empty()) {
-        ROS_WARN_NAMED(PI_LOGGER, "Failed to get visualization marker for goals because no position constraints found.");
-        return visualization_msgs::MarkerArray();
-    }
-
-    // compute space needed for goal poses
-    int num_goal_pos_constraints = 0;
-    for (int i = 0; i < goal_constraints.position_constraints.size(); ++i) {
-        const moveit_msgs::PositionConstraint& pos_constraint =
-                goal_constraints.position_constraints[i];
-        num_goal_pos_constraints += pos_constraint.constraint_region.primitive_poses.size();
-    }
-    std::vector<std::vector<double>> poses(
-            num_goal_pos_constraints, std::vector<double>(6, 0));
-
-    for (size_t i = 0; i < goal_constraints.position_constraints.size(); ++i) {
-        const moveit_msgs::PositionConstraint& pos_constraint =
-                goal_constraints.position_constraints[i];
-        const moveit_msgs::BoundingVolume constraint_region =
-                pos_constraint.constraint_region;
-        for (size_t j = 0; j < constraint_region.primitive_poses.size(); ++j) {
-            const geometry_msgs::Pose& prim_pose =
-                    constraint_region.primitive_poses[j];
-
-            size_t idx = i * pos_constraint.constraint_region.primitive_poses.size() + j;
-
-            poses[idx][0] = prim_pose.position.x;
-            poses[idx][1] = prim_pose.position.y;
-            poses[idx][2] = prim_pose.position.z;
-
-            if (goal_constraints.orientation_constraints.size() > i) {
-                leatherman::getRPY(
-                        goal_constraints.orientation_constraints[i].orientation,
-                        poses[idx][3], poses[idx][4], poses[idx][5]);
-            }
-            else
-            {
-                poses[idx][3] = 0;
-                poses[idx][4] = 0;
-                poses[idx][5] = 0;
-            }
-        }
-    }
-    return ::viz::getPosesMarkerArray(poses, goal_constraints.position_constraints[0].header.frame_id, "goals", 0);
-}
-
-visualization_msgs::MarkerArray
 PlannerInterface::getBfsValuesVisualization() const
 {
     if (m_heuristics.empty()) {

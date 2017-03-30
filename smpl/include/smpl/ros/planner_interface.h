@@ -123,7 +123,6 @@ public:
     /// \name Visualization
     ///@{
 
-    visualization_msgs::MarkerArray getGoalVisualization() const;
     visualization_msgs::MarkerArray getBfsWallsVisualization() const;
     visualization_msgs::MarkerArray getBfsValuesVisualization() const;
 
