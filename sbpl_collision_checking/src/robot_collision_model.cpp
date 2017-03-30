@@ -36,7 +36,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <functional>
-#include <queue>
+#include <stack>
 #include <utility>
 
 // system includes
@@ -157,36 +157,42 @@ bool RobotCollisionModel::initRobotModel(
     typedef std::pair<boost::shared_ptr<const urdf::Link>, int>
     link_parent_joint_idx_pair;
 
-    std::queue<link_parent_joint_idx_pair> links;
-    links.push(std::make_pair(root_link, 0));
+    std::stack<boost::shared_ptr<const urdf::Link>> links;
+    links.push(root_link);
 
     while (!links.empty()) {
         boost::shared_ptr<const urdf::Link> link;
-        int parent_joint_idx;
-        std::tie(link, parent_joint_idx) = links.front();
+        link = links.top();
         links.pop();
 
         m_link_names.push_back(link->name);
-        m_link_parent_joints.push_back(parent_joint_idx);
 
         const size_t lidx = m_link_names.size() - 1;
         m_link_name_to_index[m_link_names.back()] = lidx;
 
         m_link_children_joints.push_back(std::vector<int>());
 
-        for (const auto& joint : link->child_joints) {
-            addJoint(*joint);
+        if (link->parent_joint) {
+            addJoint(*link->parent_joint);
+            m_joint_parent_links.push_back(m_link_name_to_index[link->parent_joint->parent_link_name]);
+            m_link_parent_joints.push_back(m_joint_names.size() - 1);
+        } else {
+            m_link_parent_joints.push_back(0);
+        }
 
-            m_link_children_joints[lidx].push_back(m_joint_names.size() - 1);
+        // NOTE: iterate in reverse to achieve order as if we had built the
+        // tree using recursion
+        for (auto it = link->child_joints.rbegin();
+            it != link->child_joints.rend(); ++it)
+        {
+            const auto& joint = *it;
 
-            m_joint_parent_links.push_back(lidx);
-
-            // NOTE: can't map joint to child link indices here since we don't
-            // yet know what those indices will be
+            // NOTE: delay mapping from link/joint to children until we know
+            // indices
 
             // push the child link onto the queue
             auto child_link = urdf.getLink(joint->child_link_name);
-            links.push(std::make_pair(child_link, m_joint_names.size() - 1));
+            links.push(child_link);
         }
     }
 
@@ -226,6 +232,13 @@ bool RobotCollisionModel::initRobotModel(
     for (size_t lidx = 0; lidx < m_link_names.size(); ++lidx) {
         int pjidx = m_link_parent_joints[lidx];
         m_joint_child_links[pjidx] = lidx;
+    }
+    // map link -> child links
+    for (size_t jidx = 0; jidx < m_joint_names.size(); ++jidx) {
+        int plidx = m_joint_parent_links[jidx];
+        if (plidx >= 0) {
+            m_link_children_joints[plidx].push_back(jidx);
+        }
     }
 
     ROS_DEBUG_NAMED(RCM_LOGGER, "ComputeFixedJointTransform: %p", ComputeFixedJointTransform);
