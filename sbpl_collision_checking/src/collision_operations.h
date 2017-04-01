@@ -71,11 +71,9 @@ bool CheckSphereCollision(
     double padding,
     double& dist)
 {
-    // check for collision with world
-    dist = grid.getDistanceFromPoint(s.pos.x(), s.pos.y(), s.pos.z());
     const double effective_radius = s.model->radius + padding;
-
-    return dist >= effective_radius;
+    dist = grid.getSquaredDist(s.pos.x(), s.pos.y(), s.pos.z());
+    return dist >= effective_radius * effective_radius;
 }
 
 /// Compute the closest distance between a sphere and an occupied voxel
