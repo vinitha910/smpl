@@ -65,6 +65,7 @@ OccupancyGrid::OccupancyGrid(
             resolution,
             origin_x, origin_y, origin_z,
             max_dist, propagate_negative_distances)),
+    m_df((distance_field::PropagationDistanceField*)m_grid.get()),
     m_ref_counted(ref_counted),
     m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
     m_y_stride(m_grid->getZNumCells()),
@@ -89,6 +90,7 @@ OccupancyGrid::OccupancyGrid(
     reference_frame_(),
     m_grid(std::make_shared<distance_field::PropagationDistanceField>(
             octree, bbx_min, bby_min, max_distance, propagate_negative_distances)),
+    m_df((distance_field::PropagationDistanceField*)m_grid.get()),
     m_ref_counted(ref_counted),
     m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
     m_y_stride(m_grid->getZNumCells()),
@@ -108,6 +110,7 @@ OccupancyGrid::OccupancyGrid(
     reference_frame_(),
     m_grid(std::make_shared<distance_field::PropagationDistanceField>(
             stream, max_distance, propagate_negative_distances)),
+    m_df((distance_field::PropagationDistanceField*)m_grid.get()),
     m_ref_counted(ref_counted),
     m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
     m_y_stride(m_grid->getZNumCells()),
@@ -124,6 +127,7 @@ OccupancyGrid::OccupancyGrid(
 :
     reference_frame_(),
     m_grid(df),
+    m_df(dynamic_cast<distance_field::PropagationDistanceField*>(m_grid.get())),
     m_ref_counted(ref_counted),
     m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
     m_y_stride(m_grid->getZNumCells()),
@@ -145,6 +149,7 @@ OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
                 o.m_grid->getUninitializedDistance(),
                 // really, no way to get this either?
                 false);
+        m_df = (distance_field::PropagationDistanceField*)(m_grid.get());
     }
     m_ref_counted = o.m_ref_counted;
     m_x_stride = o.m_x_stride;

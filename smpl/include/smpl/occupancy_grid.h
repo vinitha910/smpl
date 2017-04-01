@@ -158,6 +158,7 @@ public:
 
     /// \brief Get the distance, in meters, to the nearest occupied cell
     double getDistanceFromPoint(double x, double y, double z) const;
+    double getSquaredDist(double x, double y, double z) const;
 
     /// \brief Get the distance to the, in meters, to the border
     double getDistanceToBorder(int x, int y, int z) const;
@@ -235,6 +236,7 @@ private:
 
     std::string reference_frame_;
     PropagationDistanceFieldPtr m_grid;
+    distance_field::PropagationDistanceField* m_df;
 
     bool m_ref_counted;
     int m_x_stride;
@@ -342,6 +344,62 @@ inline
 double OccupancyGrid::getDistanceFromPoint(double x, double y, double z) const
 {
     return m_grid->getDistance(x, y, z);
+}
+
+inline
+double OccupancyGrid::getSquaredDist(double x, double y, double z) const
+{
+    if (m_df) {
+        Eigen::Vector3i gp;
+        if (!m_grid->worldToGrid(x, y, z, gp.x(), gp.y(), gp.z())) {
+            return m_df->getResolution() * m_df->getMaximumDistanceSquared();
+        }
+
+        // get the nearest obstacle cell
+        double dist;
+        Eigen::Vector3i npos;
+        if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos)) {
+            return 0.0;
+        }
+
+        // nearest obstacle cell -> nearest obstacle center
+        double ox, oy, oz;
+        m_grid->gridToWorld(npos.x(), npos.y(), npos.z(), ox, oy, oz);
+
+        // nearest obstacle center -> nearest obstacle corner
+        if (gp.x() > npos.x()) {
+            ox += m_half_res;
+        } else if (gp.x() < npos.x()) {
+            ox -= m_half_res;
+        } else {
+            ox = x;
+        }
+
+        if (gp.y() > npos.y()) {
+            oy += m_half_res;
+        } else if (gp.y() < npos.y()) {
+            oy -= m_half_res;
+        } else {
+            oy = y;
+        }
+
+        if (gp.z() > npos.z()) {
+            oz += m_half_res;
+        } else if (gp.z() < npos.z()) {
+            oz -= m_half_res;
+        } else {
+            oz = z;
+        }
+
+        const double dx = x - ox;
+        const double dy = y - oy;
+        const double dz = z - oz;
+
+        return dx * dx + dy * dy + dz * dz;
+    } else {
+        double dist = m_grid->getDistance(x, y, z);
+        return dist * dist;
+    }
 }
 
 inline
