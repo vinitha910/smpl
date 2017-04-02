@@ -358,8 +358,15 @@ double OccupancyGrid::getSquaredDist(double x, double y, double z) const
         // get the nearest obstacle cell
         double dist;
         Eigen::Vector3i npos;
-        if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos)) {
-            return dist * dist;
+        if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos) ||
+            npos.x() < 0)
+        {
+            if (dist == 0.0) {
+                return dist;
+            } else {
+                dist -= sqrt(3) * m_df->getResolution();
+                return dist * dist;
+            }
         }
 
         // nearest obstacle cell -> nearest obstacle center
