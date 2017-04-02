@@ -169,7 +169,6 @@ public:
     /// \name Logging
     ///@{
     std::string plan_output_dir;
-    bool print_path;
 
     std::string graph_log;
     std::string heuristic_log;

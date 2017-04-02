@@ -225,7 +225,6 @@ PlanningParams::PlanningParams() :
     interpolate_path(DefaultInterpolatePath),
     shortcut_type(DefaultShortcutType),
 
-    print_path(true),
     robot_log(DefaultRobotModelLog),
     graph_log(DefaultGraphLog),
     heuristic_log(DefaultHeuristicLog),
