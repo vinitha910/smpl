@@ -88,6 +88,8 @@ RobotPlanningSpacePtr ManipLatticeAllocator::allocate(
         if (dit == disc.end()) {
             ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
             return RobotPlanningSpacePtr();
+        } else {
+            ROS_DEBUG_NAMED(PI_LOGGER, "resolution(%s) = %0.3f", vname.c_str(), dit->second);
         }
         resolutions[vidx] = dit->second;
     }
