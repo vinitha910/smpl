@@ -83,10 +83,12 @@ ManipLattice::ManipLattice(
     m_min_limits.resize(robot()->jointVariableCount());
     m_max_limits.resize(robot()->jointVariableCount());
     m_continuous.resize(robot()->jointVariableCount());
+    m_bounded.resize(robot()->jointVariableCount());
     for (int jidx = 0; jidx < robot()->jointVariableCount(); ++jidx) {
         m_min_limits[jidx] = robot_model->minPosLimit(jidx);
         m_max_limits[jidx] = robot_model->maxPosLimit(jidx);
         m_continuous[jidx] = robot_model->isContinuous(jidx);
+        m_bounded[jidx] = robot_model->hasPosLimit(jidx);
     }
 
     m_goal_state_id = reserveHashEntry();

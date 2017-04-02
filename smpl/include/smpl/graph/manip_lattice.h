@@ -210,6 +210,7 @@ private:
     std::vector<double> m_min_limits;
     std::vector<double> m_max_limits;
     std::vector<bool> m_continuous;
+    std::vector<bool> m_bounded;
 
     std::vector<int> m_coord_vals;
     std::vector<double> m_coord_deltas;
@@ -264,6 +265,9 @@ void ManipLattice::coordToState(
     for (size_t i = 0; i < coord.size(); ++i) {
         if (m_continuous[i]) {
             state[i] = coord[i] * m_coord_deltas[i];
+        } else if (!m_bounded[i]) {
+            state[i] = (double)coord[i] * m_coord_deltas[i] +
+                    0.5 * m_coord_deltas[i];
         } else {
             state[i] = m_min_limits[i] + coord[i] * m_coord_deltas[i];
         }
@@ -286,6 +290,11 @@ void ManipLattice::stateToCoord(
 
             if (coord[i] == m_coord_vals[i]) {
                 coord[i] = 0;
+            }
+        } else if (!m_bounded[i]) {
+            coord[i] = (int)(state[i] / m_coord_deltas[i]);
+            if (state[i] < 0.0) {
+                --coord[i];
             }
         } else {
             coord[i] = (int)(((state[i] - m_min_limits[i]) / m_coord_deltas[i]) + 0.5);
