@@ -259,28 +259,41 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
     assert(finish.size() == m_rcm->jointVarCount());
 
     double motion = 0.0;
-    for (size_t i = 0; i < m_rcm->jointVarCount(); ++i) {
-        const int jidx = m_rcm->jointVarJointIndex(i);
+    for (size_t jidx; jidx < m_rcm->jointCount(); ++jidx) {
+        size_t fvidx = m_rcm->jointVarIndexFirst(jidx);
 
         double dist = 0.0;
         switch (m_rcm->jointType(jidx)) {
         case JointType::FIXED:
             break;
         case JointType::CONTINUOUS:
-            dist = angles::shortest_angle_dist(finish[i], start[i]);
+            dist = angles::shortest_angle_dist(finish[fvidx], start[fvidx]);
             motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
             break;
         case JointType::REVOLUTE:
-            dist = std::fabs(finish[i] - start[i]);
+            dist = std::fabs(finish[fvidx] - start[fvidx]);
             motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
             break;
         case JointType::PRISMATIC:
-            dist = std::fabs(finish[i] - start[i]);
+            dist = std::fabs(finish[fvidx] - start[fvidx]);
             motion += dist;
             break;
-        case JointType::PLANAR:
-        case JointType::FLOATING:
-            break;
+        case JointType::PLANAR: {
+            const double dx = finish[fvidx + 0] - start[fvidx + 0];
+            const double dy = finish[fvidx + 1] - start[fvidx + 1];
+            const double dth = angles::shortest_angle_dist(
+                    finish[fvidx + 2], start[fvidx + 2]);
+            dist = std::sqrt(dx * dx + dy * dy);
+            // TODO: HACK! hallucinated motion sphere radius to force waypoints
+            motion += dist + dth * 1.0;
+        }   break;
+        case JointType::FLOATING: {
+            const double dx = finish[fvidx + 0] - start[fvidx + 0];
+            const double dy = finish[fvidx + 1] - start[fvidx + 1];
+            const double dz = finish[fvidx + 2] - start[fvidx + 2];
+            dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+            motion += dist;
+        }   break;
         }
     }
 
@@ -293,8 +306,8 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
     assert(diff.size() == m_rcm->jointVarCount());
 
     double motion = 0.0;
-    for (size_t i = 0; i < m_rcm->jointVarCount(); ++i) {
-        const int jidx = m_rcm->jointVarJointIndex(i);
+    for (size_t jidx = 0; jidx < m_rcm->jointVarCount(); ++jidx) {
+        const int fvidx = m_rcm->jointVarIndexFirst(jidx);
 
         double dist = 0.0;
         switch (m_rcm->jointType(jidx)) {
@@ -302,16 +315,28 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             break;
         case JointType::CONTINUOUS:
         case JointType::REVOLUTE:
-            dist = std::fabs(diff[i]);
+            dist = std::fabs(diff[fvidx]);
             motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
             break;
         case JointType::PRISMATIC:
-            dist = std::fabs(diff[i]);
+            dist = std::fabs(diff[fvidx]);
             motion += dist;
             break;
-        case JointType::PLANAR:
-        case JointType::FLOATING:
-            break;
+        case JointType::PLANAR: {
+            const double dx = diff[fvidx + 0];
+            const double dy = diff[fvidx + 1];
+            const double dth = diff[fvidx + 2];
+            dist = std::sqrt(dx * dx + dy * dy);
+            // TODO: HACK! hallucinated motion sphere radius to force waypoints
+            motion += dist + dth * 1.0;
+        }   break;
+        case JointType::FLOATING: {
+            const double dx = diff[fvidx + 0];
+            const double dy = diff[fvidx + 1];
+            const double dz = diff[fvidx + 2];
+            dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+            motion += dist;
+        }   break;
         }
     }
 
