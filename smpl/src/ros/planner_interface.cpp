@@ -260,10 +260,22 @@ bool PlannerInterface::solve(
         return false;
     }
 
+    ROS_DEBUG_NAMED(PI_LOGGER, "planner path:");
+    for (size_t pidx = 0; pidx < path.size(); ++pidx) {
+        const auto& point = path[pidx];
+        ROS_DEBUG_NAMED(PI_LOGGER, "  %3zu: %s", pidx, to_string(point).c_str());
+    }
+
     postProcessPath(path);
     visualizePath(path);
     if (!m_params.plan_output_dir.empty()) {
         writePath(res.trajectory_start, res.trajectory);
+    }
+
+    ROS_DEBUG_NAMED(PI_LOGGER, "smoothed path:");
+    for (size_t pidx = 0; pidx < path.size(); ++pidx) {
+        const auto& point = path[pidx];
+        ROS_DEBUG_NAMED(PI_LOGGER, "  %3zu: %s", pidx, to_string(point).c_str());
     }
 
     auto& traj = res.trajectory.joint_trajectory;
@@ -272,10 +284,6 @@ bool PlannerInterface::solve(
     traj.header.stamp = ros::Time::now();
 
     profilePath(traj);
-
-    if (m_params.print_path) {
-        leatherman::printJointTrajectory(traj, "path");
-    }
 
     auto now = clock::now();
     res.planning_time = to_seconds(now - then);
