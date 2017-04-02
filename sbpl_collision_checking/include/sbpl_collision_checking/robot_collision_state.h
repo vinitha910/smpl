@@ -214,19 +214,21 @@ bool RobotCollisionState::setWorldToModelTransform(
     bool updated = false;
     Eigen::Affine3d M;
 
-    // set variable values
+    // set variable values and compute root link transform
     switch (m_model->jointType(0)) {
     case JointType::FIXED:
+        M = Eigen::Affine3d::Identity();
         break;
     case JointType::REVOLUTE:
     case JointType::CONTINUOUS: {
         Eigen::Quaterniond q(transform.rotation());
         size_t idx;
         m_model->jointAxis(0).array().abs().maxCoeff(&idx);
-        double val = 2.0 * atan2(q.vec()[idx] / m_model->jointAxis(idx)[idx], q.w());
+        double val = 2.0 * atan2(q.vec()[idx] / m_model->jointAxis(0)[idx], q.w());
         if (val != m_jvar_positions[0]) {
             m_jvar_positions[0] = val;
             updated = true;
+            M = Eigen::AngleAxisd(val, m_model->jointAxis(0));
         }
     }   break;
     case JointType::PRISMATIC: {
@@ -235,6 +237,7 @@ bool RobotCollisionState::setWorldToModelTransform(
             m_jvar_positions[0] = val;
             updated = true;
         }
+        M = Eigen::Translation3d(val * m_model->jointAxis(0));
     }   break;
     case JointType::PLANAR: {
         double x = transform.translation().x();
@@ -248,16 +251,20 @@ bool RobotCollisionState::setWorldToModelTransform(
             theta = 0.0;
         } else {
             double s = 1.0 / sqrt(s_squared);
-            theta = (acos(q.w()) * 2.0f) * (q.z() * s);
+            theta = (2.0 * acos(q.w())) * (q.z() * s);
         }
 
         updated |= (m_jvar_positions[0] != x);
         updated |= (m_jvar_positions[1] != y);
         updated |= (m_jvar_positions[2] != theta);
+        if (updated) {
+            m_jvar_positions[0] = x;
+            m_jvar_positions[1] = y;
+            m_jvar_positions[2] = theta;
 
-        m_jvar_positions[0] = x;
-        m_jvar_positions[1] = y;
-        m_jvar_positions[2] = theta;
+            M = Eigen::Translation3d(x, y, 0.0) *
+                    Eigen::AngleAxisd(theta, Eigen::Vector3d::UnitZ());
+        }
     }   break;
     case JointType::FLOATING: {
         updated |= (m_jvar_positions[0] != transform.translation().x());
@@ -268,22 +275,22 @@ bool RobotCollisionState::setWorldToModelTransform(
         updated |= (m_jvar_positions[4] != q.y());
         updated |= (m_jvar_positions[5] != q.z());
         updated |= (m_jvar_positions[6] != q.w());
+        if (updated) {
+            m_jvar_positions[0] = transform.translation().x();
+            m_jvar_positions[1] = transform.translation().y();
+            m_jvar_positions[2] = transform.translation().z();
+            m_jvar_positions[3] = q.x();
+            m_jvar_positions[4] = q.y();
+            m_jvar_positions[5] = q.z();
+            m_jvar_positions[6] = q.w();
 
-        m_jvar_positions[0] = transform.translation().x();
-        m_jvar_positions[1] = transform.translation().y();
-        m_jvar_positions[2] = transform.translation().z();
-        m_jvar_positions[3] = q.x();
-        m_jvar_positions[4] = q.y();
-        m_jvar_positions[5] = q.z();
-        m_jvar_positions[6] = q.w();
+            M = transform;
+        }
     }   break;
     }
 
-    // TODO: reconstruct appropriate link transform from the extracted joint
-    // values
-
     if (updated) {
-        m_link_transforms[0] = transform;
+        m_link_transforms[0] = M;
         std::fill(m_dirty_link_transforms.begin(), m_dirty_link_transforms.end(), true);
         m_dirty_link_transforms[0] = false;
         ++m_link_transform_versions[0];
