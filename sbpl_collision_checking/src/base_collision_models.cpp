@@ -573,11 +573,20 @@ void CollisionSphereModelTree::computeOptimalBoundingSphere(
     const Eigen::Vector3d& p = s1.center;
     const Eigen::Vector3d& q = s2.center;
     Eigen::Vector3d v = q - p;
-    Eigen::Vector3d vn = v.normalized();
-    Eigen::Vector3d a = p + v + vn * s2.radius;
-    Eigen::Vector3d b = q - v - vn * s1.radius;
-    c = 0.5 * (a + b);
-    r = 0.5 * (a - b).norm();
+    const double dist = v.norm();
+    if (s1.radius > dist + s2.radius) { // s1 contains s2
+        c = s1.center;
+        r = s1.radius;
+    } else if (s2.radius > dist + s1.radius) { // s2 contains s1
+        c = s2.center;
+        r = s2.radius;
+    } else {
+        Eigen::Vector3d vn = v.normalized();
+        Eigen::Vector3d a = q + vn * s2.radius;
+        Eigen::Vector3d b = p - vn * s1.radius;
+        c = 0.5 * (a + b);
+        r = 0.5 * (a - b).norm();
+    }
 }
 
 template <typename Sphere>
