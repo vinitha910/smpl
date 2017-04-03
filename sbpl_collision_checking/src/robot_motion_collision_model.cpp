@@ -303,8 +303,8 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             const double dth = angles::shortest_angle_dist(
                     finish[fvidx + 2], start[fvidx + 2]);
             dist = std::sqrt(dx * dx + dy * dy);
-            // TODO: HACK! hallucinated motion sphere radius to force waypoints
-            motion += dist + dth * 1.0; //(m_mr_centers[jidx].norm() + m_mr_radii[jidx]);
+            // TODO: check correct upper bound on sphere motion
+            motion += dist + dth * (m_mr_centers[jidx].norm() + m_mr_radii[jidx]);
         }   break;
         case JointType::FLOATING: {
             const double dx = finish[fvidx + 0] - start[fvidx + 0];
@@ -346,8 +346,8 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             const double dy = diff[fvidx + 1];
             const double dth = diff[fvidx + 2];
             dist = std::sqrt(dx * dx + dy * dy);
-            // TODO: HACK! hallucinated motion sphere radius to force waypoints
-            motion += dist + dth * 1.0;
+            // TODO: see above
+            motion += dist + dth * (m_mr_centers[jidx].norm() + m_mr_radii[jidx]);
         }   break;
         case JointType::FLOATING: {
             const double dx = diff[fvidx + 0];
