@@ -761,7 +761,7 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
 
 void SelfCollisionModelImpl::copyState(const double* state)
 {
-    m_rcs.setJointVarPositions(state);
+    (void)m_rcs.setJointVarPositions(state);
 }
 
 /// Lazily update the state of the occupancy grid, representing areas filled by
@@ -1651,12 +1651,27 @@ double SelfCollisionModelImpl::sphereDistance(
 bool SelfCollisionModelImpl::getRobotVoxelsStateCollisionDetails(
     CollisionDetails& details)
 {
-    double dist;
-    if (!checkRobotVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-        return false;
+    const size_t old_size = details.details.size();
+
+    for (const int ssidx : m_rcs.groupSpheresStateIndices(m_gidx)) {
+        auto& q = m_vq;
+        q.clear();
+
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+
+        double dist;
+        if (!CheckVoxelsCollisions(m_rcs, q, *m_grid, m_padding, dist)) {
+            CollisionDetail detail;
+            detail.first_link = m_rcs.model()->linkName(ss.model->link_index);
+            detail.second_link = "_voxels_";
+            detail.penetration = dist;
+            details.details.push_back(detail);
+        }
     }
-    return true;
+
+    return details.details.size() == old_size;
 }
 
 bool SelfCollisionModelImpl::getAttachedBodyVoxelsStateCollisionDetails(
