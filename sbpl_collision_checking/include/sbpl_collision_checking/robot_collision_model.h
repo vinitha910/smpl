@@ -117,6 +117,7 @@ public:
     /// \name Robot Model - Joint Information
     ///@{
     size_t jointCount() const;
+    auto   jointName(int jidx) const -> const std::string&;
 
     int    jointParentLinkIndex(int jidx) const;
     int    jointChildLinkIndex(int jidx) const;
@@ -424,6 +425,13 @@ inline
 size_t RobotCollisionModel::jointCount() const
 {
     return m_joint_transforms.size();
+}
+
+inline
+const std::string& RobotCollisionModel::jointName(int jidx) const
+{
+    ASSERT_VECTOR_RANGE(m_joint_names, jidx);
+    return m_joint_names[jidx];
 }
 
 inline
