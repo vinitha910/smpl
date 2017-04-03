@@ -165,7 +165,7 @@ inline
 void MotionInterpolation::setWaypointCount(int waypoint_count)
 {
     if (waypoint_count) {
-        m_waypoint_count = std::max(2, m_waypoint_count);
+        m_waypoint_count = std::max(2, waypoint_count);
         m_waypoint_count_inv = 1.0 / (double)(m_waypoint_count - 1);
     } else {
         m_waypoint_count = waypoint_count;
