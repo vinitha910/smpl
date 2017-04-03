@@ -182,6 +182,12 @@ void CollisionSpace::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
     m_rcs->setWorldToModelTransform(transform);
+    const int vfidx = m_rcm->jointVarIndexFirst(0);
+    const int vlidx = m_rcm->jointVarIndexLast(0);
+    std::copy(
+            m_rcs->getJointVarPositions() + vfidx,
+            m_rcs->getJointVarPositions() + vlidx,
+            m_joint_vars.data() + vfidx);
     m_scm->setWorldToModelTransform(transform);
 }
 
