@@ -40,8 +40,10 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     const RobotCollisionModel* rcm)
 :
     m_rcm(rcm),
-    m_motion_centers(),
-    m_motion_radii()
+    m_m_centers(),
+    m_m_radii(),
+    m_mr_centers(),
+    m_mr_radii()
 {
     ROS_DEBUG("Compute motion spheres");
 
@@ -63,8 +65,12 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     }
 
     // M(n), n = 1...num_joints
-    std::vector<Eigen::Vector3d> motion_centers(rcm->jointCount());
-    std::vector<double> motion_radii(rcm->jointCount(), 0.0);
+    std::vector<Eigen::Vector3d> m_centers(rcm->jointCount());
+    std::vector<double> m_radii(rcm->jointCount(), 0.0);
+
+    // MR(n), n - 1...num_joints
+    std::vector<Eigen::Vector3d> mr_centers(rcm->jointCount());
+    std::vector<double> mr_radii(rcm->jointCount());
 
     // the sample spheres (MR spheres of child links + R of current link) used
     // to construct the (motion) M sphere for each joint
@@ -76,7 +82,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     while (q_head != q_tail) {
         int jidx = q_joint[q_head++];
 
-        ROS_DEBUG("Compute motion sphere for joint %d (link %s)", jidx, rcm->linkName(rcm->jointChildLinkIndex(jidx)).c_str());
+        ROS_DEBUG("Compute motion sphere for joint %d:%s", jidx, rcm->jointName(jidx).c_str());
 
         // construct MR(n) = R(n) + M_samples(n+1)
 
@@ -101,7 +107,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
             joint_frame_sample_centers.push_back(root->center);
             joint_frame_sample_radii.push_back(root->radius);
 
-            ROS_DEBUG("  R(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, root->center.x(), root->center.y(), root->center.z(), root->radius);
+            ROS_DEBUG("  R(%d:%s) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, rcm->jointName(jidx).c_str(), root->center.x(), root->center.y(), root->center.z(), root->radius);
         }
 
         // M_samples(n+1)
@@ -116,9 +122,9 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
                     joint_frame_sample_radii.push_back(sample_radii[cjidx]);
                     ++child_mr_samples;
                 }
-                ROS_DEBUG("  samples from MR(%d): %zu", cjidx, child_mr_samples);
+                ROS_DEBUG("  samples from MR(%d:%s): %zu", cjidx, rcm->jointName(cjidx).c_str(), child_mr_samples);
             } else {
-                ROS_DEBUG("  skip null motion sphere samples from child joint %d", cjidx);
+                ROS_DEBUG("  skip null motion sphere samples from child joint %d:%s", cjidx, rcm->jointName(cjidx).c_str());
             }
         }
 
@@ -137,8 +143,10 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
             }
         }
 
+        mr_centers[jidx] = mr_center;
+        mr_radii[jidx] = mr_radius;
 
-        ROS_DEBUG("  MR(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, mr_center.x(), mr_center.y(), mr_center.z(), mr_radius);
+        ROS_DEBUG("  MR(%d:%s) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, rcm->jointName(jidx).c_str(), mr_center.x(), mr_center.y(), mr_center.z(), mr_radius);
 
         // M(n) = sample joint variable values, update MR, and compute M
         std::vector<Eigen::Vector3d> sample_motion_sphere_centers;
@@ -208,7 +216,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
             }
         }
 
-        ROS_DEBUG("  MR(%d) samples: %zu", jidx, sample_motion_sphere_centers.size());
+        ROS_DEBUG("  MR(%d:%s) samples: %zu", jidx, rcm->jointName(jidx).c_str(), sample_motion_sphere_centers.size());
 
         // store MR(n) samples and MR(n) radius for constructing MR(n-1)
         sample_spheres[jidx] = sample_motion_sphere_centers;
@@ -217,7 +225,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
         // M(n)
         Eigen::Vector3d m_center(Eigen::Vector3d::Zero());
         double m_radius = 0.0;
-        ROS_DEBUG("  Compute M(%d) from %zu samples", jidx, sample_motion_sphere_centers.size());
+        ROS_DEBUG("  Compute M(%d:%s) from %zu samples", jidx, rcm->jointName(jidx).c_str(), sample_motion_sphere_centers.size());
         if (!sample_motion_sphere_centers.empty()) {
             for (const Eigen::Vector3d& center : sample_motion_sphere_centers) {
                 m_center += center;
@@ -228,9 +236,9 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
             }
         }
 
-        motion_centers[jidx] = m_center;
-        motion_radii[jidx] = m_radius;
-        ROS_DEBUG("  M(%d) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, m_center.x(), m_center.y(), m_center.z(), m_radius);
+        m_centers[jidx] = m_center;
+        m_radii[jidx] = m_radius;
+        ROS_DEBUG("  M(%d:%s) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, rcm->jointName(jidx).c_str(), m_center.x(), m_center.y(), m_center.z(), m_radius);
 
         // update the position of the spheres on the current link
         // update the position of the bounding sphere of the child link
@@ -238,7 +246,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
         // construct the motion spheres for the parents in topological fashion
         int plidx = rcm->jointParentLinkIndex(jidx);
         int pjidx = rcm->linkParentJointIndex(plidx);
-        if (pjidx) {
+        if (pjidx >= 0) {
             ++p_joint[pjidx];
 
             if (p_joint[pjidx] == rcm->linkChildJointIndices(plidx).size()) {
@@ -247,8 +255,19 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
         }
     }
 
-    m_motion_centers = std::move(motion_centers);
-    m_motion_radii = std::move(motion_radii);
+    m_m_centers = std::move(m_centers);
+    m_m_radii = std::move(m_radii);
+    m_mr_centers = std::move(mr_centers);
+    m_mr_radii = std::move(mr_radii);
+
+    for (size_t jidx = 0; jidx < rcm->jointCount(); ++jidx) {
+        const Eigen::Vector3d &mr_center = m_mr_centers[jidx];
+        const double mr_radius = m_mr_radii[jidx];
+        const Eigen::Vector3d &m_center = m_m_centers[jidx];
+        const double m_radius = m_m_radii[jidx];
+        ROS_DEBUG("  MR(%zu:%s) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, rcm->jointName(jidx).c_str(), mr_center.x(), mr_center.y(), mr_center.z(), mr_radius);
+        ROS_DEBUG("  M(%zu:%s) = { center: (%0.3f, %0.3f, %0.3f), radius: %0.3f }", jidx, rcm->jointName(jidx).c_str(), m_center.x(), m_center.y(), m_center.z(), m_radius);
+    }
 }
 
 double RobotMotionCollisionModel::getMaxSphereMotion(
@@ -268,11 +287,11 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             break;
         case JointType::CONTINUOUS:
             dist = angles::shortest_angle_dist(finish[fvidx], start[fvidx]);
-            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            motion += (m_mr_centers[jidx].norm() + m_mr_radii[jidx]) * dist;
             break;
         case JointType::REVOLUTE:
             dist = std::fabs(finish[fvidx] - start[fvidx]);
-            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            motion += (m_mr_centers[jidx].norm() + m_mr_radii[jidx]) * dist;
             break;
         case JointType::PRISMATIC:
             dist = std::fabs(finish[fvidx] - start[fvidx]);
@@ -285,7 +304,7 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
                     finish[fvidx + 2], start[fvidx + 2]);
             dist = std::sqrt(dx * dx + dy * dy);
             // TODO: HACK! hallucinated motion sphere radius to force waypoints
-            motion += dist + dth * 1.0;
+            motion += dist + dth * 1.0; //(m_mr_centers[jidx].norm() + m_mr_radii[jidx]);
         }   break;
         case JointType::FLOATING: {
             const double dx = finish[fvidx + 0] - start[fvidx + 0];
@@ -316,7 +335,7 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
         case JointType::CONTINUOUS:
         case JointType::REVOLUTE:
             dist = std::fabs(diff[fvidx]);
-            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            motion += (m_mr_centers[jidx].norm() + m_mr_radii[jidx]) * dist;
             break;
         case JointType::PRISMATIC:
             dist = std::fabs(diff[fvidx]);
@@ -364,11 +383,11 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             break;
         case JointType::CONTINUOUS:
             dist = angles::shortest_angle_dist(finish[i], start[i]);
-            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            motion += (m_mr_centers[jidx].norm() + m_mr_radii[jidx]) * dist;
             break;
         case JointType::REVOLUTE:
             dist = std::fabs(finish[i] - start[i]);
-            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            motion += (m_mr_centers[jidx].norm() + m_mr_radii[jidx]) * dist;
             break;
         case JointType::PRISMATIC:
             dist = std::fabs(finish[i] - start[i]);
@@ -401,7 +420,7 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
         case JointType::CONTINUOUS:
         case JointType::REVOLUTE:
             dist = std::fabs(diff[i]);
-            motion += (m_motion_centers[jidx].norm() + m_motion_radii[jidx]) * dist;
+            motion += (m_mr_centers[jidx].norm() + m_mr_radii[jidx]) * dist;
             break;
         case JointType::PRISMATIC:
             dist = std::fabs(diff[i]);

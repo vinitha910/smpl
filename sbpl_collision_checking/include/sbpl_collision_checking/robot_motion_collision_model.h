@@ -135,8 +135,17 @@ public:
 private:
 
     const RobotCollisionModel* m_rcm;
-    std::vector<Eigen::Vector3d> m_motion_centers;
-    std::vector<double> m_motion_radii;
+
+    // spheres bounding the volume that all descendant links can reach; stored
+    // per-joint in each joint's frame of reference
+    std::vector<Eigen::Vector3d> m_m_centers;
+    std::vector<double> m_m_radii;
+
+    // spheres bounding the volume of the immediate child link and the volumes
+    // any further descendant links can reach; stored in each joint's frame of
+    // reference
+    std::vector<Eigen::Vector3d> m_mr_centers;
+    std::vector<double> m_mr_radii;
 };
 
 inline
@@ -251,13 +260,13 @@ void MotionInterpolation::interpolate(int n, motion::RobotState& state) const
 inline
 const Eigen::Vector3d& RobotMotionCollisionModel::motionCenter(int jidx) const
 {
-    return m_motion_centers[jidx];
+    return m_m_centers[jidx];
 }
 
 inline
 double RobotMotionCollisionModel::motionRadius(int jidx) const
 {
-    return m_motion_radii[jidx];
+    return m_m_radii[jidx];
 }
 
 inline
