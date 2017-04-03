@@ -1089,6 +1089,9 @@ void PlannerInterface::profilePath(
             const double from_pos = prev_point.positions[jidx];
             const double to_pos = curr_point.positions[jidx];
             const double vel = m_robot->velLimit(jidx);
+            if (vel <= 0.0) {
+                continue;
+            }
             double t = 0.0;
             if (m_robot->hasPosLimit(jidx)) {
                 const double dist = fabs(to_pos - from_pos);
