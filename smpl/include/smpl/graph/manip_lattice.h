@@ -266,8 +266,7 @@ void ManipLattice::coordToState(
         if (m_continuous[i]) {
             state[i] = coord[i] * m_coord_deltas[i];
         } else if (!m_bounded[i]) {
-            state[i] = (double)coord[i] * m_coord_deltas[i] +
-                    0.5 * m_coord_deltas[i];
+            state[i] = (double)coord[i] * m_coord_deltas[i];
         } else {
             state[i] = m_min_limits[i] + coord[i] * m_coord_deltas[i];
         }
@@ -292,9 +291,10 @@ void ManipLattice::stateToCoord(
                 coord[i] = 0;
             }
         } else if (!m_bounded[i]) {
-            coord[i] = (int)(state[i] / m_coord_deltas[i]);
-            if (state[i] < 0.0) {
-                --coord[i];
+            if (state[i] >= 0.0) {
+                coord[i] = (int)(state[i] / m_coord_deltas[i] + 0.5);
+            } else {
+                coord[i] = (int)(state[i] / m_coord_deltas[i] - 0.5);
             }
         } else {
             coord[i] = (int)(((state[i] - m_min_limits[i]) / m_coord_deltas[i]) + 0.5);
