@@ -355,54 +355,108 @@ double OccupancyGrid::getSquaredDist(double x, double y, double z) const
             return m_df->getResolution() * m_df->getMaximumDistanceSquared();
         }
 
-        // get the nearest obstacle cell
-        double dist;
-        Eigen::Vector3i npos;
-        if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos) ||
-            npos.x() < 0)
+        // compute the squared distance from (x, y, z) to the nearest point on
+        // the obstacle cell positioned at \p npos
+        auto edge_dist = [&](const Eigen::Vector3i& npos)
         {
-            if (dist == 0.0) {
-                return dist;
+            // nearest obstacle cell -> nearest obstacle center
+            double ox, oy, oz;
+            m_grid->gridToWorld(npos.x(), npos.y(), npos.z(), ox, oy, oz);
+
+            // nearest obstacle center -> nearest obstacle corner
+            if (gp.x() > npos.x()) {
+                ox += m_half_res;
+            } else if (gp.x() < npos.x()) {
+                ox -= m_half_res;
             } else {
-                dist -= sqrt(3) * m_df->getResolution();
-                return dist * dist;
+                ox = x;
             }
-        }
 
-        // nearest obstacle cell -> nearest obstacle center
-        double ox, oy, oz;
-        m_grid->gridToWorld(npos.x(), npos.y(), npos.z(), ox, oy, oz);
+            if (gp.y() > npos.y()) {
+                oy += m_half_res;
+            } else if (gp.y() < npos.y()) {
+                oy -= m_half_res;
+            } else {
+                oy = y;
+            }
 
-        // nearest obstacle center -> nearest obstacle corner
-        if (gp.x() > npos.x()) {
-            ox += m_half_res;
-        } else if (gp.x() < npos.x()) {
-            ox -= m_half_res;
+            if (gp.z() > npos.z()) {
+                oz += m_half_res;
+            } else if (gp.z() < npos.z()) {
+                oz -= m_half_res;
+            } else {
+                oz = z;
+            }
+
+            const double dx = x - ox;
+            const double dy = y - oy;
+            const double dz = z - oz;
+
+            return dx * dx + dy * dy + dz * dz;
+        };
+
+        // compute the squared distance from (x, y, z) to the neighbor of the
+        // cell positioned at \p gp
+        auto nearest_edge_sq_dist = [&](const Eigen::Vector3i& gp)
+        {
+            if (!m_df->isCellValid(gp.y(), gp.y(), gp.z())) {
+                return std::numeric_limits<double>::infinity(); //0.0;
+            }
+
+            // get the nearest obstacle cell
+            double dist;
+            Eigen::Vector3i npos;
+            if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos) ||
+                    npos.x() < 0)
+            {
+                if (dist == 0.0) {
+                    return dist;
+                } else {
+                    dist -= sqrt(3) * m_df->getResolution();
+                    return dist * dist;
+                }
+            }
+
+            return edge_dist(npos);
+        };
+
+        Eigen::Vector3d wp;
+        m_grid->gridToWorld(gp.x(), gp.y(), gp.z(), wp.x(), wp.y(), wp.z());
+
+        int dxlo, dylo, dzlo;
+        int dxhi, dyhi, dzhi;
+
+        if (x >= wp.x()) {
+            dxlo = 0; dxhi = 1;
         } else {
-            ox = x;
+            dxlo = -1; dxhi = 0;
         }
 
-        if (gp.y() > npos.y()) {
-            oy += m_half_res;
-        } else if (gp.y() < npos.y()) {
-            oy -= m_half_res;
+        if (y >= wp.y()) {
+            dylo = 0; dyhi = 1;
         } else {
-            oy = y;
+            dylo = -1; dyhi = 0;
         }
 
-        if (gp.z() > npos.z()) {
-            oz += m_half_res;
-        } else if (gp.z() < npos.z()) {
-            oz -= m_half_res;
+        if (z >= wp.z()) {
+            dzlo = 0; dzhi = 1;
         } else {
-            oz = z;
+            dzlo = -1; dzhi = 0;
         }
 
-        const double dx = x - ox;
-        const double dy = y - oy;
-        const double dz = z - oz;
+        // check the 8 nearest cells and take the minimum of the distances from
+        // (x, y, z) to their nearest obstacles
+        double min_d2 = std::numeric_limits<double>::infinity();
+        for (int dx = dxlo; dx <= dxhi; ++dx) {
+        for (int dy = dylo; dy <= dyhi; ++dy) {
+        for (int dz = dzlo; dz <= dzhi; ++dz) {
+            Eigen::Vector3i gpp(gp.x() + dx, gp.y() + dy, gp.z() + dz);
+            min_d2 = std::min(min_d2, nearest_edge_sq_dist(gpp));
+        }
+        }
+        }
 
-        return dx * dx + dy * dy + dz * dz;
+        return min_d2;
     } else {
         double dist = m_grid->getDistance(x, y, z);
         return dist * dist;
