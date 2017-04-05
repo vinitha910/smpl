@@ -84,14 +84,27 @@ RobotPlanningSpacePtr ManipLatticeAllocator::allocate(
 
     for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
         const std::string& vname = robot->getPlanningJoints()[vidx];
-        auto dit = disc.find(vname);
-        if (dit == disc.end()) {
-            ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
-            return RobotPlanningSpacePtr();
+        const size_t sidx = vname.find('/');
+        if (sidx != std::string::npos) {
+            // adjust variable name if a variable of a multi-dof joint
+            std::string mdof_vname =
+                    vname.substr(0, sidx) + "_" + vname.substr(sidx + 1);
+            auto dit = disc.find(mdof_vname);
+            if (dit == disc.end()) {
+                ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+                return RobotPlanningSpacePtr();
+            }
+            resolutions[vidx] = dit->second;
         } else {
-            ROS_DEBUG_NAMED(PI_LOGGER, "resolution(%s) = %0.3f", vname.c_str(), dit->second);
+            auto dit = disc.find(vname);
+            if (dit == disc.end()) {
+                ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+                return RobotPlanningSpacePtr();
+            }
+            resolutions[vidx] = dit->second;
         }
-        resolutions[vidx] = dit->second;
+
+        ROS_DEBUG_NAMED(PI_LOGGER, "resolution(%s) = %0.3f", vname.c_str(), resolutions[vidx]);
     }
 
     if (!params->getParam("mprim_filename", mprim_filename)) {
