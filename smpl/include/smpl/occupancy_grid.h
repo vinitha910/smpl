@@ -41,7 +41,7 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Geometry>
+#include <Eigen/Dense>
 #include <moveit/distance_field/voxel_grid.h>
 #include <moveit/distance_field/propagation_distance_field.h>
 #include <ros/console.h>
@@ -243,6 +243,7 @@ private:
     int m_y_stride;
     std::vector<int> m_counts;
     double m_half_res;
+    double m_error;
 
     void initRefCounts();
 
@@ -357,7 +358,7 @@ double OccupancyGrid::getSquaredDist(double x, double y, double z) const
 
         // compute the squared distance from (x, y, z) to the nearest point on
         // the obstacle cell positioned at \p npos
-        auto edge_dist = [&](const Eigen::Vector3i& npos)
+        auto edge_sq_dist = [&](const Eigen::Vector3i& npos)
         {
             // nearest obstacle cell -> nearest obstacle center
             double ox, oy, oz;
@@ -397,27 +398,26 @@ double OccupancyGrid::getSquaredDist(double x, double y, double z) const
 
         // compute the squared distance from (x, y, z) to the neighbor of the
         // cell positioned at \p gp
-        auto nearest_edge_sq_dist = [&](const Eigen::Vector3i& gp)
+        auto nearest_edge_sq_dist = [&](const Eigen::Vector3i& gp, double& curr)
         {
-            if (!m_df->isCellValid(gp.y(), gp.y(), gp.z())) {
-                return std::numeric_limits<double>::infinity(); //0.0;
+            double d = m_df->getDistance(gp.x(), gp.y(), gp.z());
+            if (d * d >= curr) {
+                // can't lower the distance bound via this cell
+                return;
             }
 
             // get the nearest obstacle cell
             double dist;
             Eigen::Vector3i npos;
-            if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos) ||
-                    npos.x() < 0)
-            {
-                if (dist == 0.0) {
-                    return dist;
-                } else {
-                    dist -= sqrt(3) * m_df->getResolution();
-                    return dist * dist;
-                }
+            const distance_field::PropDistanceFieldVoxel* nearest =
+                    m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos);
+            if (npos.x() < 0) { // unknown nearest
+                dist -= m_error; // maximum error res * root(3)
+                dist *= dist;
+                curr = std::min(curr, dist);
+            } else { // known nearest obstacle
+                curr = std::min(curr, edge_sq_dist(npos));
             }
-
-            return edge_dist(npos);
         };
 
         Eigen::Vector3d wp;
@@ -451,7 +451,7 @@ double OccupancyGrid::getSquaredDist(double x, double y, double z) const
         for (int dy = dylo; dy <= dyhi; ++dy) {
         for (int dz = dzlo; dz <= dzhi; ++dz) {
             Eigen::Vector3i gpp(gp.x() + dx, gp.y() + dy, gp.z() + dz);
-            min_d2 = std::min(min_d2, nearest_edge_sq_dist(gpp));
+            nearest_edge_sq_dist(gpp, min_d2);
         }
         }
         }

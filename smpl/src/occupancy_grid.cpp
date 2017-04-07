@@ -76,6 +76,7 @@ OccupancyGrid::OccupancyGrid(
         m_counts.assign(getCellCount(), 0);
     }
     m_half_res = 0.5 * getResolution();
+    m_error = sqrt(3.0) * getResolution();
 }
 
 /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(const octomap::OcTree&, const octomap::point3d&, const octomap::point3d&, double, bool);
@@ -98,6 +99,7 @@ OccupancyGrid::OccupancyGrid(
 {
     initRefCounts();
     m_half_res = 0.5 * getResolution();
+    m_error = sqrt(3.0) * getResolution();
 }
 
 /// \sa distance_field::PropagationDistanceField::PropagationDistanceField(std::istream&, double, bool);
@@ -135,6 +137,7 @@ OccupancyGrid::OccupancyGrid(
 {
     initRefCounts();
     m_half_res = 0.5 * getResolution();
+    m_error = sqrt(3.0) * getResolution();
 }
 
 OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
@@ -156,6 +159,7 @@ OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
     m_y_stride = o.m_y_stride;
     m_counts = o.m_counts;
     m_half_res = o.m_half_res;
+    m_error = sqrt(3.0) * getResolution();
 }
 
 OccupancyGrid::~OccupancyGrid()
