@@ -326,6 +326,7 @@ void Grid3<T>::clear()
 {
     if (m_data) {
         delete [] m_data;
+        m_data = nullptr;
     }
     m_dims[0] = 0;
     m_dims[1] = 0;
