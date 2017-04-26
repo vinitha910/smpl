@@ -83,7 +83,6 @@ Grid3<T>::Grid3(const Grid3& other) :
     m_dims()
 {
     size_type total_size = other.m_dims[0] * other.m_dims[1] * other.m_dims[2];
-    m_data = new T[total_size];
     std::copy(other.m_data, other.m_data + total_size, m_data);
     m_dims[0] = other.m_dims[0];
     m_dims[1] = other.m_dims[1];
