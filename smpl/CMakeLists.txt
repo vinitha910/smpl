@@ -60,8 +60,10 @@ add_library(
     src/debug/visualizer_ros.cpp
     src/distance_map/chessboard_distance_map.cpp
     src/distance_map/distance_map_base.cpp
+    src/distance_map/distance_map_common.cpp
     src/distance_map/edge_euclid_distance_map.cpp
     src/distance_map/euclid_distance_map.cpp
+    src/distance_map/sparse_distance_map.cpp
     src/geometry/bounding_spheres.cpp
     src/geometry/mesh_utils.cpp
     src/geometry/voxelize.cpp

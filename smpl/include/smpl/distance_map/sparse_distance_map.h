@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_DISTANCE_MAP_BASE_H
-#define SMPL_DISTANCE_MAP_BASE_H
+#ifndef SMPL_SPARSE_DISTANCE_MAP_H
+#define SMPL_SPARSE_DISTANCE_MAP_H
 
 // standard includes
 #include <array>
@@ -40,20 +40,19 @@
 // system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
-#include <moveit/distance_field/distance_field.h>
 
 // project includes
-#include <smpl/grid.h>
+#include <smpl/grid/sparse_grid.h>
 
-#include "distance_map_common.h"
+#include "detail/distance_map_common.h"
 
 namespace sbpl {
 
-class DistanceMapBase
+class SparseDistanceMap
 {
 public:
 
-    DistanceMapBase(
+    SparseDistanceMap(
         double origin_x, double origin_y, double origin_z,
         double size_x, double size_y, double size_z,
         double resolution,
@@ -82,17 +81,29 @@ public:
         int& x, int& y, int& z) const;
 
     bool isCellValid(int x, int y, int z) const;
+    bool isCellValid(const Eigen::Vector3i& gp) const;
 
     double getDistance(double x, double y, double z) const;
     double getDistance(int x, int y, int z) const;
 
-protected:
+    /// \name DistanceMap
+    ///@{
+    void addPointsToMap(const std::vector<Eigen::Vector3d>& points);
+    void removePointsFromMap(const std::vector<Eigen::Vector3d>& points);
+    void updatePointsInMap(
+        const std::vector<Eigen::Vector3d>& old_points,
+        const std::vector<Eigen::Vector3d>& new_points);
+
+    void reset();
+    ///@}
+
+public:
 
     struct Cell
     {
-        int x;
-        int y;
-        int z;
+        int ox;
+        int oy;
+        int oz;
 
         int dist;
         int dist_new;
@@ -106,7 +117,7 @@ protected:
         int pos;
     };
 
-    Grid3<Cell> m_cells;
+    SparseGrid<Cell> m_cells;
 
     // origin of grid in world coordinates
     double m_origin_x;
@@ -117,6 +128,10 @@ protected:
     double m_size_x;
     double m_size_y;
     double m_size_z;
+
+    int m_cell_count_x;
+    int m_cell_count_y;
+    int m_cell_count_z;
 
     // resolution of the grid in world units
     double m_res;
@@ -133,23 +148,71 @@ protected:
 
     int m_no_update_dir;
 
+    // Direction offsets to each of the 27 neighbors, including (0, 0, 0).
+    // Indexed by a call to dirnum(x, y, z, 0);
     std::array<Eigen::Vector3i, 27> m_neighbors;
+
+    // Storage for the indices of neighbor offsets that must have distance
+    // information propagated to them, given the source's update direction. The
+    // indices are arranged so that target neighbor indices for a given source
+    // update direction are contiguous
+
+    // [ s_1_t_1, ..., s_1_t_n, s_2_t_1, ..., s_2_t_n, ..., s_n_t_1, ..., s_n_t_n ]
+    // where n = 2 * 27
     std::array<int, NEIGHBOR_LIST_SIZE> m_indices;
+
+    // Map from a source update direction (obtained from dirnum(x, y, z, e)) to
+    // a range of neighbor offsets (indices into m_neighbors) denoting neighbors
+    // to which distance values must be propagated upon insertion
     std::array<std::pair<int, int>, NUM_DIRECTIONS> m_neighbor_ranges;
+
+    // Map from a (source, target) update direction pair (obtained from
+    // dirnum(x, y, z, e)) to a precomputed offsets into the grid for its target
+    // neighbor offsets
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_offsets;
+
+    // Map from a (source, target) update direction pair to the update direction
+    // index
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_dirs;
 
     std::vector<double> m_sqrt_table;
 
-    typedef std::vector<Cell*> bucket_type;
+    struct bucket_element
+    {
+        Cell* c;
+        int x;
+        int y;
+        int z;
+
+        bucket_element() { }
+        bucket_element(Cell* c, int x, int y, int z) :
+            c(c), x(x), y(y), z(z)
+        { }
+    };
+
+    typedef std::vector<bucket_element> bucket_type;
     typedef std::vector<bucket_type> bucket_list;
     bucket_list m_open;
 
-    std::vector<Cell*> m_rem_stack;
+    std::vector<bucket_element> m_rem_stack;
 
     void initBorderCells();
 
-    void updateVertex(Cell* c);
+    void updateVertex(Cell* c, int cx, int cy, int cz);
+
+    /// DistanceMap
+    ///@{
+    int distance(int nx, int ny, int nz, const Cell& s);
+
+    void lower(Cell* s, int sx, int sy, int sz);
+    void raise(Cell* s, int sx, int sy, int sz);
+    void waveout(Cell* n, int nx, int ny, int nz);
+    void propagate();
+
+    void lowerBounded(Cell* s, int sx, int sy, int sz);
+    void propagateRemovals();
+    void propagateBorder();
+    ///@}
 };
 
 } // namespace sbpl

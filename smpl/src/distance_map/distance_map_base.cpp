@@ -33,25 +33,6 @@
 
 namespace sbpl {
 
-struct Eigen_Vector3i_compare
-{
-    bool operator()(const Eigen::Vector3i& u, const Eigen::Vector3i& v)
-    {
-        return std::tie(u.x(), u.y(), u.z()) < std::tie(v.x(), v.y(), v.z());
-    }
-};
-
-void CreateNeighborUpdateList(
-    std::array<Eigen::Vector3i, 27>& neighbors,
-    std::array<int, NEIGHBOR_LIST_SIZE>& indices,
-    std::array<std::pair<int, int>, NUM_DIRECTIONS>& ranges);
-
-inline
-int dirnum(int dx, int dy, int dz, int edge = 0)
-{
-    return 27 * edge + 9 * (dx + 1) + 3 * (dy + 1) + (dz + 1);
-}
-
 #define VECTOR_BUCKET_LIST_INSERT(o, key) \
 {\
     o->pos = m_open[key].size();\
@@ -81,53 +62,6 @@ int dirnum(int dx, int dy, int dz, int edge = 0)
 #define BUCKET_INSERT(o, key) do { VECTOR_BUCKET_LIST_INSERT(o, key) } while (0)
 #define BUCKET_UPDATE(o, key) do { VECTOR_BUCKET_LIST_UPDATE(o, key) } while (0)
 #define BUCKET_POP(s, bucket) do { VECTOR_BUCKET_LIST_POP(s, bucket) } while (0)
-
-void CreateNeighborUpdateList(
-    std::array<Eigen::Vector3i, 27>& neighbors,
-    std::array<int, NEIGHBOR_LIST_SIZE>& indices,
-    std::array<std::pair<int, int>, NUM_DIRECTIONS>& ranges)
-{
-    int i = 0;
-    int n = 0;
-    for (int edge = 0; edge < 2; ++edge) {
-    for (int sx = -1; sx <= 1; ++sx) {
-    for (int sy = -1; sy <= 1; ++sy) {
-    for (int sz = -1; sz <= 1; ++sz) {
-        if (!edge) {
-            neighbors[n++] = Eigen::Vector3i(sx, sy, sz);
-        }
-        int d = dirnum(sx, sy, sz, edge);
-        int nfirst = i;
-        for (int tx = -1; tx <= 1; ++tx) {
-        for (int ty = -1; ty <= 1; ++ty) {
-        for (int tz = -1; tz <= 1; ++tz) {
-            if (tx == 0 && ty == 0 && tz == 0) {
-                continue;
-            }
-            if (edge) {
-                if (
-                    !(((tx == -1 && sx == 1) || (tx == 1 & sx == -1)) ||
-                    ((ty == -1 && sy == 1) || (ty == 1 & sy == -1)) ||
-                    ((tz == -1 && sz == 1) || (tz == 1 & sz == -1))))
-                {
-                    indices[i++] = dirnum(tx, ty, tz);
-                }
-            } else {
-                if (tx * sx + ty * sy + tz * sz >= 0) {
-                    indices[i++] = dirnum(tx, ty, tz);
-                }
-            }
-        }
-        }
-        }
-        int nlast = i;
-        ranges[d].first = nfirst;
-        ranges[d].second = nlast;
-    }
-    }
-    }
-    }
-}
 
 DistanceMapBase::DistanceMapBase(
     double origin_x, double origin_y, double origin_z,

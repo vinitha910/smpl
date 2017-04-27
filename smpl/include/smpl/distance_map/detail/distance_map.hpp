@@ -41,14 +41,6 @@
 
 namespace sbpl {
 
-struct Eigen_Vector3i_compare
-{
-    bool operator()(const Eigen::Vector3i& u, const Eigen::Vector3i& v)
-    {
-        return std::tie(u.x(), u.y(), u.z()) < std::tie(v.x(), v.y(), v.z());
-    }
-};
-
 #define VECTOR_BUCKET_LIST_INSERT(o, key) \
 {\
     o->pos = m_open[key].size();\
