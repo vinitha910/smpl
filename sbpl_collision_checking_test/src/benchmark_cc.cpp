@@ -66,7 +66,8 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         !wcm_config.hasMember("origin_x") ||
         !wcm_config.hasMember("origin_y") ||
         !wcm_config.hasMember("origin_z") ||
-        !wcm_config.hasMember("res_m"))
+        !wcm_config.hasMember("res_m") ||
+        !wcm_config.hasMember("max_distance_m"))
     {
         ROS_ERROR("'%s' param is malformed", world_collision_model_param);
         ROS_ERROR_STREAM("has frame_id member " << wcm_config.hasMember("frame_id"));
@@ -77,6 +78,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         ROS_ERROR_STREAM("has origin_y member " << wcm_config.hasMember("origin_y"));
         ROS_ERROR_STREAM("has origin_z member " << wcm_config.hasMember("origin_z"));
         ROS_ERROR_STREAM("has res_m member " << wcm_config.hasMember("res_m"));
+        ROS_ERROR_STREAM("has max_distance_m member " << wcm_config.hasMember("max_distance_m"));
         return sbpl::OccupancyGridPtr();
     }
 
@@ -88,7 +90,8 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     const double origin_x = wcm_config["origin_x"];
     const double origin_y = wcm_config["origin_y"];
     const double origin_z = wcm_config["origin_z"];
-    const double max_distance_m = max_dist + res_m;
+    const double cfg_max_dist = wcm_config["max_distance_m"];
+    const double max_distance_m = std::max(max_dist + sqrt(3.0) * res_m, cfg_max_dist);
     const bool propagate_negative_distances = false;
     const bool ref_counted = true;
 
