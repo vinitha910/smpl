@@ -121,6 +121,7 @@ bool CheckVoxelsCollisions(
 
         double obs_dist;
         if (CheckSphereCollision(grid, *s, padding, obs_dist)) {
+            ROS_DEBUG_NAMED(COP_LOGGER, " dist^2: %0.3f -> ok!", obs_dist);
             continue; // no collision -> ok!
         }
 
