@@ -181,14 +181,14 @@ template <class T, class Allocator>
 typename SparseGrid<T, Allocator>::const_reference
 SparseGrid<T, Allocator>::operator()(index_type x, index_type y, index_type z) const
 {
-    return get_node(m_max_depth - 1, root(), x, y, z)->value;
+    return get_node(m_max_depth, root(), x, y, z)->value;
 }
 
 template <class T, class Allocator>
 typename SparseGrid<T, Allocator>::reference
 SparseGrid<T, Allocator>::operator()(index_type x, index_type y, index_type z)
 {
-    return get_node_unique(m_max_depth - 1, root(), x, y, z)->value;
+    return get_node_unique(m_max_depth, root(), x, y, z)->value;
 }
 
 /// Reset so that all cells have identical values. Prunes the SparseGrid fully.
@@ -212,7 +212,7 @@ void
 SparseGrid<T, Allocator>::set(
     index_type x, index_type y, index_type z, const T& data)
 {
-    set_node(m_max_depth - 1, root(), x, y, z, data);
+    set_node(m_max_depth, root(), x, y, z, data);
 }
 
 template <class T, class Allocator>
@@ -220,7 +220,7 @@ void
 SparseGrid<T, Allocator>::set_lazy(
     index_type x, index_type y, index_type z, const T& data)
 {
-    set_node_lazy(m_max_depth - 1, root(), x, y, z, data);
+    set_node_lazy(m_max_depth, root(), x, y, z, data);
 }
 
 template <class T, class Allocator>
@@ -266,7 +266,7 @@ template <class T, class Allocator>
 typename SparseGrid<T, Allocator>::const_reference
 SparseGrid<T, Allocator>::get(index_type x, index_type y, index_type z) const
 {
-    return get_node(m_max_depth - 1, root(), x, y, z)->value;
+    return get_node(m_max_depth, root(), x, y, z)->value;
 }
 
 /// Return the approximate number of bytes used by an equivalent dense grid.
@@ -344,7 +344,7 @@ SparseGrid<T, Allocator>::get_node(
     index_type y,
     index_type z) const
 {
-    if (rdepth < 0) {
+    if (!rdepth) {
         return n;
     }
 
@@ -352,13 +352,15 @@ SparseGrid<T, Allocator>::get_node(
         return n;
     }
 
+    --rdepth;
+
     index_type x_loc = x >> rdepth;
     index_type y_loc = y >> rdepth;
     index_type z_loc = z >> rdepth;
     index_type cidx = x_loc << 2 | y_loc << 1 | z_loc;
 
     return get_node(
-            rdepth - 1, &n->children[cidx],
+            rdepth, &n->children[cidx],
             x - (x_loc << rdepth),
             y - (y_loc << rdepth),
             z - (z_loc << rdepth));
@@ -373,9 +375,11 @@ SparseGrid<T, Allocator>::get_node_unique(
     index_type y,
     index_type z)
 {
-    if (rdepth < 0) {
+    if (!rdepth) {
         return n;
     }
+
+    --rdepth;
 
     index_type x_loc = x >> rdepth;
     index_type y_loc = y >> rdepth;
@@ -388,7 +392,7 @@ SparseGrid<T, Allocator>::get_node_unique(
     }
 
     return get_node_unique(
-            rdepth - 1, &n->children[cidx],
+            rdepth, &n->children[cidx],
             x - (x_loc << rdepth),
             y - (y_loc << rdepth),
             z - (z_loc << rdepth));
@@ -407,13 +411,15 @@ SparseGrid<T, Allocator>::set_node(
     index_type z,
     const T& value)
 {
-    if (rdepth < 0) {
+    if (!rdepth) {
         if (std::equal_to<T>()(n->value, value)) {
             return false;
         }
         n->value = value;
         return true;
     }
+
+    --rdepth;
 
     index_type x_loc = x >> rdepth;
     index_type y_loc = y >> rdepth;
@@ -428,7 +434,7 @@ SparseGrid<T, Allocator>::set_node(
         expand_node(n);
     }
 
-    if (set_node(rdepth - 1, &n->children[cidx],
+    if (set_node(rdepth, &n->children[cidx],
             x - (x_loc << rdepth),
             y - (y_loc << rdepth),
             z - (z_loc << rdepth),
@@ -455,10 +461,12 @@ SparseGrid<T, Allocator>::set_node_lazy(
     index_type z,
     const T& value)
 {
-    if (rdepth < 0) {
+    if (!rdepth) {
         n->value = value;
         return;
     }
+
+    --rdepth;
 
     index_type x_loc = x >> rdepth;
     index_type y_loc = y >> rdepth;
@@ -474,7 +482,7 @@ SparseGrid<T, Allocator>::set_node_lazy(
     }
 
     set_node_lazy(
-            rdepth - 1,
+            rdepth,
             &n->children[cidx],
             x - (x_loc << rdepth),
             y - (y_loc << rdepth),
@@ -491,13 +499,15 @@ SparseGrid<T, Allocator>::create_node(
     index_type y,
     index_type z)
 {
-    if (rdepth < 0) {
+    if (!rdepth) {
         return n;
     }
 
-    index_type x_loc = x >> (rdepth);
-    index_type y_loc = y >> (rdepth);
-    index_type z_loc = z >> (rdepth);
+    --rdepth;
+
+    index_type x_loc = x >> rdepth;
+    index_type y_loc = y >> rdepth;
+    index_type z_loc = z >> rdepth;
     index_type cidx = x_loc << 2 | y_loc << 1 | z_loc;
 
     if (!n->children) {
@@ -505,7 +515,7 @@ SparseGrid<T, Allocator>::create_node(
     }
 
     return create_node(
-            rdepth - 1,
+            rdepth,
             &n->children[cidx],
             x - (x_loc << rdepth),
             y - (y_loc << rdepth),
