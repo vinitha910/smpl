@@ -1392,17 +1392,29 @@ int CollisionSpaceProfiler::verifyCheckedStates(const char* filename)
     std::vector<double> vals(7);
     int ires;
     int line_count = 0;
+    int diff = 0;
+    int now_positive = 0;
+    int now_negative = 0;
     while (ifs >> vals[0] >> vals[1] >> vals[2] >>vals[3] >> vals[4] >> vals[5] >> vals[6] >> ires) {
         ++line_count;
         double dist;
         bool res = m_cspace->checkCollision(vals, dist);
         if ((int)res != ires) {
             ROS_ERROR("Different result for line %d", line_count);
-            return 1;
+            ++diff;
+            if (res) {
+                ++now_positive;
+            } else {
+                ++now_negative;
+            }
         }
     }
 
-    return 0;
+    if (diff) {
+        ROS_ERROR("checks for %d configurations differ (%d positive, %d negative)", diff, now_positive, now_negative);
+    }
+
+    return diff;
 }
 
 int main(int argc, char *argv[])
