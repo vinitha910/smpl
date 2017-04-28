@@ -38,7 +38,9 @@
 
 // system includes
 #include <ros/ros.h>
-
+#include <smpl/distance_map/distance_map.h>
+#include <smpl/distance_map/sparse_distance_map.h>
+#include <smpl/distance_map/euclid_distance_map.h>
 #include <smpl/occupancy_grid.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <urdf/model.h>
@@ -101,13 +103,35 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     ROS_INFO("  res: %0.3f", res_m);
     ROS_INFO("  max_distance: %0.3f", max_distance_m);
 
-    auto grid = std::make_shared<sbpl::OccupancyGrid>(
-            size_x, size_y, size_z,
-            res_m,
-            origin_x, origin_y, origin_z,
-            max_distance_m,
-            propagate_negative_distances,
-            ref_counted);
+    const int dflib = 2; // 0 -> my dense, 1 -> my sparse, 2 -> df
+
+    sbpl::OccupancyGridPtr grid;
+    if (dflib == 0) {
+        auto df = std::make_shared<sbpl::DistanceMapMoveIt<sbpl::EuclidDistanceMap>>(
+                origin_x, origin_y, origin_z,
+                size_x, size_y, size_z,
+                res_m,
+                max_distance_m);
+
+        grid = std::make_shared<sbpl::OccupancyGrid>(df, ref_counted);
+
+    } else if (dflib == 1) {
+        auto df = std::make_shared<sbpl::DistanceMapMoveIt<sbpl::SparseDistanceMap>>(
+                origin_x, origin_y, origin_z,
+                size_x, size_y, size_z,
+                res_m,
+                max_distance_m);
+        grid = std::make_shared<sbpl::OccupancyGrid>(df, ref_counted);
+    } else {
+        grid = std::make_shared<sbpl::OccupancyGrid>(
+                size_x, size_y, size_z,
+                res_m,
+                origin_x, origin_y, origin_z,
+                max_distance_m,
+                propagate_negative_distances,
+                ref_counted);
+    }
+
     grid->setReferenceFrame(world_frame);
     return grid;
 }
