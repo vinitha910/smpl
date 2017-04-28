@@ -570,6 +570,9 @@ void SparseDistanceMap::propagateRemovals()
         }
     }
 
+    // see note in Cell::operator==
+    m_cells.prune([&](const Cell& c) { return !c.obs; });
+
     propagateBorder();
 }
 
