@@ -269,6 +269,9 @@ void SparseDistanceMap::addPointsToMap(
             c.dir = m_no_update_dir;
             c.dist_new = 0;
             c.obs = &c;
+            c.ox = gx;
+            c.oy = gy;
+            c.oz = gz;
             updateVertex(&c, gx, gy, gz);
         }
     }
@@ -297,6 +300,7 @@ void SparseDistanceMap::removePointsFromMap(
 
         c.dist_new = m_dmax_sqrd_int;
         c.obs = nullptr;
+        c.ox = c.oy = c.oz = -1;
 
         c.dist = m_dmax_sqrd_int;
         c.dir = m_no_update_dir;
@@ -357,6 +361,7 @@ void SparseDistanceMap::updatePointsInMap(
         c.dist_new = m_dmax_sqrd_int;
         c.dist = m_dmax_sqrd_int;
         c.obs = nullptr;
+        c.ox = c.oy = c.oz = -1;
         m_rem_stack.emplace_back(&c, p.x(), p.y(), p.z());
     }
 
@@ -371,6 +376,10 @@ void SparseDistanceMap::updatePointsInMap(
         c.dir = m_no_update_dir;
         c.dist_new = 0;
         c.obs = &c;
+        c.ox = p.x();
+        c.oy = p.y();
+        c.oz = p.z();
+
         updateVertex(&c, p.x(), p.y(), p.z());
     }
 
@@ -381,19 +390,18 @@ void SparseDistanceMap::updatePointsInMap(
 void SparseDistanceMap::reset()
 {
     Cell initial;
-    initial.ox = initial.oy = initial.oz = -1;
     initial.dist = m_dmax_sqrd_int;
     initial.dist_new = m_dmax_sqrd_int;
 #if SMPL_DMAP_RETURN_CHANGED_CELLS
     initial.dist_old = m_dmax_sqrd_int;
 #endif
     initial.obs = nullptr;
+    initial.ox = initial.oy = initial.oz = -1;
+
     initial.bucket = -1;
     initial.dir = m_no_update_dir;
 
     m_cells.reset(initial);
-
-    propagateBorder();
 }
 
 int SparseDistanceMap::distance(int nx, int ny, int nz, const Cell& s)
