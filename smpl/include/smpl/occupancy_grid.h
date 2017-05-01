@@ -34,28 +34,23 @@
 #define SMPL_OCCUPANCY_GRID_H
 
 // standard includes
-#include <cmath>
-#include <fstream>
-#include <map>
-#include <memory>
+#include <algorithm>
+#include <string>
 #include <vector>
 
 // system includes
-#include <Eigen/Geometry>
-#include <moveit/distance_field/voxel_grid.h>
-#include <moveit/distance_field/propagation_distance_field.h>
-#include <ros/console.h>
-#include <sys/stat.h>
+#include <Eigen/Dense>
+#include <Eigen/StdVector>
 #include <visualization_msgs/MarkerArray.h>
+
+// project includes
+#include <smpl/distance_map/distance_map_interface.h>
+#include <smpl/forward.h>
 
 namespace sbpl {
 
-typedef std::shared_ptr<distance_field::DistanceField> PropagationDistanceFieldPtr;
-typedef std::shared_ptr<const distance_field::DistanceField> PropagationDistanceFieldConstPtr;
+SBPL_CLASS_FORWARD(OccupancyGrid)
 
-/// \brief Lightweight layer on top of the PropagationDistanceField class that
-/// carries occupancy information in some reference frame as well as the
-/// distance transform
 class OccupancyGrid
 {
 public:
@@ -65,94 +60,66 @@ public:
         double resolution,
         double origin_x, double origin_y, double origin_z,
         double max_dist,
-        bool propagate_negative_distances = false,
         bool ref_counted = false);
 
-    OccupancyGrid(
-        const octomap::OcTree& octree,
-        const octomap::point3d& bbx_min,
-        const octomap::point3d& bby_min,
-        double max_distance,
-        bool propagate_negative_distances = false,
-        bool ref_counted = false);
-
-    OccupancyGrid(
-        std::istream& stream,
-        double max_distance,
-        bool propagate_negative_distances = false,
-        bool ref_counted = false);
-
-    OccupancyGrid(
-        const PropagationDistanceFieldPtr& df,
-        bool ref_counted = false);
+    OccupancyGrid(const DistanceMapInterfacePtr& df, bool ref_counted = false);
 
     OccupancyGrid(const OccupancyGrid& o);
 
-    ~OccupancyGrid();
+    const DistanceMapInterfacePtr& getDistanceField() const { return m_grid; }
 
-    /// \brief Return a pointer to the distance field
-    const PropagationDistanceFieldPtr& getDistanceField() const;
-
-    /// \name Attributes
+    /// \name Modifiers
     ///@{
+    void addPointsToField(const std::vector<Eigen::Vector3d>& points);
+    void removePointsFromField(const std::vector<Eigen::Vector3d>& points);
 
-    int numCellsX() const { return m_grid->getXNumCells(); }
-    int numCellsY() const { return m_grid->getYNumCells(); }
-    int numCellsZ() const { return m_grid->getZNumCells(); }
-    double originX() const { return m_grid->getOriginX(); }
-    double originY() const { return m_grid->getOriginY(); }
-    double originZ() const { return m_grid->getOriginZ(); }
-    double sizeX() const { return m_grid->getSizeX(); }
-    double sizeY() const { return m_grid->getSizeY(); }
-    double sizeZ() const { return m_grid->getSizeZ(); }
+    void updatePointsInField(
+        const std::vector<Eigen::Vector3d>& old_points,
+        const std::vector<Eigen::Vector3d>& new_points);
 
-    double resolution() const { return m_grid->getResolution(); }
+    void reset();
+    ///@}
 
-    /// \brief Get the dimensions of the grid, in cells
-    void getGridSize(int &dim_x, int &dim_y, int &dim_z) const;
+    /// \name Properties
+    ///@{
+    double originX() const { return m_grid->originX(); }
+    double originY() const { return m_grid->originY(); }
+    double originZ() const { return m_grid->originZ(); }
+    double sizeX() const { return m_grid->sizeX(); }
+    double sizeY() const { return m_grid->sizeY(); }
+    double sizeZ() const { return m_grid->sizeZ(); }
+    int numCellsX() const { return m_grid->numCellsX(); }
+    int numCellsY() const { return m_grid->numCellsY(); }
+    int numCellsZ() const { return m_grid->numCellsZ(); }
 
-    /// \brief Get the dimensions of the world, in meters
-    void getWorldSize(double &dim_x, double &dim_y, double &dim_z) const;
-
-    /// \brief Get the origin of the world, in meters
-    void getOrigin(double &wx, double &wy, double &wz) const;
-
-    /// \brief Get the resolution of the world, in meters
-    double getResolution() const;
-    double getHalfResolution() const;
-
-    /// \brief Get the maximum distance to which the distance field is computed
-    double getMaxDistance() const;
+    double resolution() const { return m_grid->resolution(); }
 
     const std::string& getReferenceFrame() const;
     void setReferenceFrame(const std::string& frame);
-
     ///@}
 
-    /// \name Grid Cell Accessors
+    /// \name Obstacle Lookups
     ///@{
+    size_t getOccupiedVoxelCount() const;
 
-    /// \brief Convert grid cell coords into world coords
-    void gridToWorld(
-        int x, int y, int z,
-        double &wx, double &wy, double &wz) const;
+    /// \brief Get all occupied voxels in the grid
+    void getOccupiedVoxels(std::vector<Eigen::Vector3d>& voxels) const;
 
-    /// \brief Convert world coords into grid cell coords
-    void worldToGrid(
-        double wx, double wy, double wz,
-        int &x, int &y, int &z) const;
+    void getOccupiedVoxels(
+        const Eigen::Affine3d& pose,
+        const std::vector<double>& dim,
+        std::vector<Eigen::Vector3d>& voxels) const;
 
-    /// \brief Convert world coords into grid cell coords
-    /// \param wx A double array of size 3 containing the world coordinates
-    /// \param gx An int array of size 3 for storing the grid cell coordinates
-    void worldToGrid(const double* wx, int* gx) const;
+    void getOccupiedVoxels(
+        double x_center,
+        double y_center,
+        double z_center,
+        double radius,
+        std::vector<Eigen::Vector3d>& voxels) const;
+    ///@}
 
-    /// \brief Get the distance, in cells, to the nearest occupied cell
-    unsigned char getCell(int x, int y, int z) const;
-
-    /// \brief Get the distance, in meters, to the nearest occupied cell
-    double getCell(const int* xyz) const;
-
+    /// \name Distance Lookups
+    ///@{
     /// \brief Get the distance, in meters, to the nearest occupied cell
     double getDistance(int x, int y, int z) const;
 
@@ -164,85 +131,41 @@ public:
     double getDistanceToBorder(int x, int y, int z) const;
 
     double getDistanceToBorder(double x, double y, double z) const;
-
-    // TODO: this whole implicit casting nonsense makes me nervous...factor
-    // these (T, T, T) triples into point class representations
-    bool isInBounds(double x, double y, double z) const;
-    bool isInBounds(int x, int y, int z) const;
-
-    size_t getOccupiedVoxelCount() const;
-
-    /// \brief Get all occupied voxels in the grid
-    void getOccupiedVoxels(std::vector<Eigen::Vector3d>& voxels) const;
-
-    /// \brief Get all occupied voxels within a cubic region of the grid
-    void getOccupiedVoxels(
-        const Eigen::Affine3d& pose,
-        const std::vector<double>& dim,
-        std::vector<Eigen::Vector3d>& voxels) const;
-
-    /// \brief Get all occupied voxels within a cubic region of the grid
-    void getOccupiedVoxels(
-        double x_center,
-        double y_center,
-        double z_center,
-        double radius,
-        std::vector<Eigen::Vector3d>& voxels) const;
-
     ///@}
 
-    /// \name Modifiers
+    /// \name Conversions Between Cell and Metric Coordinates
     ///@{
+    void gridToWorld(
+        int x, int y, int z,
+        double &wx, double &wy, double &wz) const;
 
-    void addPointsToField(const std::vector<Eigen::Vector3d>& points);
-    void removePointsFromField(const std::vector<Eigen::Vector3d>& points);
+    void worldToGrid(
+        double wx, double wy, double wz,
+        int &x, int &y, int &z) const;
 
-    /// \sa distance_field::PropagationDistanceField::updatePointsInField
-    void updatePointsInField(
-        const std::vector<Eigen::Vector3d>& old_points,
-        const std::vector<Eigen::Vector3d>& new_points);
-
-    /// \sa distance_field::PropagationDistanceField::reset
-    void reset();
-
+    bool isInBounds(double x, double y, double z) const;
+    bool isInBounds(int x, int y, int z) const;
     ///@}
 
     /// \name Visualization
     ///@{
-
-    /// \brief Return a visualization of the distance field
-    ///
-    /// The visualization_msgs::MarkerArray's contents vary depending on the
-    /// argument:
-    ///
-    ///     "bounds": line markers for the bounding box of the distance field in
-    ///               the namespace "collision_space_bounds"
-    ///     "distance_field": cube markers for all voxels nearby occupied voxels
-    ///                       in the namespace "distance_field"
-    ///     "occupied_voxels" list of points representing all occupied voxels in
-    ///                       the namespace "occupied voxels"
-    ///
-    /// \param type "bounds", "distance_field", "occupied_voxels"
     visualization_msgs::MarkerArray getVisualization(
         const std::string& type) const;
 
     visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
     visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
-
     ///@}
 
 private:
 
+    DistanceMapInterfacePtr m_grid;
     std::string reference_frame_;
-    PropagationDistanceFieldPtr m_grid;
-    distance_field::PropagationDistanceField* m_df;
 
     bool m_ref_counted;
     int m_x_stride;
     int m_y_stride;
     std::vector<int> m_counts;
-    double m_half_res;
 
     void initRefCounts();
 
@@ -258,35 +181,7 @@ private:
         int fx, int fy, int fz,
         int tx, int ty, int tz,
         CellFunction f) const;
-
-    EigenSTL::vector_Vector3d toAlignedVector(
-        const std::vector<Eigen::Vector3d>& v) const;
 };
-
-inline
-const PropagationDistanceFieldPtr& OccupancyGrid::getDistanceField() const
-{
-    return m_grid;
-}
-
-inline
-double OccupancyGrid::getResolution() const
-{
-    return m_grid->getResolution();
-}
-
-inline
-double OccupancyGrid::getHalfResolution() const
-{
-    return m_half_res;
-}
-
-inline
-double OccupancyGrid::getMaxDistance() const
-{
-    // HACK: embedded knowledge of PropagationDistanceField here
-    return m_grid->getUninitializedDistance();
-}
 
 inline
 void OccupancyGrid::gridToWorld(
@@ -305,12 +200,6 @@ void OccupancyGrid::worldToGrid(
 }
 
 inline
-void OccupancyGrid::worldToGrid(const double* wx, int* gx) const
-{
-    m_grid->worldToGrid(wx[0], wx[1], wx[2], gx[0], gx[1], gx[2]);
-}
-
-inline
 const std::string& OccupancyGrid::getReferenceFrame() const
 {
     return reference_frame_;
@@ -323,90 +212,21 @@ void OccupancyGrid::setReferenceFrame(const std::string& frame)
 }
 
 inline
-unsigned char OccupancyGrid::getCell(int x, int y, int z) const
-{
-    return (unsigned char)(m_grid->getDistance(x,y,z) / m_grid->getResolution());
-}
-
-inline
-double OccupancyGrid::getCell(const int* xyz) const
-{
-    return m_grid->getDistance(xyz[0], xyz[1], xyz[2]);
-}
-
-inline
 double OccupancyGrid::getDistance(int x, int y, int z) const
 {
-    return m_grid->getDistance(x, y, z);
+    return m_grid->getCellDistance(x, y, z);
 }
 
 inline
 double OccupancyGrid::getDistanceFromPoint(double x, double y, double z) const
 {
-    return m_grid->getDistance(x, y, z);
+    return m_grid->getMetricDistance(x, y, z);
 }
 
 inline
 double OccupancyGrid::getSquaredDist(double x, double y, double z) const
 {
-    if (m_df) {
-        Eigen::Vector3i gp;
-        if (!m_grid->worldToGrid(x, y, z, gp.x(), gp.y(), gp.z())) {
-            return m_df->getResolution() * m_df->getMaximumDistanceSquared();
-        }
-
-        // get the nearest obstacle cell
-        double dist;
-        Eigen::Vector3i npos;
-        if (!m_df->getNearestCell(gp.x(), gp.y(), gp.z(), dist, npos) ||
-            npos.x() < 0)
-        {
-            if (dist == 0.0) {
-                return dist;
-            } else {
-                dist -= sqrt(3) * m_df->getResolution();
-                return dist * dist;
-            }
-        }
-
-        // nearest obstacle cell -> nearest obstacle center
-        double ox, oy, oz;
-        m_grid->gridToWorld(npos.x(), npos.y(), npos.z(), ox, oy, oz);
-
-        // nearest obstacle center -> nearest obstacle corner
-        if (gp.x() > npos.x()) {
-            ox += m_half_res;
-        } else if (gp.x() < npos.x()) {
-            ox -= m_half_res;
-        } else {
-            ox = x;
-        }
-
-        if (gp.y() > npos.y()) {
-            oy += m_half_res;
-        } else if (gp.y() < npos.y()) {
-            oy -= m_half_res;
-        } else {
-            oy = y;
-        }
-
-        if (gp.z() > npos.z()) {
-            oz += m_half_res;
-        } else if (gp.z() < npos.z()) {
-            oz -= m_half_res;
-        } else {
-            oz = z;
-        }
-
-        const double dx = x - ox;
-        const double dy = y - oy;
-        const double dz = z - oz;
-
-        return dx * dx + dy * dy + dz * dz;
-    } else {
-        double dist = m_grid->getDistance(x, y, z);
-        return dist * dist;
-    }
+    return m_grid->getMetricSquaredDistance(x, y, z);
 }
 
 inline
@@ -415,10 +235,10 @@ double OccupancyGrid::getDistanceToBorder(int x, int y, int z) const
     if (!isInBounds(x, y, z)) {
         return 0.0;
     }
-    int dx = std::min(m_grid->getXNumCells() - x, x);
-    int dy = std::min(m_grid->getYNumCells() - y, y);
-    int dz = std::min(m_grid->getZNumCells() - z, z);
-    return m_grid->getResolution() * std::min(dx, std::min(dy, dz));
+    int dx = std::min(m_grid->numCellsX() - x, x);
+    int dy = std::min(m_grid->numCellsY() - y, y);
+    int dz = std::min(m_grid->numCellsZ() - z, z);
+    return m_grid->resolution() * std::min(dx, std::min(dy, dz));
 }
 
 inline
@@ -432,16 +252,14 @@ double OccupancyGrid::getDistanceToBorder(double x, double y, double z) const
 inline
 bool OccupancyGrid::isInBounds(int x, int y, int z) const
 {
-    return (x >= 0 && x < m_grid->getXNumCells() &&
-            y >= 0 && y < m_grid->getYNumCells() &&
-            z >= 0 && z < m_grid->getZNumCells());
+    return m_grid->isCellValid(x, y, z);
 }
 
 inline
 bool OccupancyGrid::isInBounds(double x, double y, double z) const
 {
     int gx, gy, gz;
-    worldToGrid(x, y, z, gx, gy, gz);
+    m_grid->worldToGrid(x, y, z, gx, gy, gz);
     return isInBounds(gx, gy, gz);
 }
 
@@ -454,11 +272,8 @@ int OccupancyGrid::coordToIndex(int x, int y, int z) const
 inline
 int OccupancyGrid::getCellCount() const
 {
-    return m_grid->getXNumCells() * m_grid->getYNumCells() * m_grid->getZNumCells();
+    return m_grid->numCellsX() * m_grid->numCellsY() * m_grid->numCellsZ();
 }
-
-typedef std::shared_ptr<OccupancyGrid> OccupancyGridPtr;
-typedef std::shared_ptr<const OccupancyGrid> OccupancyGridConstPtr;
 
 } // namespace sbpl
 

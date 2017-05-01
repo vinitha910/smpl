@@ -46,7 +46,6 @@ int main(int argc, char* argv[])
     const double res = 0.02;
     const double origin_x = -1.0, origin_y = -1.0, origin_z = 0.0;
     const double max_distance = 0.2;
-    bool propagate_negative_distances = false;
     bool ref_counted = true;
 
     sbpl::OccupancyGrid grid(
@@ -54,7 +53,6 @@ int main(int argc, char* argv[])
             res,
             origin_x, origin_y, origin_z,
             max_distance,
-            propagate_negative_distances,
             ref_counted);
     grid.setReferenceFrame("world");
 

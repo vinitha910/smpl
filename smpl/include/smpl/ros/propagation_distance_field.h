@@ -29,63 +29,64 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_DISTANCE_MAP_H
-#define SMPL_DISTANCE_MAP_H
-
-// standard includes
-#include <array>
-#include <utility>
-#include <vector>
+#ifndef SMPL_PROPAGATION_DISTANCE_FIELD_H
+#define SMPL_PROPAGATION_DISTANCE_FIELD_H
 
 // system includes
-#include <Eigen/Dense>
-#include <Eigen/StdVector>
+#include <moveit/distance_field/propagation_distance_field.h>
 
 // project includes
-#include <smpl/grid.h>
-#include <smpl/forward.h>
 #include <smpl/distance_map/distance_map_interface.h>
-
-#include "detail/distance_map_base.h"
 
 namespace sbpl {
 
-template <typename Derived>
-class DistanceMap : public DistanceMapInterface
+class PropagationDistanceField : public DistanceMapInterface
 {
 public:
 
-    DistanceMap(
+    PropagationDistanceField(
         double origin_x, double origin_y, double origin_z,
         double size_x, double size_y, double size_z,
-        double resolution,
-        double max_dist);
+        double res,
+        double max_distance,
+        bool propagate_negative_distances = false);
 
-    double maxDistance() const;
+    PropagationDistanceField(
+        const octomap::OcTree& octree,
+        const octomap::point3d& bbx_min,
+        const octomap::point3d& bbx_max,
+        double max_distance,
+        bool propagate_negative_distances = false);
 
-    double getDistance(double x, double y, double z) const;
-    double getDistance(int x, int y, int z) const;
+    PropagationDistanceField(
+        std::istream& stream,
+        double max_distance,
+        bool propagate_negative_distances = false);
 
-    /// \name Required Functions from DistanceMapInterface
-    ///@{
     DistanceMapInterface* clone() const override;
 
     void addPointsToMap(const std::vector<Eigen::Vector3d>& points) override;
-    void removePointsFromMap(const std::vector<Eigen::Vector3d>& points) override;
+
+    void removePointsFromMap(
+        const std::vector<Eigen::Vector3d>& points) override;
+
     void updatePointsInMap(
         const std::vector<Eigen::Vector3d>& old_points,
         const std::vector<Eigen::Vector3d>& new_points) override;
 
     void reset() override;
 
+    double getUninitializedDistance() const override;
+
     int numCellsX() const override;
     int numCellsY() const override;
     int numCellsZ() const override;
 
-    double getUninitializedDistance() const override;
-
     double getMetricDistance(double x, double y, double z) const override;
     double getCellDistance(int x, int y, int z) const override;
+    double getMetricSquaredDistance(double x, double y, double z) const override;
+
+    bool isCellValid(int x, int y, int z) const override;
 
     void gridToWorld(
         int x, int y, int z,
@@ -95,74 +96,18 @@ public:
         double world_x, double world_y, double world_z,
         int& x, int& y, int& z) const override;
 
-    bool isCellValid(int x, int y, int z) const;
-    ///@}
-
-    friend Derived;
-
 private:
 
-    struct Cell
-    {
-        int x;
-        int y;
-        int z;
+    distance_field::PropagationDistanceField m_df;
+    bool m_propagate_negative_distances;
+    double m_max_distance;
+    double m_half_res;
+    double m_error;
 
-        int dist;
-        int dist_new;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        int dist_old;
-#endif
-        Cell* obs;
-        int bucket;
-        int dir;
-
-        int pos;
-    };
-
-    Grid3<Cell> m_cells;
-
-    double m_max_dist;
-    double m_inv_res;
-
-    int m_dmax_int;
-    int m_dmax_sqrd_int;
-
-    int m_bucket;
-    int m_no_update_dir;
-
-    std::array<Eigen::Vector3i, 27> m_neighbors;
-    std::array<int, NEIGHBOR_LIST_SIZE> m_indices;
-    std::array<std::pair<int, int>, NUM_DIRECTIONS> m_neighbor_ranges;
-    std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_offsets;
-    std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_dirs;
-
-    std::vector<double> m_sqrt_table;
-
-    typedef std::vector<Cell*> bucket_type;
-    typedef std::vector<bucket_type> bucket_list;
-    bucket_list m_open;
-
-    std::vector<Cell*> m_rem_stack;
-
-    void initBorderCells();
-
-    void updateVertex(Cell* c);
-
-    int distance(const Cell& n, const Cell& s);
-
-    void lower(Cell* s);
-    void raise(Cell* s);
-    void waveout(Cell* n);
-    void propagate();
-
-    void lowerBounded(Cell* s);
-    void propagateRemovals();
-    void propagateBorder();
+    EigenSTL::vector_Vector3d toAlignedVector(
+        const std::vector<Eigen::Vector3d>& v) const;
 };
 
 } // namespace sbpl
-
-#include "detail/distance_map.hpp"
 
 #endif

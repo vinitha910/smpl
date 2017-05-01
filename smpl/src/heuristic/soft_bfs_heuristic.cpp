@@ -120,8 +120,9 @@ visualization_msgs::MarkerArray SoftBfsHeuristic::getValuesVisualization() const
 
 void SoftBfsHeuristic::syncGridAndBfs()
 {
-    int xc, yc, zc;
-    m_grid->getGridSize(xc, yc, zc);
+    const int xc = m_grid->numCellsX();
+    const int yc = m_grid->numCellsY();
+    const int zc = m_grid->numCellsZ();
     m_bfs.reset(new BFS_3D(xc, yc, zc));
     const int cell_count = xc * yc * zc;
     int wall_count = 0;

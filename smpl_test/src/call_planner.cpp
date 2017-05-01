@@ -1595,7 +1595,7 @@ int main(int argc, char* argv[])
     const bool propagate_negative_distances = false;
     const bool ref_counted = true;
 
-    typedef sbpl::DistanceMapMoveIt<sbpl::EdgeEuclidDistanceMap> DistanceMapType;
+    typedef sbpl::EdgeEuclidDistanceMap DistanceMapType;
 
     ROS_INFO("Create distance map");
     auto df = std::make_shared<DistanceMapType>(

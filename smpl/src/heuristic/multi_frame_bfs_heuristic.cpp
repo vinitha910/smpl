@@ -127,7 +127,7 @@ double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double
     const int dx = sx - gx;
     const int dy = sy - gy;
     const int dz = sz - gz;
-    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
+    return grid()->resolution() * (abs(dx) + abs(dy) + abs(dz));
 }
 
 double MultiFrameBfsHeuristic::getMetricGoalDistance(
@@ -136,9 +136,9 @@ double MultiFrameBfsHeuristic::getMetricGoalDistance(
     int gx, gy, gz;
     grid()->worldToGrid(x, y, z, gx, gy, gz);
     if (!m_bfs->inBounds(gx, gy, gz)) {
-        return (double)BFS_3D::WALL * grid()->getResolution();
+        return (double)BFS_3D::WALL * grid()->resolution();
     } else {
-        return (double)m_bfs->getDistance(gx, gy, gz) * grid()->getResolution();
+        return (double)m_bfs->getDistance(gx, gy, gz) * grid()->resolution();
     }
 }
 
@@ -167,8 +167,9 @@ visualization_msgs::MarkerArray
 MultiFrameBfsHeuristic::getWallsVisualization() const
 {
     std::vector<geometry_msgs::Point> points;
-    int dimX, dimY, dimZ;
-    grid()->getGridSize(dimX, dimY, dimZ);
+    const int dimX = grid()->numCellsX();
+    const int dimY = grid()->numCellsY();
+    const int dimZ = grid()->numCellsZ();
     for (int z = 0; z < dimZ; z++) {
         for (int y = 0; y < dimY; y++) {
             for (int x = 0; x < dimX; x++) {
@@ -191,7 +192,7 @@ MultiFrameBfsHeuristic::getWallsVisualization() const
 
     visualization_msgs::Marker cubes_marker = viz::getCubesMarker(
             points,
-            grid()->getResolution(),
+            grid()->resolution(),
             color,
             grid()->getReferenceFrame(),
             "bfs_walls",
@@ -283,9 +284,9 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
     marker.type = visualization_msgs::Marker::CUBE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
     marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.5 * grid()->getResolution();
-    marker.scale.y = 0.5 * grid()->getResolution();
-    marker.scale.z = 0.5 * grid()->getResolution();
+    marker.scale.x = 0.5 * grid()->resolution();
+    marker.scale.y = 0.5 * grid()->resolution();
+    marker.scale.z = 0.5 * grid()->resolution();
 //    marker.color;
     marker.lifetime = ros::Duration(0.0);
     marker.frame_locked = false;
@@ -332,8 +333,9 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 
 void MultiFrameBfsHeuristic::syncGridAndBfs()
 {
-    int xc, yc, zc;
-    grid()->getGridSize(xc, yc, zc);
+    const int xc = grid()->numCellsX();
+    const int yc = grid()->numCellsY();
+    const int zc = grid()->numCellsZ();
     m_bfs.reset(new BFS_3D(xc, yc, zc));
     m_ee_bfs.reset(new BFS_3D(xc, yc, zc));
     const int cell_count = xc * yc * zc;

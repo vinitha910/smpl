@@ -34,6 +34,9 @@
 // standard includes
 #include <cmath>
 
+// system includes
+#include <ros/console.h>
+
 // project includes
 #include <smpl/angles.h>
 

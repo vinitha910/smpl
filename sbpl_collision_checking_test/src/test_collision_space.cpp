@@ -39,6 +39,7 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <smpl/occupancy_grid.h>
 #include <sbpl_collision_checking/collision_space.h>
+#include <smpl/ros/propagation_distance_field.h>
 #include <visualization_msgs/MarkerArray.h>
 
 int main(int argc, char **argv)
@@ -80,14 +81,17 @@ int main(int argc, char **argv)
     }
     ROS_INFO("Retrieved %d planning joints from param server.", int(joint_names.size()));
 
-    sbpl::PropagationDistanceFieldPtr df =
-            std::make_shared<distance_field::PropagationDistanceField>(
-                    dims[0], dims[1], dims[2], 0.02, origin[0], origin[1], origin[2], 0.4);
+    const double res = 0.02;
+    const double max_distance = 0.4;
+    auto df = std::make_shared<sbpl::PropagationDistanceField>(
+            dims[0], dims[1], dims[2],
+            origin[0], origin[1], origin[2],
+            res,
+            max_distance);
     df->reset();
 
     sbpl::OccupancyGridPtr grid = std::make_shared<sbpl::OccupancyGrid>(df);
     grid->setReferenceFrame(world_frame);
-
 
     std::string urdf_string;
     if (!nh.getParam("robot_description", urdf_string)) {

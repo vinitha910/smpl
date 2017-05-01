@@ -33,36 +33,6 @@
 
 namespace sbpl {
 
-#define VECTOR_BUCKET_LIST_INSERT(o, key) \
-{\
-    o->pos = m_open[key].size();\
-    m_open[key].push_back(o);\
-    o->bucket = key;\
-}
-
-#define VECTOR_BUCKET_LIST_UPDATE(o, key) \
-{\
-    m_open[o->bucket][o->pos] = m_open[o->bucket].back();\
-\
-    m_open[o->bucket][o->pos]->pos = o->pos;\
-    m_open[o->bucket].pop_back();\
-\
-    o->pos = m_open[key].size();\
-    m_open[key].push_back(o);\
-    o->bucket = key;\
-}
-
-#define VECTOR_BUCKET_LIST_POP(s, b) \
-{\
-    s = m_open[b].back();\
-    m_open[b].pop_back();\
-    s->bucket = -1;\
-}
-
-#define BUCKET_INSERT(o, key) do { VECTOR_BUCKET_LIST_INSERT(o, key) } while (0)
-#define BUCKET_UPDATE(o, key) do { VECTOR_BUCKET_LIST_UPDATE(o, key) } while (0)
-#define BUCKET_POP(s, bucket) do { VECTOR_BUCKET_LIST_POP(s, bucket) } while (0)
-
 DistanceMapBase::DistanceMapBase(
     double origin_x, double origin_y, double origin_z,
     double size_x, double size_y, double size_z,

@@ -31,7 +31,11 @@
 
 #include <smpl/heuristic/joint_dist_heuristic.h>
 
+// standard includes
 #include <cmath>
+
+// system includes
+#include <ros/console.h>
 
 namespace sbpl {
 namespace motion {

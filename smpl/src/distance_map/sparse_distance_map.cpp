@@ -42,14 +42,11 @@ SparseDistanceMap::SparseDistanceMap(
     double resolution,
     double max_dist)
 :
+    DistanceMapInterface(
+            origin_x, origin_y, origin_z,
+            size_x, size_y, size_z,
+            resolution),
     m_cells(),
-    m_origin_x(origin_x),
-    m_origin_y(origin_y),
-    m_origin_z(origin_z),
-    m_size_x(size_x),
-    m_size_y(size_y),
-    m_size_z(size_z),
-    m_res(resolution),
     m_max_dist(max_dist),
     m_inv_res(1.0 / resolution),
     m_dmax_int((int)std::ceil(m_max_dist * m_inv_res)),
@@ -97,107 +94,10 @@ SparseDistanceMap::SparseDistanceMap(
     reset();
 }
 
-/// Return the size along the x axis of the bounding volume.
-double SparseDistanceMap::sizeX() const
-{
-    return m_size_x;
-}
-
-/// Return the size along the y axis of the bounding volume.
-double SparseDistanceMap::sizeY() const
-{
-    return m_size_y;
-}
-
-/// Return the size along the z axis of the bounding volume.
-double SparseDistanceMap::sizeZ() const
-{
-    return m_size_z;
-}
-
-/// Return the origin along x axis.
-double SparseDistanceMap::originX() const
-{
-    return m_origin_x;
-}
-
-/// Return the origin along the y axis.
-double SparseDistanceMap::originY() const
-{
-    return m_origin_y;
-}
-
-/// Return the origin along the z axis.
-double SparseDistanceMap::originZ() const
-{
-    return m_origin_z;
-}
-
-/// Return the resolution of the distance map.
-double SparseDistanceMap::resolution() const
-{
-    return m_res;
-}
-
 /// Return the distance value for an invalid cell.
 double SparseDistanceMap::maxDistance() const
 {
     return m_max_dist;
-}
-
-/// Return the number of cells along the x axis.
-int SparseDistanceMap::numCellsX() const
-{
-    return m_cell_count_x;
-}
-
-/// Return the number of cells along the y axis.
-int SparseDistanceMap::numCellsY() const
-{
-    return m_cell_count_y;
-}
-
-/// Return the number of cells along the z axis.
-int SparseDistanceMap::numCellsZ() const
-{
-    return m_cell_count_z;
-}
-
-/// Return the effective grid coordinates of the cell containing the given point
-/// specified in world coordinates.
-void SparseDistanceMap::gridToWorld(
-    int x, int y, int z,
-    double& world_x, double& world_y, double& world_z) const
-{
-    world_x = (m_origin_x - m_res) + (x) * m_res;
-    world_y = (m_origin_y - m_res) + (y) * m_res;
-    world_z = (m_origin_z - m_res) + (z) * m_res;
-}
-
-/// Return the point in world coordinates marking the center of the cell at the
-/// given effective grid coordinates.
-void SparseDistanceMap::worldToGrid(
-    double world_x, double world_y, double world_z,
-    int& x, int& y, int& z) const
-{
-    x = (int)(m_inv_res * (world_x - (m_origin_x - m_res)) + 0.5);
-    y = (int)(m_inv_res * (world_y - (m_origin_y - m_res)) + 0.5);
-    z = (int)(m_inv_res * (world_z - (m_origin_z - m_res)) + 0.5);
-}
-
-/// Test if a cell is outside the bounding volume.
-bool SparseDistanceMap::isCellValid(int x, int y, int z) const
-{
-    return x >= 0 & x < m_cell_count_x &
-        y >= 0 & y < m_cell_count_y &
-        z >= 0 & z < m_cell_count_z;
-}
-
-bool SparseDistanceMap::isCellValid(const Eigen::Vector3i& gp) const
-{
-    return gp.x() >= 0 & gp.x() < m_cell_count_x &
-        gp.y() >= 0 & gp.y() < m_cell_count_y &
-        gp.z() >= 0 & gp.z() < m_cell_count_z;
 }
 
 /// Return the distance of a cell from its nearest obstacle. This function will
@@ -223,32 +123,16 @@ double SparseDistanceMap::getDistance(int x, int y, int z) const
     return m_sqrt_table[d2];
 }
 
-void SparseDistanceMap::updateVertex(Cell* o, int cx, int cy, int cz)
+bool SparseDistanceMap::isCellValid(const Eigen::Vector3i& gp) const
 {
-    const int key = std::min(o->dist, o->dist_new);
-    assert(key < m_open.size());
-    if (o->bucket >= 0) { // update in heap
-        assert(o->bucket < m_open.size());
+    return gp.x() >= 0 & gp.x() < m_cell_count_x &
+        gp.y() >= 0 & gp.y() < m_cell_count_y &
+        gp.z() >= 0 & gp.z() < m_cell_count_z;
+}
 
-        // swap places with last element and remove from end of current bucket
-        bucket_element &e = m_open[o->bucket][o->pos];
-        e = m_open[o->bucket].back();
-        e.c->pos = o->pos;
-        m_open[o->bucket].pop_back();
-
-        // place at the end of new bucket
-        o->pos = m_open[key].size();
-        m_open[key].emplace_back(o, cx, cy, cz);
-        o->bucket = key;
-    } else { // not in the heap yet
-        // place at the end of new bucket
-        o->pos = m_open[key].size();
-        m_open[key].emplace_back(o, cx, cy, cz);
-        o->bucket = key;
-    }
-    if (key < m_bucket) {
-        m_bucket = key;
-    }
+DistanceMapInterface* SparseDistanceMap::clone() const
+{
+    return new SparseDistanceMap(*this);
 }
 
 /// Add a set of obstacle points to the distance map and update the distance
@@ -402,6 +286,97 @@ void SparseDistanceMap::reset()
     initial.dir = m_no_update_dir;
 
     m_cells.reset(initial);
+}
+
+/// Return the number of cells along the x axis.
+int SparseDistanceMap::numCellsX() const
+{
+    return m_cell_count_x;
+}
+
+/// Return the number of cells along the y axis.
+int SparseDistanceMap::numCellsY() const
+{
+    return m_cell_count_y;
+}
+
+/// Return the number of cells along the z axis.
+int SparseDistanceMap::numCellsZ() const
+{
+    return m_cell_count_z;
+}
+
+double SparseDistanceMap::getUninitializedDistance() const
+{
+    return m_max_dist;
+}
+
+double SparseDistanceMap::getMetricDistance(double x, double y, double z) const
+{
+    return getDistance(x, y, z);
+}
+
+double SparseDistanceMap::getCellDistance(int x, int y, int z) const
+{
+    return getDistance(x, y, z);
+}
+
+/// Return the effective grid coordinates of the cell containing the given point
+/// specified in world coordinates.
+void SparseDistanceMap::gridToWorld(
+    int x, int y, int z,
+    double& world_x, double& world_y, double& world_z) const
+{
+    world_x = (m_origin_x - m_res) + (x) * m_res;
+    world_y = (m_origin_y - m_res) + (y) * m_res;
+    world_z = (m_origin_z - m_res) + (z) * m_res;
+}
+
+/// Return the point in world coordinates marking the center of the cell at the
+/// given effective grid coordinates.
+void SparseDistanceMap::worldToGrid(
+    double world_x, double world_y, double world_z,
+    int& x, int& y, int& z) const
+{
+    x = (int)(m_inv_res * (world_x - (m_origin_x - m_res)) + 0.5);
+    y = (int)(m_inv_res * (world_y - (m_origin_y - m_res)) + 0.5);
+    z = (int)(m_inv_res * (world_z - (m_origin_z - m_res)) + 0.5);
+}
+
+/// Test if a cell is outside the bounding volume.
+bool SparseDistanceMap::isCellValid(int x, int y, int z) const
+{
+    return x >= 0 & x < m_cell_count_x &
+        y >= 0 & y < m_cell_count_y &
+        z >= 0 & z < m_cell_count_z;
+}
+
+void SparseDistanceMap::updateVertex(Cell* o, int cx, int cy, int cz)
+{
+    const int key = std::min(o->dist, o->dist_new);
+    assert(key < m_open.size());
+    if (o->bucket >= 0) { // update in heap
+        assert(o->bucket < m_open.size());
+
+        // swap places with last element and remove from end of current bucket
+        bucket_element &e = m_open[o->bucket][o->pos];
+        e = m_open[o->bucket].back();
+        e.c->pos = o->pos;
+        m_open[o->bucket].pop_back();
+
+        // place at the end of new bucket
+        o->pos = m_open[key].size();
+        m_open[key].emplace_back(o, cx, cy, cz);
+        o->bucket = key;
+    } else { // not in the heap yet
+        // place at the end of new bucket
+        o->pos = m_open[key].size();
+        m_open[key].emplace_back(o, cx, cy, cz);
+        o->bucket = key;
+    }
+    if (key < m_bucket) {
+        m_bucket = key;
+    }
 }
 
 int SparseDistanceMap::distance(int nx, int ny, int nz, const Cell& s)

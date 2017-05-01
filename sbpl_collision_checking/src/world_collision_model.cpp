@@ -199,7 +199,7 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
 
     assert(m_object_voxel_map.find(object->id_) == m_object_voxel_map.end());
 
-    const double res = m_grid->getResolution();
+    const double res = m_grid->resolution();
     const Eigen::Vector3d origin(
             m_grid->originX(), m_grid->originY(), m_grid->originZ());
 
@@ -358,9 +358,9 @@ WorldCollisionModelImpl::getCollisionWorldVisualization() const
     marker.type = visualization_msgs::Marker::CUBE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration(0.0);
-    marker.scale.x = m_grid->getResolution();
-    marker.scale.y = m_grid->getResolution();
-    marker.scale.z = m_grid->getResolution();
+    marker.scale.x = m_grid->resolution();
+    marker.scale.y = m_grid->resolution();
+    marker.scale.z = m_grid->resolution();
     marker.color.r = 1;
     marker.color.g = 1;
     marker.color.b = 0;

@@ -33,15 +33,45 @@
 #include <smpl/occupancy_grid.h>
 
 // standard includes
-#include <sstream>
+#include <memory>
 
- // system includes
+// system includes
 #include <ros/console.h>
 #include <leatherman/viz.h>
 
+// project includes
+#include <smpl/ros/propagation_distance_field.h>
+
 namespace sbpl {
 
-/// \brief Construct an Occupancy Grid
+/// \class OccupancyGrid
+///
+/// OccupancyGrid is a lightweight wrapper around DistanceMapInterface, with
+/// some additional functionality.
+///
+/// The first additional feature is the presence of a reference frame id that is
+/// attached to the distance map. The reference frame is used solely for
+/// preparing visualizations and does there are no active transformations
+/// managed by this class.
+///
+/// The second additional feature is cell reference counting. Each cell may
+/// count the number of times it has been inserted into the distance map. Only
+/// when a cell has been removed the same number of times it has been inserted,
+/// will it be removed from the distance map. The cell is only actually inserted
+/// once into the distance map, regardless of the number of consecutive
+/// insertions into the occupancy grid.
+///
+/// If cell reference counting is enabled with a distance field passed to the
+/// OccupancyGrid on construction, the caller must not directly modify the
+/// distance map. This may corrupt the invariant that the obstacle exists in
+/// the distance map if its reference count is non-zero.
+///
+/// An arbitrary distance map implementation may be used with this class. If
+/// none is specified, by calling the verbose constructor, an instance of
+/// sbpl::PropagationDistanceField is constructed.
+
+/// Construct an Occupancy Grid.
+///
 /// \param size_x Dimension of the grid along the X axis, in meters
 /// \param size_y Dimension of the grid along the Y axis, in meters
 /// \param size_z Dimension of the grid along the Z axis, in meters
@@ -51,141 +81,72 @@ namespace sbpl {
 /// \param origin_z Z Coordinate of origin, in meters
 /// \param max_dist The maximum distance away from obstacles to propagate
 ///     the distance field, in meters
+/// \param propagate_negative_distances Whether to compute signed distances to
+///     nearest obstacle boundaries
+/// \param ref_counted Whether to reference count cells
 OccupancyGrid::OccupancyGrid(
     double size_x, double size_y, double size_z,
     double resolution,
     double origin_x, double origin_y, double origin_z,
     double max_dist,
-    bool propagate_negative_distances,
     bool ref_counted)
 :
-    reference_frame_(),
-    m_grid(std::make_shared<distance_field::PropagationDistanceField>(
+    m_grid(std::make_shared<PropagationDistanceField>(
+            origin_x, origin_y, origin_z,
             size_x, size_y, size_z,
             resolution,
-            origin_x, origin_y, origin_z,
-            max_dist, propagate_negative_distances)),
-    m_df((distance_field::PropagationDistanceField*)m_grid.get()),
+            max_dist)),
+    reference_frame_(),
     m_ref_counted(ref_counted),
-    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
-    m_y_stride(m_grid->getZNumCells()),
+    m_x_stride(m_grid->numCellsY() * m_grid->numCellsZ()),
+    m_y_stride(m_grid->numCellsZ()),
     m_counts()
 {
     // distance field guaranteed to be empty -> faster initialization
     if (m_ref_counted) {
         m_counts.assign(getCellCount(), 0);
     }
-    m_half_res = 0.5 * getResolution();
 }
 
-/// \sa distance_field::PropagationDistanceField::PropagationDistanceField(const octomap::OcTree&, const octomap::point3d&, const octomap::point3d&, double, bool);
+/// Construct an OccupancyGrid from an existing distance map.
+///
+/// \param df The distance field
+/// \param ref_counted Whether to reference count cells
 OccupancyGrid::OccupancyGrid(
-    const octomap::OcTree& octree,
-    const octomap::point3d& bbx_min,
-    const octomap::point3d& bby_min,
-    double max_distance,
-    bool propagate_negative_distances,
+    const DistanceMapInterfacePtr& df,
     bool ref_counted)
 :
-    reference_frame_(),
-    m_grid(std::make_shared<distance_field::PropagationDistanceField>(
-            octree, bbx_min, bby_min, max_distance, propagate_negative_distances)),
-    m_df((distance_field::PropagationDistanceField*)m_grid.get()),
-    m_ref_counted(ref_counted),
-    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
-    m_y_stride(m_grid->getZNumCells()),
-    m_counts()
-{
-    initRefCounts();
-    m_half_res = 0.5 * getResolution();
-}
-
-/// \sa distance_field::PropagationDistanceField::PropagationDistanceField(std::istream&, double, bool);
-OccupancyGrid::OccupancyGrid(
-    std::istream& stream,
-    double max_distance,
-    bool propagate_negative_distances,
-    bool ref_counted)
-:
-    reference_frame_(),
-    m_grid(std::make_shared<distance_field::PropagationDistanceField>(
-            stream, max_distance, propagate_negative_distances)),
-    m_df((distance_field::PropagationDistanceField*)m_grid.get()),
-    m_ref_counted(ref_counted),
-    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
-    m_y_stride(m_grid->getZNumCells()),
-    m_counts()
-{
-    initRefCounts();
-    m_half_res = 0.5 * getResolution();
-}
-
-/// \brief Construct an OccupancyGrid from an existing distance field
-OccupancyGrid::OccupancyGrid(
-    const PropagationDistanceFieldPtr& df,
-    bool ref_counted)
-:
-    reference_frame_(),
     m_grid(df),
-    m_df(dynamic_cast<distance_field::PropagationDistanceField*>(m_grid.get())),
+    reference_frame_(),
     m_ref_counted(ref_counted),
-    m_x_stride(m_grid->getYNumCells() * m_grid->getZNumCells()),
-    m_y_stride(m_grid->getZNumCells()),
+    m_x_stride(m_grid->numCellsY() * m_grid->numCellsZ()),
+    m_y_stride(m_grid->numCellsZ()),
     m_counts()
 {
     initRefCounts();
-    m_half_res = 0.5 * getResolution();
 }
 
+/// Copy constructor. Constructs the Occupancy Grid with a deep copy of the
+/// contents of \p o.
 OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
 {
+    m_grid.reset(o.m_grid->clone());
     reference_frame_ = o.reference_frame_;
-    if (o.m_grid) {
-        std::stringstream ss;
-        o.m_grid->writeToStream(ss);
-        m_grid = std::make_shared<distance_field::PropagationDistanceField>(
-                ss,
-                // really, no other way to get the propagation distance?
-                o.m_grid->getUninitializedDistance(),
-                // really, no way to get this either?
-                false);
-        m_df = (distance_field::PropagationDistanceField*)(m_grid.get());
-    }
     m_ref_counted = o.m_ref_counted;
     m_x_stride = o.m_x_stride;
     m_y_stride = o.m_y_stride;
     m_counts = o.m_counts;
-    m_half_res = o.m_half_res;
 }
 
-OccupancyGrid::~OccupancyGrid()
-{
-}
-
-void OccupancyGrid::getGridSize(int& dim_x, int& dim_y, int& dim_z) const
-{
-    dim_x = m_grid->getXNumCells();
-    dim_y = m_grid->getYNumCells();
-    dim_z = m_grid->getZNumCells();
-}
-
-void OccupancyGrid::getWorldSize(double& dim_x, double& dim_y, double& dim_z) const
-{
-    dim_x = m_grid->getSizeX();
-    dim_y = m_grid->getSizeY();
-    dim_z = m_grid->getSizeZ();
-}
-
+/// Reset the grid, removing all obstacles setting distances to their
+/// uninitialized values.
 void OccupancyGrid::reset()
 {
+    // TODO: reset reference counts
     m_grid->reset();
 }
 
-void OccupancyGrid::getOrigin(double& wx, double& wy, double& wz) const
-{
-    m_grid->gridToWorld(0, 0, 0, wx, wy, wz);
-}
-
+/// Get all occupied voxels within an oriented cube region of the grid.
 void OccupancyGrid::getOccupiedVoxels(
     const Eigen::Affine3d& pose,
     const std::vector<double>& dim,
@@ -194,9 +155,9 @@ void OccupancyGrid::getOccupiedVoxels(
     Eigen::Vector3d pos(pose.translation());
     Eigen::Matrix3d m(pose.rotation());
 
-    for (double x = 0 - 0.5 * dim[0]; x <= 0.5 * dim[0]; x += m_grid->getResolution()) {
-    for (double y = 0 - 0.5 * dim[1]; y <= 0.5 * dim[1]; y += m_grid->getResolution()) {
-    for (double z = 0 - 0.5 * dim[2]; z <= 0.5 * dim[2]; z += m_grid->getResolution()) {
+    for (double x = -0.5 * dim[0]; x <= 0.5 * dim[0]; x += m_grid->resolution()) {
+    for (double y = -0.5 * dim[1]; y <= 0.5 * dim[1]; y += m_grid->resolution()) {
+    for (double z = -0.5 * dim[2]; z <= 0.5 * dim[2]; z += m_grid->resolution()) {
         Eigen::Vector3d point(x, y, z);
         point = pose * point;
 
@@ -208,6 +169,7 @@ void OccupancyGrid::getOccupiedVoxels(
     }
 }
 
+/// Get all occupied voxels within an axis-aligned cube region of the grid.
 void OccupancyGrid::getOccupiedVoxels(
     double x_center,
     double y_center,
@@ -217,7 +179,7 @@ void OccupancyGrid::getOccupiedVoxels(
 {
     int x_c, y_c, z_c;
     worldToGrid(x_center, y_center, z_center, x_c, y_c, z_c);
-    int radius_c = radius / getResolution() + 0.5;
+    int radius_c = radius / resolution() + 0.5;
 
     Eigen::Vector3d v;
 
@@ -226,31 +188,33 @@ void OccupancyGrid::getOccupiedVoxels(
             x_c + radius_c, y_c + radius_c, z_c + radius_c,
             [&](int x, int y, int z)
             {
-                if (getCell(x, y, z) == 0) {
+                if (getDistanceFromPoint(x, y, z) == 0.0) {
                     gridToWorld(x, y, z, v.x(), v.y(), v.z());
                     voxels.push_back(v);
                 }
             });
 }
 
+/// Count the number of obstacles in the occupancy grid.
 size_t OccupancyGrid::getOccupiedVoxelCount() const
 {
     size_t count = 0;
     iterateCells([&](int x, int y, int z)
     {
-        if (m_grid->getDistance(x, y, z) == 0.0) {
+        if (m_grid->getCellDistance(x, y, z) <= 0.0) {
             ++count;
         }
     });
     return count;
 }
 
+/// Gather all the obstacle points in the occupancy grid.
 void OccupancyGrid::getOccupiedVoxels(
     std::vector<Eigen::Vector3d>& voxels) const
 {
     iterateCells([&](int x, int y, int z)
     {
-        if (m_grid->getDistance(x, y, z) == 0.0) {
+        if (m_grid->getCellDistance(x, y, z) <= 0.0) {
             double wx, wy, wz;
             m_grid->gridToWorld(x, y, z, wx, wy, wz);
             voxels.emplace_back(wx, wy, wz);
@@ -258,6 +222,19 @@ void OccupancyGrid::getOccupiedVoxels(
     });
 }
 
+/// Return a visualization of the distance map.
+///
+/// The visualization_msgs::MarkerArray's contents vary depending on the
+/// argument:
+///
+///     "bounds": line markers for the bounding box of the distance field in
+///               the namespace "collision_space_bounds"
+///     "distance_field": cube markers for all voxels nearby occupied voxels
+///                       in the namespace "distance_field"
+///     "occupied_voxels" list of points representing all occupied voxels in
+///                       the namespace "occupied voxels"
+///
+/// \param type "bounds", "distance_field", "occupied_voxels"
 visualization_msgs::MarkerArray OccupancyGrid::getVisualization(
     const std::string& type) const
 {
@@ -276,6 +253,7 @@ visualization_msgs::MarkerArray OccupancyGrid::getVisualization(
     }
 }
 
+/// Return a visualization of the bounding box of the distance map.
 visualization_msgs::MarkerArray
 OccupancyGrid::getBoundingBoxVisualization() const
 {
@@ -287,64 +265,64 @@ OccupancyGrid::getBoundingBoxVisualization() const
     m.id = 0;
     m.type = visualization_msgs::Marker::CUBE_LIST;
     m.action = visualization_msgs::Marker::ADD;
-    m.scale.x = m.scale.y = m.scale.z = getResolution();
+    m.scale.x = m.scale.y = m.scale.z = resolution();
     leatherman::msgHSVToRGB(10.0, 1.0, 1.0, m.color);
 
-    m.points.reserve(4 * (m_grid->getXNumCells() + 2) + 4 * (m_grid->getYNumCells()) + 4 * (m_grid->getZNumCells()));
+    m.points.reserve(4 * (m_grid->numCellsX() + 2) + 4 * (m_grid->numCellsY()) + 4 * (m_grid->numCellsZ()));
 
     geometry_msgs::Point p;
     int x, y, z;
 
-    for (x = -1; x <= m_grid->getXNumCells(); ++x) {
+    for (x = -1; x <= m_grid->numCellsX(); ++x) {
         y = -1, z = -1;
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = m_grid->getYNumCells(), z = -1;
+        y = m_grid->numCellsY(), z = -1;
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = -1, z = m_grid->getZNumCells();
+        y = -1, z = m_grid->numCellsZ();
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = m_grid->getYNumCells(), z = m_grid->getZNumCells();
+        y = m_grid->numCellsY(), z = m_grid->numCellsZ();
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
     }
 
-    for (y = 0; y < m_grid->getYNumCells(); ++y) {
+    for (y = 0; y < m_grid->numCellsY(); ++y) {
         x = -1, z = -1;
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        x = m_grid->getXNumCells(), z = -1;
+        x = m_grid->numCellsX(), z = -1;
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        x = -1, z = m_grid->getZNumCells();
+        x = -1, z = m_grid->numCellsZ();
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        x = m_grid->getXNumCells(), z = m_grid->getZNumCells();
+        x = m_grid->numCellsX(), z = m_grid->numCellsZ();
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
     }
 
-    for (z = 0; z < m_grid->getZNumCells(); ++z) {
+    for (z = 0; z < m_grid->numCellsZ(); ++z) {
         y = -1, x = -1;
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = m_grid->getYNumCells(), x = -1;
+        y = m_grid->numCellsY(), x = -1;
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = -1, x = m_grid->getXNumCells();
+        y = -1, x = m_grid->numCellsX();
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
 
-        y = m_grid->getYNumCells(), x = m_grid->getXNumCells();
+        y = m_grid->numCellsY(), x = m_grid->numCellsX();
         m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
         m.points.push_back(p);
     }
@@ -354,24 +332,44 @@ OccupancyGrid::getBoundingBoxVisualization() const
     return ma;
 }
 
+/// Return a visualization of the distance values stored in the distance map.
 visualization_msgs::MarkerArray
 OccupancyGrid::getDistanceFieldVisualization() const
 {
     visualization_msgs::MarkerArray ma;
 
     visualization_msgs::Marker m;
-    m_grid->getIsoSurfaceMarkers(
-            m_grid->getResolution(),
-            getMaxDistance(),
-            getReferenceFrame(),
-            ros::Time(0),
-            m);
-    m.color.a += 0.2;
+    m.header.frame_id = reference_frame_;
+    m.ns = "distance_field";
+    m.id = 0;
+    m.type = visualization_msgs::Marker::CUBE_LIST;
+    m.action = visualization_msgs::Marker::ADD;
+    m.pose.orientation.w = 1.0;
+    m.scale.x = m.scale.y = m.scale.z = m_grid->resolution();
+    m.color.r = 1.0f;
+    m.color.g = 0.5f;
+    m.color.b = 0.0f;
+    m.color.a = 0.4f;
+
+    const double min_value = m_grid->resolution();
+    const double max_value = m_grid->getUninitializedDistance();
+    iterateCells([&](int x, int y, int z)
+    {
+        const double d = m_grid->getCellDistance(x, y, z);
+        if (d >= min_value && d <= max_value) {
+            double wx, wy, wz;
+            m_grid->gridToWorld(x, y, z, wx, wy, wz);
+            geometry_msgs::Point p;
+            p.x = wx; p.y = wy; p.z = wz;
+            m.points.push_back(p);
+        }
+    });
 
     ma.markers.push_back(m);
     return ma;
 }
 
+/// Return a visualization of the obstacle cells stored in the distance map.
 visualization_msgs::MarkerArray
 OccupancyGrid::getOccupiedVoxelsVisualization() const
 {
@@ -389,9 +387,9 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration(0.0);
 
-    marker.scale.x = m_grid->getResolution();
-    marker.scale.y = m_grid->getResolution();
-    marker.scale.z = m_grid->getResolution();
+    marker.scale.x = m_grid->resolution();
+    marker.scale.y = m_grid->resolution();
+    marker.scale.z = m_grid->resolution();
 
     marker.color.r = 0.8f;
     marker.color.g = 0.3f;
@@ -412,14 +410,14 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
     return ma;
 }
 
+/// Add a set of obstacle cells to the occupancy grid.
 void OccupancyGrid::addPointsToField(
     const std::vector<Eigen::Vector3d>& points)
 {
-    EigenSTL::vector_Vector3d pts;
-
     if (m_ref_counted) {
-        int gx, gy, gz;
+        std::vector<Eigen::Vector3d> pts;
         pts.reserve(points.size());
+        int gx, gy, gz;
         for (const Eigen::Vector3d& v : points) {
             worldToGrid(v.x(), v.y(), v.z(), gx, gy, gz);
 
@@ -433,22 +431,22 @@ void OccupancyGrid::addPointsToField(
                 ++m_counts[idx];
             }
         }
+        m_grid->addPointsToMap(pts);
     }
     else {
-        pts = toAlignedVector(points);
+        m_grid->addPointsToMap(points);
     }
 
-    m_grid->addPointsToField(pts);
 }
 
+/// Remove a set of obstacle cells from the occupancy grid.
 void OccupancyGrid::removePointsFromField(
     const std::vector<Eigen::Vector3d>& points)
 {
-    EigenSTL::vector_Vector3d pts;
-
     if (m_ref_counted) {
-        int gx, gy, gz;
+        std::vector<Eigen::Vector3d> pts;
         pts.reserve(points.size());
+        int gx, gy, gz;
         for (const Eigen::Vector3d& v : points) {
             worldToGrid(v.x(), v.y(), v.z(), gx, gy, gz);
 
@@ -463,20 +461,22 @@ void OccupancyGrid::removePointsFromField(
                 }
             }
         }
+        m_grid->removePointsFromMap(pts);
     }
     else {
-        pts = toAlignedVector(points);
+        m_grid->removePointsFromMap(points);
     }
-
-    m_grid->removePointsFromField(pts);
 }
 
+/// Update the occupancy grid, removing obstacles that exist in the old obstacle
+/// set, but not in the new obstacle set, and adding obstacles that exist in the
+/// new obstacle set, but not in the old obstacle set.
 void OccupancyGrid::updatePointsInField(
     const std::vector<Eigen::Vector3d>& old_points,
     const std::vector<Eigen::Vector3d>& new_points)
 {
     // TODO: ref counting
-    m_grid->updatePointsInField(toAlignedVector(old_points), toAlignedVector(new_points));
+    m_grid->updatePointsInMap(old_points, new_points);
 }
 
 void OccupancyGrid::initRefCounts()
@@ -490,7 +490,7 @@ void OccupancyGrid::initRefCounts()
     m_counts.resize(getCellCount());
     iterateCells([&](int x, int y, int z)
     {
-        if (m_grid->getDistance(x, y, z) <= 0.0) {
+        if (m_grid->getCellDistance(x, y, z) <= 0.0) {
             m_counts[gidx++] = 1;
         }
         else {
@@ -502,12 +502,12 @@ void OccupancyGrid::initRefCounts()
 template <typename CellFunction>
 void OccupancyGrid::iterateCells(CellFunction f) const
 {
-    for (int gx = 0; gx < m_grid->getXNumCells(); ++gx) {
-        for (int gy = 0; gy < m_grid->getYNumCells(); ++gy) {
-            for (int gz = 0; gz < m_grid->getZNumCells(); ++gz) {
-                f(gx, gy, gz);
-            }
-        }
+    for (int gx = 0; gx < m_grid->numCellsX(); ++gx) {
+    for (int gy = 0; gy < m_grid->numCellsY(); ++gy) {
+    for (int gz = 0; gz < m_grid->numCellsZ(); ++gz) {
+        f(gx, gy, gz);
+    }
+    }
     }
 }
 
@@ -519,22 +519,12 @@ void OccupancyGrid::iterateCells(
 {
     // NOTE: [x, y, z] = major -> minor indexes
     for (int x = fx; x < tx; ++x) {
-        for (int y = fy; y < ty; ++y) {
-            for (int z = fz; z < tz; ++z) {
-                f(x, y, z);
-            }
-        }
+    for (int y = fy; y < ty; ++y) {
+    for (int z = fz; z < tz; ++z) {
+        f(x, y, z);
     }
-}
-
-EigenSTL::vector_Vector3d OccupancyGrid::toAlignedVector(
-    const std::vector<Eigen::Vector3d>& v) const
-{
-    EigenSTL::vector_Vector3d pts(v.size());
-    for (size_t i = 0; i < v.size(); ++i) {
-        pts[i] = Eigen::Vector3d(v[i].x(), v[i].y(), v[i].z());
     }
-    return pts;
+    }
 }
 
 } // namespace sbpl

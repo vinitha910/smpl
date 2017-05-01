@@ -176,7 +176,7 @@ DijkstraEgraphHeuristic3D::getWallsVisualization()
 
     visualization_msgs::Marker cubes_marker = ::viz::getCubesMarker(
             points,
-            grid()->getResolution(),
+            grid()->resolution(),
             color,
             grid()->getReferenceFrame(),
             "bfs_walls",
@@ -255,9 +255,9 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
     marker.type = visualization_msgs::Marker::CUBE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
     marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.5 * grid()->getResolution();
-    marker.scale.y = 0.5 * grid()->getResolution();
-    marker.scale.z = 0.5 * grid()->getResolution();
+    marker.scale.x = 0.5 * grid()->resolution();
+    marker.scale.y = 0.5 * grid()->resolution();
+    marker.scale.z = 0.5 * grid()->resolution();
 //    marker.color;
     marker.lifetime = ros::Duration(0.0);
     marker.frame_locked = false;
@@ -294,7 +294,7 @@ double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, dou
     const int dx = sx - gx;
     const int dy = sy - gy;
     const int dz = sz - gz;
-    return grid()->getResolution() * (abs(dx) + abs(dy) + abs(dz));
+    return grid()->resolution() * (abs(dx) + abs(dy) + abs(dz));
 }
 
 double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, double z)
@@ -310,7 +310,7 @@ double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, doub
     grid()->worldToGrid(x, y, z, dp.x(), dp.y(), dp.z());
 
     const Eigen::Vector3i d = dgp - dp;
-    return grid()->getResolution() * (abs(d.x()) + abs(d.y() + abs(d.z())));
+    return grid()->resolution() * (abs(d.x()) + abs(d.y() + abs(d.z())));
 }
 
 Extension* DijkstraEgraphHeuristic3D::getExtension(size_t class_code)
@@ -548,7 +548,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     color.a = 1.0f;
 
     visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->getResolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
+    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->resolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
     SV_SHOW_INFO(ma);
 }
 
@@ -652,8 +652,10 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
 
 void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
 {
-    int xc, yc, zc;
-    grid()->getGridSize(xc, yc, zc);
+    const int xc = grid()->numCellsX();
+    const int yc = grid()->numCellsY();
+    const int zc = grid()->numCellsZ();
+
     const int cell_count = xc * yc * zc;
 
     int wall_count = 0;

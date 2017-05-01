@@ -59,7 +59,6 @@ add_library(
     src/debug/visualize.cpp
     src/debug/visualizer_ros.cpp
     src/distance_map/chessboard_distance_map.cpp
-    src/distance_map/distance_map_base.cpp
     src/distance_map/distance_map_common.cpp
     src/distance_map/edge_euclid_distance_map.cpp
     src/distance_map/euclid_distance_map.cpp
@@ -98,6 +97,7 @@ add_library(
     src/ros/multi_frame_bfs_heuristic_allocator.cpp
     src/ros/adaptive_planner_allocator.cpp
     src/ros/planner_interface.cpp
+    src/ros/propagation_distance_field.cpp
     src/ros/workspace_lattice_allocator.cpp
     src/search/arastar.cpp
     src/search/experience_graph_planner.cpp

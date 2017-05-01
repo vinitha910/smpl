@@ -35,6 +35,7 @@
 // standard includes
 #include <assert.h>
 #include <algorithm>
+#include <fstream>
 #include <chrono>
 #include <utility>
 

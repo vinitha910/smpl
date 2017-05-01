@@ -277,14 +277,12 @@ int main(int argc, char* argv[])
     const double world_origin_y = 0.0;
     const double world_origin_z = 0.0;
     const double max_distance_m = 0.2;
-    const bool propagate_negative = false;
     const bool ref_count = false;
     sbpl::OccupancyGrid grid(
             world_size_x, world_size_y, world_size_z,
             grid_res,
             world_origin_x, world_origin_y, world_origin_z,
             max_distance_m,
-            propagate_negative,
             ref_count);
     SetupOccupancyGrid(grid);
     PrintGrid(std::cout, grid);

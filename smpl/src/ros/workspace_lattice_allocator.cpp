@@ -48,9 +48,9 @@ RobotPlanningSpacePtr WorkspaceLatticeAllocator::allocate(
     ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
     auto pspace = std::make_shared<WorkspaceLattice>(robot, checker, params);
     WorkspaceLatticeBase::Params wsp;
-    wsp.res_x = m_grid->getResolution();
-    wsp.res_y = m_grid->getResolution();
-    wsp.res_z = m_grid->getResolution();
+    wsp.res_x = m_grid->resolution();
+    wsp.res_y = m_grid->resolution();
+    wsp.res_z = m_grid->resolution();
     wsp.R_count = 360;
     wsp.P_count = 180 + 1;
     wsp.Y_count = 360;

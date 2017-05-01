@@ -43,12 +43,12 @@
 
 // project includes
 #include <smpl/grid/sparse_grid.h>
-
+#include <smpl/distance_map/distance_map_interface.h>
 #include "detail/distance_map_common.h"
 
 namespace sbpl {
 
-class SparseDistanceMap
+class SparseDistanceMap : public DistanceMapInterface
 {
 public:
 
@@ -58,43 +58,43 @@ public:
         double resolution,
         double max_dist);
 
-    double sizeX() const;
-    double sizeY() const;
-    double sizeZ() const;
-    double originX() const;
-    double originY() const;
-    double originZ() const;
-    double resolution() const;
-
     double maxDistance() const;
-
-    int numCellsX() const;
-    int numCellsY() const;
-    int numCellsZ() const;
-
-    void gridToWorld(
-        int x, int y, int z,
-        double& world_x, double& world_y, double& world_z) const;
-
-    void worldToGrid(
-        double world_x, double world_y, double world_z,
-        int& x, int& y, int& z) const;
-
-    bool isCellValid(int x, int y, int z) const;
-    bool isCellValid(const Eigen::Vector3i& gp) const;
 
     double getDistance(double x, double y, double z) const;
     double getDistance(int x, int y, int z) const;
 
-    /// \name DistanceMap
+    bool isCellValid(const Eigen::Vector3i& gp) const;
+
+    /// \name Required Functions from DistanceMapInterface
     ///@{
-    void addPointsToMap(const std::vector<Eigen::Vector3d>& points);
-    void removePointsFromMap(const std::vector<Eigen::Vector3d>& points);
+    DistanceMapInterface* clone() const override;
+
+    void addPointsToMap(const std::vector<Eigen::Vector3d>& points) override;
+    void removePointsFromMap(const std::vector<Eigen::Vector3d>& points) override;
     void updatePointsInMap(
         const std::vector<Eigen::Vector3d>& old_points,
-        const std::vector<Eigen::Vector3d>& new_points);
+        const std::vector<Eigen::Vector3d>& new_points) override;
 
-    void reset();
+    void reset() override;
+
+    int numCellsX() const override;
+    int numCellsY() const override;
+    int numCellsZ() const override;
+
+    double getUninitializedDistance() const override;
+
+    double getMetricDistance(double x, double y, double z) const override;
+    double getCellDistance(int x, int y, int z) const override;
+
+    void gridToWorld(
+        int x, int y, int z,
+        double& world_x, double& world_y, double& world_z) const override;
+
+    void worldToGrid(
+        double world_x, double world_y, double world_z,
+        int& x, int& y, int& z) const override;
+
+    bool isCellValid(int x, int y, int z) const override;
     ///@}
 
 public:
@@ -126,22 +126,9 @@ public:
 
     SparseGrid<Cell> m_cells;
 
-    // origin of grid in world coordinates
-    double m_origin_x;
-    double m_origin_y;
-    double m_origin_z;
-
-    // size of the grid in world units
-    double m_size_x;
-    double m_size_y;
-    double m_size_z;
-
     int m_cell_count_x;
     int m_cell_count_y;
     int m_cell_count_z;
-
-    // resolution of the grid in world units
-    double m_res;
 
     // max propagation distance in world units
     double m_max_dist;
@@ -202,8 +189,6 @@ public:
     bucket_list m_open;
 
     std::vector<bucket_element> m_rem_stack;
-
-    void initBorderCells();
 
     void updateVertex(Cell* c, int cx, int cy, int cz);
 

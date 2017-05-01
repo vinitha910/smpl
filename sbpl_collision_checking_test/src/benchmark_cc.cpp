@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <random>
 
@@ -94,7 +95,6 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     const double origin_z = wcm_config["origin_z"];
     const double cfg_max_dist = wcm_config["max_distance_m"];
     const double max_distance_m = std::max(max_dist + sqrt(3.0) * res_m, cfg_max_dist);
-    const bool propagate_negative_distances = false;
     const bool ref_counted = true;
 
     ROS_INFO("Occupancy Grid:");
@@ -107,7 +107,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
 
     sbpl::OccupancyGridPtr grid;
     if (dflib == 0) {
-        auto df = std::make_shared<sbpl::DistanceMapMoveIt<sbpl::EuclidDistanceMap>>(
+        auto df = std::make_shared<sbpl::EuclidDistanceMap>(
                 origin_x, origin_y, origin_z,
                 size_x, size_y, size_z,
                 res_m,
@@ -116,7 +116,7 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         grid = std::make_shared<sbpl::OccupancyGrid>(df, ref_counted);
 
     } else if (dflib == 1) {
-        auto df = std::make_shared<sbpl::DistanceMapMoveIt<sbpl::SparseDistanceMap>>(
+        auto df = std::make_shared<sbpl::SparseDistanceMap>(
                 origin_x, origin_y, origin_z,
                 size_x, size_y, size_z,
                 res_m,
@@ -128,7 +128,6 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
                 res_m,
                 origin_x, origin_y, origin_z,
                 max_distance_m,
-                propagate_negative_distances,
                 ref_counted);
     }
 
