@@ -500,6 +500,7 @@ bool CollisionSpace::isStateToStateValid(
     const double res = 0.05;
 
     MotionInterpolation interp(m_rcm.get());
+
     m_rmcm->fillMotionInterpolation(
             start, finish,
             m_planning_joint_to_collision_model_indices, res,
@@ -525,7 +526,7 @@ bool CollisionSpace::isStateToStateValid(
         for (int i = 0; i < inc_cc; i++) {
             for (size_t j = i; j < interp.waypointCount(); j = j + inc_cc) {
                 num_checks++;
-                interp.interpolate(j, interm);
+                interp.interpolate(j, interm, m_planning_joint_to_collision_model_indices);
                 if (!isStateValid(interm, verbose, false, dist_temp)) {
                     dist = dist_temp;
                     return false;
@@ -539,7 +540,7 @@ bool CollisionSpace::isStateToStateValid(
     } else {
         for (size_t i = 0; i < interp.waypointCount(); i++) {
             num_checks++;
-            interp.interpolate(i, interm);
+            interp.interpolate(i, interm, m_planning_joint_to_collision_model_indices);
             if (!isStateValid(interm, verbose, false, dist_temp)) {
                 dist = dist_temp;
                 return false;
@@ -579,7 +580,7 @@ bool CollisionSpace::interpolatePath(
             interp);
     opath.resize(interp.waypointCount());
     for (int i = 0; i < interp.waypointCount(); ++i) {
-        interp.interpolate(i, opath[i]);
+        interp.interpolate(i, opath[i], m_planning_joint_to_collision_model_indices);
     }
 
     return true;
@@ -759,12 +760,18 @@ bool CollisionSpace::setPlanningJoints(
 
 void CollisionSpace::updateState(const std::vector<double>& vals)
 {
-    // update the robot state
+    updateState(m_joint_vars, vals);
+    copyState();
+}
+
+void CollisionSpace::updateState(
+    std::vector<double>& state,
+    const std::vector<double>& vals)
+{
     for (size_t i = 0; i < vals.size(); ++i) {
         int jidx = m_planning_joint_to_collision_model_indices[i];
         m_joint_vars[jidx] = vals[i];
     }
-    copyState();
 }
 
 void CollisionSpace::copyState()

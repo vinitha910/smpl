@@ -70,7 +70,15 @@ public:
         const motion::RobotState& start,
         const motion::RobotState& finish);
 
+    void setEndpoints(
+        const motion::RobotState& start,
+        const motion::RobotState& finish,
+        const std::vector<int>& variables);
+
     void interpolate(int n, motion::RobotState& state) const;
+    void interpolate(int n, motion::RobotState& state, const std::vector<int>& variables) const;
+
+    // TODO: interpolation for a subset of joints
 
 private:
 
@@ -212,6 +220,34 @@ void MotionInterpolation::setEndpoints(
     }
 }
 
+inline
+void MotionInterpolation::setEndpoints(
+    const motion::RobotState& start,
+    const motion::RobotState& finish,
+    const std::vector<int>& variables)
+{
+    m_start = start;
+    m_diffs.resize(variables.size());
+    for (size_t vidx = 0; vidx < variables.size(); ++vidx) {
+        int jidx = m_rcm->jointVarJointIndex(variables[vidx]);
+        switch (m_rcm->jointType(jidx)) {
+        case JointType::FIXED:
+            break;
+        case JointType::REVOLUTE:
+        case JointType::PRISMATIC:
+            m_diffs[vidx] = finish[vidx] - start[vidx];
+            break;
+        case JointType::CONTINUOUS:
+            m_diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
+            break;
+        case JointType::PLANAR:
+        case JointType::FLOATING:
+            ROS_ERROR_ONCE("TODO: interpolation of multi-dof joints for subsets");
+            break;
+        }
+    }
+}
+
 /// Interpolate along the segment to generate the n'th waypoint.
 inline
 void MotionInterpolation::interpolate(int n, motion::RobotState& state) const
@@ -258,6 +294,33 @@ void MotionInterpolation::interpolate(int n, motion::RobotState& state) const
 }
 
 inline
+void MotionInterpolation::interpolate(
+    int n,
+    motion::RobotState& state,
+    const std::vector<int>& variables) const
+{
+    state.resize(m_start.size());
+    const double alpha = (double)n * m_waypoint_count_inv;
+    for (size_t v = 0; v < variables.size(); ++v) {
+        int vidx = variables[v];
+        int jidx = m_rcm->jointVarJointIndex(vidx);
+        switch (m_rcm->jointType(jidx)) {
+        case JointType::FIXED:
+            break;
+        case JointType::REVOLUTE:
+        case JointType::CONTINUOUS:
+        case JointType::PRISMATIC:
+            state[v] = m_start[v] + alpha * m_diffs[v];
+            break;
+        case JointType::PLANAR:
+        case JointType::FLOATING:
+            ROS_ERROR_ONCE("TODO: interpolation of multi-dof joints for subsets");
+            break;
+        }
+    }
+}
+
+inline
 const Eigen::Vector3d& RobotMotionCollisionModel::motionCenter(int jidx) const
 {
     return m_m_centers[jidx];
@@ -293,7 +356,7 @@ void RobotMotionCollisionModel::fillMotionInterpolation(
     double res,
     MotionInterpolation& motion) const
 {
-    motion.setEndpoints(start, finish);
+    motion.setEndpoints(start, finish, variables);
     double max_motion = getMaxSphereMotion(start, finish, variables);
     if (max_motion == 0.0) {
         motion.setWaypointCount(0);

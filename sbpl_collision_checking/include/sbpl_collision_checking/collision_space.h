@@ -238,6 +238,9 @@ private:
     double maxLimit(int vidx) const;
 
     void updateState(const std::vector<double>& vals);
+    void updateState(
+        std::vector<double>& state,
+        const std::vector<double>& vals);
     void copyState();
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
