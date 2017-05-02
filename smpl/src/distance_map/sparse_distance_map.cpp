@@ -59,7 +59,8 @@ SparseDistanceMap::SparseDistanceMap(
     m_neighbor_offsets(),
     m_neighbor_dirs(),
     m_open(),
-    m_rem_stack()
+    m_rem_stack(),
+    m_error(std::sqrt(3.0) * resolution)
 {
     // init neighbors for forward propagation
     CreateNeighborUpdateList(m_neighbors, m_indices, m_neighbor_ranges);
@@ -321,6 +322,20 @@ double SparseDistanceMap::getCellDistance(int x, int y, int z) const
     return getDistance(x, y, z);
 }
 
+double SparseDistanceMap::getMetricSquaredDistance(
+    double x, double y, double z) const
+{
+    return getTrueMetricSquaredDistance(x, y, z);
+//    return getInterpMetricSquaredDistance(x, y, z);
+}
+
+double SparseDistanceMap::getCellSquaredDistance(int x, int y, int z) const
+{
+    double wx, wy, wz;
+    gridToWorld(x, y, z, wx, wy, wz);
+    return getMetricSquaredDistance(wx, wy, wz);
+}
+
 /// Return the effective grid coordinates of the cell containing the given point
 /// specified in world coordinates.
 void SparseDistanceMap::gridToWorld(
@@ -579,6 +594,239 @@ void SparseDistanceMap::propagateBorder()
         }
         ++m_bucket;
     }
+}
+
+/// Return the distance from a world point to nearest point on (or within)
+/// the nearest occupied voxel. This function proceeds by computing the
+/// distances between the world point and the nearest point on (or within) the
+/// nearest obstacle cells for all of its 27-nearest cell neighbors and taking
+/// the minimum distance.
+double SparseDistanceMap::getTrueMetricSquaredDistance(
+    double x, double y, double z) const
+{
+    int gpx, gpy, gpz;
+    worldToGrid(x, y, z, gpx, gpy, gpz);
+
+    if (!SparseDistanceMap::isCellValid(gpx, gpy, gpz)) {
+        return 0.0;
+    }
+
+    const double ox = originX();
+    const double oy = originY();
+    const double oz = originZ();
+    const double res = resolution();
+    const double half_res = 0.5 * res;
+
+    // Compute the squared distance from (x, y, z) to the nearest point on
+    //  the obstacle cell positioned at \p npos
+    auto nearestEdgeDist = [&](int nx, int ny, int nz) {
+        // nearest obstacle cell -> nearest obstacle center
+        double nnx = ox + res * nx;
+        double nny = oy + res * ny;
+        double nnz = oz + res * nz;
+
+        // nearest obstacle center -> nearest obstacle corner/edge/face
+        if (gpx > nx) {
+            nnx += half_res;
+        } else if (gpx < nx) {
+            nnx -= half_res;
+        } else {
+            nnx = x;
+        }
+
+        if (gpy > ny) {
+            nny += half_res;
+        } else if (gpy < ny) {
+            nny -= half_res;
+        } else {
+            nny = y;
+        }
+
+        if (gpz > nz) {
+            nnz += half_res;
+        } else if (gpz < nz) {
+            nnz -= half_res;
+        } else {
+            nnz = z;
+        }
+
+        const double dx = x - nnx;
+        const double dy = y - nny;
+        const double dz = z - nnz;
+
+        return dx * dx + dy * dy + dz * dz;
+    };
+
+    // check if on the border to skip bounds checking for inner cells
+    const bool border =
+            gpx == 0 | gpy == 0 | gpz == 0 |
+            gpx == m_cell_count_x - 1 |
+            gpy == m_cell_count_y - 1 |
+            gpz == m_cell_count_z - 1;
+
+    double min_d2 = res * res * m_dmax_sqrd_int;
+    int nx_last = -1, ny_last = -1, nz_last = -1;
+
+    bool conservative = false;
+
+    // check the 27 nearest cells and take the minimum of the distances from
+    // (x, y, z) to their nearest obstacles
+    if (border) {
+        for (int gppx = gpx - 1; gppx != gpx + 2; ++gppx) {
+        for (int gppy = gpy - 1; gppy != gpy + 2; ++gppy) {
+        for (int gppz = gpz - 1; gppz != gpz + 2; ++gppz) {
+            if (SparseDistanceMap::isCellValid(gppx, gppy, gppz)) {
+                const Cell& c = m_cells.get(gppx, gppy, gppz);
+
+                if (c.obs) { // known nearest obstacle -> nearest distance to it
+                    const double d2 = nearestEdgeDist(c.ox, c.oy, c.oz);
+                    if (d2 < min_d2) {
+                        min_d2 = d2;
+                    }
+                } else { // unknown nearest obstacle -> conservative nearest distance
+                    conservative = true;
+                }
+            }
+        } } }
+    } else {
+        for (int gppx = gpx - 1; gppx != gpx + 2; ++gppx) {
+        for (int gppy = gpy - 1; gppy != gpy + 2; ++gppy) {
+        for (int gppz = gpz - 1; gppz != gpz + 2; ++gppz) {
+            const Cell& c = m_cells.get(gppx, gppy, gppz);
+
+            if (c.obs) { // known nearest obstacle -> nearest distance to it
+                const double d2 = nearestEdgeDist(c.ox, c.oy, c.oz);
+                if (d2 < min_d2) {
+                    min_d2 = d2;
+                }
+            } else { // unknown nearest obstacle -> conservative nearest distance
+                conservative = true;
+            }
+        } } }
+    }
+
+    if (conservative) {
+        const double d = m_sqrt_table[m_dmax_sqrd_int] - m_error;
+        const double d2 = d * d;
+        if (d2 < min_d2) {
+            min_d2 = d2;
+        }
+    }
+
+    return min_d2;
+}
+
+/// Return the distance from a world point to nearest point on (or within)
+/// the nearest occupied voxel. This function proceeds by looking up the
+/// distances between all its 8-nearest cell neighbors and their nearest
+/// obstacle cells and interpolating those values according to the position of
+/// the world point within its corresponding grid cell.
+double SparseDistanceMap::getInterpMetricSquaredDistance(
+    double x, double y, double z) const
+{
+    int gx, gy, gz;
+    worldToGrid(x, y, z, gx, gy, gz);
+
+    if (!SparseDistanceMap::isCellValid(gx, gy, gz)) {
+        return 0.0;
+    }
+
+    double wpx, wpy, wpz;
+    gridToWorld(gx, gy, gz, wpx, wpy, wpz);
+
+    // compute 8 nearest cells and interpolation distances
+    int dx, dy, dz;
+    double alpha;
+    double beta;
+    double gamma;
+    if (x > wpx) {
+        alpha = x - wpx;
+        dx = 1;
+    } else {
+        alpha = wpx - x;
+        dx = -1;
+    }
+
+    if (y > wpy) {
+        dy = 1;
+        beta = y - wpy;
+    } else {
+        dy = -1;
+        beta = wpy - y;
+    }
+
+    if (z > wpz) {
+        dz = 1;
+        gamma = z - wpz;
+    } else {
+        dz = -1;
+        gamma = wpz - z;
+    }
+
+    alpha *= 2.0 * m_inv_res;
+    beta *= 2.0 * m_inv_res;
+    gamma *= 2.0 * m_inv_res;
+
+    // oob -> remove from interpolation
+    const bool dx_oob = (gx + dx < 0) | (gx + dx >= m_cell_count_x);
+    const bool dy_oob = (gy + dy < 0) | (gy + dy >= m_cell_count_y);
+    const bool dz_oob = (gz + dz < 0) | (gz + dz >= m_cell_count_z);
+
+    // interpolate distance values of 8 nearest cells
+    // interpolation distances based off of distance to current cell boundaries
+    double sum = 0.0;
+    if (dx_oob) {
+        if (dy_oob) {
+            if (dz_oob) { // dx_oob, dy_oob, dz_oob
+                sum += m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+            } else { // dx_oob, dy_oob
+                sum += gamma         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += (1.0 - gamma) * m_sqrt_table[m_cells.get(gx     , gy     , gz + dz).dist];
+            }
+        }
+        else {
+            if (dz_oob) { // dx_oob, dz_oob
+                sum += beta         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += (1.0 - beta) * m_sqrt_table[m_cells.get(gx     , gy + dy, gz     ).dist];
+            } else { // dx_oob
+                sum += beta         * gamma         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += beta         * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx     , gy     , gz + dz).dist];
+                sum += (1.0 - beta) * gamma         * m_sqrt_table[m_cells.get(gx     , gy + dy, gz     ).dist];
+                sum += (1.0 - beta) * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx     , gy + dy, gz + dz).dist];
+            }
+        }
+    } else {
+        if (dy_oob) {
+            if (dz_oob) { // dy_oob, dz_oob
+                sum += alpha         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += (1.0 - alpha) * m_sqrt_table[m_cells.get(gx + dx, gy     , gz     ).dist];
+            } else { // dy_oob
+                sum += alpha         * gamma         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += alpha         * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx     , gy     , gz + dz).dist];
+                sum += (1.0 - alpha) * gamma         * m_sqrt_table[m_cells.get(gx + dx, gy     , gz     ).dist];
+                sum += (1.0 - alpha) * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx + dx, gy     , gz + dz).dist];
+            }
+        }
+        else {
+            if (dz_oob) { // dz_oob
+                sum += alpha         * beta         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += alpha         * (1.0 - beta) * m_sqrt_table[m_cells.get(gx     , gy + dy, gz     ).dist];
+                sum += (1.0 - alpha) * beta         * m_sqrt_table[m_cells.get(gx + dx, gy     , gz     ).dist];
+                sum += (1.0 - alpha) * (1.0 - beta) * m_sqrt_table[m_cells.get(gx + dx, gy + dy, gz     ).dist];
+            } else { // no oob
+                sum += alpha         * beta         * gamma         * m_sqrt_table[m_cells.get(gx     , gy     , gz     ).dist];
+                sum += alpha         * beta         * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx     , gy     , gz + dz).dist];
+                sum += alpha         * (1.0 - beta) * gamma         * m_sqrt_table[m_cells.get(gx     , gy + dy, gz     ).dist];
+                sum += alpha         * (1.0 - beta) * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx     , gy + dy, gz + dz).dist];
+                sum += (1.0 - alpha) * beta         * gamma         * m_sqrt_table[m_cells.get(gx + dx, gy     , gz     ).dist];
+                sum += (1.0 - alpha) * beta         * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx + dx, gy     , gz + dz).dist];
+                sum += (1.0 - alpha) * (1.0 - beta) * gamma         * m_sqrt_table[m_cells.get(gx + dx, gy + dy, gz     ).dist];
+                sum += (1.0 - alpha) * (1.0 - beta) * (1.0 - gamma) * m_sqrt_table[m_cells.get(gx + dx, gy + dy, gz + dz).dist];
+            }
+        }
+    }
+
+    return (sum - m_error) * (sum - m_error);
 }
 
 } // namespace sbpl

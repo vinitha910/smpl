@@ -86,6 +86,9 @@ public:
     double getMetricDistance(double x, double y, double z) const override;
     double getCellDistance(int x, int y, int z) const override;
 
+    double getMetricSquaredDistance(double x, double y, double z) const override;
+    double getCellSquaredDistance(int x, int y, int z) const override;
+
     void gridToWorld(
         int x, int y, int z,
         double& world_x, double& world_y, double& world_z) const override;
@@ -190,6 +193,8 @@ public:
 
     std::vector<bucket_element> m_rem_stack;
 
+    double m_error;
+
     void updateVertex(Cell* c, int cx, int cy, int cz);
 
     /// DistanceMap
@@ -205,6 +210,9 @@ public:
     void propagateRemovals();
     void propagateBorder();
     ///@}
+
+    double getTrueMetricSquaredDistance(double x, double y, double z) const;
+    double getInterpMetricSquaredDistance(double x, double y, double z) const;
 };
 
 } // namespace sbpl
