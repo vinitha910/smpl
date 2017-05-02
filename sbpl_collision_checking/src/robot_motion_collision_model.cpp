@@ -245,12 +245,14 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
 
         // construct the motion spheres for the parents in topological fashion
         int plidx = rcm->jointParentLinkIndex(jidx);
-        int pjidx = rcm->linkParentJointIndex(plidx);
-        if (pjidx >= 0) {
-            ++p_joint[pjidx];
+        if (plidx >= 0) {
+            int pjidx = rcm->linkParentJointIndex(plidx);
+            if (pjidx >= 0) {
+                ++p_joint[pjidx];
 
-            if (p_joint[pjidx] == rcm->linkChildJointIndices(plidx).size()) {
-                q_joint[q_tail++] = pjidx;
+                if (p_joint[pjidx] == rcm->linkChildJointIndices(plidx).size()) {
+                    q_joint[q_tail++] = pjidx;
+                }
             }
         }
     }
