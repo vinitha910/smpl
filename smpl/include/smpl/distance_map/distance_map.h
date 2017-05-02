@@ -68,8 +68,6 @@ public:
 
     /// \name Required Functions from DistanceMapInterface
     ///@{
-    DistanceMapInterface* clone() const override;
-
     void addPointsToMap(const std::vector<Eigen::Vector3d>& points) override;
     void removePointsFromMap(const std::vector<Eigen::Vector3d>& points) override;
     void updatePointsInMap(

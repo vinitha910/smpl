@@ -219,12 +219,6 @@ double DistanceMap<Derived>::getDistance(int x, int y, int z) const
     return m_sqrt_table[d2];
 }
 
-template <typename Derived>
-DistanceMapInterface* DistanceMap<Derived>::clone() const
-{
-    return new DistanceMap<Derived>(*this);
-}
-
 /// Add a set of obstacle points to the distance map and update the distance
 /// values of affected cells. Points outside the map and cells that are already
 /// marked as obstacles will be ignored.

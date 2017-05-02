@@ -43,6 +43,9 @@ public:
         double resolution,
         double max_dist);
 
+    DistanceMapInterface* clone() const override
+    { return new ChessboardDistanceMap(*this); }
+
     friend class DistanceMap<ChessboardDistanceMap>;
 
 private:

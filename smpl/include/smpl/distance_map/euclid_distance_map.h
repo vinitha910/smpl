@@ -43,6 +43,9 @@ public:
         double resolution,
         double max_dist);
 
+    DistanceMapInterface* clone() const override
+    { return new EuclidDistanceMap(*this); }
+
     friend class DistanceMap<EuclidDistanceMap>;
 
 private:
