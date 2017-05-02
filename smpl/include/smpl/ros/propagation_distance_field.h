@@ -84,7 +84,6 @@ public:
 
     double getMetricDistance(double x, double y, double z) const override;
     double getCellDistance(int x, int y, int z) const override;
-    double getMetricSquaredDistance(double x, double y, double z) const override;
 
     bool isCellValid(int x, int y, int z) const override;
 
@@ -101,8 +100,6 @@ private:
     distance_field::PropagationDistanceField m_df;
     bool m_propagate_negative_distances;
     double m_max_distance;
-    double m_half_res;
-    double m_error;
 
     EigenSTL::vector_Vector3d toAlignedVector(
         const std::vector<Eigen::Vector3d>& v) const;
