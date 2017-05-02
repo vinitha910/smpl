@@ -667,7 +667,7 @@ void DistanceMap<Derived>::propagateBorder()
 
 //            if (s->dist_new < s->dist)
             {
-                assert(s->dist_new < s->dist);
+                assert(s->dist_new <= s->dist);
                 s->dist = s->dist_new;
 
                 // foreach n in adj(min)
