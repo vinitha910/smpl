@@ -46,7 +46,7 @@
 #include <smpl/forward.h>
 #include <smpl/distance_map/distance_map_interface.h>
 
-#include "detail/distance_map_base.h"
+#include "detail/distance_map_common.h"
 
 namespace sbpl {
 
