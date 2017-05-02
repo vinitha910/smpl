@@ -157,6 +157,8 @@ private:
     void lowerBounded(Cell* s);
     void propagateRemovals();
     void propagateBorder();
+
+    void resetCell(Cell& c) const;
 };
 
 } // namespace sbpl

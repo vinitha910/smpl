@@ -140,30 +140,10 @@ DistanceMap<Derived>::DistanceMap(
 
     m_open.resize(m_dmax_sqrd_int + 1);
 
+    // precompute table of sqrts for relevant distance values
     m_sqrt_table.resize(m_dmax_sqrd_int + 1, 0.0);
     for (int i = 0; i < m_dmax_sqrd_int + 1; ++i) {
         m_sqrt_table[i] = m_res * std::sqrt((double)i);
-    }
-
-    // initialize non-border free cells
-    m_cells.resize(cell_count_x, cell_count_y, cell_count_z);
-    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (int y = 1; y < m_cells.ysize() - 1; ++y) {
-    for (int z = 1; z < m_cells.zsize() - 1; ++z) {
-        Cell& c = m_cells(x, y, z);
-        c.x = x;
-        c.y = y;
-        c.z = z;
-        c.dist = m_dmax_sqrd_int;
-        c.dist_new = m_dmax_sqrd_int;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        c.dist_old = m_dmax_sqrd_int;
-#endif
-        c.obs = nullptr;
-        c.bucket = -1;
-        c.dir = m_no_update_dir;
-    }
-    }
     }
 
     // init neighbors for forward propagation
@@ -181,6 +161,20 @@ DistanceMap<Derived>::DistanceMap(
         } else {
             m_neighbor_dirs[i] = dirnum(neighbor.x(), neighbor.y(), neighbor.z(), 1);
         }
+    }
+
+    // initialize non-border free cells
+    m_cells.resize(cell_count_x, cell_count_y, cell_count_z);
+    for (int x = 1; x < m_cells.xsize() - 1; ++x) {
+    for (int y = 1; y < m_cells.ysize() - 1; ++y) {
+    for (int z = 1; z < m_cells.zsize() - 1; ++z) {
+        Cell& c = m_cells(x, y, z);
+        resetCell(c);
+        c.x = x;
+        c.y = y;
+        c.z = z;
+    }
+    }
     }
 
     initBorderCells();
@@ -362,14 +356,7 @@ void DistanceMap<Derived>::reset()
     for (size_t y = 1; y < m_cells.ysize() - 1; ++y) {
     for (size_t z = 1; z < m_cells.zsize() - 1; ++z) {
         Cell& c = m_cells(x, y, z);
-        c.dist = m_dmax_sqrd_int;
-        c.dist_new = m_dmax_sqrd_int;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        c.dist_old = m_dmax_sqrd_int;
-#endif
-        c.obs = nullptr;
-        c.bucket = -1;
-        c.dir = m_no_update_dir;
+        resetCell(c);
     }
     }
     }
@@ -696,6 +683,19 @@ void DistanceMap<Derived>::propagateBorder()
         }
         ++m_bucket;
     }
+}
+
+template <typename Derived>
+void DistanceMap<Derived>::resetCell(Cell& c) const
+{
+    c.dist = m_dmax_sqrd_int;
+    c.dist_new = m_dmax_sqrd_int;
+#if SMPL_DMAP_RETURN_CHANGED_CELLS
+    c.dist_old = m_dmax_sqrd_int;
+#endif
+    c.obs = nullptr;
+    c.bucket = -1;
+    c.dir = m_no_update_dir;
 }
 
 } // namespace sbpl

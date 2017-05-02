@@ -43,7 +43,10 @@ PropagationDistanceField::PropagationDistanceField(
     double max_distance,
     bool propagate_negative_distances)
 :
-    DistanceMapInterface(origin_x, origin_y, origin_z, size_x, size_y, size_z, res),
+    DistanceMapInterface(
+            origin_x, origin_y, origin_z,
+            size_x, size_y, size_z,
+            res),
     m_df(size_x, size_y, size_z,
             res,
             origin_x, origin_y, origin_z,
