@@ -545,10 +545,10 @@ void SparseDistanceMap::propagateRemovals()
         }
     }
 
+    propagateBorder();
+
     // see note in Cell::operator==
     m_cells.prune([&](const Cell& c) { return !c.obs; });
-
-    propagateBorder();
 }
 
 void SparseDistanceMap::propagateBorder()
@@ -563,7 +563,7 @@ void SparseDistanceMap::propagateBorder()
 
 //            if (s->dist_new < s->dist)
             {
-                assert(s->dist_new < s->dist);
+                assert(s->dist_new <= s->dist);
                 s->dist = s->dist_new;
 
                 // foreach n in adj(min)
