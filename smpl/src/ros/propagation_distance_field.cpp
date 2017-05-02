@@ -105,8 +105,7 @@ DistanceMapInterface* PropagationDistanceField::clone() const
     for (int x = 0; x < numCellsX(); ++x) {
     for (int y = 0; y < numCellsY(); ++y) {
     for (int z = 0; z < numCellsZ(); ++z) {
-        // TODO: find out obstacle distance value when negative distances exist
-        if (m_df.getDistance(x, y, z) == 0.0) {
+        if (m_df.getDistance(x, y, z) <= 0.0) {
             double wx, wy, wz;
             m_df.gridToWorld(x, y, z, wx, wy, wz);
             points.emplace_back(wx, wy, wz);
