@@ -327,9 +327,9 @@ void SparseDistanceMap::gridToWorld(
     int x, int y, int z,
     double& world_x, double& world_y, double& world_z) const
 {
-    world_x = (m_origin_x - m_res) + (x) * m_res;
-    world_y = (m_origin_y - m_res) + (y) * m_res;
-    world_z = (m_origin_z - m_res) + (z) * m_res;
+    world_x = (m_origin_x) + (x) * m_res;
+    world_y = (m_origin_y) + (y) * m_res;
+    world_z = (m_origin_z) + (z) * m_res;
 }
 
 /// Return the point in world coordinates marking the center of the cell at the
@@ -338,9 +338,9 @@ void SparseDistanceMap::worldToGrid(
     double world_x, double world_y, double world_z,
     int& x, int& y, int& z) const
 {
-    x = (int)(m_inv_res * (world_x - (m_origin_x - m_res)) + 0.5);
-    y = (int)(m_inv_res * (world_y - (m_origin_y - m_res)) + 0.5);
-    z = (int)(m_inv_res * (world_z - (m_origin_z - m_res)) + 0.5);
+    x = (int)(m_inv_res * (world_x - m_origin_x) + 0.5);
+    y = (int)(m_inv_res * (world_y - m_origin_y) + 0.5);
+    z = (int)(m_inv_res * (world_z - m_origin_z) + 0.5);
 }
 
 /// Test if a cell is outside the bounding volume.
