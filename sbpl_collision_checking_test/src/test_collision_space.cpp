@@ -84,8 +84,8 @@ int main(int argc, char **argv)
     const double res = 0.02;
     const double max_distance = 0.4;
     auto df = std::make_shared<sbpl::PropagationDistanceField>(
-            dims[0], dims[1], dims[2],
             origin[0], origin[1], origin[2],
+            dims[0], dims[1], dims[2],
             res,
             max_distance);
     df->reset();
