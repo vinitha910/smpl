@@ -44,6 +44,8 @@
 #include <ros/ros.h>
 #include <smpl/ros/planner_interface.h>
 #include <smpl/distance_map/edge_euclid_distance_map.h>
+#include <smpl/distance_map/euclid_distance_map.h>
+#include <smpl/ros/propagation_distance_field.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
@@ -1592,18 +1594,20 @@ int main(int argc, char* argv[])
     const double df_origin_y = -1.5;
     const double df_origin_z = 0.0;
     const double max_distance = 1.8;
-    const bool propagate_negative_distances = false;
-    const bool ref_counted = true;
 
-    typedef sbpl::EdgeEuclidDistanceMap DistanceMapType;
+//    typedef sbpl::EdgeEuclidDistanceMap DistanceMapType;
+    typedef sbpl::EuclidDistanceMap DistanceMapType;
+//    typedef sbpl::PropagationDistanceField DistanceMapType;
 
     ROS_INFO("Create distance map");
     auto df = std::make_shared<DistanceMapType>(
             df_origin_x, df_origin_y, df_origin_z,
             df_size_x, df_size_y, df_size_z,
-            df_res, max_distance);
+            df_res,
+            max_distance);
 
     ROS_INFO("Create grid");
+    const bool ref_counted = false;
     sbpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
