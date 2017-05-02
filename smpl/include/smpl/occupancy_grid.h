@@ -102,7 +102,6 @@ public:
     ///@{
     size_t getOccupiedVoxelCount() const;
 
-    /// \brief Get all occupied voxels in the grid
     void getOccupiedVoxels(std::vector<Eigen::Vector3d>& voxels) const;
 
     void getOccupiedVoxels(
@@ -120,14 +119,11 @@ public:
 
     /// \name Distance Lookups
     ///@{
-    /// \brief Get the distance, in meters, to the nearest occupied cell
     double getDistance(int x, int y, int z) const;
 
-    /// \brief Get the distance, in meters, to the nearest occupied cell
     double getDistanceFromPoint(double x, double y, double z) const;
     double getSquaredDist(double x, double y, double z) const;
 
-    /// \brief Get the distance to the, in meters, to the border
     double getDistanceToBorder(int x, int y, int z) const;
 
     double getDistanceToBorder(double x, double y, double z) const;
@@ -211,12 +207,14 @@ void OccupancyGrid::setReferenceFrame(const std::string& frame)
     reference_frame_ = frame;
 }
 
+/// Get the distance, in meters, to the nearest occupied cell.
 inline
 double OccupancyGrid::getDistance(int x, int y, int z) const
 {
     return m_grid->getCellDistance(x, y, z);
 }
 
+/// Get the distance, in meters, to the nearest occupied cell
 inline
 double OccupancyGrid::getDistanceFromPoint(double x, double y, double z) const
 {
@@ -229,6 +227,7 @@ double OccupancyGrid::getSquaredDist(double x, double y, double z) const
     return m_grid->getMetricSquaredDistance(x, y, z);
 }
 
+/// Get the distance to the, in meters, to the border.
 inline
 double OccupancyGrid::getDistanceToBorder(int x, int y, int z) const
 {

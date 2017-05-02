@@ -142,8 +142,23 @@ OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
 /// uninitialized values.
 void OccupancyGrid::reset()
 {
-    // TODO: reset reference counts
     m_grid->reset();
+    if (m_ref_counted) {
+        m_counts.assign(getCellCount(), 0);
+    }
+}
+
+/// Count the number of obstacles in the occupancy grid.
+size_t OccupancyGrid::getOccupiedVoxelCount() const
+{
+    size_t count = 0;
+    iterateCells([&](int x, int y, int z)
+    {
+        if (m_grid->getCellDistance(x, y, z) <= 0.0) {
+            ++count;
+        }
+    });
+    return count;
 }
 
 /// Get all occupied voxels within an oriented cube region of the grid.
@@ -152,14 +167,10 @@ void OccupancyGrid::getOccupiedVoxels(
     const std::vector<double>& dim,
     std::vector<Eigen::Vector3d>& voxels) const
 {
-    Eigen::Vector3d pos(pose.translation());
-    Eigen::Matrix3d m(pose.rotation());
-
     for (double x = -0.5 * dim[0]; x <= 0.5 * dim[0]; x += m_grid->resolution()) {
     for (double y = -0.5 * dim[1]; y <= 0.5 * dim[1]; y += m_grid->resolution()) {
     for (double z = -0.5 * dim[2]; z <= 0.5 * dim[2]; z += m_grid->resolution()) {
-        Eigen::Vector3d point(x, y, z);
-        point = pose * point;
+        Eigen::Vector3d point = pose * Eigen::Vector3d(x, y, z);
 
         if (getDistanceFromPoint(point.x(), point.y(), point.z()) <= 0.0) {
             voxels.push_back(point);
@@ -193,19 +204,6 @@ void OccupancyGrid::getOccupiedVoxels(
                     voxels.push_back(v);
                 }
             });
-}
-
-/// Count the number of obstacles in the occupancy grid.
-size_t OccupancyGrid::getOccupiedVoxelCount() const
-{
-    size_t count = 0;
-    iterateCells([&](int x, int y, int z)
-    {
-        if (m_grid->getCellDistance(x, y, z) <= 0.0) {
-            ++count;
-        }
-    });
-    return count;
 }
 
 /// Gather all the obstacle points in the occupancy grid.
