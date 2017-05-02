@@ -1771,27 +1771,11 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    std::vector<std::string> statistic_names = {
-            "initial solution planning time",
-            "initial epsilon",
-            "initial solution expansions",
-            "final epsilon planning time",
-            "final epsilon",
-            "solution epsilon",
-            "expansions",
-            "solution cost"
-    };
     std::map<std::string, double> planning_stats = planner.getPlannerStats();
 
     ROS_INFO("Planning statistics");
-    for (const auto& statistic : statistic_names) {
-        auto it = planning_stats.find(statistic);
-        if (it != planning_stats.end()) {
-            ROS_INFO("    %s: %0.3f", statistic.c_str(), it->second);
-        }
-        else {
-            ROS_WARN("Did not find planning statistic \"%s\"", statistic.c_str());
-        }
+    for (const auto& entry : planning_stats) {
+        ROS_INFO("    %s: %0.3f", entry.first.c_str(), entry.second);
     }
 
     ROS_INFO("Animate path");
