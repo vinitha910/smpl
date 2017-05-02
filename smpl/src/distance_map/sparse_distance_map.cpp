@@ -29,10 +29,10 @@
 
 /// \author Andrew Dornbush
 
+#include <smpl/distance_map/sparse_distance_map.h>
+
 // standard includes
 #include <set>
-
-#include <smpl/distance_map/sparse_distance_map.h>
 
 namespace sbpl {
 
