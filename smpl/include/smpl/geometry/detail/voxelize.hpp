@@ -88,7 +88,7 @@ void VoxelizeTriangle(
         Eigen::Vector3d( 0.5774,  0.5774, -0.5774).dot(n),
         Eigen::Vector3d( 0.5774,  0.5774,  0.5774).dot(n)
     };
-    ca = *std::max_element(corners, corners + sizeof(corners));
+    ca = *std::max_element(corners, corners + sizeof(corners) / sizeof(double));
 
     double t = rc * ca;
 
