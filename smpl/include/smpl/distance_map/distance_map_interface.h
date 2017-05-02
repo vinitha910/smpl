@@ -49,6 +49,15 @@ SBPL_CLASS_FORWARD(DistanceMapInterface)
 /// Abstract base class for Distance Map implementations. This class specifies
 /// methods for returning distances to the nearest occupied cells, both in
 /// cell units and metric units.
+///
+/// The distances computed for cells may differ from those computed for points
+/// within the same cell. This distinction is made by the two functions,
+/// getCellDistance() and getMetricDistance(), and similarly for their squared
+/// variants. The getCellDistance() function return the distance from the center
+/// of the query cell to the center of its nearest obstacle cell. This distance
+/// is valid for the cell center but may be an approximation of the distance
+/// from another point, even within the same cell, to its nearest obstacle cell.
+/// The function getMetricDistance() may provide more accurate distances.
 class DistanceMapInterface
 {
 public:
