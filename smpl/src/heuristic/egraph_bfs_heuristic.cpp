@@ -335,43 +335,11 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
         }
     } } }
 
-    projectExperienceGraph();
-
     Eigen::Vector3d gp(
             goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2]);
 
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
-
-    // precompute shortcuts
-    assert(m_component_ids.size() == m_eg->getExperienceGraph()->num_nodes());
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
-    auto nodes = eg->nodes();
-    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
-        int comp_id = m_component_ids[*nit];
-        if (m_shortcut_nodes[comp_id].empty()) {
-            m_shortcut_nodes[comp_id].push_back(*nit);
-            continue;
-        }
-
-        // get the distance of this node to the goal
-        Eigen::Vector3d p;
-        m_pp->projectToPoint(m_eg->getStateID(*nit), p);
-
-        const double dist = (gp - p).squaredNorm();
-
-        Eigen::Vector3d lp;
-        m_pp->projectToPoint(m_eg->getStateID(m_shortcut_nodes[comp_id].front()), lp);
-
-        const double curr_dist = (gp - lp).squaredNorm();
-
-        if (dist < curr_dist) {
-            m_shortcut_nodes[comp_id].clear();
-            m_shortcut_nodes[comp_id].push_back(*nit);
-        } else if (dist == curr_dist) {
-            m_shortcut_nodes[comp_id].push_back(*nit);
-        }
-    }
 
     if (!grid()->isInBounds(dgp.x(), dgp.y(), dgp.z())) {
         ROS_WARN("Cell (%d, %d, %d) is outside heuristic bounds", dgp.x(), dgp.y(), dgp.z());
@@ -380,10 +348,20 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 
     dgp += Eigen::Vector3i::Ones();
 
+    // seed the dijsktra expansion
     m_open.clear();
     Cell* c = &m_dist_grid(dgp.x(), dgp.y(), dgp.z());
     c->dist = 0;
     m_open.push(c);
+
+    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    if (eg) {
+        projectExperienceGraph(*eg);
+        computeConnectedComponents(*eg);
+        precomputeShortcuts(*eg, gp);
+    } else {
+        ROS_WARN("Experience Graph Extended Planning Space has null Experience Graph");
+    }
 
     ROS_INFO_NAMED(params()->heuristic_log, "Updated EGraphBfsHeuristic goal");
 }
@@ -414,39 +392,17 @@ int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
     return 0;
 }
 
-// Project experience graph states down to their 3D projections. Note that this
-// should be called once the goal is set in the environment as the projection to
-// 3D may be based off of the goal condition (for instance, the desired planning
-// frame is determined according to the planning link and a fixed offset)
-void DijkstraEgraphHeuristic3D::projectExperienceGraph()
-{
-    // project experience graph into 3d space (projections of adjacent nodes in
-    // the experience graph impose additional edges in 3d, cost equal to the
-    // cheapest transition):
-    //
-    // (1) lookup transitions on-demand when a grid cell is expanded, loop
-    // through all experience graph states and their neighbors (method used by
-    // origin experience graph code)
-    //
-    // (2) embed an adjacency list in the dense grid structure as a
-    // precomputation
-    //
-    // (3) maintain an external adjacency list mapping cells with projections
-    // from experience graph states to adjacent cells (method used here)
-    ROS_INFO("Project experience graph into three-dimensional grid");
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
-    if (!eg) {
-        ROS_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
-        return;
-    }
-
-    projectExperienceGraph(*eg);
-    computeConnectedComponents(*eg);
-}
-
+// Project experience graph states down to their 3D projections. Projections of
+// adjacent nodes in the experience graph impose additional edges in 3d with
+// cost equal to the  cheapest transition. Note that this should be called once
+// the goal is set in the environment as the projection to 3D may be based off
+// of the goal condition (for instance, the desired planning frame is determined
+// according to the planning link and a fixed offset)
 void DijkstraEgraphHeuristic3D::projectExperienceGraph(
     const ExperienceGraph& eg)
 {
+    ROS_INFO("Project experience graph into three-dimensional grid");
+
     m_heur_nodes.clear();
 
     std::vector<geometry_msgs::Point> viz_points;
@@ -562,6 +518,39 @@ void DijkstraEgraphHeuristic3D::computeConnectedComponents(
     // pre-allocate shortcuts array here, fill in updateGoal()
     m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
     ROS_INFO("Experience graph contains %d components", comp_count);
+}
+
+void DijkstraEgraphHeuristic3D::precomputeShortcuts(
+    const ExperienceGraph& eg,
+    const Eigen::Vector3d& gp)
+{
+    assert(m_component_ids.size() == m_eg->getExperienceGraph()->num_nodes());
+    auto nodes = eg.nodes();
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        int comp_id = m_component_ids[*nit];
+        if (m_shortcut_nodes[comp_id].empty()) {
+            m_shortcut_nodes[comp_id].push_back(*nit);
+            continue;
+        }
+
+        // get the distance of this node to the goal
+        Eigen::Vector3d p;
+        m_pp->projectToPoint(m_eg->getStateID(*nit), p);
+
+        const double dist = (gp - p).squaredNorm();
+
+        Eigen::Vector3d lp;
+        m_pp->projectToPoint(m_eg->getStateID(m_shortcut_nodes[comp_id].front()), lp);
+
+        const double curr_dist = (gp - lp).squaredNorm();
+
+        if (dist < curr_dist) {
+            m_shortcut_nodes[comp_id].clear();
+            m_shortcut_nodes[comp_id].push_back(*nit);
+        } else if (dist == curr_dist) {
+            m_shortcut_nodes[comp_id].push_back(*nit);
+        }
+    }
 }
 
 int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)

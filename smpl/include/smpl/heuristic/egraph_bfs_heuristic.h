@@ -145,11 +145,25 @@ private:
         std::vector<Eigen::Vector3i> edges;
     };
 
+    // Possible implementations of down-projected experience:
+    //
+    // (1) lookup transitions on-demand when a grid cell is expanded, loop
+    // through all experience graph states and their neighbors (method used by
+    // origin experience graph code)
+    //
+    // (2) embed an adjacency list in the dense grid structure as a
+    // precomputation
+    //
+    // (3) maintain an external adjacency list mapping cells with projections
+    // from experience graph states to adjacent cells (method used here)
     hash_map<Eigen::Vector3i, HeuristicNode, Vector3iHash> m_heur_nodes;
 
-    void projectExperienceGraph();
     void projectExperienceGraph(const ExperienceGraph& eg);
     void computeConnectedComponents(const ExperienceGraph& eg);
+    void precomputeShortcuts(
+        const ExperienceGraph& eg,
+        const Eigen::Vector3d& gp);
+
     int getGoalHeuristic(const Eigen::Vector3i& dp);
 
     void syncGridAndDijkstra();
