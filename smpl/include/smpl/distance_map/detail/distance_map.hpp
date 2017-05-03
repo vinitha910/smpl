@@ -152,8 +152,8 @@ DistanceMap<Derived>::DistanceMap(
     for (size_t i = 0; i < m_indices.size(); ++i) {
         const Eigen::Vector3i& neighbor = m_neighbors[m_indices[i]];
         m_neighbor_offsets[i] = 0;
-        m_neighbor_offsets[i] += neighbor.x() * m_cells.zsize() * m_cells.ysize();
-        m_neighbor_offsets[i] += neighbor.y() * m_cells.zsize();
+        m_neighbor_offsets[i] += neighbor.x() * cell_count_z * cell_count_y;
+        m_neighbor_offsets[i] += neighbor.y() * cell_count_z;
         m_neighbor_offsets[i] += neighbor.z() * 1;
 
         if (i < NON_BORDER_NEIGHBOR_LIST_SIZE) {
@@ -454,9 +454,9 @@ void DistanceMap<Derived>::initBorderCells()
         c.obs = &c;
         c.bucket = -1;
 
-        int src_dir_x = (x == 0) ? 1 : (x == m_cells.xsize() - 1 ? -1 : 0);
-        int src_dir_y = (y == 0) ? 1 : (y == m_cells.ysize() - 1 ? -1 : 0);
-        int src_dir_z = (z == 0) ? 1 : (z == m_cells.zsize() - 1 ? -1 : 0);
+        int src_dir_x = (x == 0) ? 1 : ((x == m_cells.xsize() - 1) ? -1 : 0);
+        int src_dir_y = (y == 0) ? 1 : ((y == m_cells.ysize() - 1) ? -1 : 0);
+        int src_dir_z = (z == 0) ? 1 : ((z == m_cells.zsize() - 1) ? -1 : 0);
         c.dir = dirnum(src_dir_x, src_dir_y, src_dir_z, 1);
         updateVertex(&c);
     };
@@ -510,8 +510,6 @@ void DistanceMap<Derived>::lower(Cell* s)
     int nfirst, nlast;
     std::tie(nfirst, nlast) = m_neighbor_ranges[s->dir];
     for (int i = nfirst; i != nlast; ++i) {
-        const Eigen::Vector3i& neighbor = m_neighbors[m_indices[i]];
-
         Cell* n = s + m_neighbor_offsets[i];
 //        if (n->dist_new > s->dist_new)
         {
@@ -612,8 +610,6 @@ void DistanceMap<Derived>::lowerBounded(Cell* s)
     int nfirst, nlast;
     std::tie(nfirst, nlast) = m_neighbor_ranges[s->dir];
     for (int i = nfirst; i != nlast; ++i) {
-        const Eigen::Vector3i& neighbor = m_neighbors[m_indices[i]];
-
         Cell* n = s + m_neighbor_offsets[i];
         if (n->dist_new > s->dist_new) {
             int dp = distance(*n, *s);
