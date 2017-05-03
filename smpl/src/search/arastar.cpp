@@ -241,10 +241,20 @@ int ARAStar::replan(
     std::vector<int>* solution,
     int* cost)
 {
-    ReplanParams params(allowed_time);
-    params.repair_time = -1.0;
-    // TODO: wtf with the non-homogenous call
-    return replan(solution, params, cost);
+    TimeParameters tparams = m_time_params;
+    if (tparams.max_allowed_time_init == tparams.max_allowed_time) {
+        // NOTE/TODO: this may lead to awkward behavior, if the caller sets the
+        // allowed time to the current repair time, the repair time will begin
+        // to track the allowed time for further calls to replan. perhaps set
+        // an explicit flag for using repair time or an indicator value as is
+        // done with ReplanParams
+        tparams.max_allowed_time_init = to_duration(allowed_time);
+        tparams.max_allowed_time = to_duration(allowed_time);
+    } else {
+        tparams.max_allowed_time_init = to_duration(allowed_time);
+        // note: retain original allowed improvement time
+    }
+    return replan(tparams, solution, cost);
 }
 
 int ARAStar::replan(
@@ -260,20 +270,13 @@ int ARAStar::replan(
     ReplanParams params,
     int* cost)
 {
+    // note: if replan fails before internal time parameters are updated (this
+    // happens if the start or goal has not been set), then the internal
+    // epsilons may be affected by this set of ReplanParams for future calls to
+    // replan where ReplanParams is not used and epsilon parameters haven't been
+    // set back to their desired values.
     TimeParameters tparams;
-
-    tparams.type = TimeParameters::TIME;
-
-    tparams.bounded = true;
-    tparams.improve = !params.return_first_solution;
-
-    tparams.max_allowed_time_init = to_duration(params.max_time);
-    if (params.repair_time > 0.0) {
-        tparams.max_allowed_time = to_duration(params.repair_time);
-    } else {
-        tparams.max_allowed_time = tparams.max_allowed_time_init;
-    }
-
+    convertReplanParamsToTimeParams(params, tparams);
     return replan(tparams, solution, cost);
 }
 
@@ -394,6 +397,48 @@ void ARAStar::recomputeHeuristics()
     for (SearchState* s : m_states) {
         s->h = m_heur->GetGoalHeuristic(s->state_id);
     }
+}
+
+// Convert TimeParameters to ReplanParams. Uses the current epsilon values
+// to fill in the epsilon fields.
+void ARAStar::convertTimeParamsToReplanParams(
+    const TimeParameters& t,
+    ReplanParams& r) const
+{
+    r.max_time = to_seconds(t.max_allowed_time_init);
+    r.return_first_solution = !t.bounded && !t.improve;
+    if (t.max_allowed_time_init == t.max_allowed_time) {
+        r.repair_time = -1.0;
+    } else {
+        r.repair_time = to_seconds(t.max_allowed_time);
+    }
+
+    r.initial_eps = m_initial_eps;
+    r.final_eps = m_final_eps;
+    r.dec_eps = m_delta_eps;
+}
+
+// Convert ReplanParams to TimeParameters. Sets the current initial, final, and
+// delta eps from ReplanParams.
+void ARAStar::convertReplanParamsToTimeParams(
+    const ReplanParams& r,
+    TimeParameters& t)
+{
+    t.type = TimeParameters::TIME;
+
+    t.bounded = !r.return_first_solution;
+    t.improve = !r.return_first_solution;
+
+    t.max_allowed_time_init = to_duration(r.max_time);
+    if (r.repair_time > 0.0) {
+        t.max_allowed_time = to_duration(r.repair_time);
+    } else {
+        t.max_allowed_time = t.max_allowed_time_init;
+    }
+
+    m_initial_eps = r.initial_eps;
+    m_final_eps = r.final_eps;
+    m_delta_eps = r.dec_eps;
 }
 
 // Test whether the search has run out of time.

@@ -52,6 +52,12 @@ SBPLPlannerPtr ARAPlannerAllocator::allocate(
     bool search_mode;
     pspace->params()->param("search_mode", search_mode, false);
     search->set_search_mode(search_mode);
+
+    double repair_time;
+    if (pspace->params()->getParam("repair_time", repair_time)) {
+        search->setAllowedRepairTime(repair_time);
+    }
+
     return search;
 }
 

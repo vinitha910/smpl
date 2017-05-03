@@ -94,6 +94,12 @@ public:
     void allowPartialSolutions(bool enabled) { m_allow_partial_solutions = enabled; }
     bool allowPartialSolutions() const { return m_allow_partial_solutions; }
 
+    void setAllowedRepairTime(double allowed_time_secs)
+    { m_time_params.max_allowed_time = to_duration(allowed_time_secs); }
+
+    double allowedRepairTime() const
+    { return to_seconds(m_time_params.max_allowed_time); }
+
     int replan(
         const TimeParameters &params,
         std::vector<int>* solution,
@@ -186,6 +192,13 @@ private:
     clock::duration m_search_time;
 
     double m_satisfied_eps;
+
+    void convertTimeParamsToReplanParams(
+        const TimeParameters& t,
+        ReplanParams& r) const;
+    void convertReplanParamsToTimeParams(
+        const ReplanParams& r,
+        TimeParameters& t);
 
     bool timedOut(
         int elapsed_expansions,

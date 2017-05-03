@@ -1729,6 +1729,7 @@ int main(int argc, char* argv[])
     params.addParam("rpy_snap_dist_thresh", planning_config.rpy_snap_dist_thresh);
     params.addParam("xyzrpy_snap_dist_thresh", planning_config.xyzrpy_snap_dist_thresh);
     params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
+    params.addParam("repair_time", 5.0);
 
     params.addParam("epsilon", 100.0);
 
