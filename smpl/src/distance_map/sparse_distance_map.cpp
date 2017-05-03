@@ -56,7 +56,6 @@ SparseDistanceMap::SparseDistanceMap(
     m_neighbors(),
     m_indices(),
     m_neighbor_ranges(),
-    m_neighbor_offsets(),
     m_neighbor_dirs(),
     m_open(),
     m_rem_stack(),
@@ -67,10 +66,6 @@ SparseDistanceMap::SparseDistanceMap(
 
     for (size_t i = 0; i < m_indices.size(); ++i) {
         const Eigen::Vector3i& neighbor = m_neighbors[m_indices[i]];
-        m_neighbor_offsets[i] = 0;
-        m_neighbor_offsets[i] += neighbor.x() * m_cell_count_z * m_cell_count_y;
-        m_neighbor_offsets[i] += neighbor.y() * m_cell_count_z;
-        m_neighbor_offsets[i] += neighbor.z() * 1;
 
         if (i < NON_BORDER_NEIGHBOR_LIST_SIZE) {
             m_neighbor_dirs[i] = dirnum(neighbor.x(), neighbor.y(), neighbor.z());

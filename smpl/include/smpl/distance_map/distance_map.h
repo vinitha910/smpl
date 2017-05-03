@@ -132,7 +132,12 @@ private:
     std::array<Eigen::Vector3i, 27> m_neighbors;
     std::array<int, NEIGHBOR_LIST_SIZE> m_indices;
     std::array<std::pair<int, int>, NUM_DIRECTIONS> m_neighbor_ranges;
+
+    // Map from a (source, target) update direction pair (obtained from
+    // dirnum(x, y, z, e)) to a precomputed offsets into the grid for its target
+    // neighbor offsets
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_offsets;
+
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_dirs;
 
     std::vector<double> m_sqrt_table;

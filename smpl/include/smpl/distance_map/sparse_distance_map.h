@@ -163,11 +163,6 @@ public:
     // to which distance values must be propagated upon insertion
     std::array<std::pair<int, int>, NUM_DIRECTIONS> m_neighbor_ranges;
 
-    // Map from a (source, target) update direction pair (obtained from
-    // dirnum(x, y, z, e)) to a precomputed offsets into the grid for its target
-    // neighbor offsets
-    std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_offsets;
-
     // Map from a (source, target) update direction pair to the update direction
     // index
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_dirs;
