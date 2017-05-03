@@ -332,7 +332,7 @@ OccupancyGrid::getBoundingBoxVisualization() const
 
 /// Return a visualization of the distance values stored in the distance map.
 visualization_msgs::MarkerArray
-OccupancyGrid::getDistanceFieldVisualization() const
+OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
 {
     visualization_msgs::MarkerArray ma;
 
@@ -343,14 +343,15 @@ OccupancyGrid::getDistanceFieldVisualization() const
     m.type = visualization_msgs::Marker::CUBE_LIST;
     m.action = visualization_msgs::Marker::ADD;
     m.pose.orientation.w = 1.0;
-    m.scale.x = m.scale.y = m.scale.z = m_grid->resolution();
+    m.scale.x = m.scale.y = m.scale.z = 0.5 * m_grid->resolution();
     m.color.r = 1.0f;
     m.color.g = 0.5f;
     m.color.b = 0.0f;
-    m.color.a = 0.4f;
+    m.color.a = 1.0f;
 
     const double min_value = m_grid->resolution();
-    const double max_value = m_grid->getUninitializedDistance();
+    const double max_value =
+            max_dist < 0.0 ? m_grid->getUninitializedDistance() : max_dist;
     iterateCells([&](int x, int y, int z)
     {
         const double d = m_grid->getCellDistance(x, y, z);
@@ -358,8 +359,17 @@ OccupancyGrid::getDistanceFieldVisualization() const
             double wx, wy, wz;
             m_grid->gridToWorld(x, y, z, wx, wy, wz);
             geometry_msgs::Point p;
-            p.x = wx; p.y = wy; p.z = wz;
+            p.x = wx;
+            p.y = wy;
+            p.z = wz;
             m.points.push_back(p);
+
+            const double alpha = (d - min_value) / (max_value - min_value);
+            const double hue = 120.0 + alpha * (240.0);
+            std_msgs::ColorRGBA color;
+            leatherman::msgHSVToRGB(hue, 1.0, 1.0, color);
+
+            m.colors.push_back(color);
         }
     });
 

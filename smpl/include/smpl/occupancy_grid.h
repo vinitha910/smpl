@@ -149,7 +149,8 @@ public:
         const std::string& type) const;
 
     visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
-    visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
+    visualization_msgs::MarkerArray getDistanceFieldVisualization(
+        double max_dist = -1.0) const;
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
     ///@}
 
