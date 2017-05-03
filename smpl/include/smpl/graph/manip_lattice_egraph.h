@@ -108,6 +108,8 @@ private:
     // map from experience graph node ids to state ids
     std::vector<int> m_egraph_state_ids;
 
+    void collisionCheckExperienceGraph();
+
     bool findShortestExperienceGraphPath(
         ExperienceGraph::node_id u,
         ExperienceGraph::node_id s,

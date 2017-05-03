@@ -497,6 +497,19 @@ bool ManipLatticeEgraph::findShortestExperienceGraphPath(
     return false;
 }
 
+void ManipLatticeEgraph::collisionCheckExperienceGraph()
+{
+    auto nodes = m_egraph.nodes();
+    CollisionChecker* checker = collisionChecker();
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        bool verbose = true;
+        bool visualize = false;
+        double dist;
+        m_egraph.valid(*nit) = checker->isStateValid(
+                m_egraph.state(*nit), verbose, visualize, dist);
+    }
+}
+
 bool ManipLatticeEgraph::parseExperienceGraphFile(
     const std::string& filepath,
     std::vector<RobotState>& egraph_states) const
