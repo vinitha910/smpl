@@ -1666,6 +1666,8 @@ int main(int argc, char* argv[])
         return false;
     }
 
+    ma_pub.publish(grid.getDistanceFieldVisualization(0.2));
+
     // set the kinematics to planning transform if found in the initial
     // configuration as a multi-dof transform...this is to account for the kdl
     // robot model not generating forward kinematics for the robot as a whole
