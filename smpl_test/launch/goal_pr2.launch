@@ -6,7 +6,7 @@
     <arg unless="$(arg debug)" name="launch-prefix" value=""/>
     <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
 
-    <node pkg="smpl_test" type="callPlanner" name="call_planner" output="screen"
+    <node pkg="smpl_test" type="callPlanner" name="call_planner"
             launch-prefix="$(arg launch-prefix)">
         <param name="planning_frame" value="odom_combined"/>
 
