@@ -148,6 +148,8 @@ private:
     hash_map<Eigen::Vector3i, HeuristicNode, Vector3iHash> m_heur_nodes;
 
     void projectExperienceGraph();
+    void projectExperienceGraph(const ExperienceGraph& eg);
+    void computeConnectedComponents(const ExperienceGraph& eg);
     int getGoalHeuristic(const Eigen::Vector3i& dp);
 
     void syncGridAndDijkstra();

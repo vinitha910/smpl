@@ -420,10 +420,6 @@ int DijkstraEgraphHeuristic3D::GetFromToHeuristic(int from_id, int to_id)
 // frame is determined according to the planning link and a fixed offset)
 void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 {
-    m_heur_nodes.clear();
-
-    std::vector<geometry_msgs::Point> viz_points;
-
     // project experience graph into 3d space (projections of adjacent nodes in
     // the experience graph impose additional edges in 3d, cost equal to the
     // cheapest transition):
@@ -444,15 +440,26 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         return;
     }
 
-    m_projected_nodes.resize(eg->num_nodes());
+    projectExperienceGraph(*eg);
+    computeConnectedComponents(*eg);
+}
+
+void DijkstraEgraphHeuristic3D::projectExperienceGraph(
+    const ExperienceGraph& eg)
+{
+    m_heur_nodes.clear();
+
+    std::vector<geometry_msgs::Point> viz_points;
+
+    m_projected_nodes.resize(eg.num_nodes());
 
     size_t proj_node_count = 0;
     size_t proj_edge_count = 0;
-    auto nodes = eg->nodes();
+    auto nodes = eg.nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
         int first_id = m_eg->getStateID(*nit);
-        ROS_DEBUG_NAMED(params()->heuristic_log, "Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
+        ROS_DEBUG_NAMED(params()->heuristic_log, "Project experience graph state %d %s into 3D", first_id, to_string(eg.state(*nit)).c_str());
         Eigen::Vector3d p;
         m_pp->projectToPoint(first_id, p);
         ROS_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
@@ -482,7 +489,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 
         hnode.up_nodes.push_back(*nit);
 
-        auto adj = eg->adjacent_nodes(*nit);
+        auto adj = eg.adjacent_nodes(*nit);
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             // project adjacent experience graph state and discretize
             int second_id = m_eg->getStateID(*ait);
@@ -511,8 +518,23 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 
     ROS_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
 
+    std_msgs::ColorRGBA color;
+    color.r = (float)0xFF / (float)0xFF;
+    color.g = (float)0x8C / (float)0xFF;
+    color.b = (float)0x00 / (float)0xFF;
+    color.a = 1.0f;
+
+    visualization_msgs::MarkerArray ma;
+    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->resolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
+    SV_SHOW_INFO(ma);
+}
+
+void DijkstraEgraphHeuristic3D::computeConnectedComponents(
+    const ExperienceGraph& eg)
+{
     int comp_count = 0;
-    m_component_ids.assign(eg->num_nodes(), -1);
+    m_component_ids.assign(eg.num_nodes(), -1);
+    auto nodes = eg.nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         if (m_component_ids[*nit] != -1) {
             continue;
@@ -526,7 +548,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 
             m_component_ids[n] = comp_count;
 
-            auto adj = eg->adjacent_nodes(n);
+            auto adj = eg.adjacent_nodes(n);
             for (auto ait = adj.first; ait != adj.second; ++ait) {
                 if (m_component_ids[*ait] == -1) {
                     frontier.push_back(*ait);
@@ -540,16 +562,6 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     // pre-allocate shortcuts array here, fill in updateGoal()
     m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
     ROS_INFO("Experience graph contains %d components", comp_count);
-
-    std_msgs::ColorRGBA color;
-    color.r = (float)0xFF / (float)0xFF;
-    color.g = (float)0x8C / (float)0xFF;
-    color.b = (float)0x00 / (float)0xFF;
-    color.a = 1.0f;
-
-    visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->resolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
-    SV_SHOW_INFO(ma);
 }
 
 int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
