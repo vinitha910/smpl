@@ -129,8 +129,22 @@ private:
     int m_bucket;
     int m_no_update_dir;
 
+    // Direction offsets to each of the 27 neighbors, including (0, 0, 0).
+    // Indexed by a call to dirnum(x, y, z, 0);
     std::array<Eigen::Vector3i, 27> m_neighbors;
+
+    // Storage for the indices of neighbor offsets that must have distance
+    // information propagated to them, given the source's update direction. The
+    // indices are arranged so that target neighbor indices for a given source
+    // update direction are contiguous
+
+    // [ s_1_t_1, ..., s_1_t_n, s_2_t_1, ..., s_2_t_n, ..., s_n_t_1, ..., s_n_t_n ]
+    // where n = 2 * 27
     std::array<int, NEIGHBOR_LIST_SIZE> m_indices;
+
+    // Map from a source update direction (obtained from dirnum(x, y, z, e)) to
+    // a range of neighbor offsets (indices into m_neighbors) denoting neighbors
+    // to which distance values must be propagated upon insertion
     std::array<std::pair<int, int>, NUM_DIRECTIONS> m_neighbor_ranges;
 
     // Map from a (source, target) update direction pair (obtained from
@@ -138,6 +152,8 @@ private:
     // neighbor offsets
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_offsets;
 
+    // Map from a (source, target) update direction pair to the update direction
+    // index
     std::array<int, NEIGHBOR_LIST_SIZE> m_neighbor_dirs;
 
     std::vector<double> m_sqrt_table;
