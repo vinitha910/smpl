@@ -119,6 +119,7 @@ public:
     const std::string& getGroupName() const;
 
     const RobotCollisionModelConstPtr&  robotCollisionModel() const;
+    const RobotMotionCollisionModelConstPtr& robotMotionCollisionModel() const;
     WorldCollisionModelConstPtr  worldCollisionModel() const;
     SelfCollisionModelConstPtr   selfCollisionModel() const;
 
@@ -266,6 +267,13 @@ inline
 const RobotCollisionModelConstPtr& CollisionSpace::robotCollisionModel() const
 {
     return m_rcm;
+}
+
+inline
+const RobotMotionCollisionModelConstPtr&
+CollisionSpace::robotMotionCollisionModel() const
+{
+    return m_rmcm;
 }
 
 inline
