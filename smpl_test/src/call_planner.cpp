@@ -99,10 +99,10 @@ void FillGoalConstraint(
 }
 
 moveit_msgs::CollisionObject GetCollisionCube(
-    geometry_msgs::Pose pose,
+    const geometry_msgs::Pose& pose,
     std::vector<double>& dims,
-    std::string frame_id,
-    std::string id)
+    const std::string& frame_id,
+    const std::string& id)
 {
     moveit_msgs::CollisionObject object;
     object.id = id;
@@ -123,9 +123,9 @@ moveit_msgs::CollisionObject GetCollisionCube(
 }
 
 std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
-    std::vector<std::vector<double> > &objects,
-    std::vector<std::string> &object_ids,
-    std::string frame_id)
+    std::vector<std::vector<double>>& objects,
+    std::vector<std::string>& object_ids,
+    const std::string& frame_id)
 {
     std::vector<moveit_msgs::CollisionObject> objs;
     std::vector<double> dims(3,0);
@@ -154,8 +154,8 @@ std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
 }
 
 std::vector<moveit_msgs::CollisionObject> GetCollisionObjects(
-    std::string filename,
-    std::string frame_id)
+    const std::string& filename,
+    const std::string& frame_id)
 {
     char sTemp[1024];
     int num_obs = 0;
@@ -163,10 +163,7 @@ std::vector<moveit_msgs::CollisionObject> GetCollisionObjects(
     std::vector<std::vector<double> > objects;
     std::vector<moveit_msgs::CollisionObject> objs;
 
-    char* file = new char[filename.length()+1];
-    filename.copy(file, filename.length(),0);
-    file[filename.length()] = '\0';
-    FILE* fCfg = fopen(file, "r");
+    FILE* fCfg = fopen(filename.c_str(), "r");
 
     if (fCfg == NULL) {
         ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
