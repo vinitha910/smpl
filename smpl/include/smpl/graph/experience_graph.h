@@ -65,8 +65,9 @@ private:
 
         RobotState state;
         adjacent_edge_container edges;
+        bool valid;
 
-        Node(const RobotState& state) : state(state) { }
+        Node(const RobotState& state) : state(state), valid(true) { }
     };
 
     struct Edge
@@ -195,6 +196,9 @@ public:
 
     const RobotState& state(node_id id) const { return m_nodes[id].state; }
     RobotState& state(node_id id) { return m_nodes[id].state; }
+
+    const bool &valid(node_id id) const { return m_nodes[id].valid; }
+    bool &valid(node_id id) { return m_nodes[id].valid; }
 
     const std::vector<RobotState>& waypoints(edge_id id) const {
         return m_edges[id].waypoints;
