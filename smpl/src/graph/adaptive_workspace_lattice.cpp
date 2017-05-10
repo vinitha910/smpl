@@ -975,7 +975,7 @@ void AdaptiveWorkspaceLattice::getActions(
     }
 
     if (m_ik_amp_enabled && numHeuristics() > 0) {
-        RobotHeuristicPtr h = heuristic(0);
+        RobotHeuristic* h = heuristic(0);
         double goal_dist = h->getMetricGoalDistance(
                 cont_state[0], cont_state[1], cont_state[2]);
         if (goal_dist < m_ik_amp_thresh) {

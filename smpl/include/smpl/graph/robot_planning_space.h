@@ -80,9 +80,9 @@ public:
 
     virtual bool setActionSpace(const ActionSpacePtr& actions);
 
-    virtual bool insertHeuristic(const RobotHeuristicPtr& h);
-    virtual bool eraseHeuristic(const RobotHeuristicPtr& h);
-    virtual bool hasHeuristic(const RobotHeuristicPtr& h);
+    virtual bool insertHeuristic(RobotHeuristic* h);
+    virtual bool eraseHeuristic(const RobotHeuristic* h);
+    virtual bool hasHeuristic(const RobotHeuristic* h);
 
     RobotModel* robot() { return m_robot; }
     const RobotModel* robot() const { return m_robot; }
@@ -92,15 +92,15 @@ public:
 
     const PlanningParams* params() const { return m_params; }
 
-    ActionSpacePtr actionSpace() { return m_actions; }
-    ActionSpaceConstPtr actionSpace() const { return m_actions; }
+    const ActionSpacePtr& actionSpace() { return m_actions; }
+    const ActionSpaceConstPtr& actionSpace() const { return m_actions_const; }
 
     const RobotState& startState() const { return m_start; }
     const GoalConstraint& goal() const { return m_goal; }
 
     size_t numHeuristics() const;
-    RobotHeuristicPtr heuristic(size_t i);
-    RobotHeuristicConstPtr heuristic(size_t i) const;
+    RobotHeuristic* heuristic(size_t i);
+    const RobotHeuristic* heuristic(size_t i) const;
 
     void insertObserver(RobotPlanningSpaceObserver* obs);
     void eraseObserver(RobotPlanningSpaceObserver* obs);
@@ -149,11 +149,12 @@ private:
     const PlanningParams* m_params;
 
     ActionSpacePtr m_actions;
+    ActionSpaceConstPtr m_actions_const;
 
     RobotState m_start;
     GoalConstraint m_goal;
 
-    std::vector<RobotHeuristicPtr> m_heuristics;
+    std::vector<RobotHeuristic*> m_heuristics;
 
     std::vector<RobotPlanningSpaceObserver*> m_obs;
 
@@ -211,19 +212,19 @@ size_t RobotPlanningSpace::numHeuristics() const
 }
 
 inline
-RobotHeuristicPtr RobotPlanningSpace::heuristic(size_t i)
+RobotHeuristic* RobotPlanningSpace::heuristic(size_t i)
 {
     if (i >= m_heuristics.size()) {
-        return RobotHeuristicPtr();
+        return nullptr;
     }
     return m_heuristics[i];
 }
 
 inline
-RobotHeuristicConstPtr RobotPlanningSpace::heuristic(size_t i) const
+const RobotHeuristic* RobotPlanningSpace::heuristic(size_t i) const
 {
     if (i >= m_heuristics.size()) {
-        return RobotHeuristicConstPtr();
+        return nullptr;
     }
     return m_heuristics[i];
 }

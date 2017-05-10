@@ -113,7 +113,7 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
     // Initialization //
     ////////////////////
 
-    auto aspace = std::make_shared<ManipLatticeActionSpace>(pspace);
+    auto aspace = std::make_shared<ManipLatticeActionSpace>(pspace.get());
     aspace->useMultipleIkSolutions(use_multiple_ik_solutions);
     aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, use_xyz_snap_mprim);
     aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, use_rpy_snap_mprim);

@@ -46,9 +46,7 @@
 namespace sbpl {
 namespace motion {
 
-ManipLatticeActionSpace::ManipLatticeActionSpace(
-    const RobotPlanningSpacePtr& pspace)
-:
+ManipLatticeActionSpace::ManipLatticeActionSpace(ManipLattice* pspace) :
     ActionSpace(pspace),
     m_mprims(),
     m_mprim_enabled(),
@@ -153,12 +151,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
         useAmp(MotionPrimitive::SHORT_DISTANCE, true);
     }
 
-    ManipLatticePtr lattice =
-            std::dynamic_pointer_cast<ManipLattice>(planningSpace());
-    if (!lattice) {
-        ROS_ERROR("Manip Lattice Action Space must be used with Manip Lattice");
-        return false;
-    }
+    ManipLattice* lattice = static_cast<ManipLattice*>(planningSpace());
 
     for (int i = 0; i < nrows; ++i) {
         // read joint delta
@@ -351,7 +344,7 @@ bool ManipLatticeActionSpace::apply(
     double goal_dist = 0.0;
     double start_dist = 0.0;
     if (planningSpace()->numHeuristics() > 0) {
-        RobotHeuristicPtr h = planningSpace()->heuristic(0);
+        RobotHeuristic* h = planningSpace()->heuristic(0);
         goal_dist = h->getMetricGoalDistance(pose[0], pose[1], pose[2]);
         start_dist = h->getMetricStartDistance(pose[0], pose[1], pose[2]);
     }

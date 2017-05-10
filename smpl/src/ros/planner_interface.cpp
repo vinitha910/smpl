@@ -1049,7 +1049,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     m_heuristics.insert(std::make_pair(heuristic_name, heuristic));
 
     for (const auto& entry : m_heuristics) {
-        m_pspace->insertHeuristic(entry.second);
+        m_pspace->insertHeuristic(entry.second.get());
     }
 
     auto pait = m_planner_allocators.find(search_name);

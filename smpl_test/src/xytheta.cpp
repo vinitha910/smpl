@@ -308,7 +308,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto aspace = std::make_shared<smpl::ManipLatticeActionSpace>(pspace);
+    auto aspace = std::make_shared<smpl::ManipLatticeActionSpace>(pspace.get());
     if (!aspace->load(mprim_path)) {
         return 1;
     }
@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
 
     // 8. Associate Heuristic with Planning Space (for adaptive motion
     // primitives)
-    pspace->insertHeuristic(h);
+    pspace->insertHeuristic(h.get());
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
     const bool forward = true;

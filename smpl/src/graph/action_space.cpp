@@ -37,7 +37,7 @@
 namespace sbpl {
 namespace motion {
 
-ActionSpace::ActionSpace(const RobotPlanningSpacePtr& pspace) :
+ActionSpace::ActionSpace(RobotPlanningSpace* pspace) :
     RobotPlanningSpaceObserver(),
     m_pspace(pspace)
 {

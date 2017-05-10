@@ -62,32 +62,33 @@ RobotPlanningSpace::~RobotPlanningSpace()
 bool RobotPlanningSpace::setActionSpace(const ActionSpacePtr& as)
 {
     m_actions = as;
+    m_actions_const = as;
     return true;
 }
 
-bool RobotPlanningSpace::insertHeuristic(const RobotHeuristicPtr& h)
+bool RobotPlanningSpace::insertHeuristic(RobotHeuristic* h)
 {
     auto hit = std::find(m_heuristics.begin(), m_heuristics.end(), h);
     if (hit != m_heuristics.end()) {
         return false;
     }
-    ROS_DEBUG_NAMED(params()->graph_log, "Insert heuristic %p", h.get());
+    ROS_DEBUG_NAMED(params()->graph_log, "Insert heuristic %p", h);
     m_heuristics.push_back(h);
     return true;
 }
 
-bool RobotPlanningSpace::eraseHeuristic(const RobotHeuristicPtr& h)
+bool RobotPlanningSpace::eraseHeuristic(const RobotHeuristic* h)
 {
     auto hit = std::remove(m_heuristics.begin(), m_heuristics.end(), h);
     if (hit == m_heuristics.end()) {
         return false;
     }
-    ROS_DEBUG_NAMED(params()->graph_log, "Erasure heuristic %p", h.get());
+    ROS_DEBUG_NAMED(params()->graph_log, "Erasure heuristic %p", h);
     m_heuristics.erase(hit, m_heuristics.end());
     return true;
 }
 
-bool RobotPlanningSpace::hasHeuristic(const RobotHeuristicPtr& h)
+bool RobotPlanningSpace::hasHeuristic(const RobotHeuristic* h)
 {
     auto hit = std::find(m_heuristics.begin(), m_heuristics.end(), h);
     return hit != m_heuristics.end();

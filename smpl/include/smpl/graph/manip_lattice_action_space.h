@@ -52,6 +52,7 @@
 #include <smpl/graph/action_space.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/robot_planning_space_observer.h>
+#include <smpl/graph/manip_lattice.h>
 
 namespace sbpl {
 namespace motion {
@@ -67,7 +68,7 @@ public:
 
     typedef std::vector<MotionPrimitive>::const_iterator const_iterator;
 
-    ManipLatticeActionSpace(const RobotPlanningSpacePtr& pspace);
+    ManipLatticeActionSpace(ManipLattice* pspace);
 
     bool load(const std::string& action_filename);
 
