@@ -183,6 +183,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
         }
     }
 
+    fclose(fCfg);
     return true;
 }
 
