@@ -118,8 +118,6 @@ protected:
     bool m_use_multiple_ik_solutions;
     bool m_use_long_and_short_dist_mprims;
 
-    RobotPlanningSpace* env_;
-
     bool applyMotionPrimitive(
         const RobotState& state,
         const MotionPrimitive& mp,
