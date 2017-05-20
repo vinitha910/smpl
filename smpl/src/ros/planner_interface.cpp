@@ -269,9 +269,6 @@ bool PlannerInterface::solve(
 
     postProcessPath(path);
     visualizePath(path);
-    if (!m_params.plan_output_dir.empty()) {
-        writePath(res.trajectory_start, res.trajectory);
-    }
 
     ROS_DEBUG_NAMED(PI_LOGGER, "smoothed path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
@@ -283,6 +280,10 @@ bool PlannerInterface::solve(
     convertJointVariablePathToJointTrajectory(path, traj);
     traj.header.seq = 0;
     traj.header.stamp = ros::Time::now();
+
+    if (!m_params.plan_output_dir.empty()) {
+        writePath(res.trajectory_start, res.trajectory);
+    }
 
     profilePath(traj);
 
