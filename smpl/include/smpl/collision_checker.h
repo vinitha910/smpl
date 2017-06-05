@@ -41,12 +41,13 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
+#include <smpl/extension.h>
 #include <smpl/types.h>
 
 namespace sbpl {
 namespace motion {
 
-class CollisionChecker
+class CollisionChecker : public virtual Extension
 {
 public:
 
@@ -106,6 +107,20 @@ public:
     virtual visualization_msgs::MarkerArray getVisualization(
         const std::string& type);
     ///@}
+};
+
+class CollisionDistanceExtension : public virtual Extension
+{
+public:
+
+    /// Return the distance to collision with the nearest obstacle.
+    virtual double distanceToCollision(const RobotState& state) = 0;
+
+    /// Return the distance to collision with the nearest obstacle along a
+    /// motion.
+    virtual double distanceToCollision(
+        const RobotState& start,
+        const RobotState& finish) = 0;
 };
 
 } // namespace motion

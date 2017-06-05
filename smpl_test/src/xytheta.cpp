@@ -89,8 +89,23 @@ class GridCollisionChecker : public smpl::CollisionChecker
 {
 public:
 
-    GridCollisionChecker(sbpl::OccupancyGrid* grid) : m_grid(grid) { }
+    GridCollisionChecker(sbpl::OccupancyGrid* grid) :
+        Extension(), m_grid(grid)
+    { }
 
+    /// \name Required Functions from Extension
+    ///@{
+    Extension* getExtension(size_t class_code) override
+    {
+        if (class_code == smpl::GetClassCode<smpl::CollisionChecker>()) {
+            return this;
+        }
+        return nullptr;
+    }
+    ///@}
+
+    /// \name Required Functions from CollisionChecker
+    ///@{
     bool isStateValid(
         const smpl::RobotState& state,
         bool verbose,
@@ -108,7 +123,10 @@ public:
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
         std::vector<smpl::RobotState>& path) override;
+    ///@}
 
+    /// \name Reimplemented Functions from CollisionChecker
+    ///@{
     visualization_msgs::MarkerArray getCollisionModelVisualization(
         const smpl::RobotState& state)
     { return visualization_msgs::MarkerArray(); }
@@ -116,6 +134,7 @@ public:
     visualization_msgs::MarkerArray getVisualization(
         const smpl::RobotState& state)
     { return visualization_msgs::MarkerArray(); }
+    ///@}
 
 private:
 

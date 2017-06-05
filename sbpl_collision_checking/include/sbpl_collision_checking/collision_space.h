@@ -157,7 +157,12 @@ public:
         const std::vector<double>& state,
         CollisionDetails& details);
 
-    /// \name Reimplemented Functions from CollisionChecker
+    /// \name Required Functions from Extension
+    ///@{
+    motion::Extension* getExtension(size_t class_code) override;
+    ///@}
+
+    /// \name Required Functions from CollisionChecker
     ///@{
     bool isStateValid(
         const motion::RobotState& state,
@@ -176,7 +181,10 @@ public:
         const motion::RobotState& start,
         const motion::RobotState& finish,
         std::vector<motion::RobotState>& path) override;
+    ///@}
 
+    /// \name Reimplemented Functions from CollisionChecker
+    ///@{
     visualization_msgs::MarkerArray
     getCollisionModelVisualization(const motion::RobotState& vals) override;
 

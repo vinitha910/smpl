@@ -480,6 +480,14 @@ bool CollisionSpace::collisionDetails(
     return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
 }
 
+motion::Extension* CollisionSpace::getExtension(size_t class_code)
+{
+    if (class_code == motion::GetClassCode<motion::CollisionChecker>()) {
+        return this;
+    }
+    return nullptr;
+}
+
 bool CollisionSpace::isStateValid(
     const motion::RobotState& state,
     bool verbose,
