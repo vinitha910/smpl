@@ -67,6 +67,7 @@ ManipLattice::ManipLattice(
     PoseProjectionExtension(),
     ExtractRobotStateExtension(),
     m_fk_iface(nullptr),
+    m_cdist(nullptr),
     m_min_limits(),
     m_max_limits(),
     m_continuous(),
@@ -79,6 +80,8 @@ ManipLattice::ManipLattice(
     m_viz_frame_id()
 {
     m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
+
+    m_cdist = checker->getExtension<CollisionDistanceExtension>();
 
     m_min_limits.resize(robot()->jointVariableCount());
     m_max_limits.resize(robot()->jointVariableCount());
@@ -365,7 +368,7 @@ void ManipLattice::GetLazySuccs(
         } else {
             SuccIDV->push_back(succ_state_id);
         }
-        CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
+        CostV->push_back(computeLazyCost(state_entry, succ_entry, succ_is_goal_state));
         isTrueCost->push_back(false);
 
         // log successor details
@@ -605,10 +608,28 @@ bool ManipLattice::computePlanningFrameFK(
 int ManipLattice::cost(
     ManipLatticeState* HashEntry1,
     ManipLatticeState* HashEntry2,
-    bool bState2IsGoal) const
+    bool bState2IsGoal)
 {
-    const int DefaultCostMultiplier = 1000;
-    return DefaultCostMultiplier;
+    const int UniformCost = 1000;
+    if (m_cdist) {
+        const double thresh = 0.02;
+        const int cost_mult = 5;
+        double dist = m_cdist->distanceToCollision(HashEntry2->state);
+        if (dist < thresh) {
+            ROS_INFO_THROTTLE(1.0, "Penalize action! Distance: %0.3f", dist);
+            return cost_mult * UniformCost;
+        }
+    }
+    return UniformCost;
+}
+
+int ManipLattice::computeLazyCost(
+    ManipLatticeState* src,
+    ManipLatticeState* dst,
+    bool is_goal)
+{
+    const int UniformCost = 1000;
+    return UniformCost;
 }
 
 bool ManipLattice::checkAction(

@@ -186,10 +186,15 @@ protected:
         const RobotState& state,
         std::vector<double>& pose) const;
 
+    int computeLazyCost(
+        ManipLatticeState* src,
+        ManipLatticeState* dst,
+        bool is_goal);
+
     int cost(
         ManipLatticeState* HashEntry1,
         ManipLatticeState* HashEntry2,
-        bool bState2IsGoal) const;
+        bool bState2IsGoal);
 
     bool checkAction(
         const RobotState& state,
@@ -205,6 +210,7 @@ protected:
 private:
 
     ForwardKinematicsInterface* m_fk_iface;
+    CollisionDistanceExtension* m_cdist;
 
     // cached from robot model
     std::vector<double> m_min_limits;
