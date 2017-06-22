@@ -37,6 +37,7 @@
 #include <memory>
 #include <utility>
 #include <stack>
+#include <vector>
 
 #include "detail/octree_base.h"
 

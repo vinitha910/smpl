@@ -35,6 +35,7 @@
 #include "../sparse_grid.h"
 
 // standard includes
+#include <assert.h>
 #include <limits>
 
 namespace sbpl {
