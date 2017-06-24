@@ -40,12 +40,10 @@
 
 namespace sbpl {
 
-/// This class represents an unbounded three-dimensional array of data. For
-/// space efficiency, the underlying data is stored in compressed octree format.
-/// While semantically unbounded, the implementation supports sizes up to 2^16
-/// cells in all dimensions. The octree is dynamically expanded to contain cells
-/// up to the implementation limits. This limitation is so that the overall
-/// maximum size is guaranteed to fit within a 64-bit integer.
+/// This class represents a resizeable three-dimensional array of sparse data.
+/// For space efficiency, the underlying data is stored in compressed octree
+/// format. The octree is grown to dynamically to represent the local
+/// differences between neighboring cells.
 ///
 /// Cells never exist with completely uninitialized values. When given no value
 /// upon construction, the value for all cells is value initialized (which may
@@ -71,22 +69,16 @@ namespace sbpl {
 /// explicitly pruned by calling the prune() function, which will prune all
 /// nodes where applicable for maximum compression.
 template <class T, class Allocator = std::allocator<T>>
-class SparseGrid : public OcTree<T, Allocator>
+class SparseGrid
 {
-    using Base = OcTree<T, Allocator>;
+    using TreeType = OcTree<T, Allocator>;
 
-    using Base::root;
-    using Base::clear;
-    using Base::expand_node;
-    using Base::collapse_node;
-
-    using typename Base::node_type;
+    using node_type = typename TreeType::node_type;
 
 public:
 
-    using typename Base::value_type;
-    using typename Base::size_type;
-
+    using value_type        = typename TreeType::value_type;
+    using size_type         = typename TreeType::size_type;
     using reference         = value_type&;
     using const_reference   = const value_type&;
     using index_type        = int;
@@ -116,6 +108,8 @@ public:
     size_type size_z() const;
 
     int max_depth() const;
+
+    size_type mem_usage() const;
     ///@}
 
     /// \name Element Access
@@ -148,9 +142,16 @@ public:
     size_type mem_usage_full(const Pred& pred);
 
     template <typename Callable>
+    void accept(Callable c);
+
+    template <typename Callable>
     void accept_coords(Callable c);
 
+    const TreeType &tree() const { return m_tree; }
+
 private:
+
+    OcTree<T, Allocator> m_tree;
 
     int m_max_depth;
     size_type m_size[3];

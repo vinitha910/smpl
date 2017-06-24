@@ -382,6 +382,59 @@ void OcTree<T, Allocator>::accept(Callable fn, node_type* n)
     }
 }
 
+template <class T, class Allocator>
+template <class U, class V>
+auto OcTree<T, Allocator>::dfs_iterator<U, V>::operator++() -> dfs_iterator&
+{
+    U t = s.top();
+    s.pop();
+    if (t->children) {
+        for (int i = 0; i < 8; ++i) {
+            s.push(&t->children[i]);
+        }
+    }
+    return *this;
+}
+
+template <class T, class Allocator>
+template <class U, class V>
+auto OcTree<T, Allocator>::dfs_iterator<U, V>::operator++(int) -> dfs_iterator
+{
+    dfs_iterator i = *this;
+    ++*this;
+    return i;
+}
+
+template <class T, class Allocator>
+template <class U, class V>
+auto OcTree<T, Allocator>::dfs_iterator<U, V>::operator*() const -> V&
+{
+    return s.top()->value;
+}
+
+template <class T, class Allocator>
+template <class U, class V>
+auto OcTree<T, Allocator>::dfs_iterator<U, V>::operator->() const -> V*
+{
+    return &s.top()->value;
+}
+
+template <class T, class Allocator>
+template <class U, class V>
+bool OcTree<T, Allocator>::dfs_iterator<U, V>::operator==(
+    const dfs_iterator& i) const
+{
+    return s == i.s;
+}
+
+template <class T, class Allocator>
+template <class U, class V>
+bool OcTree<T, Allocator>::dfs_iterator<U, V>::operator!=(
+    const dfs_iterator& i) const
+{
+    return !(s == i.s);
+}
+
 } // namespace sbpl
 
 #endif

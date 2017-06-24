@@ -57,6 +57,8 @@ protected:
 
     using Base = detail::OcTreeBase<T, Allocator>;
 
+    template <class U, class V> struct dfs_iterator;
+
 public:
 
     using value_type        = T;
@@ -66,33 +68,8 @@ public:
     using typename Base::node_type;
     using Base::clear;
 
-    struct iterator
-    {
-        std::stack<node_type*, std::vector<node_type*>> s;
-
-        iterator& operator++()
-        {
-            node_type* t = s.top();
-            s.pop();
-            if (t->children) {
-                for (int i = 0; i < 8; ++i) {
-                    s.push(&t->children[i]);
-                }
-            }
-            return *this;
-        }
-
-        iterator operator++(int)
-        { iterator i = *this; ++*this; return i; }
-
-        value_type& operator*() { return s.top()->value; }
-
-        value_type* operator->() { return &s.top()->value; }
-
-        bool operator==(const iterator& i) const { return s == i.s; }
-
-        bool operator!=(const iterator& i) const { return !(s == i.s); }
-    };
+    using iterator          = dfs_iterator<node_type*, value_type>;
+    using const_iterator    = dfs_iterator<const node_type*, const value_type>;
 
     OcTree();
     OcTree(const T& value);
@@ -125,15 +102,11 @@ public:
     node_type* root();
     const node_type* root() const;
 
-    // Collapse a node by removing its children and assigning the node a new
-    // value. The node must not have any grandchildren, or they will be lost.
     void collapse_node(node_type* n, const T& value);
 
-    // Expand a node by creating all of its children and assigning them the
-    // value stored at this node. The node must not currently have any children.
     void expand_node(node_type* n);
 
-    /// \name Iterators
+    /// \name Iteration
     ///@{
     std::pair<iterator, iterator> nodes()
     {
@@ -142,12 +115,19 @@ public:
         return p;
     }
 
+    std::pair<const_iterator, const_iterator> nodes() const
+    {
+        std::pair<const_iterator, const_iterator> p;
+        p.first.s.push(root());
+        return p;
+    }
+
     struct leaf_iterator;
     std::pair<leaf_iterator, leaf_iterator> leaves();
-    ///@}
 
     template <typename Callable>
     void accept(Callable c);
+    ///@}
 
 protected:
 
@@ -164,6 +144,19 @@ protected:
     using Base::construct_children;
     using Base::destroy_children;
 //    using Base::clear;
+
+    template <class U, class V>
+    struct dfs_iterator
+    {
+        std::stack<U, std::vector<U>> s;
+
+        dfs_iterator& operator++();
+        dfs_iterator operator++(int);
+        V& operator*() const;
+        V* operator->() const;
+        bool operator==(const dfs_iterator& i) const;
+        bool operator!=(const dfs_iterator& i) const;
+    };
 
     int depth(const node_type* n) const;
     size_type count_nodes(const node_type* n) const;

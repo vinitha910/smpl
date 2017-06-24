@@ -42,7 +42,7 @@ namespace sbpl {
 
 template <class T, class Allocator>
 SparseGrid<T, Allocator>::SparseGrid() :
-    Base(),
+    m_tree(),
     m_max_depth(16)
 {
     m_size[0] = m_size[1] = m_size[2] = 1u << 16;
@@ -50,7 +50,7 @@ SparseGrid<T, Allocator>::SparseGrid() :
 
 template <class T, class Allocator>
 SparseGrid<T, Allocator>::SparseGrid(const T& value) :
-    Base(value),
+    m_tree(value),
     m_max_depth(16)
 {
     m_size[0] = m_size[1] = m_size[2] = 1u << 16;
@@ -62,7 +62,7 @@ SparseGrid<T, Allocator>::SparseGrid(
     size_type size_y,
     size_type size_z)
 :
-    Base(),
+    m_tree(),
     m_max_depth(compute_max_depth(size_x, size_y, size_z))
 {
     m_size[0] = size_x;
@@ -77,7 +77,7 @@ SparseGrid<T, Allocator>::SparseGrid(
     size_type size_z,
     const T& value)
 :
-    Base(value),
+    m_tree(value),
     m_max_depth(compute_max_depth(size_x, size_y, size_z))
 {
     m_size[0] = size_x;
@@ -87,7 +87,7 @@ SparseGrid<T, Allocator>::SparseGrid(
 
 template <class T, class Allocator>
 SparseGrid<T, Allocator>::SparseGrid(const Allocator& alloc) :
-    Base(alloc),
+    m_tree(alloc),
     m_max_depth(16)
 {
     m_size[0] = m_size[1] = m_size[2] = 1u << 16;
@@ -95,7 +95,7 @@ SparseGrid<T, Allocator>::SparseGrid(const Allocator& alloc) :
 
 template <class T, class Allocator>
 SparseGrid<T, Allocator>::SparseGrid(const T& value, const Allocator& alloc) :
-    Base(value, alloc),
+    m_tree(value, alloc),
     m_max_depth(16)
 {
     m_size[0] = m_size[1] = m_size[2] = 1u << 16;
@@ -106,7 +106,7 @@ SparseGrid<T, Allocator>::SparseGrid(
     size_type size_x, size_type size_y, size_type size_z,
     const Allocator& alloc)
 :
-    Base(alloc),
+    m_tree(alloc),
     m_max_depth(compute_max_depth(size_x, size_y, size_z))
 {
     m_size[0] = size_x;
@@ -119,7 +119,7 @@ SparseGrid<T, Allocator>::SparseGrid(
     size_type size_x, size_type size_y, size_type size_z,
     const T& value, const Allocator& alloc)
 :
-    Base(value, alloc),
+    m_tree(value, alloc),
     m_max_depth(compute_max_depth(size_x, size_y, size_z))
 {
     m_size[0] = size_x;
@@ -177,19 +177,25 @@ SparseGrid<T, Allocator>::max_depth() const
     return m_max_depth;
 }
 
+template <class T, class Allocator>
+auto SparseGrid<T, Allocator>::mem_usage() const -> size_type
+{
+    return m_tree.mem_usage();
+}
+
 // TODO: test efficiency of recursion using (x, y, z) vs index arguments
 template <class T, class Allocator>
 typename SparseGrid<T, Allocator>::const_reference
 SparseGrid<T, Allocator>::operator()(index_type x, index_type y, index_type z) const
 {
-    return get_node(m_max_depth, root(), x, y, z)->value;
+    return get_node(m_max_depth, m_tree.root(), x, y, z)->value;
 }
 
 template <class T, class Allocator>
 typename SparseGrid<T, Allocator>::reference
 SparseGrid<T, Allocator>::operator()(index_type x, index_type y, index_type z)
 {
-    return get_node_unique(m_max_depth, root(), x, y, z)->value;
+    return get_node_unique(m_max_depth, m_tree.root(), x, y, z)->value;
 }
 
 /// Reset so that all cells have identical values. Prunes the SparseGrid fully.
@@ -197,8 +203,8 @@ template <class T, class Allocator>
 void
 SparseGrid<T, Allocator>::reset(const T& value)
 {
-    clear();
-    root()->value = value;
+    m_tree.clear();
+    m_tree.root()->value = value;
 }
 
 template <class T, class Allocator>
@@ -213,7 +219,7 @@ void
 SparseGrid<T, Allocator>::set(
     index_type x, index_type y, index_type z, const T& data)
 {
-    set_node(m_max_depth, root(), x, y, z, data);
+    set_node(m_max_depth, m_tree.root(), x, y, z, data);
 }
 
 template <class T, class Allocator>
@@ -221,20 +227,20 @@ void
 SparseGrid<T, Allocator>::set_lazy(
     index_type x, index_type y, index_type z, const T& data)
 {
-    set_node_lazy(m_max_depth, root(), x, y, z, data);
+    set_node_lazy(m_max_depth, m_tree.root(), x, y, z, data);
 }
 
 template <class T, class Allocator>
 void SparseGrid<T, Allocator>::prune()
 {
-    prune(root());
+    prune(m_tree.root());
 }
 
 template <class T, class Allocator>
 template <class UnaryPredicate>
 void SparseGrid<T, Allocator>::prune(UnaryPredicate p)
 {
-    prune(root(), p);
+    prune(m_tree.root(), p);
 }
 
 template <class T, class Allocator>
@@ -244,7 +250,7 @@ SparseGrid<T, Allocator>::resize(
     size_type size_y,
     size_type size_z)
 {
-    clear();
+    m_tree.clear();
     m_size[0] = size_x;
     m_size[1] = size_y;
     m_size[2] = size_z;
@@ -260,14 +266,14 @@ SparseGrid<T, Allocator>::resize(
     const T& value)
 {
     resize(size_x, size_y, size_z);
-    root()->value = value;
+    m_tree.root()->value = value;
 }
 
 template <class T, class Allocator>
 typename SparseGrid<T, Allocator>::const_reference
 SparseGrid<T, Allocator>::get(index_type x, index_type y, index_type z) const
 {
-    return get_node(m_max_depth, root(), x, y, z)->value;
+    return get_node(m_max_depth, m_tree.root(), x, y, z)->value;
 }
 
 /// Return the approximate number of bytes used by an equivalent dense grid.
@@ -303,10 +309,17 @@ SparseGrid<T, Allocator>::mem_usage_full(const Pred& pred)
 
 template <class T, class Allocator>
 template <typename Callable>
+void SparseGrid<T, Allocator>::accept(Callable c)
+{
+    m_tree.accept(c);
+}
+
+template <class T, class Allocator>
+template <typename Callable>
 void SparseGrid<T, Allocator>::accept_coords(Callable c)
 {
     int max_coord = 1 << m_max_depth;
-    accept_coords(c, root(), 0, 0, 0, max_coord, max_coord, max_coord);
+    accept_coords(c, m_tree.root(), 0, 0, 0, max_coord, max_coord, max_coord);
 }
 
 template <class T, class Allocator>
@@ -388,7 +401,7 @@ SparseGrid<T, Allocator>::get_node_unique(
     index_type cidx = x_loc << 2 | y_loc << 1 | z_loc;
 
     if (!n->children) {
-        expand_node(n);
+        m_tree.expand_node(n);
 //        return &n->children[cidx];
     }
 
@@ -432,7 +445,7 @@ SparseGrid<T, Allocator>::set_node(
     } else if (std::equal_to<T>()(value, n->value)) {
         return false;
     } else {
-        expand_node(n);
+        m_tree.expand_node(n);
     }
 
     if (set_node(rdepth, &n->children[cidx],
@@ -442,7 +455,7 @@ SparseGrid<T, Allocator>::set_node(
             value))
     {
         if (collapsible(n)) {
-            collapse_node(n, value);
+            m_tree.collapse_node(n, value);
             return true;
         }
 
@@ -479,7 +492,7 @@ SparseGrid<T, Allocator>::set_node_lazy(
     } else if (std::equal_to<T>()(value, n->value)) {
         return;
     } else {
-        expand_node(n);
+        m_tree.expand_node(n);
     }
 
     set_node_lazy(
@@ -512,7 +525,7 @@ SparseGrid<T, Allocator>::create_node(
     index_type cidx = x_loc << 2 | y_loc << 1 | z_loc;
 
     if (!n->children) {
-        expand_node(n);
+        m_tree.expand_node(n);
     }
 
     return create_node(
@@ -544,7 +557,7 @@ bool SparseGrid<T, Allocator>::prune(node_type* n)
             all &= prune(c);
         }
         if (all && collapsible(n)) {
-            collapse_node(n, n->children[0].value);
+            m_tree.collapse_node(n, n->children[0].value);
             return true;
         } else {
             return false;
@@ -564,7 +577,7 @@ bool SparseGrid<T, Allocator>::prune(node_type* n, UnaryPredicate p)
             all &= prune(c, p);
         }
         if (all && collapsible(n) && p(n->value)) {
-            collapse_node(n, n->children[0].value);
+            m_tree.collapse_node(n, n->children[0].value);
             return true;
         } else {
             return false;
