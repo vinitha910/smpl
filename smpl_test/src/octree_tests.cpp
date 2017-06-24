@@ -254,3 +254,15 @@ BOOST_AUTO_TEST_CASE(StringTreeTest)
 {
     sbpl::OcTree<std::string> tree("cafef00d");
 }
+
+BOOST_AUTO_TEST_CASE(SizeTest)
+{
+    // ensure that empty base class optimization is being employed to remove
+    // empty allocator
+    BOOST_CHECK_EQUAL(
+            sizeof(sbpl::detail::OcTreeBase<int, std::allocator<int>>),
+            sizeof(sbpl::detail::OcTreeNode<int>));
+
+    BOOST_CHECK_EQUAL(
+            sizeof(sbpl::OcTree<int>), sizeof(sbpl::detail::OcTreeNode<int>));
+}
