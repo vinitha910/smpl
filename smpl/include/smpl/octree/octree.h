@@ -80,7 +80,10 @@ public:
     explicit OcTree(T&& value, const Allocator& alloc);
 
     OcTree(const OcTree& o);
+    OcTree(const OcTree& o, const Allocator&  alloc);
+
     OcTree(OcTree&& o);
+//    OcTree(OcTree&& o, const Allocator& alloc);
 
     ~OcTree();
 

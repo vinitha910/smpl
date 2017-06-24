@@ -87,11 +87,21 @@ OcTree<T, Allocator>::OcTree(T&& value, const Allocator& alloc) :
 {
 }
 
-/// Copy constructor. Constructs the OcTree with a copy of the contents of \p o.
-/// TODO: allocator_traits::select_on_container_copy_construction
+/// Copy constructor. Constructs the OcTree with a copy of the contents of $o.
+/// The allocator is obtained as if by calling
+/// std::allocator_traits<allocator_type>::select_on_container_copy_construction()
+/// with $other's node allocator.
 template <class T, class Allocator>
 OcTree<T, Allocator>::OcTree(const OcTree& o) :
-    Base(o.get_node_allocator(), o.m_impl.m_node.value)
+    Base(natraits::select_on_container_copy_construction(o.get_node_allocator()), o.m_impl.m_node.value)
+{
+    clone_children(root(), o.root());
+}
+
+// Copy constructor. Constructs the OcTree with a copy of the contents of $o.
+template <class T, class Allocator>
+OcTree<T, Allocator>::OcTree(const OcTree& o, const Allocator& alloc) :
+    Base(alloc, o.m_impl.m_node.value)
 {
     clone_children(root(), o.root());
 }
