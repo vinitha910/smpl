@@ -150,6 +150,6 @@ private:
 
 } // namespace sbpl
 
-#include "detail/sparse_binary_grid.h" // TODO(Andrew): to hpp
+#include "detail/sparse_binary_grid.hpp"
 
 #endif
