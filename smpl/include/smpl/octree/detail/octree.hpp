@@ -40,30 +40,50 @@
 
 namespace sbpl {
 
-/// Construct an OcTree with a default-initialized value for the root node.
+/// Construct an OcTree whose root node's value is initialized through value
+/// initialization
 template <class T, class Allocator>
 OcTree<T, Allocator>::OcTree() : Base(node_allocator_type(Allocator()))
 {
 }
 
-/// Construct an OcTree with value \p value for the root node.
+/// Construct an OcTree whose root node's value is initialized through copy
+/// construction
 template <class T, class Allocator>
 OcTree<T, Allocator>::OcTree(const T& value) :
     Base(node_allocator_type(Allocator()), value)
 {
 }
 
-/// Construct an OcTree with a default-initialized value for the root node.
+/// Construct an OcTree whose root node's value is initialized through move
+/// construction
+template <class T, class Allocator>
+OcTree<T, Allocator>::OcTree(T&& value) :
+    Base(node_allocator_type(Allocator()), std::move(value))
+{
+}
+
+/// Construct an OcTree whose root node's value is initialized through value
+/// initialization
 template <class T, class Allocator>
 OcTree<T, Allocator>::OcTree(const Allocator& alloc) :
     Base(node_allocator_type(alloc))
 {
 }
 
-/// Construct an OcTree with value \p value for the root node.
+/// Construct an OcTree whose root node's value is initialized through copy
+/// construction
 template <class T, class Allocator>
 OcTree<T, Allocator>::OcTree(const T& value, const Allocator& alloc) :
     Base(node_allocator_type(alloc), value)
+{
+}
+
+/// Construct an OcTree whose root node's value is initialized through move
+/// construction
+template <class T, class Allocator>
+OcTree<T, Allocator>::OcTree(T&& value, const Allocator& alloc) :
+    Base(node_allocator_type(alloc), std::move(value))
 {
 }
 
@@ -117,17 +137,27 @@ OcTree<T, Allocator>::operator=(const OcTree& rhs)
 }
 
 /// Move assignment operator. Replaces the contents with those of \p rhs using
-/// move semantics.
+/// move semantics. If std::allocator_traits<node_allocator_type> is true, the
+/// target allocator is replaced by a copy of the source allocator. If it is
+/// false and the source and target allocators do not compare equal, the target
+/// cannot take ownership of the source memory and must move-assign each element
+/// individually, allocating additional memory using its own allocator as
+/// needed. In any case, all elements originally present in *this are either
+/// destroyed or replaced by elementwise move-assignment.
 template <class T, class Allocator>
 OcTree<T, Allocator>&
 OcTree<T, Allocator>::operator=(OcTree&& rhs)
 {
     if (this != &rhs) {
+        // TODO: don't need to clear the entire tree if we're doing element-wise
+        // move assignment.
         clear();
 
-        typedef std::allocator_traits<node_allocator_type> natraits;
+        // TODO: compile time if this
         if (typename natraits::propagate_on_container_move_assignment()) {
             // move assign root node
+            // TODO: it's a little weird here that the root node is move
+            // assigned but the remaining elements are untouched...
             m_impl.m_node = std::move(rhs.m_impl.m_node);
 
             // remove children from rhs root
@@ -225,6 +255,7 @@ void OcTree<T, Allocator>::collapse_node(node_type* n, const T& value)
 template <class T, class Allocator>
 void OcTree<T, Allocator>::expand_node(node_type* n)
 {
+    assert(n && !n->children);
     alloc_children(n);
     construct_children(n, n->value);
 }

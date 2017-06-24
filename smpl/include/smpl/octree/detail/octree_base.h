@@ -33,6 +33,7 @@
 #define SMPL_OCTREE_BASE_H
 
 // standard includes
+#include <assert.h>
 #include <memory>
 #include <utility>
 
@@ -46,10 +47,17 @@ struct OcTreeNode
     OcTreeNode* children;
 
     template <typename... Args>
-    OcTreeNode(Args... args) :
+    OcTreeNode(Args&&... args) :
         value(std::forward<Args>(args)...),
         children(nullptr)
     { }
+
+    OcTreeNode* child(int i) const
+    {
+        assert(children);
+        assert(i >= 0 && i < 8);
+        return &children[i];
+    }
 };
 
 /// Base class for OcTree which manages (de)allocation and (de)construction of
@@ -62,31 +70,39 @@ class OcTreeBase
 {
 protected:
 
-    typedef typename std::allocator_traits<Allocator>::template rebind_alloc<OcTreeNode<T>>
-    node_allocator_type;
+    using node_allocator_type =
+            typename std::allocator_traits<Allocator>::template
+            rebind_alloc<OcTreeNode<T>>;
 
-    typedef typename std::allocator_traits<Allocator>::template rebind_alloc<T>
-    type_allocator_type;
+    using type_allocator_type =
+            typename std::allocator_traits<Allocator>::template
+            rebind_alloc<T>;
 
 public:
 
-    typedef Allocator allocator_type;
-    typedef OcTreeNode<T> node_type;
+    using allocator_type    = Allocator;
+    using node_type         = OcTreeNode<T>;
 
     /// Construct with a default value for the root node
     OcTreeBase() : m_impl() { }
+
     OcTreeBase(const node_allocator_type& a) : m_impl(a) { }
+
+    OcTreeBase(node_allocator_type&& a) : m_impl(std::move(a)) { }
 
     // Construct given constructor arguments for the root node
     template <typename... Args>
-    OcTreeBase(Args... args) : m_impl(std::forward<Args>(args)...) { }
+    OcTreeBase(Args&&... args) : m_impl(std::forward<Args>(args)...) { }
 
     template <typename... Args>
-    OcTreeBase(const node_allocator_type& a, Args... args) :
+    OcTreeBase(const node_allocator_type& a, Args&&... args) :
         m_impl(a, std::forward<Args>(args)...)
     { }
 
-    OcTreeBase(node_allocator_type &&a) : m_impl(std::move(a)) { }
+    template <typename... Args>
+    OcTreeBase(node_allocator_type&& a, Args&&... args) :
+        m_impl(std::move(a), std::forward<Args>(args)...)
+    { }
 
     OcTreeBase(OcTreeBase&& o) : m_impl(std::move(o.m_impl)) { }
 
@@ -95,11 +111,11 @@ public:
     allocator_type get_allocator() const noexcept
     { return allocator_type(get_node_allocator()); }
 
-    void clear() { clear(&m_impl.m_node); m_impl.m_node.children = nullptr; }
+    void clear() { clear_node(&m_impl.m_node); m_impl.m_node.children = nullptr; }
 
 protected:
 
-    typedef std::allocator_traits<node_allocator_type> natraits;
+    using natraits = std::allocator_traits<node_allocator_type>;
 
     struct OcTreeImpl : public node_allocator_type
     {
@@ -111,13 +127,22 @@ protected:
             node_allocator_type(a), m_node()
         { }
 
+        OcTreeImpl(node_allocator_type&& a) :
+            node_allocator_type(a), m_node()
+        { }
+
         template <typename... Args>
-        OcTreeImpl(Args... args) :
+        OcTreeImpl(Args&&... args) :
             node_allocator_type(), m_node(std::forward<Args>(args)...)
         { }
 
         template <typename... Args>
-        OcTreeImpl(const node_allocator_type& a, Args... args) :
+        OcTreeImpl(const node_allocator_type& a, Args&&... args) :
+            node_allocator_type(a), m_node(std::forward<Args>(args)...)
+        { }
+
+        template <typename... Args>
+        OcTreeImpl(node_allocator_type&& a, Args&&... args) :
             node_allocator_type(a), m_node(std::forward<Args>(args)...)
         { }
 
@@ -142,16 +167,16 @@ protected:
     void dealloc_children(node_type *n);
 
     template <typename... Args>
-    void construct_node(node_type *n, Args... args);
+    void construct_node(node_type *n, Args&&... args);
 
     void destroy_node(node_type *n);
 
     template <typename... Args>
-    void construct_children(node_type *n, Args... args);
+    void construct_children(node_type *n, Args&&... args);
 
     void destroy_children(node_type *n);
 
-    void clear(node_type *node);
+    void clear_node(node_type *node);
 };
 
 } // namespace detail

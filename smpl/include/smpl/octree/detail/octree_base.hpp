@@ -75,7 +75,7 @@ OcTreeBase<T, Allocator>::dealloc_children(node_type *n)
 template <class T, class Allocator>
 template <typename... Args>
 void
-OcTreeBase<T, Allocator>::construct_node(node_type *n, Args... args)
+OcTreeBase<T, Allocator>::construct_node(node_type *n, Args&&... args)
 {
     natraits::construct(m_impl, n, std::forward<Args>(args)...);
 }
@@ -87,10 +87,13 @@ OcTreeBase<T, Allocator>::destroy_node(node_type *n)
     natraits::destroy(m_impl, n);
 }
 
+// TODO: this should require a mask indicating which children to construct
+// since we may not care about all children. This entire loop can also be
+// avoided for trivial types.
 template <class T, class Allocator>
 template <typename... Args>
 void
-OcTreeBase<T, Allocator>::construct_children(node_type *n, Args... args)
+OcTreeBase<T, Allocator>::construct_children(node_type *n, Args&&... args)
 {
     node_type* nit = n->children;
     node_type* nend = nit + 8;
@@ -114,11 +117,11 @@ OcTreeBase<T, Allocator>::destroy_children(node_type *n)
 /// NOT destroy the root node.
 template <class T, class Allocator>
 void
-OcTreeBase<T, Allocator>::clear(node_type *node)
+OcTreeBase<T, Allocator>::clear_node(node_type *node)
 {
     if (node->children) {
         for (node_type *c = node->children; c < node->children + 8; ++c) {
-            clear(c);
+            clear_node(c);
             destroy_node(c);
         }
 

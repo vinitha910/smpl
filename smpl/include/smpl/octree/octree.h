@@ -55,16 +55,16 @@ class OcTree : protected detail::OcTreeBase<T, Allocator>
 {
 protected:
 
-    typedef detail::OcTreeBase<T, Allocator> Base;
+    using Base = detail::OcTreeBase<T, Allocator>;
 
 public:
 
-    typedef T value_type;
-    typedef Allocator allocator_type;
-
-    typedef std::size_t size_type;
+    using value_type        = T;
+    using allocator_type    = Allocator;
+    using size_type         = std::size_t;
 
     using typename Base::node_type;
+    using Base::clear;
 
     struct iterator
     {
@@ -96,9 +96,11 @@ public:
 
     OcTree();
     OcTree(const T& value);
+    OcTree(T&& value);
 
     explicit OcTree(const Allocator& alloc);
     explicit OcTree(const T& value, const Allocator& alloc);
+    explicit OcTree(T&& value, const Allocator& alloc);
 
     OcTree(const OcTree& o);
     OcTree(OcTree&& o);
@@ -149,19 +151,19 @@ public:
 
 protected:
 
-    typedef typename Base::node_allocator_type node_allocator_type;
+    using atraits               = std::allocator_traits<allocator_type>;
 
+    using typename Base::natraits;
+    using typename Base::node_allocator_type;
     using Base::m_impl;
     using Base::get_node_allocator;
     using Base::alloc_children;
     using Base::dealloc_children;
-    using Base::clear;
     using Base::construct_node;
 //    using Base::destroy_node;
     using Base::construct_children;
     using Base::destroy_children;
-
-    typedef std::allocator_traits<allocator_type> atraits;
+//    using Base::clear;
 
     int depth(const node_type* n) const;
     size_type count_nodes(const node_type* n) const;

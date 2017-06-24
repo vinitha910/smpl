@@ -73,23 +73,23 @@ namespace sbpl {
 template <class T, class Allocator = std::allocator<T>>
 class SparseGrid : public OcTree<T, Allocator>
 {
-    typedef OcTree<T, Allocator> Base;
+    using Base = OcTree<T, Allocator>;
 
     using Base::root;
     using Base::clear;
     using Base::expand_node;
     using Base::collapse_node;
 
+    using typename Base::node_type;
+
 public:
 
     using typename Base::value_type;
-    using typename Base::node_type;
     using typename Base::size_type;
 
-    typedef value_type& reference;
-    typedef const value_type& const_reference;
-
-    typedef int index_type;
+    using reference         = value_type&;
+    using const_reference   = const value_type&;
+    using index_type        = int;
 
     SparseGrid();
     SparseGrid(const T& value);
