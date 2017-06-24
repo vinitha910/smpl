@@ -72,7 +72,6 @@ template <class T, class Allocator = std::allocator<T>>
 class SparseGrid
 {
     using TreeType = OcTree<T, Allocator>;
-
     using node_type = typename TreeType::node_type;
 
 public:

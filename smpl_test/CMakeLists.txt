@@ -56,6 +56,9 @@ target_link_libraries(octree_test ${Boost_LIBRARIES})
 add_executable(sparse_grid_test src/sparse_grid_test.cpp)
 target_link_libraries(sparse_grid_test ${Boost_LIBRARIES})
 
+add_executable(sparse_binary_grid_test src/sparse_binary_grid_test.cpp)
+target_link_libraries(sparse_binary_grid_test ${Boost_LIBRARIES})
+
 add_executable(xytheta src/xytheta.cpp)
 target_link_libraries(xytheta ${catkin_LIBRARIES})
 
