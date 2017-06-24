@@ -50,6 +50,9 @@ target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 add_executable(egraph_test src/egraph_test.cpp)
 target_link_libraries(egraph_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(octree_test src/octree_tests.cpp)
+target_link_libraries(octree_test ${Boost_LIBRARIES})
+
 add_executable(xytheta src/xytheta.cpp)
 target_link_libraries(xytheta ${catkin_LIBRARIES})
 
