@@ -250,7 +250,7 @@ SparseGrid<T, Allocator>::resize(
     size_type size_y,
     size_type size_z)
 {
-    m_tree.clear();
+    m_tree.clear(); // TODO: non-destructive resize
     m_size[0] = size_x;
     m_size[1] = size_y;
     m_size[2] = size_z;
