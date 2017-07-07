@@ -97,7 +97,7 @@ OcTreeBase<T, Allocator>::construct_children(node_type *n, Args&&... args)
 {
     node_type* nit = n->children;
     node_type* nend = nit + 8;
-    for (nit; nit != nend; ++nit) {
+    for (; nit != nend; ++nit) {
         construct_node(nit, std::forward<Args>(args)...);
     }
 }

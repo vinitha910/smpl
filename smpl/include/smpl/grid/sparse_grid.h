@@ -71,10 +71,10 @@ namespace sbpl {
 template <class T, class Allocator = std::allocator<T>>
 class SparseGrid
 {
+public:
+
     using TreeType = OcTree<T, Allocator>;
     using node_type = typename TreeType::node_type;
-
-public:
 
     using value_type        = typename TreeType::value_type;
     using size_type         = typename TreeType::size_type;

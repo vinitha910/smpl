@@ -44,13 +44,12 @@ namespace sbpl {
 template <class Allocator = std::allocator<std::uint8_t>>
 class SparseBinaryGrid
 {
-    using GridType = SparseGrid<std::uint8_t, Allocator>;
-
-    using TreeType = typename GridType::TreeType;
-
     struct packed_bool_ref;
 
 public:
+
+    using GridType = SparseGrid<std::uint8_t, Allocator>;
+    using TreeType = typename GridType::TreeType;
 
     using value_type        = bool;
     using size_type         = typename GridType::size_type;

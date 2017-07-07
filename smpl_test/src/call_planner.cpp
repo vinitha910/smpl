@@ -396,12 +396,12 @@ std::unique_ptr<smpl::KDLRobotModel> SetupRobotModel(
     const RobotModelConfig &config,
     const std::string& planning_frame)
 {
+    std::unique_ptr<smpl::KDLRobotModel> rm;
+
     if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
         ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
-        return false;
+        return rm;
     }
-
-    std::unique_ptr<smpl::KDLRobotModel> rm;
 
     if (config.group_name == "right_arm") {
         ROS_INFO("Construct PR2 Robot Model");

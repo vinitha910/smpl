@@ -435,7 +435,7 @@ size_t CollisionSphereModelTree::buildRecursive(
         sphere.center = compact_bounding_sphere_center;
         sphere.radius = compact_bounding_sphere_radius;
     }
-    sphere.name;
+//    sphere.name;
     sphere.priority = 0;
     reinterpret_cast<size_t&>(sphere.left) = left_idx;
     reinterpret_cast<size_t&>(sphere.right) = right_idx;
@@ -503,6 +503,8 @@ size_t CollisionSphereModelTree::buildMetaRecursive(
             return get_y(*s) < compact_bounding_sphere_center.y();
         case 2:
             return get_z(*s) < compact_bounding_sphere_center.z();
+        default:
+            return get_x(*s) < compact_bounding_sphere_center.x();
         }
     };
 
