@@ -317,7 +317,7 @@ typename Grid3<T>::size_type Grid3<T>::size() const
 template <typename T>
 typename Grid3<T>::size_type Grid3<T>::max_size() const
 {
-    return std::numeric_limits<size_type>::max;
+    return std::numeric_limits<size_type>::max();
 }
 
 template <typename T>
