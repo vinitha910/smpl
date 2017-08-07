@@ -100,7 +100,7 @@ bool LoadConfigArray(
     }
 
     if (all_configs.size() == 0) {
-        ROS_WARN("No elements in array");
+        ROS_DEBUG("No elements in array");
     }
 
     out.reserve(all_configs.size());
@@ -541,38 +541,35 @@ bool CollisionModelConfig::Load(
         ROS_WARN_STREAM("  Default to " << cfg.world_joint);
     }
 
-    const char* spheres_models_param_name = "spheres_models";
-    const char* voxel_models_param_name = "voxel_models";
-    const char* groups_param_name = "collision_groups";
+    const char* spheres_models_key = "spheres_models";
+    const char* voxels_models_key = "voxels_models";
+    const char* groups_key = "collision_groups";
 
-    if (config.hasMember("spheres_models")) {
-        if (!LoadConfigArray(config["spheres_models"], spheres_models_config)) {
+    if (config.hasMember(spheres_models_key)) {
+        if (!LoadConfigArray(config[spheres_models_key], spheres_models_config)) {
             ROS_ERROR("Failed to load Collision Spheres Model Configs");
             return false;
         }
-    }
-    else {
-        ROS_WARN("No key 'spheres_models' found in robot collision model config");
+    } else {
+        ROS_WARN("No key '%s' found in robot collision model config", spheres_models_key);
     }
 
-    if (config.hasMember("voxels_models")) {
-        if (!LoadConfigArray(config["voxels_models"], voxels_models_config)) {
+    if (config.hasMember(voxels_models_key)) {
+        if (!LoadConfigArray(config[voxels_models_key], voxels_models_config)) {
             ROS_ERROR("Failed to load Collision Voxels Model Configs");
             return false;
         }
-    }
-    else {
-        ROS_WARN("No key 'voxels_model' found in robot collision model config");
+    } else {
+        ROS_WARN("No key '%s' found in robot collision model config", voxels_models_key);
     }
 
-    if (config.hasMember("collision_groups")) {
-        if (!LoadConfigArray(config["collision_groups"], groups_config)) {
+    if (config.hasMember(groups_key)) {
+        if (!LoadConfigArray(config[groups_key], groups_config)) {
             ROS_ERROR("Failed to load Collision Group Configs");
             return false;
         }
-    }
-    else {
-        ROS_WARN("No key 'collision_groups' found in robot collision model config");
+    } else {
+        ROS_WARN("No key '%s' found in robot collision model config", groups_key);
     }
 
     // TODO: check references to spheres in collision_groups?

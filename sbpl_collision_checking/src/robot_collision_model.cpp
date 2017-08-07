@@ -736,7 +736,7 @@ bool RobotCollisionModel::expandGroups(
             eit->links.insert(eit->links.end(), ggit->links.begin(), ggit->links.end());
         }
 
-        ROS_INFO_NAMED(RCM_LOGGER, "Group '%s' contains %zu links", eit->name.c_str(), eit->links.size());
+        ROS_DEBUG_NAMED(RCM_LOGGER, "Group '%s' contains %zu links", eit->name.c_str(), eit->links.size());
 
         // notify reverse dependencies that we're finished
         for (size_t rdidx : rdeps[gidx]) {
