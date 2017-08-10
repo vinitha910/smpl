@@ -19,6 +19,23 @@ struct DebugViz {
 static std::unordered_map<std::string, DebugViz> g_visualizations;
 static bool g_initialized = false;
 
+const char *to_cstring(levels::Level level) {
+    switch (level) {
+    case levels::Debug:
+        return "DEBUG";
+    case levels::Info:
+        return "INFO";
+    case levels::Warn:
+        return "WARN";
+    case levels::Error:
+        return "ERROR";
+    case levels::Fatal:
+        return "FATAL";
+    default:
+        return "";
+    }
+}
+
 bool ParseVisualizationConfigLine(
     const std::string& line,
     std::vector<std::string>& split,
