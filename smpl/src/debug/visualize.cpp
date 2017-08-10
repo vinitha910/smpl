@@ -1,5 +1,6 @@
 #include <smpl/debug/visualize.h>
 
+#include <fstream>
 #include <mutex>
 #include <unordered_map>
 
@@ -15,20 +16,109 @@ struct DebugViz {
     levels::Level level = levels::Info;
 };
 
-std::unordered_map<std::string, DebugViz> g_visualizations;
+static std::unordered_map<std::string, DebugViz> g_visualizations;
+static bool g_initialized = false;
+
+bool ParseVisualizationConfigLine(
+    const std::string& line,
+    std::vector<std::string>& split,
+    levels::Level& level)
+{
+    split.clear();
+
+    size_t last = 0;
+    size_t next;
+    bool done = false;
+    while (!done) {
+        next = line.find_first_of(".=", last);
+        if (next == std::string::npos) { // no remaining . or =
+            split.clear();
+            done = true;
+        } else if (line[next] == '.') {
+            if (last == next) {
+                // should be a word between successive .'s or ='s
+                split.clear();
+                done = true;
+            } else {
+                split.push_back(line.substr(last, next - last));
+                last = next + 1;
+            }
+        } else if (line[next] == '=') {
+            if (last == next) {
+                split.clear();
+            } else {
+                split.push_back(line.substr(last, next - last));
+                // parse the right hand side
+                std::string rhs(line.substr(next + 1));
+                if (rhs == "DEBUG") {
+                    level = levels::Debug;
+                } else if (rhs == "INFO") {
+                    level = levels::Info;
+                } else if (rhs == "WARN") {
+                    level = levels::Warn;
+                } else if (rhs == "ERROR") {
+                    level = levels::Error;
+                } else if (rhs == "FATAL") {
+                    level = levels::Fatal;
+                } else {
+                    split.clear();
+                }
+            }
+            done = true;
+        }
+    }
+
+    return !split.empty();
+}
+
+void Initialize()
+{
+    if (g_initialized) {
+        return;
+    }
+
+    const char *config_path = getenv("SMPL_VISUALIZE_CONFIG_FILE");
+    if (config_path) {
+        std::ifstream f(config_path);
+        if (f.is_open()) {
+            std::string line;
+            while (f.good()) {
+                std::getline(f, line);
+
+                std::vector<std::string> split;
+                levels::Level level;
+                if (ParseVisualizationConfigLine(line, split, level)) {
+                    std::string name = split.front();
+                    for (size_t i = 1; i < split.size(); ++i) {
+                        name = name + "." + split[i];
+                    }
+                    DebugViz viz;
+                    viz.level = level;
+                    g_visualizations[name] = viz;
+                }
+            }
+        }
+    }
+
+
+    g_initialized = true;
+}
 
 void* GetHandle(const std::string& name)
 {
+    Initialize();
     return &g_visualizations[name];
 }
 
 bool IsEnabledFor(void* handle, levels::Level level)
 {
+    Initialize();
     return static_cast<DebugViz*>(handle)->level <= level;
 }
 
 void GetVisualizations(std::unordered_map<std::string, levels::Level>& visualizations)
 {
+    Initialize();
     visualizations.clear();
     for (auto& entry : g_visualizations) {
         visualizations.insert(std::make_pair(entry.first, entry.second.level));
@@ -37,6 +127,7 @@ void GetVisualizations(std::unordered_map<std::string, levels::Level>& visualiza
 
 bool SetVisualizationLevel(const std::string& name, levels::Level level)
 {
+    Initialize();
     auto& vis = g_visualizations[name];
     if (vis.level != level) {
         vis.level = level;
@@ -86,10 +177,6 @@ void InitializeVizLocation(
         g_loc_head = loc;
         g_loc_tail = loc;
     } else {
-        int size = 0;
-        for (VizLocation* loc = g_loc_head; loc; loc = loc->next) {
-            ++size;
-        }
         g_loc_tail->next = loc;
         g_loc_tail = loc;
     }
