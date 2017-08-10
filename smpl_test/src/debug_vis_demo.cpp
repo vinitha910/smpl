@@ -2,6 +2,8 @@
 #include <thread>
 
 #include <ros/ros.h>
+
+#define SV_PACKAGE_NAME "smpl_test"
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/visualizer_ros.h>
 
@@ -33,7 +35,7 @@ void VisualizeCube()
             return ma;
         };
 
-        SV_SHOW_INFO(make_cube_marker());
+        SV_SHOW_INFO_NAMED("cube", make_cube_marker());
 
         loop_rate.sleep();
     }
@@ -67,7 +69,7 @@ void VisualizeSphere()
             return ma;
         };
 
-        SV_SHOW_INFO(make_sphere_marker());
+        SV_SHOW_INFO_NAMED("sphere", make_sphere_marker());
 
         loop_rate.sleep();
     }
@@ -88,9 +90,19 @@ int main(int argc, char* argv[])
     bool enabled = true;
     while (ros::ok()) {
         if (enabled) {
-            sbpl::viz::set_visualization_level(SV_ROOT_VIZ_NAME, sbpl::viz::levels::Warn);
+            sbpl::viz::set_visualization_level(
+                    std::string(SV_NAME_PREFIX) + ".cube",
+                    sbpl::viz::levels::Warn);
+            sbpl::viz::set_visualization_level(
+                    std::string(SV_NAME_PREFIX) + ".sphere",
+                    sbpl::viz::levels::Info);
         } else {
-            sbpl::viz::set_visualization_level(SV_ROOT_VIZ_NAME, sbpl::viz::levels::Info);
+            sbpl::viz::set_visualization_level(
+                    std::string(SV_NAME_PREFIX) + ".cube",
+                    sbpl::viz::levels::Info);
+            sbpl::viz::set_visualization_level(
+                    std::string(SV_NAME_PREFIX) + ".sphere",
+                    sbpl::viz::levels::Warn);
         }
         enabled = !enabled;
 
