@@ -34,6 +34,7 @@
 
 // standard includes
 #include <chrono>
+#include <unordered_map>
 
 // system includes
 #include <ros/console.h>
@@ -46,7 +47,9 @@ namespace sbpl {
 namespace viz {
 
 namespace levels {
-enum Level {
+
+enum Level
+{
     Invalid = -1,
     Debug,
     Info,
@@ -56,7 +59,11 @@ enum Level {
 
     NumLevels
 };
+
 } // namespace levels
+
+/// \name Global Visualizer
+///@{
 
 class VisualizerBase
 {
@@ -73,9 +80,37 @@ void set_visualizer(VisualizerBase* visualizer);
 void unset_visualizer();
 VisualizerBase* visualizer();
 
+///@}
+
+/// \name Global Visualization Management
+///@{
+
+using VisualizationMap = std::unordered_map<std::string, levels::Level>;
+void get_visualizations(VisualizationMap& visualizations);
+
+bool set_visualization_level(const std::string& name, levels::Level level);
+
+///@}
+
+/// \name Internal
+///@{
 void visualize(
     levels::Level level,
     const visualization_msgs::MarkerArray& markers);
+
+struct VizLocation {
+    void* handle; // struct representing the named visualization at location
+    VizLocation *next; // forward list pointer to the next viz location
+    ::sbpl::viz::levels::Level level;
+    bool initialized;
+    bool enabled;
+};
+
+void InitializeVizLocation(
+    VizLocation* loc,
+    const std::string& name,
+    levels::Level level);
+///@}
 
 } // namespace viz
 } // namespace sbpl
@@ -91,15 +126,32 @@ void visualize(
 #define SBPL_VISUALIZE_MIN_SEVERITY SBPL_VISUALIZE_SEVERITY_DEBUG
 #endif
 
-#define SV_SHOW_COND(cond, level, markers) \
+#define SV_ROOT_VIZ_NAME "sv"
+
+#define SV_SHOW_DEFINE_LOCATION(cond_, level_, name_) \
+    static ::sbpl::viz::VizLocation __sv_define_location__loc = { \
+             nullptr, \
+             nullptr, \
+            ::sbpl::viz::levels::NumLevels, \
+            false, \
+            false, \
+    }; \
+    if (!__sv_define_location__loc.initialized) { \
+        InitializeVizLocation(&__sv_define_location__loc, name_, level_); \
+    } \
+    bool __sv_define_location__enabled = \
+            __sv_define_location__loc.enabled && (cond_)
+
+#define SV_SHOW_COND(cond, level, name, markers) \
     do { \
-        if ((cond)) { \
+        SV_SHOW_DEFINE_LOCATION(cond, level, name); \
+        if (__sv_define_location__enabled) { \
             ::sbpl::viz::visualize(level, markers); \
         } \
     } \
     while (0)
 
-#define SV_SHOW_ONCE(level, markers) \
+#define SV_SHOW_ONCE(level, name, markers) \
     do { \
         static bool hit = false; \
         if (!hit) { \
@@ -108,7 +160,7 @@ void visualize(
         } \
     } while (0)
 
-#define SV_SHOW_THROTTLE(rate, level, markers) \
+#define SV_SHOW_THROTTLE(rate, level, name, markers) \
     do { \
         static ::sbpl::clock::time_point last_hit; \
         static auto rate_dur = \
@@ -121,7 +173,7 @@ void visualize(
         } \
     } while (0)
 
-#define SV_SHOW(level, markers) SV_SHOW_COND(true, level, markers)
+#define SV_SHOW(level, name, markers) SV_SHOW_COND(true, level, name, markers)
 
 #if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_DEBUG)
 #define SV_SHOW_DEBUG(markers)
@@ -129,10 +181,10 @@ void visualize(
 #define SV_SHOW_DEBUG_THROTTLE(rate, markers)
 #define SV_SHOW_DEBUG_ONCE(markers)
 #else
-#define SV_SHOW_DEBUG(markers) SV_SHOW(::sbpl::viz::levels::Debug, markers)
-#define SV_SHOW_DEBUG_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Debug, markers)
-#define SV_SHOW_DEBUG_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Debug, markers)
-#define SV_SHOW_DEBUG_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Debug, markers)
+#define SV_SHOW_DEBUG(markers) SV_SHOW(::sbpl::viz::levels::Debug, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_DEBUG_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Debug, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_DEBUG_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Debug, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_DEBUG_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Debug, SV_ROOT_VIZ_NAME, markers)
 #endif
 
 #if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_INFO)
@@ -141,10 +193,10 @@ void visualize(
 #define SV_SHOW_INFO_THROTTLE(rate, markers)
 #define SV_SHOW_INFO_ONCE(markers)
 #else
-#define SV_SHOW_INFO(markers) SV_SHOW(::sbpl::viz::levels::Info, markers)
-#define SV_SHOW_INFO_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Info, markers)
-#define SV_SHOW_INFO_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Info, markers)
-#define SV_SHOW_INFO_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Info, markers)
+#define SV_SHOW_INFO(markers) SV_SHOW(::sbpl::viz::levels::Info, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_INFO_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Info, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_INFO_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Info, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_INFO_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Info, SV_ROOT_VIZ_NAME, markers)
 #endif
 
 #if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_WARN)
@@ -153,10 +205,10 @@ void visualize(
 #define SV_SHOW_WARN_THROTTLE(rate, markers)
 #define SV_SHOW_WARN_ONCE(markers)
 #else
-#define SV_SHOW_WARN(markers) SV_SHOW(::sbpl::viz::levels::Warn, markers)
-#define SV_SHOW_WARN_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Warn, markers)
-#define SV_SHOW_WARN_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Warn, markers)
-#define SV_SHOW_WARN_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Warn, markers)
+#define SV_SHOW_WARN(markers) SV_SHOW(::sbpl::viz::levels::Warn, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_WARN_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Warn, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_WARN_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Warn, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_WARN_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Warn, SV_ROOT_VIZ_NAME, markers)
 #endif
 
 #if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_ERROR)
@@ -165,10 +217,10 @@ void visualize(
 #define SV_SHOW_ERROR_THROTTLE(rate, markers)
 #define SV_SHOW_ERROR_ONCE(markers)
 #else
-#define SV_SHOW_ERROR(markers) SV_SHOW(::sbpl::viz::levels::Error, markers)
-#define SV_SHOW_ERROR_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Error, markers)
-#define SV_SHOW_ERROR_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Error, markers)
-#define SV_SHOW_ERROR_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Error, markers)
+#define SV_SHOW_ERROR(markers) SV_SHOW(::sbpl::viz::levels::Error, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_ERROR_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Error, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_ERROR_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Error, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_ERROR_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Error, SV_ROOT_VIZ_NAME, markers)
 #endif
 
 #if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_FATAL)
@@ -177,10 +229,10 @@ void visualize(
 #define SV_SHOW_FATAL_THROTTLE(rate, markers)
 #define SV_SHOW_FATAL_ONCE(markers)
 #else
-#define SV_SHOW_FATAL(markers) SV_SHOW(::sbpl::viz::levels::Fatal, markers)
-#define SV_SHOW_FATAL_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Fatal, markers)
-#define SV_SHOW_FATAL_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Fatal, markers)
-#define SV_SHOW_FATAL_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Fatal, markers)
+#define SV_SHOW_FATAL(markers) SV_SHOW(::sbpl::viz::levels::Fatal, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_FATAL_COND(cond, markers) SV_SHOW_COND(cond, ::sbpl::viz::levels::Fatal, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_FATAL_THROTTLE(rate, markers) SV_SHOW_THROTTLE(rate, ::sbpl::viz::levels::Fatal, SV_ROOT_VIZ_NAME, markers)
+#define SV_SHOW_FATAL_ONCE(markers) SV_SHOW_ONCE(::sbpl::viz::levels::Fatal, SV_ROOT_VIZ_NAME, markers)
 #endif
 
 #endif
