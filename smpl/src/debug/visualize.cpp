@@ -117,7 +117,6 @@ void Initialize()
         }
     }
 
-
     g_initialized = true;
 }
 

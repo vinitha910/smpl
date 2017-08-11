@@ -86,6 +86,8 @@ int main(int argc, char* argv[])
     std::thread cube_vis_thread(VisualizeCube);
     std::thread sphere_vis_thread(VisualizeSphere);
 
+    ROS_INFO("SV_PACKAGE_NAME: %s", SV_NAME_PREFIX);
+
     ros::Rate loop_rate(1.0);
     bool enabled = true;
     while (ros::ok()) {
