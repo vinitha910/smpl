@@ -519,6 +519,54 @@ void ManipLattice::GetPreds(
     ROS_WARN("GetPreds unimplemented");
 }
 
+// angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
+// 0, ...
+inline void ManipLattice::coordToState(
+    const RobotCoord& coord,
+    RobotState& state) const
+{
+    assert((int)state.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
+
+    for (size_t i = 0; i < coord.size(); ++i) {
+        if (m_continuous[i]) {
+            state[i] = coord[i] * m_coord_deltas[i];
+        } else if (!m_bounded[i]) {
+            state[i] = (double)coord[i] * m_coord_deltas[i];
+        } else {
+            state[i] = m_min_limits[i] + coord[i] * m_coord_deltas[i];
+        }
+    }
+}
+
+inline void ManipLattice::stateToCoord(
+    const RobotState& state,
+    RobotCoord& coord) const
+{
+    assert((int)state.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
+
+    for (size_t i = 0; i < state.size(); ++i) {
+        if (m_continuous[i]) {
+            double pos_angle = angles::normalize_angle_positive(state[i]);
+
+            coord[i] = (int)((pos_angle + m_coord_deltas[i] * 0.5) / m_coord_deltas[i]);
+
+            if (coord[i] == m_coord_vals[i]) {
+                coord[i] = 0;
+            }
+        } else if (!m_bounded[i]) {
+            if (state[i] >= 0.0) {
+                coord[i] = (int)(state[i] / m_coord_deltas[i] + 0.5);
+            } else {
+                coord[i] = (int)(state[i] / m_coord_deltas[i] - 0.5);
+            }
+        } else {
+            coord[i] = (int)(((state[i] - m_min_limits[i]) / m_coord_deltas[i]) + 0.5);
+        }
+    }
+}
+
 ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
 {
     if (state_id < 0 || state_id >= (int)m_states.size()) {
