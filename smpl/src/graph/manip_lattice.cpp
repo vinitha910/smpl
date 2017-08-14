@@ -110,6 +110,7 @@ ManipLattice::~ManipLattice()
 
 bool ManipLattice::init(const std::vector<double>& var_res)
 {
+    ROS_DEBUG_NAMED(params()->graph_log, "Initialize Manip Lattice");
     if (var_res.size() != robot()->jointVariableCount()) {
         ROS_ERROR_NAMED(params()->graph_log, "Insufficient variable resolutions for robot model");
         return false;
@@ -118,19 +119,21 @@ bool ManipLattice::init(const std::vector<double>& var_res)
     std::vector<int> discretization(robot()->jointVariableCount());
     std::vector<double> deltas(robot()->jointVariableCount());
     for (size_t vidx = 0; vidx < robot()->jointVariableCount(); ++vidx) {
-        if (robot()->isContinuous(vidx)) {
+        if (m_continuous[vidx]) {
             discretization[vidx] = (int)std::round((2.0 * M_PI) / var_res[vidx]);
             deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
-        } else if (robot()->hasPosLimit(vidx)) {
-            const double span = std::fabs(
-                    robot()->maxPosLimit(vidx) - robot()->minPosLimit(vidx));
-            discretization[vidx] = (int)std::round(span / var_res[vidx]);
+        } else if (m_bounded[vidx]) {
+            const double span = std::fabs(m_max_limits[vidx] - m_min_limits[vidx]);
+            discretization[vidx] = std::max(1, (int)std::round(span / var_res[vidx]));
             deltas[vidx] = span / (double)discretization[vidx];
         } else {
             discretization[vidx] = std::numeric_limits<int>::max();
             deltas[vidx] = var_res[vidx];
         }
     }
+
+    ROS_DEBUG_STREAM_NAMED(params()->graph_log, "  coord vals: " << discretization);
+    ROS_DEBUG_STREAM_NAMED(params()->graph_log, "  coord deltas: " << deltas);
 
     m_coord_vals = std::move(discretization);
     m_coord_deltas = std::move(deltas);
