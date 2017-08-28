@@ -132,10 +132,14 @@ public:
     visualization_msgs::MarkerArray getCollisionRobotVisualization() const;
     visualization_msgs::MarkerArray getCollisionRobotVisualization(
         const std::vector<double>& vals);
+    visualization_msgs::MarkerArray getCollisionRobotVisualization(
+        const double* jvals);
 
     visualization_msgs::MarkerArray getCollisionDetailsVisualization() const;
     visualization_msgs::MarkerArray getCollisionDetailsVisualization(
         const std::vector<double>& vals);
+    visualization_msgs::MarkerArray getCollisionDetailsVisualization(
+        const double* jvals);
 
     visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
     visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
@@ -150,12 +154,15 @@ public:
         double& dist);
 
     bool checkCollision(const std::vector<double>& state, double& dist);
+    bool checkCollision(const double* state, double& dist);
 
     double collisionDistance(const std::vector<double>& state);
+    double collisionDistance(const double* state);
 
     bool collisionDetails(
         const std::vector<double>& state,
         CollisionDetails& details);
+    bool collisionDetails(const double* state, CollisionDetails& details);
 
     /// \name Required Functions from Extension
     ///@{
@@ -214,7 +221,6 @@ private:
 
     // Planning Joint Information
     std::vector<int>                m_planning_joint_to_collision_model_indices;
-    std::vector<double>             m_increments;
 
     CollisionSpace();
 
@@ -238,7 +244,6 @@ private:
         const std::string& group_name,
         const std::vector<std::string>& planning_joints);
 
-    bool setPlanningJoints(const std::vector<std::string>& joint_names);
     size_t planningVariableCount() const;
 
     bool isContinuous(int vidx) const;
@@ -247,9 +252,13 @@ private:
     double maxLimit(int vidx) const;
 
     void updateState(const std::vector<double>& vals);
+    void updateState(const double* vals);
     void updateState(
         std::vector<double>& state,
         const std::vector<double>& vals);
+    void updateState(
+        std::vector<double>& state,
+        const double* vals);
     void copyState();
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;

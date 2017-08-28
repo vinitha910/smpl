@@ -404,6 +404,21 @@ CollisionSpace::getCollisionRobotVisualization(
     return markers;
 }
 
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionRobotVisualization(const double* vals)
+{
+    updateState(vals);
+    // update the spheres within the group
+    for (int ssidx : m_rcs->groupSpheresStateIndices(m_gidx)) {
+        m_rcs->updateSphereStates(ssidx);
+    }
+    auto markers = m_rcs->getVisualization(m_gidx);
+    for (auto& m : markers.markers) {
+        m.header.frame_id = m_grid->getReferenceFrame();
+    }
+    return markers;
+}
+
 /// \brief Return a visualization of the collision details for the current state
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionDetailsVisualization() const
@@ -416,6 +431,14 @@ CollisionSpace::getCollisionDetailsVisualization() const
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionDetailsVisualization(
     const std::vector<double>& vals)
+{
+    // TODO: implement me
+    return visualization_msgs::MarkerArray();
+}
+
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionDetailsVisualization(
+    const double* vals)
 {
     // TODO: implement me
     return visualization_msgs::MarkerArray();
@@ -466,7 +489,19 @@ bool CollisionSpace::checkCollision(
     return m_scm->checkCollision(*m_rcs, *m_abcs, m_gidx, dist);
 }
 
+bool CollisionSpace::checkCollision(const double* state, double& dist)
+{
+    updateState(state);
+    return m_scm->checkCollision(*m_rcs, *m_abcs, m_gidx, dist);
+}
+
 double CollisionSpace::collisionDistance(const std::vector<double>& state)
+{
+    updateState(state);
+    return m_scm->collisionDistance(*m_rcs, *m_abcs, m_gidx);
+}
+
+double CollisionSpace::collisionDistance(const double* state)
 {
     updateState(state);
     return m_scm->collisionDistance(*m_rcs, *m_abcs, m_gidx);
@@ -474,6 +509,14 @@ double CollisionSpace::collisionDistance(const std::vector<double>& state)
 
 bool CollisionSpace::collisionDetails(
     const std::vector<double>& state,
+    CollisionDetails& details)
+{
+    updateState(state);
+    return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
+}
+
+bool CollisionSpace::collisionDetails(
+    const double* state,
     CollisionDetails& details)
 {
     updateState(state);
@@ -715,9 +758,21 @@ bool CollisionSpace::init(
         return false;
     }
 
-    if (!setPlanningJoints(planning_joints)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to set planning joints");
-        return false;
+    for (const std::string& joint_name : planning_joints) {
+        if (!m_rcm->hasJointVar(joint_name)) {
+            ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
+            return false;
+        }
+    }
+
+    // map planning joint indices to collision model indices
+    m_planning_joint_to_collision_model_indices.resize(planning_joints.size(), -1);
+
+    for (size_t i = 0; i < planning_joints.size(); ++i) {
+        const std::string& joint_name = planning_joints[i];;
+        int jidx = m_rcm->jointVarIndex(joint_name);
+
+        m_planning_joint_to_collision_model_indices[i] = jidx;
     }
 
     if (!m_rcm->hasGroup(group_name)) {
@@ -742,33 +797,15 @@ bool CollisionSpace::init(
     return true;
 }
 
-/// \brief Set the joint variables in the order they appear to isStateValid calls
-bool CollisionSpace::setPlanningJoints(
-    const std::vector<std::string>& joint_names)
-{
-    for (const std::string& joint_name : joint_names) {
-        if (!m_rcm->hasJointVar(joint_name)) {
-            ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
-            return false;
-        }
-    }
-
-    // map planning joint indices to collision model indices
-    m_planning_joint_to_collision_model_indices.resize(joint_names.size(), -1);
-
-    for (size_t i = 0; i < joint_names.size(); ++i) {
-        const std::string& joint_name = joint_names[i];;
-        int jidx = m_rcm->jointVarIndex(joint_name);
-
-        m_planning_joint_to_collision_model_indices[i] = jidx;
-    }
-
-    return true;
-}
-
 void CollisionSpace::updateState(const std::vector<double>& vals)
 {
     updateState(m_joint_vars, vals);
+    copyState();
+}
+
+void CollisionSpace::updateState(const double* state)
+{
+    updateState(m_joint_vars, state);
     copyState();
 }
 
@@ -776,9 +813,17 @@ void CollisionSpace::updateState(
     std::vector<double>& state,
     const std::vector<double>& vals)
 {
-    for (size_t i = 0; i < vals.size(); ++i) {
+    assert(vals.size() == m_planning_joint_to_collision_model_indices[i]);
+    updateState(state, vals.data());
+}
+
+void CollisionSpace::updateState(
+    std::vector<double>& state,
+    const double* vals)
+{
+    for (size_t i = 0; i < m_planning_joint_to_collision_model_indices.size(); ++i) {
         int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_joint_vars[jidx] = vals[i];
+        state[jidx] = vals[i];
     }
 }
 
