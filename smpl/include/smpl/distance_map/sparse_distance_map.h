@@ -52,6 +52,31 @@ class SparseDistanceMap : public DistanceMapInterface
 {
 public:
 
+    struct Cell
+    {
+        int ox;
+        int oy;
+        int oz;
+
+        int dist;
+        int dist_new;
+#if SMPL_DMAP_RETURN_CHANGED_CELLS
+        int dist_old;
+#endif
+        Cell* obs;
+        int bucket;
+        int dir;
+
+        int pos;
+
+        // NOTE: vacuous true here for interoperability with SparseGrid::prune.
+        // This shouldn't be used to do unconditional pruning, but should be
+        // used in conjunction with conditional pruning to remove cells with
+        // unknown nearest obstacles, and which must not be referred to by any
+        // other cell as its nearest obstacle.
+        bool operator==(const Cell& rhs) const { return true; }
+    };
+
     SparseDistanceMap(
         double origin_x, double origin_y, double origin_z,
         double size_x, double size_y, double size_z,
@@ -100,32 +125,10 @@ public:
     bool isCellValid(int x, int y, int z) const override;
     ///@}
 
+    double resolution() const { return 1.0 / m_inv_res; }
+    auto cells() -> SparseGrid<Cell>& { return m_cells; }
+
 public:
-
-    struct Cell
-    {
-        int ox;
-        int oy;
-        int oz;
-
-        int dist;
-        int dist_new;
-#if SMPL_DMAP_RETURN_CHANGED_CELLS
-        int dist_old;
-#endif
-        Cell* obs;
-        int bucket;
-        int dir;
-
-        int pos;
-
-        // NOTE: vacuous true here for interoperability with SparseGrid::prune.
-        // This shouldn't be used to do unconditional pruning, but should be
-        // used in conjunction with conditional pruning to remove cells with
-        // unknown nearest obstacles, and which must not be referred to by any
-        // other cell as its nearest obstacle.
-        bool operator==(const Cell& rhs) const { return true; }
-    };
 
     SparseGrid<Cell> m_cells;
 
