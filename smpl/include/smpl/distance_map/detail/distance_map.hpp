@@ -405,8 +405,8 @@ double DistanceMap<Derived>::getCellDistance(int x, int y, int z) const
     return getDistance(x, y, z);
 }
 
-/// Return the effective grid coordinates of the cell containing the given point
-/// specified in world coordinates.
+/// Return the point in world coordinates marking the center of the cell at the
+/// given effective grid coordinates.
 template <typename Derived>
 void DistanceMap<Derived>::gridToWorld(
     int x, int y, int z,
@@ -417,8 +417,8 @@ void DistanceMap<Derived>::gridToWorld(
     world_z = (m_origin_z - m_res) + (z + 1) * m_res;
 }
 
-/// Return the point in world coordinates marking the center of the cell at the
-/// given effective grid coordinates.
+/// Return the effective grid coordinates of the cell containing the given point
+/// specified in world coordinates.
 template <typename Derived>
 void DistanceMap<Derived>::worldToGrid(
     double world_x, double world_y, double world_z,
