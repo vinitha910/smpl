@@ -61,6 +61,12 @@ public:
         double resolution,
         double max_dist);
 
+    DistanceMap(const DistanceMap& o);
+    DistanceMap(DistanceMap&& o);
+
+    auto operator=(const DistanceMap& rhs) -> DistanceMap&;
+    auto operator=(DistanceMap&& rhs) -> DistanceMap&;
+
     double maxDistance() const;
 
     double getDistance(double x, double y, double z) const;
@@ -164,6 +170,8 @@ private:
     bucket_list m_open;
 
     std::vector<Cell*> m_rem_stack;
+
+    void rewire(const DistanceMap& o);
 
     void initBorderCells();
 
