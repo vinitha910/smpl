@@ -65,6 +65,9 @@ target_link_libraries(xytheta ${catkin_LIBRARIES})
 add_executable(debug_vis_demo src/debug_vis_demo.cpp)
 target_link_libraries(debug_vis_demo ${catkin_LIBRARIES})
 
+add_executable(distance_map_test src/distance_map_test.cpp)
+target_link_libraries(distance_map_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+
 install(
     TARGETS callPlanner
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
