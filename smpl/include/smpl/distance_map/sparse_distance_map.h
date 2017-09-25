@@ -179,7 +179,7 @@ public:
         int y;
         int z;
 
-        bucket_element() { }
+        bucket_element() = default;
         bucket_element(Cell* c, int x, int y, int z) :
             c(c), x(x), y(y), z(z)
         { }
@@ -189,7 +189,15 @@ public:
     typedef std::vector<bucket_type> bucket_list;
     bucket_list m_open;
 
-    std::vector<bucket_element> m_rem_stack;
+    struct GridCoord {
+        int x;
+        int y;
+        int z;
+
+        GridCoord() = default;
+        GridCoord(int x, int y, int z) : x(x), y(y), z(z) { }
+    };
+    std::vector<GridCoord> m_rem_stack;
 
     double m_error;
 

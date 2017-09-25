@@ -183,7 +183,7 @@ void SparseDistanceMap::removePointsFromMap(
 
         c.dist = m_dmax_sqrd_int;
         c.dir = NO_UPDATE_DIR;
-        m_rem_stack.emplace_back(&c, gx, gy, gz);
+        m_rem_stack.emplace_back(gx, gy, gz);
     }
 
     propagateRemovals();
@@ -241,7 +241,7 @@ void SparseDistanceMap::updatePointsInMap(
         c.dist = m_dmax_sqrd_int;
         c.obs = nullptr;
         c.ox = c.oy = c.oz = -1;
-        m_rem_stack.emplace_back(&c, p.x(), p.y(), p.z());
+        m_rem_stack.emplace_back(p.x(), p.y(), p.z());
     }
 
     propagateRemovals();
@@ -368,7 +368,7 @@ void SparseDistanceMap::updateVertex(Cell* o, int cx, int cy, int cz)
         assert(o->bucket < m_open.size());
 
         // swap places with last element and remove from end of current bucket
-        bucket_element &e = m_open[o->bucket][o->pos];
+        bucket_element& e = m_open[o->bucket][o->pos];
         e = m_open[o->bucket].back();
         e.c->pos = o->pos;
         m_open[o->bucket].pop_back();
@@ -525,8 +525,7 @@ void SparseDistanceMap::lowerBounded(Cell* s, int sx, int sy, int sz)
 void SparseDistanceMap::propagateRemovals()
 {
     while (!m_rem_stack.empty()) {
-        bucket_element e = m_rem_stack.back();
-        Cell* s = e.c;
+        GridCoord e = m_rem_stack.back();
         m_rem_stack.pop_back();
 
         int nfirst, nlast;
@@ -546,7 +545,7 @@ void SparseDistanceMap::propagateRemovals()
                     n->obs = nullptr;
                     n->ox = n->oy = n->oz = -1;
                     n->dir = NO_UPDATE_DIR;
-                    m_rem_stack.emplace_back(n, nx.x(), nx.y(), nx.z());
+                    m_rem_stack.emplace_back(nx.x(), nx.y(), nx.z());
                 }
             } else {
                 updateVertex(n, nx.x(), nx.y(), nx.z());
