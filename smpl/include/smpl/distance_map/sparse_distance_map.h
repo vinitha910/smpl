@@ -130,6 +130,8 @@ public:
 
 public:
 
+    static constexpr int NO_UPDATE_DIR = dirnum(0, 0, 0);
+
     SparseGrid<Cell> m_cells;
 
     int m_cell_count_x;
@@ -145,8 +147,6 @@ public:
     int m_dmax_sqrd_int;
 
     int m_bucket;
-
-    int m_no_update_dir;
 
     // Direction offsets to each of the 27 neighbors, including (0, 0, 0).
     // Indexed by a call to dirnum(x, y, z, 0);

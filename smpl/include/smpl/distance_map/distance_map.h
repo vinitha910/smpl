@@ -118,6 +118,8 @@ private:
         int pos;
     };
 
+    static constexpr int NO_UPDATE_DIR = dirnum(0, 0, 0);
+
     Grid3<Cell> m_cells;
 
     double m_max_dist;
@@ -127,7 +129,6 @@ private:
     int m_dmax_sqrd_int;
 
     int m_bucket;
-    int m_no_update_dir;
 
     // Direction offsets to each of the 27 neighbors, including (0, 0, 0).
     // Indexed by a call to dirnum(x, y, z, 0);
