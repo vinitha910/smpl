@@ -128,14 +128,27 @@ OccupancyGrid::OccupancyGrid(
 
 /// Copy constructor. Constructs the Occupancy Grid with a deep copy of the
 /// contents of \p o.
-OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
+OccupancyGrid::OccupancyGrid(const OccupancyGrid& o) :
+    m_grid(o.m_grid->clone()),
+    reference_frame_(o.reference_frame_),
+    m_ref_counted(o.m_ref_counted),
+    m_x_stride(o.m_x_stride),
+    m_y_stride(o.m_y_stride),
+    m_counts(o.m_counts)
 {
-    m_grid.reset(o.m_grid->clone());
-    reference_frame_ = o.reference_frame_;
-    m_ref_counted = o.m_ref_counted;
-    m_x_stride = o.m_x_stride;
-    m_y_stride = o.m_y_stride;
-    m_counts = o.m_counts;
+}
+
+OccupancyGrid& OccupancyGrid::operator=(const OccupancyGrid& rhs)
+{
+    if (this != &rhs) {
+        m_grid.reset(rhs.m_grid->clone());
+        reference_frame_ = rhs.reference_frame_;
+        m_ref_counted = rhs.m_ref_counted;
+        m_x_stride = rhs.m_x_stride;
+        m_y_stride = rhs.m_y_stride;
+        m_counts = rhs.m_counts;
+    }
+    return *this;
 }
 
 /// Reset the grid, removing all obstacles setting distances to their
@@ -444,7 +457,6 @@ void OccupancyGrid::addPointsToField(
     else {
         m_grid->addPointsToMap(points);
     }
-
 }
 
 /// Remove a set of obstacle cells from the occupancy grid.

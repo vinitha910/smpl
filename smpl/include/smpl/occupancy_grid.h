@@ -66,6 +66,11 @@ public:
 
     OccupancyGrid(const OccupancyGrid& o);
 
+    OccupancyGrid(OccupancyGrid&& o) = default;
+
+    OccupancyGrid& operator=(const OccupancyGrid& rhs);
+    OccupancyGrid& operator=(OccupancyGrid&& rhs) = default;
+
     const DistanceMapInterfacePtr& getDistanceField() const { return m_grid; }
 
     /// \name Modifiers
