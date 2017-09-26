@@ -356,25 +356,28 @@ class CollisionSpaceBuilder
 {
 public:
 
-    CollisionSpacePtr build(
+    auto build(
         OccupancyGrid* grid,
         const std::string& urdf_string,
         const CollisionModelConfig& config,
         const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints)
+        -> std::unique_ptr<CollisionSpace>;
 
-    CollisionSpacePtr build(
+    auto build(
         OccupancyGrid* grid,
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config,
         const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints)
+        -> std::unique_ptr<CollisionSpace>;
 
-    CollisionSpacePtr build(
+    auto build(
         OccupancyGrid* grid,
         const RobotCollisionModelConstPtr& rcm,
         const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints)
+        -> std::unique_ptr<CollisionSpace>;
 };
 
 } // namespace collision
