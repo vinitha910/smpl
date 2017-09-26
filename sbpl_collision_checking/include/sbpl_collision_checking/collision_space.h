@@ -120,30 +120,40 @@ public:
 
     const RobotCollisionModelConstPtr&  robotCollisionModel() const;
     const RobotMotionCollisionModelConstPtr& robotMotionCollisionModel() const;
+
+    auto grid() -> OccupancyGrid* { return m_grid; }
+    auto grid() const -> const OccupancyGrid* { return m_grid; }
+
     WorldCollisionModelConstPtr  worldCollisionModel() const;
     SelfCollisionModelConstPtr   selfCollisionModel() const;
 
     /// \name Visualization
     ///@{
-    visualization_msgs::MarkerArray getWorldVisualization() const;
-    visualization_msgs::MarkerArray getRobotVisualization() const;
+    auto getWorldVisualization() const -> visualization_msgs::MarkerArray;
+    auto getRobotVisualization() const -> visualization_msgs::MarkerArray;
 
-    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
-    visualization_msgs::MarkerArray getCollisionRobotVisualization() const;
-    visualization_msgs::MarkerArray getCollisionRobotVisualization(
-        const std::vector<double>& vals);
-    visualization_msgs::MarkerArray getCollisionRobotVisualization(
-        const double* jvals);
+    auto getCollisionWorldVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionRobotVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionRobotVisualization(const std::vector<double>& vals)
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionRobotVisualization(const double* jvals)
+        -> visualization_msgs::MarkerArray;
 
-    visualization_msgs::MarkerArray getCollisionDetailsVisualization() const;
-    visualization_msgs::MarkerArray getCollisionDetailsVisualization(
-        const std::vector<double>& vals);
-    visualization_msgs::MarkerArray getCollisionDetailsVisualization(
-        const double* jvals);
+    auto getCollisionDetailsVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionDetailsVisualization(const std::vector<double>& vals)
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionDetailsVisualization(const double* jvals)
+        -> visualization_msgs::MarkerArray;
 
-    visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
-    visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
-    visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
+    auto getBoundingBoxVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getDistanceFieldVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getOccupiedVoxelsVisualization() const
+        -> visualization_msgs::MarkerArray;
     ///@}
 
     bool checkCollision(
