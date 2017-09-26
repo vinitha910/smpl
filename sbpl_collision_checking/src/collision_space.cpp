@@ -852,12 +852,13 @@ bool CollisionSpace::withinJointPositionLimits(
     return inside;
 }
 
-std::unique_ptr<CollisionSpace> CollisionSpaceBuilder::build(
+auto BuildCollisionSpace(
     OccupancyGrid* grid,
     const std::string& urdf_string,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
 {
     std::unique_ptr<CollisionSpace> cspace(new CollisionSpace);
     if (cspace->init(grid, urdf_string, config, group_name, planning_joints)) {
@@ -867,12 +868,13 @@ std::unique_ptr<CollisionSpace> CollisionSpaceBuilder::build(
     }
 }
 
-std::unique_ptr<CollisionSpace> CollisionSpaceBuilder::build(
+auto BuildCollisionSpace(
     OccupancyGrid* grid,
     const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
 {
     std::unique_ptr<CollisionSpace> cspace(new CollisionSpace);
     if (cspace->init(grid, urdf, config, group_name, planning_joints)) {
@@ -882,11 +884,12 @@ std::unique_ptr<CollisionSpace> CollisionSpaceBuilder::build(
     }
 }
 
-std::unique_ptr<CollisionSpace> CollisionSpaceBuilder::build(
+auto BuildCollisionSpace(
     OccupancyGrid* grid,
     const RobotCollisionModelConstPtr& rcm,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
 {
     std::unique_ptr<CollisionSpace> cspace(new CollisionSpace);
     if (cspace->init(grid, rcm, group_name, planning_joints)) {
@@ -894,6 +897,38 @@ std::unique_ptr<CollisionSpace> CollisionSpaceBuilder::build(
     } else {
         return std::unique_ptr<CollisionSpace>();
     }
+}
+
+auto CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const std::string& urdf_string,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
+{
+    return BuildCollisionSpace(grid, urdf_string, config, group_name, planning_joints);
+}
+
+auto CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
+{
+    return BuildCollisionSpace(grid, urdf, config, group_name, planning_joints);
+}
+
+auto CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const RobotCollisionModelConstPtr& rcm,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
+{
+    return BuildCollisionSpace(grid, rcm, group_name, planning_joints);
 }
 
 } // namespace collision

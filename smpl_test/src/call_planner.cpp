@@ -1620,15 +1620,14 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    sbpl::collision::CollisionSpaceBuilder builder;
-    auto cc = builder.build(&grid, urdf, cc_conf, group_name, planning_joints);
-    if (!cc) {
+    sbpl::collision::CollisionSpace cc;
+    if (!cc.init(&grid, urdf, cc_conf, group_name, planning_joints)) {
         ROS_ERROR("Failed to initialize Collision Space");
         return 1;
     }
 
-    if (cc->robotCollisionModel()->name() == "pr2") {
-        initAllowedCollisionsPR2(*cc);
+    if (cc.robotCollisionModel()->name() == "pr2") {
+        initAllowedCollisionsPR2(cc);
     }
 
     /////////////////
@@ -1649,16 +1648,16 @@ int main(int argc, char* argv[])
         ROS_ERROR("Failed to get initial configuration.");
         return 0;
     }
-    scene.robot_model_name = cc->robotCollisionModel()->name();
+    scene.robot_model_name = cc.robotCollisionModel()->name();
     scene.robot_state.joint_state.header.frame_id = planning_frame;
     scene.world.octomap.header.frame_id = planning_frame;
     scene.world.octomap.octomap.binary = true;
     scene.is_diff = true;
 
-    cc->setWorldToModelTransform(Eigen::Affine3d::Identity());
+    cc.setWorldToModelTransform(Eigen::Affine3d::Identity());
 
     // set planning scene
-    if (!cc->setPlanningScene(scene)) {
+    if (!cc.setPlanningScene(scene)) {
         ROS_ERROR("Failed to update Collision Checker from Planning Scene");
         return false;
     }
@@ -1690,14 +1689,14 @@ int main(int argc, char* argv[])
         ROS_WARN("You might want to provide the planning frame -> kinematics frame transform in the multi-dof joint state");
     }
 
-    auto markers = cc->getBoundingBoxVisualization();
+    auto markers = cc.getBoundingBoxVisualization();
     ROS_INFO("Publish %zu bounding box markers", markers.markers.size());
     ma_pub.publish(markers);
-    markers = cc->getCollisionWorldVisualization();
+    markers = cc.getCollisionWorldVisualization();
     ROS_INFO("Publish %zu collision world markers", markers.markers.size());
-    ma_pub.publish(cc->getCollisionRobotVisualization());
+    ma_pub.publish(cc.getCollisionRobotVisualization());
     ma_pub.publish(markers);
-    ma_pub.publish(cc->getOccupiedVoxelsVisualization());
+    ma_pub.publish(cc.getOccupiedVoxelsVisualization());
 
     ///////////////////
     // Planner Setup //
@@ -1709,7 +1708,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    smpl::PlannerInterface planner(rm.get(), cc.get(), &grid);
+    smpl::PlannerInterface planner(rm.get(), &cc, &grid);
 
     smpl::PlanningParams params;
     params.planning_frame = planning_frame;
@@ -1786,7 +1785,7 @@ int main(int argc, char* argv[])
 
     while (ros::ok()) {
         for (const auto &point : res.trajectory.joint_trajectory.points) {
-            auto markers = cc->getCollisionRobotVisualization(point.positions);
+            auto markers = cc.getCollisionRobotVisualization(point.positions);
             ma_pub.publish(markers);
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
