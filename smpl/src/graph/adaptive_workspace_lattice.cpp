@@ -376,8 +376,7 @@ bool AdaptiveWorkspaceLattice::extractPath(
                     continue;
                 }
 
-                double dist;
-                if (!checkAction(prev_state->state, action, dist)) {
+                if (!checkAction(prev_state->state, action)) {
                     continue;
                 }
 
@@ -439,8 +438,8 @@ bool AdaptiveWorkspaceLattice::setStart(const RobotState& state)
         return false;
     }
 
-    double dist;
-    if (!collisionChecker()->isStateValid(state, true, false, dist)) {
+    if (!collisionChecker()->isStateValid(state, true)) {
+        SV_SHOW_WARN(collisionChecker()->getCollisionModelVisualization(state));
         ROS_WARN("start state is in collision");
         return false;
     }
@@ -772,9 +771,8 @@ void AdaptiveWorkspaceLattice::GetSuccs(
         ROS_DEBUG_NAMED(params()->successors_log, "    action %zu", i);
         ROS_DEBUG_NAMED(params()->successors_log, "      waypoints: %zu", action.size());
 
-        double dist;
         RobotState final_rstate;
-        if (!checkAction(state.state, action, dist, &final_rstate)) {
+        if (!checkAction(state.state, action, &final_rstate)) {
             continue;
         }
 
@@ -994,7 +992,6 @@ void AdaptiveWorkspaceLattice::getActions(
 bool AdaptiveWorkspaceLattice::checkAction(
     const RobotState& state,
     const Action& action,
-    double& dist,
     RobotState* final_rstate)
 {
     std::vector<RobotState> wptraj;
@@ -1031,9 +1028,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
     // check for collisions between the waypoints
     assert(wptraj.size() == action.size());
 
-    int plen = 0;
-    int nchecks = 0;
-    if (!collisionChecker()->isStateToStateValid(state, wptraj[0], plen, nchecks, dist)) {
+    if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
         ROS_DEBUG_NAMED(params()->successors_log, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
@@ -1045,7 +1040,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
     for (size_t widx = 1; widx < wptraj.size(); ++widx) {
         const RobotState& prev_istate = wptraj[widx - 1];
         const RobotState& curr_istate = wptraj[widx];
-        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate, plen, nchecks, dist)) {
+        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
             ROS_DEBUG_NAMED(params()->successors_log, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
             break;

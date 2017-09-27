@@ -108,13 +108,8 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        int path_length;
-        int num_checks;
-        double dist;
         const size_t var_count = m_robot->getPlanningJoints().size();
-        if (m_cc->isStateToStateValid(
-                start, finish, path_length, num_checks, dist))
-        {
+        if (m_cc->isStateToStateValid(start, finish)) {
             *ofirst++ = start;
             *ofirst++ = finish;
             cost = distance(*m_robot, start, finish);
@@ -148,15 +143,10 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        int path_length;
-        int num_checks;
-        double dist;
         const size_t var_count = m_robot->getPlanningJoints().size();
         const RobotState pstart(start.begin(), start.begin() + var_count);
         const RobotState pend(finish.begin(), finish.begin() + var_count);
-        if (m_cc->isStateToStateValid(
-                pstart, pend, path_length, num_checks, dist))
-        {
+        if (m_cc->isStateToStateValid(pstart, pend)) {
             *ofirst++ = start;
             *ofirst++ = finish;
             cost = pv_distance(*m_robot, start, finish);
@@ -262,11 +252,7 @@ public:
             }
 
             // check the path segment for collisions
-            int path_length, num_checks;
-            double dist;
-            if (!m_cc->isStateToStateValid(
-                    prev_wp, wp, path_length, num_checks, dist))
-            {
+            if (!m_cc->isStateToStateValid(prev_wp, wp)) {
                 return false;
             }
 
@@ -510,8 +496,7 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         // take a slightly different
         bool collision = false;
         for (const auto& point : ipath) {
-            double dist;
-            if (!cc.isStateValid(point, false, false, dist)) {
+            if (!cc.isStateValid(point, false)) {
                 collision = true;
                 break;
             }

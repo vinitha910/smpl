@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_collision_space_h
-#define sbpl_collision_collision_space_h
+#ifndef SBPL_COLLISION_CHECKING_COLLISION_SPACE_H
+#define SBPL_COLLISION_CHECKING_COLLISION_SPACE_H
 
 // standard includes
 #include <string>
@@ -200,18 +200,12 @@ public:
 
     /// \name Required Functions from CollisionChecker
     ///@{
-    bool isStateValid(
-        const motion::RobotState& state,
-        bool verbose,
-        bool visualize,
-        double& dist) override;
+    bool isStateValid(const motion::RobotState& state, bool verbose = false) override;
 
     bool isStateToStateValid(
         const motion::RobotState& start,
         const motion::RobotState& finish,
-        int& path_length,
-        int& num_checks,
-        double& dist) override;
+        bool verbose = false) override;
 
     bool interpolatePath(
         const motion::RobotState& start,

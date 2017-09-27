@@ -106,18 +106,12 @@ public:
 
     /// \name Required Functions from CollisionChecker
     ///@{
-    bool isStateValid(
-        const smpl::RobotState& state,
-        bool verbose,
-        bool visualize,
-        double& dist) override;
+    bool isStateValid(const smpl::RobotState& state, bool verbose) override;
 
     bool isStateToStateValid(
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
-        int& path_length,
-        int& num_checks,
-        double& dist) override;
+        bool verbose) override;
 
     bool interpolatePath(
         const smpl::RobotState& start,
@@ -144,9 +138,7 @@ private:
 
 bool GridCollisionChecker::isStateValid(
     const smpl::RobotState& state,
-    bool verbose,
-    bool visualize,
-    double& dist)
+    bool verbose)
 {
     if (state.size() < 2) {
         ROS_ERROR("State contains insufficient data");
@@ -169,9 +161,7 @@ bool GridCollisionChecker::isStateValid(
 bool GridCollisionChecker::isStateToStateValid(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
-    int& path_length,
-    int& num_checks,
-    double& dist)
+    bool verbose)
 {
     std::vector<smpl::RobotState> path;
     if (!interpolatePath(start, finish, path)) {
@@ -181,8 +171,7 @@ bool GridCollisionChecker::isStateToStateValid(
         path.begin(), path.end(),
         [&](const smpl::RobotState& state)
         {
-            double dist;
-            return isStateValid(state, false, false, dist);
+            return isStateValid(state, false);
         });
 }
 

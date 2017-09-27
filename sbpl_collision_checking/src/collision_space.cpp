@@ -531,22 +531,16 @@ motion::Extension* CollisionSpace::getExtension(size_t class_code)
     return nullptr;
 }
 
-bool CollisionSpace::isStateValid(
-    const motion::RobotState& state,
-    bool verbose,
-    bool visualize,
-    double& dist)
+bool CollisionSpace::isStateValid(const motion::RobotState& state, bool verbose)
 {
-    dist = std::numeric_limits<double>::max();
+    double dist = std::numeric_limits<double>::max();
     return checkCollision(state, dist);
 }
 
 bool CollisionSpace::isStateToStateValid(
     const motion::RobotState& start,
     const motion::RobotState& finish,
-    int& path_length,
-    int& num_checks,
-    double &dist)
+    bool verbose)
 {
     const double res = 0.05;
 
@@ -557,13 +551,7 @@ bool CollisionSpace::isStateToStateValid(
             m_planning_joint_to_collision_model_indices, res,
             interp);
 
-    const bool verbose = false;
-
     const int inc_cc = 5;
-    double dist_temp = std::numeric_limits<double>::infinity();
-
-    // for debugging & statistical purposes
-    path_length = interp.waypointCount();
 
     motion::RobotState interm;
 
@@ -576,29 +564,17 @@ bool CollisionSpace::isStateToStateValid(
         // try to find collisions that might come later in the path earlier
         for (int i = 0; i < inc_cc; i++) {
             for (size_t j = i; j < interp.waypointCount(); j = j + inc_cc) {
-                num_checks++;
                 interp.interpolate(j, interm, m_planning_joint_to_collision_model_indices);
-                if (!isStateValid(interm, verbose, false, dist_temp)) {
-                    dist = dist_temp;
+                if (!isStateValid(interm, verbose)) {
                     return false;
-                }
-
-                if (dist_temp < dist) {
-                    dist = dist_temp;
                 }
             }
         }
     } else {
         for (size_t i = 0; i < interp.waypointCount(); i++) {
-            num_checks++;
             interp.interpolate(i, interm, m_planning_joint_to_collision_model_indices);
-            if (!isStateValid(interm, verbose, false, dist_temp)) {
-                dist = dist_temp;
+            if (!isStateValid(interm, verbose)) {
                 return false;
-            }
-
-            if (dist_temp < dist) {
-                dist = dist_temp;
             }
         }
     }

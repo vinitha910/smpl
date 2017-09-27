@@ -183,8 +183,8 @@ bool WorkspaceLattice::setStart(const RobotState& state)
         return false;
     }
 
-    double dist;
-    if (!collisionChecker()->isStateValid(state, true, false, dist)) {
+    if (!collisionChecker()->isStateValid(state, true)) {
+        SV_SHOW_WARN(collisionChecker()->getCollisionModelVisualization(state));
         ROS_WARN("start state is in collision");
         return false;
     }
@@ -292,8 +292,7 @@ bool WorkspaceLattice::extractPath(
                     continue;
                 }
 
-                double dist;
-                if (!checkAction(prev_entry->state, action, dist)) {
+                if (!checkAction(prev_entry->state, action)) {
                     continue;
                 }
 
@@ -379,9 +378,8 @@ void WorkspaceLattice::GetSuccs(
         ROS_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
         ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
-        double dist;
         RobotState final_rstate;
-        if (!checkAction(parent_entry->state, action, dist, &final_rstate)) {
+        if (!checkAction(parent_entry->state, action, &final_rstate)) {
             continue;
         }
 
@@ -481,9 +479,8 @@ void WorkspaceLattice::GetLazySuccs(
         ROS_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
         ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
-        double dist;
         RobotState final_rstate;
-        if (!checkLazyAction(state_entry->state, action, dist, &final_rstate)) {
+        if (!checkLazyAction(state_entry->state, action, &final_rstate)) {
             continue;
         }
 
@@ -552,8 +549,7 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
             }
         }
 
-        double dist;
-        if (!checkAction(parent_entry->state, action, dist, nullptr)) {
+        if (!checkAction(parent_entry->state, action, nullptr)) {
             continue;
         }
 
@@ -820,7 +816,6 @@ void WorkspaceLattice::getActions(
 bool WorkspaceLattice::checkAction(
     const RobotState& state,
     const Action& action,
-    double& dist,
     RobotState* final_rstate)
 {
     std::vector<RobotState> wptraj;
@@ -857,9 +852,7 @@ bool WorkspaceLattice::checkAction(
     // check for collisions between the waypoints
     assert(wptraj.size() == action.size());
 
-    int plen = 0;
-    int nchecks = 0;
-    if (!collisionChecker()->isStateToStateValid(state, wptraj[0], plen, nchecks, dist)) {
+    if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
         ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
@@ -871,7 +864,7 @@ bool WorkspaceLattice::checkAction(
     for (size_t widx = 1; widx < wptraj.size(); ++widx) {
         const RobotState& prev_istate = wptraj[widx - 1];
         const RobotState& curr_istate = wptraj[widx];
-        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate, plen, nchecks, dist)) {
+        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
             ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
             break;
@@ -891,7 +884,6 @@ bool WorkspaceLattice::checkAction(
 bool WorkspaceLattice::checkLazyAction(
     const RobotState& state,
     const Action& action,
-    double& dist,
     RobotState* final_rstate)
 {
     std::vector<RobotState> wptraj;

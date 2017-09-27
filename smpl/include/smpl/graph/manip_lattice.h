@@ -191,10 +191,7 @@ protected:
         ManipLatticeState* HashEntry2,
         bool bState2IsGoal) const;
 
-    bool checkAction(
-        const RobotState& state,
-        const Action& action,
-        double& dist);
+    bool checkAction(const RobotState& state, const Action& action);
 
     bool isGoal(const RobotState& state, const std::vector<double>& pose);
 

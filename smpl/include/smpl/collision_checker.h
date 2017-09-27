@@ -61,11 +61,7 @@ public:
     ///     call to getVisualization
     /// \param[out] dist The distance to the nearest obstacle
     /// \return Whether the state is valid
-    virtual bool isStateValid(
-        const RobotState& state,
-        bool verbose,
-        bool visualize,
-        double &dist) = 0;
+    virtual bool isStateValid(const RobotState& state, bool verbose = false) = 0;
 
     /// \brief Return whether the interpolated path between two points is valid.
     ///
@@ -81,9 +77,7 @@ public:
     virtual bool isStateToStateValid(
         const RobotState& start,
         const RobotState& finish,
-        int& path_length,
-        int& num_checks,
-        double& dist) = 0;
+        bool verbose = false) = 0;
 
     /// \brief Return a linearly interpolated path between two joint states.
     ///

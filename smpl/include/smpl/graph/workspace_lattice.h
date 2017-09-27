@@ -212,13 +212,11 @@ private:
     bool checkAction(
         const RobotState& state,
         const Action& action,
-        double& dist,
         RobotState* final_rstate = nullptr);
 
     bool checkLazyAction(
         const RobotState& state,
         const Action& action,
-        double& dist,
         RobotState* final_rstate = nullptr);
 
     bool isGoal(const WorkspaceState& state) const;

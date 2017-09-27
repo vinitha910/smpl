@@ -236,8 +236,7 @@ void ManipLattice::GetSuccs(
         ROS_DEBUG_NAMED(params()->expands_log, "    action %zu:", i);
         ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
-        double dist;
-        if (!checkAction(parent_entry->state, action, dist)) {
+        if (!checkAction(parent_entry->state, action)) {
             continue;
         }
 
@@ -453,8 +452,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         ROS_DEBUG_NAMED(params()->expands_log, "    action %zu:", num_actions++);
         ROS_DEBUG_NAMED(params()->expands_log, "      waypoints %zu:", action.size());
 
-        double dist;
-        if (!checkAction(parent_angles, action, dist)) {
+        if (!checkAction(parent_angles, action)) {
             continue;
         }
 
@@ -662,15 +660,9 @@ int ManipLattice::cost(
     return DefaultCostMultiplier;
 }
 
-bool ManipLattice::checkAction(
-    const RobotState& state,
-    const Action& action,
-    double& dist)
+bool ManipLattice::checkAction(const RobotState& state, const Action& action)
 {
     std::uint32_t violation_mask = 0x00000000;
-    int plen = 0;
-    int nchecks = 0;
-    dist = 0.0;
 
     // check intermediate states for collisions
     for (size_t iidx = 0; iidx < action.size(); ++iidx) {
@@ -692,9 +684,9 @@ bool ManipLattice::checkAction(
         // meaning "collision check a waypoint path without including the
         // endpoints".
 //        // check for collisions
-//        if (!collisionChecker()->isStateValid(istate, params()->verbose_collisions_, false, dist))
+//        if (!collisionChecker()->isStateValid(istate, params()->verbose_collisions_))
 //        {
-//            ROS_DEBUG_NAMED(params()->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+//            ROS_DEBUG_NAMED(params()->expands_log_, "        -> in collision);
 //            violation_mask |= 0x00000002;
 //            break;
 //        }
@@ -705,8 +697,8 @@ bool ManipLattice::checkAction(
     }
 
     // check for collisions along path from parent to first waypoint
-    if (!collisionChecker()->isStateToStateValid(state, action[0], plen, nchecks, dist)) {
-        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
+    if (!collisionChecker()->isStateToStateValid(state, action[0])) {
+        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
 
@@ -718,10 +710,9 @@ bool ManipLattice::checkAction(
     for (size_t j = 1; j < action.size(); ++j) {
         const RobotState& prev_istate = action[j - 1];
         const RobotState& curr_istate = action[j];
-        if (!collisionChecker()->isStateToStateValid(
-                prev_istate, curr_istate, plen, nchecks, dist))
+        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate))
         {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
+            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints %zu and %zu in collision", j - 1, j);
             violation_mask |= 0x00000008;
             break;
         }
@@ -845,9 +836,9 @@ bool ManipLattice::setStart(const RobotState& state)
     }
 
     // check if the start configuration is in collision
-    double dist = 0.0;
-    if (!collisionChecker()->isStateValid(state, true, false, dist)) {
-        ROS_WARN(" -> in collision (distance to nearest obstacle %0.3fm)", dist);
+    if (!collisionChecker()->isStateValid(state, true)) {
+        SV_SHOW_WARN(collisionChecker()->getCollisionModelVisualization(state));
+        ROS_WARN(" -> in collision");
         return false;
     }
 
@@ -1004,8 +995,7 @@ bool ManipLattice::extractPath(
                 }
 
                 // check the validity of this transition
-                double dist;
-                if (!checkAction(prev_state, action, dist)) {
+                if (!checkAction(prev_state, action)) {
                     continue;
                 }
 

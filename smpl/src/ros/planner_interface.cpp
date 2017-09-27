@@ -1135,9 +1135,7 @@ bool PlannerInterface::isPathValid(
     const std::vector<RobotState>& path) const
 {
     for (size_t i = 1; i < path.size(); ++i) {
-        double dist;
-        int plen, nchecks;
-        if (!m_checker->isStateToStateValid(path[i - 1], path[i], plen, nchecks, dist)) {
+        if (!m_checker->isStateToStateValid(path[i - 1], path[i])) {
             ROS_ERROR("path between %s and %s is invalid (%zu -> %zu)", to_string(path[i - 1]).c_str(), to_string(path[i]).c_str(), i - 1, i);
             return false;
         }

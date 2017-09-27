@@ -147,8 +147,7 @@ bool ManipLatticeEgraph::extractPath(
         int best_cost = std::numeric_limits<int>::max();
         for (const Action& action : actions) {
             // check the validity of this transition
-            double dist;
-            if (!checkAction(prev_state, action, dist)) {
+            if (!checkAction(prev_state, action)) {
                 continue;
             }
 
@@ -372,10 +371,8 @@ bool ManipLatticeEgraph::snap(
     SV_SHOW_INFO(getStateVisualization(first_entry->state, "snap_from"));
     SV_SHOW_INFO(getStateVisualization(second_entry->state, "snap_to"));
 
-    int plen, check_count;
-    double dist;
     if (!collisionChecker()->isStateToStateValid(
-        first_entry->state, second_entry->state, plen, check_count, dist))
+        first_entry->state, second_entry->state))
     {
         ROS_WARN("Failed snap!");
         return false;
