@@ -147,14 +147,9 @@ int main(int argc, char **argv)
     angles[6] = 0.4;
 
     ros::spinOnce();
-    p.publish(cspace.getVisualization("distance_field"));
-    p.publish(cspace.getVisualization("bounds"));
-    //ma_pub.publish(planner->getVisualization("bfs_walls"));
-    //ma_pub.publish(planner->getVisualization("bfs_values"));
-    //ma_pub.publish(planner->getVisualization("goal"));
-    //ma_pub.publish(planner->getVisualization("expansions"));
-    p.publish(cspace.getVisualization("collision_objects"));
-    p.publish(cspace.getVisualization("occupied_voxels"));
+    p.publish(cspace.getBoundingBoxVisualization());
+    p.publish(cspace.getOccupiedVoxelsVisualization());
+    p.publish(cspace.getDistanceFieldVisualization());
     p.publish(cspace.getCollisionModelVisualization(angles));
 
     ros::spinOnce();

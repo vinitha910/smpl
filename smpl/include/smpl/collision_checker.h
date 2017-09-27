@@ -101,11 +101,8 @@ public:
 
     /// \name Visualization
     ///@{
-    virtual visualization_msgs::MarkerArray getCollisionModelVisualization(
-        const RobotState& state);
-
-    virtual visualization_msgs::MarkerArray getVisualization(
-        const std::string& type);
+    virtual auto getCollisionModelVisualization(const RobotState& state)
+        -> visualization_msgs::MarkerArray;
     ///@}
 };
 

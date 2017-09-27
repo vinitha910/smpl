@@ -637,51 +637,10 @@ bool CollisionSpace::interpolatePath(
     return true;
 }
 
-visualization_msgs::MarkerArray
-CollisionSpace::getCollisionModelVisualization(const motion::RobotState& vals)
+auto CollisionSpace::getCollisionModelVisualization(const motion::RobotState& vals)
+    -> visualization_msgs::MarkerArray
 {
     return getCollisionRobotVisualization(vals);
-}
-
-/// \brief Retrieve visualization of the collision space
-///
-/// The visualization_msgs::MarkerArray's contents vary depending on the
-/// argument:
-///
-///     "world": markers representing all objects managed by the world
-///     "collision_world": cube list representing all occupied cells checked
-///             against the configured group
-///     "robot": visualization of the robot model at its current state
-///     "collision_robot": visualization of the robot collision model at its
-///             current state
-///     "collision_details": spheres representing the location of the most
-///             recent collision check
-///     "attached_object": spheres representing the bounding volumes of all
-///             attached objects
-///     <any argument excepted by OccupancyGrid::getVisualization>:
-///         <the corresponding visualization provided by OccupancyGrid>
-///
-/// \param type The type of visualization to get
-/// \return The visualization
-visualization_msgs::MarkerArray
-CollisionSpace::getVisualization(const std::string& type)
-{
-    if (type == "world") {
-        return getWorldVisualization();
-    } else if (type == "collision_world") {
-        return getCollisionWorldVisualization();
-    } else if (type == "robot") {
-        return getRobotVisualization();
-    } else if (type == "collision_robot") {
-        return getCollisionRobotVisualization();
-    } else if (type == "collision_details") {
-        // TODO: save the last state checked for collision?
-        return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0)); }
-    else if (type == "attached_object") {
-        return visualization_msgs::MarkerArray();
-    } else {
-        return m_grid->getVisualization(type);
-    }
 }
 
 CollisionSpace::CollisionSpace() :

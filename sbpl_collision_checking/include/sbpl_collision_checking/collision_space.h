@@ -221,11 +221,8 @@ public:
 
     /// \name Reimplemented Functions from CollisionChecker
     ///@{
-    visualization_msgs::MarkerArray
-    getCollisionModelVisualization(const motion::RobotState& vals) override;
-
-    visualization_msgs::MarkerArray
-    getVisualization(const std::string& type) override;
+    auto getCollisionModelVisualization(const motion::RobotState& vals)
+        -> visualization_msgs::MarkerArray override;
     ///@}
 
 private:

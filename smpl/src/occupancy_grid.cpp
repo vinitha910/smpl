@@ -233,40 +233,9 @@ void OccupancyGrid::getOccupiedVoxels(
     });
 }
 
-/// Return a visualization of the distance map.
-///
-/// The visualization_msgs::MarkerArray's contents vary depending on the
-/// argument:
-///
-///     "bounds": line markers for the bounding box of the distance field in
-///               the namespace "collision_space_bounds"
-///     "distance_field": cube markers for all voxels nearby occupied voxels
-///                       in the namespace "distance_field"
-///     "occupied_voxels" list of points representing all occupied voxels in
-///                       the namespace "occupied voxels"
-///
-/// \param type "bounds", "distance_field", "occupied_voxels"
-visualization_msgs::MarkerArray OccupancyGrid::getVisualization(
-    const std::string& type) const
-{
-    if (type == "bounds") {
-        return getBoundingBoxVisualization();
-    }
-    else if (type == "distance_field") {
-        return getDistanceFieldVisualization();
-    }
-    else if (type == "occupied_voxels") {
-        return getOccupiedVoxelsVisualization();
-    }
-    else {
-        ROS_ERROR("No Occupancy Grid visualization of type '%s' found", type.c_str());
-        return visualization_msgs::MarkerArray();
-    }
-}
-
 /// Return a visualization of the bounding box of the distance map.
-visualization_msgs::MarkerArray
-OccupancyGrid::getBoundingBoxVisualization() const
+auto OccupancyGrid::getBoundingBoxVisualization() const
+    -> visualization_msgs::MarkerArray
 {
     visualization_msgs::MarkerArray ma;
 
@@ -344,8 +313,8 @@ OccupancyGrid::getBoundingBoxVisualization() const
 }
 
 /// Return a visualization of the distance values stored in the distance map.
-visualization_msgs::MarkerArray
-OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
+auto OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
+    -> visualization_msgs::MarkerArray
 {
     visualization_msgs::MarkerArray ma;
 
@@ -391,8 +360,8 @@ OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
 }
 
 /// Return a visualization of the obstacle cells stored in the distance map.
-visualization_msgs::MarkerArray
-OccupancyGrid::getOccupiedVoxelsVisualization() const
+auto OccupancyGrid::getOccupiedVoxelsVisualization() const
+    -> visualization_msgs::MarkerArray
 {
     visualization_msgs::MarkerArray ma;
 

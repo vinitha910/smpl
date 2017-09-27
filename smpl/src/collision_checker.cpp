@@ -46,17 +46,9 @@ CollisionChecker::~CollisionChecker()
 {
 }
 
-visualization_msgs::MarkerArray
-CollisionChecker::getCollisionModelVisualization(const RobotState& state)
+auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
+    -> visualization_msgs::MarkerArray
 {
-    ROS_ERROR("Function is not filled in.");
-    return visualization_msgs::MarkerArray();
-}
-
-visualization_msgs::MarkerArray
-CollisionChecker::getVisualization(const std::string& type)
-{
-    ROS_ERROR("Function is not filled in.");
     return visualization_msgs::MarkerArray();
 }
 

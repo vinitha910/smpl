@@ -150,13 +150,12 @@ public:
 
     /// \name Visualization
     ///@{
-    visualization_msgs::MarkerArray getVisualization(
-        const std::string& type) const;
-
-    visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
-    visualization_msgs::MarkerArray getDistanceFieldVisualization(
-        double max_dist = -1.0) const;
-    visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
+    auto getBoundingBoxVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getDistanceFieldVisualization(double max_dist = -1.0) const
+        -> visualization_msgs::MarkerArray;
+    auto getOccupiedVoxelsVisualization() const
+        -> visualization_msgs::MarkerArray;
     ///@}
 
 private:
