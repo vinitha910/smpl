@@ -4,7 +4,7 @@ project(smpl)
 set(CMAKE_BUILD_TYPE Release)
 add_compile_options("-std=c++11")
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 find_package(catkin
     REQUIRED
@@ -27,6 +27,7 @@ catkin_package(
         include
     LIBRARIES
         smpl
+        smpl_ros
     CATKIN_DEPENDS
         leatherman
         moveit_core
@@ -59,7 +60,6 @@ add_library(
     src/post_processing.cpp
     src/robot_model.cpp
     src/debug/visualize.cpp
-    src/debug/visualizer_ros.cpp
     src/distance_map/chessboard_distance_map.cpp
     src/distance_map/distance_map_common.cpp
     src/distance_map/edge_euclid_distance_map.cpp
@@ -84,6 +84,13 @@ add_library(
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/search/arastar.cpp
+    src/search/experience_graph_planner.cpp
+    src/search/adaptive_planner.cpp)
+
+add_library(
+    smpl_ros
+    src/debug/visualizer_ros.cpp
     src/ros/adaptive_workspace_lattice_allocator.cpp
     src/ros/araplanner_allocator.cpp
     src/ros/bfs_heuristic_allocator.cpp
@@ -100,12 +107,10 @@ add_library(
     src/ros/adaptive_planner_allocator.cpp
     src/ros/planner_interface.cpp
     src/ros/propagation_distance_field.cpp
-    src/ros/workspace_lattice_allocator.cpp
-    src/search/arastar.cpp
-    src/search/experience_graph_planner.cpp
-    src/search/adaptive_planner.cpp)
+    src/ros/workspace_lattice_allocator.cpp)
 
-target_link_libraries(smpl ${catkin_LIBRARIES} ${sbpl_LIBRARIES})
+target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
+target_link_libraries(smpl_ros smpl ${catkin_LIBRARIES})
 
 install(
     TARGETS smpl
