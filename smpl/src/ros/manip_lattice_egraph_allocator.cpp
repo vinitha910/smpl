@@ -64,7 +64,7 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
 
     std::string disc_string;
     if (!params->getParam("discretization", disc_string)) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
+        SMPL_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
         return RobotPlanningSpacePtr();
     }
     std::map<std::string, double> disc;
@@ -74,20 +74,20 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
     while (ss >> joint >> jres) {
         disc.insert(std::make_pair(joint, jres));
     }
-    ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
+    SMPL_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
 
     for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
         const std::string& vname = robot->getPlanningJoints()[vidx];
         auto dit = disc.find(vname);
         if (dit == disc.end()) {
-            ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+            SMPL_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
             return RobotPlanningSpacePtr();
         }
         resolutions[vidx] = dit->second;
     }
 
     if (!params->getParam("mprim_filename", mprim_filename)) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
+        SMPL_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
         return RobotPlanningSpacePtr();
     }
 
@@ -105,7 +105,7 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
 
     auto pspace = std::make_shared<ManipLatticeEgraph>(robot, checker, params);
     if (!pspace->init(resolutions)) {
-        ROS_ERROR("Failed to initialize Manip Lattice Egraph");
+        SMPL_ERROR("Failed to initialize Manip Lattice Egraph");
         return RobotPlanningSpacePtr();
     }
 
@@ -124,13 +124,13 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
     aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, xyzrpy_snap_thresh);
     aspace->ampThresh(MotionPrimitive::SHORT_DISTANCE, short_dist_mprims_thresh);
     if (!aspace->load(mprim_filename)) {
-        ROS_ERROR("Failed to load actions from file '%s'", mprim_filename.c_str());
+        SMPL_ERROR("Failed to load actions from file '%s'", mprim_filename.c_str());
         return RobotPlanningSpacePtr();
     }
 
     // associate action space with lattice
     if (!pspace->setActionSpace(aspace)) {
-        ROS_ERROR("Failed to associate action space with planning space");
+        SMPL_ERROR("Failed to associate action space with planning space");
         return RobotPlanningSpacePtr();
     }
 
@@ -139,7 +139,7 @@ RobotPlanningSpacePtr ManipLatticeEgraphAllocator::allocate(
         // warning printed within, allow to fail silently
         (void)pspace->loadExperienceGraph(egraph_path);
     } else {
-        ROS_WARN("No experience graph file parameter");
+        SMPL_WARN("No experience graph file parameter");
     }
 
     return pspace;

@@ -43,6 +43,7 @@
 // project includes
 #include <smpl/angles.h>
 #include <smpl/time.h>
+#include <smpl/console/console.h>
 #include <smpl/geometry/shortcut.h>
 
 namespace sbpl {
@@ -358,7 +359,7 @@ void ShortcutPath(
         ComputePositionVelocityPathCosts(rm, opvpath_dnc, new_costs_dnc);
         double new_cost_dnc = std::accumulate(new_costs_dnc.begin(), new_costs_dnc.end(), 0.0);
         if (new_cost_dnc < next_cost) {
-            ROS_INFO("Divide and Conquer Wins! (%0.3f < %0.3f)", new_cost_dnc, next_cost);
+            SMPL_INFO("Divide and Conquer Wins! (%0.3f < %0.3f)", new_cost_dnc, next_cost);
             next_cost = new_cost_dnc;
             opvpath = std::move(opvpath_dnc);
         }
@@ -370,10 +371,10 @@ void ShortcutPath(
     }
 
     auto now = clock::now();
-    ROS_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
+    SMPL_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
 
-    ROS_INFO("Original path: waypoint count: %zu, cost: %0.3f", pin.size(), prev_cost);
-    ROS_INFO("Shortcutted path: waypount_count: %zu, cost: %0.3f", pout.size(), next_cost);
+    SMPL_INFO("Original path: waypoint count: %zu, cost: %0.3f", pin.size(), prev_cost);
+    SMPL_INFO("Shortcutted path: waypount_count: %zu, cost: %0.3f", pout.size(), next_cost);
 }
 
 bool CreatePositionVelocityPath(
@@ -469,7 +470,7 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
     const size_t num_joints = path.front().size();
     for (const auto& pt : path) {
         if (pt.size() != num_joints) {
-            ROS_ERROR("Failed to interpolate trajectory. Input trajectory is malformed");
+            SMPL_ERROR("Failed to interpolate trajectory. Input trajectory is malformed");
             return false;
         }
     }
@@ -484,11 +485,11 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         const RobotState& start = path[i];
         const RobotState& end = path[i + 1];
 
-        ROS_DEBUG_STREAM("Interpolating between " << start << " and " << end);
+        SMPL_DEBUG_STREAM("Interpolating between " << start << " and " << end);
 
         std::vector<RobotState> ipath;
         if (!cc.interpolatePath(start, end, ipath)) {
-            ROS_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
+            SMPL_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
         }
 
@@ -503,7 +504,7 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         }
 
         if (collision) {
-            ROS_ERROR("Interpolated path collides. Resorting to original waypoints");
+            SMPL_ERROR("Interpolated path collides. Resorting to original waypoints");
             opath.push_back(end);
             continue;
         }
@@ -514,10 +515,10 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
             opath.insert(opath.end(), std::next(ipath.begin()), ipath.end());
         }
 
-        ROS_DEBUG("[%zu] path length: %zu", i, opath.size());
+        SMPL_DEBUG("[%zu] path length: %zu", i, opath.size());
     }
 
-    ROS_INFO("Original path length: %zu   Interpolated path length: %zu", path.size(), opath.size());
+    SMPL_INFO("Original path length: %zu   Interpolated path length: %zu", path.size(), opath.size());
     path = std::move(opath);
     return true;
 }

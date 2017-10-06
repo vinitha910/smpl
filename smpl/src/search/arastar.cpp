@@ -31,12 +31,14 @@
 
 #include <smpl/search/arastar.h>
 
+#include <algorithm>
+
 // system includes
-#include <ros/console.h>
 #include <sbpl/utils/key.h>
 
 // project includes
 #include <smpl/time.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 
@@ -106,14 +108,14 @@ int ARAStar::replan(
     std::vector<int>* solution,
     int* cost)
 {
-    ROS_DEBUG_NAMED(SLOG, "Find path to goal");
+    SMPL_DEBUG_NAMED(SLOG, "Find path to goal");
 
     if (m_start_state_id < 0) {
-        ROS_ERROR_NAMED(SLOG, "Start state not set");
+        SMPL_ERROR_NAMED(SLOG, "Start state not set");
         return !START_NOT_SET;
     }
     if (m_goal_state_id < 0) {
-        ROS_ERROR_NAMED(SLOG, "Goal state not set");
+        SMPL_ERROR_NAMED(SLOG, "Goal state not set");
         return !GOAL_NOT_SET;
     }
 
@@ -123,7 +125,7 @@ int ARAStar::replan(
     SearchState* goal_state = getSearchState(m_goal_state_id);
 
     if (m_start_state_id != m_last_start_state_id) {
-        ROS_DEBUG_NAMED(SLOG, "Reinitialize search");
+        SMPL_DEBUG_NAMED(SLOG, "Reinitialize search");
         m_open.clear();
         m_incons.clear();
         ++m_call_number; // trigger state reinitializations
@@ -151,7 +153,7 @@ int ARAStar::replan(
     }
 
     if (m_goal_state_id != m_last_goal_state_id) {
-        ROS_DEBUG_NAMED(SLOG, "Refresh heuristics, keys, and reorder open list");
+        SMPL_DEBUG_NAMED(SLOG, "Refresh heuristics, keys, and reorder open list");
         recomputeHeuristics();
         reorderOpen();
 
@@ -178,7 +180,7 @@ int ARAStar::replan(
             }
             reorderOpen();
             m_incons.clear();
-            ROS_DEBUG_NAMED(SLOG, "Begin new search iteration %d with epsilon = %0.3f", m_iteration, m_curr_eps);
+            SMPL_DEBUG_NAMED(SLOG, "Begin new search iteration %d with epsilon = %0.3f", m_iteration, m_curr_eps);
         }
         err = improvePath(start_time, goal_state, num_expansions, elapsed_time);
         if (m_curr_eps == m_initial_eps) {
@@ -188,7 +190,7 @@ int ARAStar::replan(
         if (err) {
             break;
         }
-        ROS_DEBUG_NAMED(SLOG, "Improved solution");
+        SMPL_DEBUG_NAMED(SLOG, "Improved solution");
         m_satisfied_eps = m_curr_eps;
     }
 
@@ -464,7 +466,7 @@ bool ARAStar::timedOut(
             return elapsed_time >= m_time_params.max_allowed_time;
         }
     default:
-        ROS_ERROR_NAMED(SLOG, "Invalid timer type");
+        SMPL_ERROR_NAMED(SLOG, "Invalid timer type");
         return true;
     }
 
@@ -489,16 +491,16 @@ int ARAStar::improvePath(
 
         // path to goal found
         if (min_state->f >= goal_state->f || min_state == goal_state) {
-            ROS_DEBUG_NAMED(SLOG, "Found path to goal");
+            SMPL_DEBUG_NAMED(SLOG, "Found path to goal");
             return SUCCESS;
         }
 
         if (timedOut(elapsed_expansions, elapsed_time)) {
-            ROS_DEBUG_NAMED(SLOG, "Ran out of time");
+            SMPL_DEBUG_NAMED(SLOG, "Ran out of time");
             return TIMED_OUT;
         }
 
-        ROS_DEBUG_NAMED(SELOG, "Expand state %d", min_state->state_id);
+        SMPL_DEBUG_NAMED(SELOG, "Expand state %d", min_state->state_id);
 
         m_open.pop();
 
@@ -524,7 +526,7 @@ void ARAStar::expand(SearchState* s)
     std::vector<int> costs;
     m_space->GetSuccs(s->state_id, &succs, &costs);
 
-    ROS_DEBUG_NAMED(SELOG, "  %zu successors", succs.size());
+    SMPL_DEBUG_NAMED(SELOG, "  %zu successors", succs.size());
 
     for (size_t sidx = 0; sidx < succs.size(); ++sidx) {
         int succ_state_id = succs[sidx];
@@ -534,7 +536,7 @@ void ARAStar::expand(SearchState* s)
         reinitSearchState(succ_state);
 
         int new_cost = s->eg + cost;
-        ROS_DEBUG_NAMED(SELOG, "Compare new cost %d vs old cost %d", new_cost, succ_state->g);
+        SMPL_DEBUG_NAMED(SELOG, "Compare new cost %d vs old cost %d", new_cost, succ_state->g);
         if (new_cost < succ_state->g) {
             succ_state->g = new_cost;
             succ_state->bp = s;
@@ -600,7 +602,7 @@ ARAStar::SearchState* ARAStar::createState(int state_id)
 void ARAStar::reinitSearchState(SearchState* state)
 {
     if (state->call_number != m_call_number) {
-        ROS_DEBUG_NAMED(SELOG, "Reinitialize state %d", state->state_id);
+        SMPL_DEBUG_NAMED(SELOG, "Reinitialize state %d", state->state_id);
         state->g = INFINITECOST;
         state->h = m_heur->GetGoalHeuristic(state->state_id);
         state->f = INFINITECOST;

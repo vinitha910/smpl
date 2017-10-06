@@ -35,6 +35,7 @@
 #include <ros/console.h>
 
 // project includes
+#include <smpl/console/console.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
@@ -72,7 +73,7 @@ bool RobotPlanningSpace::insertHeuristic(RobotHeuristic* h)
     if (hit != m_heuristics.end()) {
         return false;
     }
-    ROS_DEBUG_NAMED(params()->graph_log, "Insert heuristic %p", h);
+    SMPL_DEBUG_NAMED(params()->graph_log, "Insert heuristic %p", h);
     m_heuristics.push_back(h);
     return true;
 }
@@ -83,7 +84,7 @@ bool RobotPlanningSpace::eraseHeuristic(const RobotHeuristic* h)
     if (hit == m_heuristics.end()) {
         return false;
     }
-    ROS_DEBUG_NAMED(params()->graph_log, "Erasure heuristic %p", h);
+    SMPL_DEBUG_NAMED(params()->graph_log, "Erasure heuristic %p", h);
     m_heuristics.erase(hit, m_heuristics.end());
     return true;
 }
@@ -112,7 +113,7 @@ bool RobotPlanningSpace::setGoal(const GoalConstraint& goal)
 void RobotPlanningSpace::insertObserver(RobotPlanningSpaceObserver* obs)
 {
     if (std::find(m_obs.begin(), m_obs.end(), obs) == m_obs.end()) {
-        ROS_DEBUG_NAMED(params()->graph_log, "Insert observer %p", obs);
+        SMPL_DEBUG_NAMED(params()->graph_log, "Insert observer %p", obs);
         m_obs.push_back(obs);
     }
 }
@@ -122,7 +123,7 @@ void RobotPlanningSpace::eraseObserver(RobotPlanningSpaceObserver* obs)
 {
     auto it = std::remove(m_obs.begin(), m_obs.end(), obs);
     if (it != m_obs.end()) {
-        ROS_DEBUG_NAMED(params()->graph_log, "Erase observer %p", obs);
+        SMPL_DEBUG_NAMED(params()->graph_log, "Erase observer %p", obs);
         m_obs.erase(it, m_obs.end());
     }
 }
@@ -136,7 +137,7 @@ bool RobotPlanningSpace::hasObserver(RobotPlanningSpaceObserver* obs) const
 void RobotPlanningSpace::notifyStartChanged(const RobotState& state)
 {
     for (RobotPlanningSpaceObserver* obs : m_obs) {
-        ROS_DEBUG_NAMED(params()->graph_log, "Notify %p of start change", obs);
+        SMPL_DEBUG_NAMED(params()->graph_log, "Notify %p of start change", obs);
         obs->updateStart(state);
     }
 }
@@ -144,7 +145,7 @@ void RobotPlanningSpace::notifyStartChanged(const RobotState& state)
 void RobotPlanningSpace::notifyGoalChanged(const GoalConstraint& goal)
 {
     for (RobotPlanningSpaceObserver* obs : m_obs) {
-        ROS_DEBUG_NAMED(params()->graph_log, "Notify %p of goal change", obs);
+        SMPL_DEBUG_NAMED(params()->graph_log, "Notify %p of goal change", obs);
         obs->updateGoal(goal);
     }
 }

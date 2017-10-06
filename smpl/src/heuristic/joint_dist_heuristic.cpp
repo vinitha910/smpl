@@ -34,8 +34,7 @@
 // standard includes
 #include <cmath>
 
-// system includes
-#include <ros/console.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -76,7 +75,7 @@ int JointDistHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
     if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
-        ROS_WARN_ONCE("Joint Distance Heuristic can only compute goal heuristics for Joint Goals");
+        SMPL_WARN_ONCE("Joint Distance Heuristic can only compute goal heuristics for Joint Goals");
         return 0;
     }
 

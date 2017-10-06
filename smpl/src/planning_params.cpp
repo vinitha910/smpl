@@ -36,7 +36,7 @@
 #include <sstream>
 
 // system includes
-#include <ros/console.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -272,7 +272,7 @@ void PlanningParams::param(const std::string& name, bool& val, bool def) const
         std::stringstream ss;
         val = def;
         if (m_warn_defaults) {
-            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
         }
         return;
     }
@@ -286,7 +286,7 @@ void PlanningParams::param(const std::string& name, int& val, int def) const
     if (it == params.end()) {
         val = def;
         if (m_warn_defaults) {
-            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
         }
         return;
     }
@@ -303,7 +303,7 @@ void PlanningParams::param(
     if (it == params.end()) {
         val = def;
         if (m_warn_defaults) {
-            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
         }
         return;
     }
@@ -320,7 +320,7 @@ void PlanningParams::param(
     if (it == params.end()) {
         val = def;
         if (m_warn_defaults) {
-            ROS_WARN("%s", construct_warn_string(name, def).c_str());
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
         }
         return;
     }

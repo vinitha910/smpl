@@ -36,6 +36,7 @@
 
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
+#include <smpl/console/console.h>
 #include <smpl/intrusive_heap.h>
 #include <smpl/grid.h>
 
@@ -54,7 +55,7 @@ BfsHeuristic::BfsHeuristic(
 {
     m_pp = ps->getExtension<PointProjectionExtension>();
     if (m_pp) {
-        ROS_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
+        SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
     }
     syncGridAndBfs();
 }
@@ -71,10 +72,10 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
             goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
             gx, gy, gz);
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
 
     if (!m_bfs->inBounds(gx, gy, gz)) {
-        ROS_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
+        SMPL_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
     }
 
     m_goal_x = gx;
@@ -148,7 +149,7 @@ int BfsHeuristic::GetGoalHeuristic(int state_id)
 
 int BfsHeuristic::GetStartHeuristic(int state_id)
 {
-    ROS_WARN_ONCE("BfsHeuristic::GetStartHeuristic unimplemented");
+    SMPL_WARN_ONCE("BfsHeuristic::GetStartHeuristic unimplemented");
     return 0;
 }
 
@@ -158,7 +159,7 @@ int BfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
         return GetGoalHeuristic(from_id);
     }
     else {
-        ROS_WARN_ONCE("BfsHeuristic::GetFromToHeuristic unimplemented for arbitrary state pair");
+        SMPL_WARN_ONCE("BfsHeuristic::GetFromToHeuristic unimplemented for arbitrary state pair");
         return 0;
     }
 }
@@ -181,7 +182,7 @@ visualization_msgs::MarkerArray BfsHeuristic::getWallsVisualization() const
         }
     }
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
 
     std_msgs::ColorRGBA color;
     color.r = 100.0f / 255.0f;
@@ -222,11 +223,11 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
         return ma;
     }
 
-    ROS_INFO("Start cell heuristic: %d", start_heur);
+    SMPL_INFO("Start cell heuristic: %d", start_heur);
 
     const int max_cost = (int)(1.1 * start_heur);
 
-    ROS_INFO("Get visualization of cells up to cost %d", max_cost);
+    SMPL_INFO("Get visualization of cells up to cost %d", max_cost);
 
     // ...and this will also flush the bfs...
 
@@ -349,7 +350,7 @@ void BfsHeuristic::syncGridAndBfs()
     const int xc = grid()->numCellsX();
     const int yc = grid()->numCellsY();
     const int zc = grid()->numCellsZ();
-//    ROS_DEBUG_NAMED(params()->heuristic_log_, "Initializing BFS of size %d x %d x %d = %d", xc, yc, zc, xc * yc * zc);
+//    SMPL_DEBUG_NAMED(params()->heuristic_log_, "Initializing BFS of size %d x %d x %d = %d", xc, yc, zc, xc * yc * zc);
     m_bfs.reset(new BFS_3D(xc, yc, zc));
     const int cell_count = xc * yc * zc;
     int wall_count = 0;
@@ -365,7 +366,7 @@ void BfsHeuristic::syncGridAndBfs()
         }
     }
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 int BfsHeuristic::getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const

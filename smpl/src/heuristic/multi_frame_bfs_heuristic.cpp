@@ -36,6 +36,7 @@
 
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -50,15 +51,15 @@ MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
 {
     m_pp = ps->getExtension<PointProjectionExtension>();
     if (m_pp) {
-        ROS_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
+        SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
     }
     m_ers = ps->getExtension<ExtractRobotStateExtension>();
     if (m_ers) {
-        ROS_INFO_NAMED(params()->heuristic_log, "Got Extract Robot State Extension!");
+        SMPL_INFO_NAMED(params()->heuristic_log, "Got Extract Robot State Extension!");
     }
     m_fk_iface = ps->robot()->getExtension<ForwardKinematicsInterface>();
     if (m_fk_iface) {
-        ROS_INFO_NAMED(params()->heuristic_log, "Got Forward Kinematics Interface!");
+        SMPL_INFO_NAMED(params()->heuristic_log, "Got Forward Kinematics Interface!");
     }
     syncGridAndBfs();
 }
@@ -78,7 +79,7 @@ Extension* MultiFrameBfsHeuristic::getExtension(size_t class_code)
 
 void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
-    ROS_DEBUG_NAMED(params()->heuristic_log, "Update goal");
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "Update goal");
 
     int ogx, ogy, ogz;
     grid()->worldToGrid(
@@ -90,12 +91,12 @@ void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
             goal.pose[0], goal.pose[1], goal.pose[2],
             plgx, plgy, plgz);
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
 
     if (!m_bfs->inBounds(ogx, ogy, ogz) ||
         !m_ee_bfs->inBounds(plgx, plgy, plgz))
     {
-        ROS_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
+        SMPL_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
         return;
     }
 
@@ -149,7 +150,7 @@ int MultiFrameBfsHeuristic::GetGoalHeuristic(int state_id)
 
 int MultiFrameBfsHeuristic::GetStartHeuristic(int state_id)
 {
-    ROS_WARN_ONCE("MultiFrameBfsHeuristic::GetStartHeuristic unimplemented");
+    SMPL_WARN_ONCE("MultiFrameBfsHeuristic::GetStartHeuristic unimplemented");
     return 0;
 }
 
@@ -158,7 +159,7 @@ int MultiFrameBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
     if (to_id == planningSpace()->getGoalStateID()) {
         return GetGoalHeuristic(from_id);
     } else {
-        ROS_WARN_ONCE("MultiFrameBfsHeuristic::GetFromToHeuristic unimplemented for arbitrary state pair");
+        SMPL_WARN_ONCE("MultiFrameBfsHeuristic::GetFromToHeuristic unimplemented for arbitrary state pair");
         return 0;
     }
 }
@@ -182,7 +183,7 @@ MultiFrameBfsHeuristic::getWallsVisualization() const
         }
     }
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
 
     std_msgs::ColorRGBA color;
     color.r = 100.0f / 255.0f;
@@ -324,7 +325,7 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
             grid()->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
             h_planning_link = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
         } else {
-            ROS_ERROR_NAMED(params()->heuristic_log, "Failed to compute FK for planning link (state = %d)", state_id);
+            SMPL_ERROR_NAMED(params()->heuristic_log, "Failed to compute FK for planning link (state = %d)", state_id);
         }
     }
 
@@ -353,7 +354,7 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
         }
     }
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 int MultiFrameBfsHeuristic::getBfsCostToGoal(

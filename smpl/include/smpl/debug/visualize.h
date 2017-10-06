@@ -38,7 +38,6 @@
 #include <unordered_map>
 
 // system includes
-//#include <ros/console.h>
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes

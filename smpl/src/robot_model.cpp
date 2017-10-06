@@ -32,8 +32,7 @@
 
 #include <smpl/robot_model.h>
 
-// system includes
-#include <ros/console.h>
+#include <sstream>
 
 namespace sbpl {
 namespace motion {

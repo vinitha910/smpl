@@ -33,6 +33,7 @@
 #include <leatherman/print.h>
 
 // project includes
+#include <smpl/console/console.h>
 #include <smpl/heuristic/generic_egraph_heuristic.h>
 
 namespace sbpl {
@@ -56,11 +57,11 @@ GenericEgraphHeuristic::GenericEgraphHeuristic(
 {
     params()->param("egraph_epsilon", m_eg_eps, 1.0);
 
-    ROS_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
+    SMPL_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
 
     m_eg = pspace->getExtension<ExperienceGraphExtension>();
     if (!m_eg) {
-        ROS_WARN_NAMED(params()->heuristic_log, "GenericEgraphHeuristic recommends ExperienceGraphExtension");
+        SMPL_WARN_NAMED(params()->heuristic_log, "GenericEgraphHeuristic recommends ExperienceGraphExtension");
     }
 }
 
@@ -132,7 +133,7 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
 
     ExperienceGraph* eg = m_eg->getExperienceGraph();
     if (!eg) {
-        ROS_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
+        SMPL_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
         return;
     }
 
@@ -167,7 +168,7 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
         ++comp_count;
     }
 
-    ROS_INFO_NAMED(params()->heuristic_log, "Experience graph contains %d connected components", comp_count);
+    SMPL_INFO_NAMED(params()->heuristic_log, "Experience graph contains %d connected components", comp_count);
 
     ////////////////////////////
     // Compute Shortcut Nodes //

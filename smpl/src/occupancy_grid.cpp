@@ -36,7 +36,6 @@
 #include <memory>
 
 // system includes
-#include <ros/console.h>
 #include <leatherman/viz.h>
 
 // project includes

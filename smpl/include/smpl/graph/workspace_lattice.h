@@ -38,7 +38,6 @@
 #include <vector>
 
 // system includes
-#include <ros/ros.h>
 #include <sbpl/headers.h>
 
 // project includes

@@ -40,6 +40,7 @@
 
 // project includes
 #include <smpl/angles.h>
+#include <smpl/console/console.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
@@ -67,11 +68,11 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(ManipLattice* pspace) :
     m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
 
     if (!m_fk_iface) {
-        ROS_WARN("Manip Lattice Action Set requires Forward Kinematics Interface");
+        SMPL_WARN("Manip Lattice Action Set requires Forward Kinematics Interface");
     }
 
     if (!m_ik_iface) {
-        ROS_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interface");
+        SMPL_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interface");
     }
 
     useMultipleIkSolutions(false);
@@ -103,7 +104,7 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
 {
     FILE* fCfg = fopen(action_filename.c_str(), "r");
     if (!fCfg) {
-        ROS_ERROR("Failed to open action set file. (file: '%s')", action_filename.c_str());
+        SMPL_ERROR("Failed to open action set file. (file: '%s')", action_filename.c_str());
         return false;
     }
 
@@ -114,34 +115,34 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
 
     // read and check header
     if (fscanf(fCfg, "%1023s", sTemp) < 1) {
-        ROS_ERROR("Parsed string has length < 1.");
+        SMPL_ERROR("Parsed string has length < 1.");
     }
 
     if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
-        ROS_ERROR("First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
+        SMPL_ERROR("First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
         return false;
     }
 
     // read number of actions
     if (fscanf(fCfg, "%d", &nrows) < 1) {
-        ROS_ERROR("Parsed string has length < 1.");
+        SMPL_ERROR("Parsed string has length < 1.");
         return false;
     }
 
     // read length of joint array
     if (fscanf(fCfg, "%d", &ncols) < 1) {
-        ROS_ERROR("Parsed string has length < 1.");
+        SMPL_ERROR("Parsed string has length < 1.");
         return false;
     }
 
     // read number of short distance motion primitives
     if (fscanf(fCfg, "%d", &short_mprims) < 1) {
-        ROS_ERROR("Parsed string has length < 1.");
+        SMPL_ERROR("Parsed string has length < 1.");
         return false;
     }
 
     if (short_mprims == nrows) {
-        ROS_WARN("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
+        SMPL_WARN("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
     }
 
     std::vector<double> mprim(ncols, 0);
@@ -158,15 +159,15 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
         for (int j = 0; j < ncols; ++j) {
             double d;
             if (fscanf(fCfg, "%lf", &d) < 1)  {
-                ROS_ERROR("Parsed string has length < 1.");
+                SMPL_ERROR("Parsed string has length < 1.");
                 return false;
             }
             if (feof(fCfg)) {
-                ROS_ERROR("End of parameter file reached prematurely. Check for newline.");
+                SMPL_ERROR("End of parameter file reached prematurely. Check for newline.");
                 return false;
             }
             mprim[j] = d * lattice->resolutions()[j];
-            ROS_DEBUG("Got %0.3f deg -> %0.3f rad", d, mprim[j]);
+            SMPL_DEBUG("Got %0.3f deg -> %0.3f rad", d, mprim[j]);
         }
 
         if (i < (nrows - short_mprims)) {
@@ -336,7 +337,7 @@ bool ManipLatticeActionSpace::apply(
 
     std::vector<double> pose;
     if (!m_fk_iface->computePlanningLinkFK(parent, pose)) {
-        ROS_ERROR("Failed to compute forward kinematics for planning link");
+        SMPL_ERROR("Failed to compute forward kinematics for planning link");
         return false;
     }
 
@@ -358,7 +359,7 @@ bool ManipLatticeActionSpace::apply(
     }
 
     if (actions.empty()) {
-        ROS_WARN_ONCE("No motion primitives specified");
+        SMPL_WARN_ONCE("No motion primitives specified");
     }
 
     return true;
@@ -427,7 +428,7 @@ bool ManipLatticeActionSpace::getAction(
         return true;
     }
     default:
-        ROS_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
+        SMPL_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
         return false;
     }
 }
@@ -465,7 +466,7 @@ bool ManipLatticeActionSpace::computeIkAction(
         //get actions for multiple ik solutions
         std::vector<std::vector<double>> solutions;
         if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
-            ROS_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
+            SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
                     to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
@@ -478,7 +479,7 @@ bool ManipLatticeActionSpace::computeIkAction(
         //get single action for single ik solution
         std::vector<double> ik_sol;
         if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
-            ROS_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+            SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
         actions.resize(1);

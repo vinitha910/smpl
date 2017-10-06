@@ -33,6 +33,7 @@
 
 // project includes
 #include <smpl/angles.h>
+#include <smpl/console/console.h>
 #include <smpl/graph/workspace_lattice.h>
 
 namespace sbpl {
@@ -45,7 +46,7 @@ RobotPlanningSpacePtr WorkspaceLatticeAllocator::allocate(
     CollisionChecker* checker,
     PlanningParams* params)
 {
-    ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
+    SMPL_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
     auto pspace = std::make_shared<WorkspaceLattice>(robot, checker, params);
     WorkspaceLatticeBase::Params wsp;
     wsp.res_x = m_grid->resolution();
@@ -58,12 +59,12 @@ RobotPlanningSpacePtr WorkspaceLatticeAllocator::allocate(
     RedundantManipulatorInterface* rmi =
             robot->getExtension<RedundantManipulatorInterface>();
     if (!rmi) {
-        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
+        SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return RobotPlanningSpacePtr();
     }
     wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
     if (!pspace->init(wsp)) {
-        ROS_ERROR("Failed to initialize Workspace Lattice");
+        SMPL_ERROR("Failed to initialize Workspace Lattice");
         return RobotPlanningSpacePtr();
     }
 

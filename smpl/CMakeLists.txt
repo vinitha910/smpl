@@ -52,6 +52,8 @@ add_library(
     src/bfs3d.cpp
     src/csv_parser.cpp
     src/collision_checker.cpp
+    src/console/ansi.cpp
+    src/console/console.cpp
     src/occupancy_grid.cpp
     src/planning_params.cpp
     src/post_processing.cpp

@@ -32,9 +32,6 @@
 
 #include <smpl/collision_checker.h>
 
-// system includes
-#include <ros/console.h>
-
 namespace sbpl {
 namespace motion {
 

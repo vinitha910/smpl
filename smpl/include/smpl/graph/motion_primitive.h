@@ -34,14 +34,13 @@
 #define SMPL_MOTION_PRIMITIVE_H
 
 // standard includes
-#include <vector>
+#include <iomanip>
 #include <sstream>
-
-// system includes
-#include <ros/console.h>
+#include <vector>
 
 // project includes
 #include <smpl/types.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -98,7 +97,7 @@ std::string to_string(MotionPrimitive::Type type)
 inline
 void MotionPrimitive::print() const
 {
-    ROS_INFO("type: %d  nsteps: %d ", type, int(action.size()));
+    SMPL_INFO("type: %d  nsteps: %d ", type, int(action.size()));
     std::stringstream os;
     for (std::size_t j = 0; j < action.size(); ++j) {
         os.str("");
@@ -106,7 +105,7 @@ void MotionPrimitive::print() const
         for (std::size_t k = 0; k < action[j].size(); ++k) {
             os << std::setw(4) << std::setprecision(3) << std::fixed << action[j][k] << " ";
         }
-        ROS_INFO_STREAM(os.str());
+        SMPL_INFO_STREAM(os.str());
     }
 }
 

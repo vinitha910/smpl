@@ -34,6 +34,7 @@
 #include <boost/functional/hash.hpp>
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
+#include <smpl/console/console.h>
 #include <smpl/debug/visualize.h>
 
 namespace sbpl {
@@ -59,16 +60,16 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
     m_pp(nullptr)
 {
     params()->param("egraph_epsilon", m_eg_eps, 1.0);
-    ROS_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
+    SMPL_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
 
     m_pp = ps->getExtension<PointProjectionExtension>();
     m_eg = ps->getExtension<ExperienceGraphExtension>();
 
     if (!m_pp) {
-        ROS_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends PointProjectionExtension");
+        SMPL_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends PointProjectionExtension");
     }
     if (!m_eg) {
-        ROS_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
+        SMPL_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
     }
 
     size_t num_cells_x = grid()->numCellsX() + 2;
@@ -77,7 +78,7 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
 
     m_dist_grid.assign(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
 
-    ROS_INFO("Create dijkstra distance grid of size %zu x %zu x %zu", num_cells_x, num_cells_y, num_cells_z);
+    SMPL_INFO("Create dijkstra distance grid of size %zu x %zu x %zu", num_cells_x, num_cells_y, num_cells_z);
 
     syncGridAndDijkstra();
 
@@ -166,7 +167,7 @@ DijkstraEgraphHeuristic3D::getWallsVisualization()
     }
     }
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
 
     std_msgs::ColorRGBA color;
     color.r = 100.0f / 255.0f;
@@ -190,7 +191,7 @@ DijkstraEgraphHeuristic3D::getWallsVisualization()
 visualization_msgs::MarkerArray
 DijkstraEgraphHeuristic3D::getValuesVisualization()
 {
-    ROS_INFO("Retrieve values visualization");
+    SMPL_INFO("Retrieve values visualization");
     visualization_msgs::MarkerArray ma;
 
     int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
@@ -267,7 +268,7 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
     marker.mesh_use_embedded_materials = false;
 
     ma.markers.push_back(std::move(marker));
-    ROS_INFO("Retrieved values visualization with %zu points", ma.markers.front().points.size());
+    SMPL_INFO("Retrieved values visualization with %zu points", ma.markers.front().points.size());
     return ma;
 }
 
@@ -323,7 +324,7 @@ Extension* DijkstraEgraphHeuristic3D::getExtension(size_t class_code)
 
 void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 {
-    ROS_INFO_NAMED(params()->heuristic_log, "Update EGraphBfsHeuristic goal");
+    SMPL_INFO_NAMED(params()->heuristic_log, "Update EGraphBfsHeuristic goal");
 
     // reset all distances
     for (size_t x = 1; x < m_dist_grid.xsize() - 1; ++x) {
@@ -374,7 +375,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     }
 
     if (!grid()->isInBounds(dgp.x(), dgp.y(), dgp.z())) {
-        ROS_WARN("Cell (%d, %d, %d) is outside heuristic bounds", dgp.x(), dgp.y(), dgp.z());
+        SMPL_WARN("Cell (%d, %d, %d) is outside heuristic bounds", dgp.x(), dgp.y(), dgp.z());
         return;
     }
 
@@ -385,7 +386,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     c->dist = 0;
     m_open.push(c);
 
-    ROS_INFO_NAMED(params()->heuristic_log, "Updated EGraphBfsHeuristic goal");
+    SMPL_INFO_NAMED(params()->heuristic_log, "Updated EGraphBfsHeuristic goal");
 }
 
 int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
@@ -437,10 +438,10 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     //
     // (3) maintain an external adjacency list mapping cells with projections
     // from experience graph states to adjacent cells (method used here)
-    ROS_INFO("Project experience graph into three-dimensional grid");
+    SMPL_INFO("Project experience graph into three-dimensional grid");
     ExperienceGraph* eg = m_eg->getExperienceGraph();
     if (!eg) {
-        ROS_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
+        SMPL_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
         return;
     }
 
@@ -452,10 +453,10 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
         int first_id = m_eg->getStateID(*nit);
-        ROS_DEBUG_NAMED(params()->heuristic_log, "Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
+        SMPL_DEBUG_NAMED(params()->heuristic_log, "Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
         Eigen::Vector3d p;
         m_pp->projectToPoint(first_id, p);
-        ROS_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
+        SMPL_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
         Eigen::Vector3i dp;
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
@@ -472,10 +473,10 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         auto ent = m_heur_nodes.insert(std::make_pair(dp, std::move(empty)));
         auto eit = ent.first;
         if (ent.second) {
-            ROS_DEBUG_NAMED(params()->heuristic_log, "Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
+            SMPL_DEBUG_NAMED(params()->heuristic_log, "Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
             ++proj_node_count;
         } else {
-            ROS_DEBUG_NAMED(params()->heuristic_log, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
+            SMPL_DEBUG_NAMED(params()->heuristic_log, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
         }
 
         HeuristicNode& hnode = eit->second;
@@ -486,7 +487,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             // project adjacent experience graph state and discretize
             int second_id = m_eg->getStateID(*ait);
-            ROS_DEBUG_NAMED(params()->heuristic_log, "  Project experience graph edge to state %d", second_id);
+            SMPL_DEBUG_NAMED(params()->heuristic_log, "  Project experience graph edge to state %d", second_id);
             Eigen::Vector3d q;
             m_pp->projectToPoint(second_id, q);
             Eigen::Vector3i dq;
@@ -501,15 +502,15 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
                 hnode.edges.end())
             {
                 ++proj_edge_count;
-                ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert edge to state %d", second_id);
+                SMPL_DEBUG_NAMED(params()->heuristic_log, "  Insert edge to state %d", second_id);
                 hnode.edges.push_back(dq);
             } else {
-                ROS_DEBUG_NAMED(params()->heuristic_log, "  Duplicate edge to state %d", second_id);
+                SMPL_DEBUG_NAMED(params()->heuristic_log, "  Duplicate edge to state %d", second_id);
             }
         }
     }
 
-    ROS_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
+    SMPL_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
 
     int comp_count = 0;
     m_component_ids.assign(eg->num_nodes(), -1);
@@ -539,7 +540,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 
     // pre-allocate shortcuts array here, fill in updateGoal()
     m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
-    ROS_INFO("Experience graph contains %d components", comp_count);
+    SMPL_INFO("Experience graph contains %d components", comp_count);
 
     std_msgs::ColorRGBA color;
     color.r = (float)0xFF / (float)0xFF;
@@ -571,13 +572,13 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
         int cidx = std::distance(m_dist_grid.data(), curr_cell);
         size_t cx, cy, cz;
         m_dist_grid.index_to_coord(cidx, cx, cy, cz);
-        ROS_DEBUG_NAMED(params()->heuristic_log, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
+        SMPL_DEBUG_NAMED(params()->heuristic_log, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
 
         // relax experience graph adjacency edges
         auto it = m_heur_nodes.find(Eigen::Vector3i(cx, cy, cz));
         if (it != m_heur_nodes.end()) {
             const HeuristicNode& hnode = it->second;
-            ROS_DEBUG_NAMED(params()->heuristic_log, "  %zu adjacent egraph cells", hnode.edges.size());
+            SMPL_DEBUG_NAMED(params()->heuristic_log, "  %zu adjacent egraph cells", hnode.edges.size());
             for (const Eigen::Vector3i& adj : hnode.edges) {
                 const int dx = adj.x() - cx;
                 const int dy = adj.y() - cy;
@@ -589,10 +590,10 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
                 if (new_cost < ncell->dist) {
                     ncell->dist = new_cost;
                     if (m_open.contains(ncell)) {
-                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
+                        SMPL_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
                         m_open.decrease(ncell);
                     } else {
-                        ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
+                        SMPL_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
                         m_open.push(ncell);
                     }
                 }
@@ -624,10 +625,10 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
             if (new_cost < ncell->dist) {
                 ncell->dist = new_cost;
                 if (m_open.contains(ncell)) {
-                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
+                    SMPL_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
                     m_open.decrease(ncell);
                 } else {
-                    ROS_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
+                    SMPL_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
                     m_open.push(ncell);
                 }
             }
@@ -637,7 +638,7 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
     }
 
     if (last_expand_count != expand_count) {
-        ROS_INFO("Computed heuristic in %d expansions (after %d lookups)", expand_count, repeat_count);
+        SMPL_INFO("Computed heuristic in %d expansions (after %d lookups)", expand_count, repeat_count);
         last_expand_count = expand_count;
         repeat_count = 1;
     } else {
@@ -671,7 +672,7 @@ void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
     }
     }
 
-    ROS_INFO_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    SMPL_INFO_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 } // namespace motion

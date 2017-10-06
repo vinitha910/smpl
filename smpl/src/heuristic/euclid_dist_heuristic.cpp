@@ -34,11 +34,9 @@
 // standard includes
 #include <cmath>
 
-// system includes
-#include <ros/console.h>
-
 // project includes
 #include <smpl/angles.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -62,14 +60,14 @@ EuclidDistHeuristic::EuclidDistHeuristic(
 {
     m_point_ext = pspace->getExtension<PointProjectionExtension>();
     if (m_point_ext) {
-        ROS_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
+        SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
     }
     m_pose_ext = pspace->getExtension<PoseProjectionExtension>();
     if (m_pose_ext) {
-        ROS_INFO_NAMED(params()->heuristic_log, "Got Pose Projection Extension!");
+        SMPL_INFO_NAMED(params()->heuristic_log, "Got Pose Projection Extension!");
     }
     if (!m_pose_ext && !m_point_ext) {
-        ROS_WARN_NAMED(params()->heuristic_log, "EuclidDistHeuristic recommends PointProjectionExtension or PoseProjectionExtension");
+        SMPL_WARN_NAMED(params()->heuristic_log, "EuclidDistHeuristic recommends PointProjectionExtension or PoseProjectionExtension");
     }
 
     params()->param("x_coeff", m_x_coeff, 1.0);
@@ -119,7 +117,7 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
 
         double Y, P, R;
         angles::get_euler_zyx(p.rotation(), Y, P, R);
-        ROS_DEBUG_NAMED(params()->heuristic_log, "h(%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f) = %d", p.translation()[0], p.translation()[1], p.translation()[2], Y, P, R, h);
+        SMPL_DEBUG_NAMED(params()->heuristic_log, "h(%0.3f, %0.3f, %0.3f, %0.3f, %0.3f, %0.3f) = %d", p.translation()[0], p.translation()[1], p.translation()[2], Y, P, R, h);
 
         return h;
     } else if (m_point_ext) {
@@ -134,7 +132,7 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
         double dist = computeDistance(p, gp);
 
         const int h = FIXED_POINT_RATIO * dist;
-        ROS_DEBUG_NAMED(params()->heuristic_log, "h(%d) = %d", state_id, h);
+        SMPL_DEBUG_NAMED(params()->heuristic_log, "h(%d) = %d", state_id, h);
         return h;
     } else {
         return 0;
@@ -249,7 +247,7 @@ double EuclidDistHeuristic::computeDistance(
     double dr2 = angles::normalize_angle(2.0 * std::acos(dot));
     dr2 *= (m_rot_coeff * dr2);
 
-    ROS_DEBUG_NAMED(params()->heuristic_log, "Compute Distance: sqrt(%f + %f)", dp2, dr2);
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "Compute Distance: sqrt(%f + %f)", dp2, dr2);
 
     return std::sqrt(dp2 + dr2);
 }

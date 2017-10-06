@@ -43,7 +43,6 @@
 
 // system includes
 #include <boost/algorithm/string.hpp>
-#include <ros/ros.h>
 
 // project includes
 #include <smpl/forward.h>

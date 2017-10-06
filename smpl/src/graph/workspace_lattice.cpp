@@ -39,6 +39,7 @@
 
 // project includes
 #include <smpl/angles.h>
+#include <smpl/console/console.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
@@ -90,7 +91,7 @@ WorkspaceLattice::WorkspaceLattice(
     WorkspaceCoord fake_coord;
     m_goal_state_id = createState(fake_coord);
     m_goal_entry = getState(m_goal_state_id);
-    ROS_DEBUG_NAMED(params->graph_log, "  goal state has id %d", m_goal_state_id);
+    SMPL_DEBUG_NAMED(params->graph_log, "  goal state has id %d", m_goal_state_id);
 
     m_ik_amp_enabled = true;
     m_ik_amp_thresh = 0.2;
@@ -123,7 +124,7 @@ bool WorkspaceLattice::init(const Params& _params)
         return false;
     }
 
-    ROS_DEBUG_NAMED(params()->graph_log, "initialize environment");
+    SMPL_DEBUG_NAMED(params()->graph_log, "initialize environment");
 
     if (!initMotionPrimitives()) {
         return false;
@@ -166,26 +167,26 @@ bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 bool WorkspaceLattice::setStart(const RobotState& state)
 {
     if (!initialized()) {
-        ROS_ERROR_NAMED(params()->graph_log, "cannot set start state on uninitialized lattice");
+        SMPL_ERROR_NAMED(params()->graph_log, "cannot set start state on uninitialized lattice");
         return false;
     }
 
-    ROS_DEBUG_NAMED(params()->graph_log, "set the start state");
+    SMPL_DEBUG_NAMED(params()->graph_log, "set the start state");
     if (state.size() < robot()->jointVariableCount()) {
-        ROS_ERROR_NAMED(params()->graph_log, "start state contains insufficient coordinate positions");
+        SMPL_ERROR_NAMED(params()->graph_log, "start state contains insufficient coordinate positions");
         return false;
     }
 
-    ROS_DEBUG_NAMED(params()->graph_log, "  angles: %s", to_string(state).c_str());
+    SMPL_DEBUG_NAMED(params()->graph_log, "  angles: %s", to_string(state).c_str());
 
     if (!robot()->checkJointLimits(state)) {
-        ROS_ERROR_NAMED(params()->graph_log, "start state violates joint limits");
+        SMPL_ERROR_NAMED(params()->graph_log, "start state violates joint limits");
         return false;
     }
 
     if (!collisionChecker()->isStateValid(state, true)) {
         SV_SHOW_WARN(collisionChecker()->getCollisionModelVisualization(state));
-        ROS_WARN("start state is in collision");
+        SMPL_WARN("start state is in collision");
         return false;
     }
 
@@ -246,14 +247,14 @@ bool WorkspaceLattice::extractPath(
         if (state_id == getGoalStateID()) {
             const WorkspaceLatticeState* entry = getState(m_start_state_id);
             if (!entry) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", m_start_state_id);
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", m_start_state_id);
                 return false;
             }
             path.push_back(entry->state);
         } else {
             const WorkspaceLatticeState* entry = getState(state_id);
             if (!entry) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
             }
             path.push_back(entry->state);
@@ -271,7 +272,7 @@ bool WorkspaceLattice::extractPath(
         const int curr_id = ids[i];
 
         if (prev_id == getGoalStateID()) {
-            ROS_ERROR_NAMED(params()->graph_log, "cannot determine goal state successors during path extraction");
+            SMPL_ERROR_NAMED(params()->graph_log, "cannot determine goal state successors during path extraction");
             return false;
         }
 
@@ -312,7 +313,7 @@ bool WorkspaceLattice::extractPath(
             }
 
             if (!best_goal_entry) {
-                ROS_ERROR_NAMED(params()->graph_log, "failed to find valid goal successor during path extraction");
+                SMPL_ERROR_NAMED(params()->graph_log, "failed to find valid goal successor during path extraction");
                 return false;
             }
 
@@ -349,7 +350,7 @@ void WorkspaceLattice::GetSuccs(
     succs->clear();
     costs->clear();
 
-    ROS_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
+    SMPL_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -361,22 +362,22 @@ void WorkspaceLattice::GetSuccs(
     assert(parent_entry);
     assert(parent_entry->coord.size() == m_dof_count);
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
-    ROS_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(parent_entry->state).c_str());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(parent_entry->state).c_str());
 
     SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
 
     std::vector<Action> actions;
     getActions(*parent_entry, actions);
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     // iterate through successors of source state
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
         RobotState final_rstate;
         if (!checkAction(parent_entry->state, action, &final_rstate)) {
@@ -405,10 +406,10 @@ void WorkspaceLattice::GetSuccs(
         const int edge_cost = 30;
         costs->push_back(edge_cost);
 
-        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
-        ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
+        SMPL_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
+        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
     }
 }
 
@@ -432,9 +433,9 @@ void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
     ss << *state;
 
     if (fout == stdout) {
-        ROS_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
+        SMPL_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
     } else if (fout == stderr) {
-        ROS_WARN_NAMED(params()->graph_log, "%s", ss.str().c_str());
+        SMPL_WARN_NAMED(params()->graph_log, "%s", ss.str().c_str());
     } else {
         fprintf(fout, "%s\n", ss.str().c_str());
     }
@@ -451,7 +452,7 @@ void WorkspaceLattice::GetLazySuccs(
     succs->clear();
     costs->clear();
 
-    ROS_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
+    SMPL_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -463,21 +464,21 @@ void WorkspaceLattice::GetLazySuccs(
     assert(state_entry);
     assert(state_entry->coord.size() == m_dof_count);
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
-    ROS_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(state_entry->state).c_str());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(state_entry->state).c_str());
 
     SV_SHOW_DEBUG(getStateVisualization(state_entry->state, "expansion"));
 
     std::vector<Action> actions;
     getActions(*state_entry, actions);
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
         RobotState final_rstate;
         if (!checkLazyAction(state_entry->state, action, &final_rstate)) {
@@ -508,16 +509,16 @@ void WorkspaceLattice::GetLazySuccs(
 
         true_costs->push_back(false);
 
-        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
-        ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
+        SMPL_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
+        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
     }
 }
 
 int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
 {
-    ROS_DEBUG_NAMED(params()->expands_log, "Evaluate cost of transition %d -> %d", parent_id, child_id);
+    SMPL_DEBUG_NAMED(params()->expands_log, "Evaluate cost of transition %d -> %d", parent_id, child_id);
 
     assert(parent_id >= 0 && parent_id < (int)m_states.size());
     assert(child_id >= 0 && child_id < (int)m_states.size());
@@ -616,36 +617,36 @@ bool WorkspaceLattice::initMotionPrimitives()
 bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
 {
     if (!initialized()) {
-        ROS_ERROR_NAMED(params()->graph_log, "cannot set goal pose on uninitialized lattice");
+        SMPL_ERROR_NAMED(params()->graph_log, "cannot set goal pose on uninitialized lattice");
         return false;
     }
 
     if (goal.pose.size() != 6) {
-        ROS_ERROR("goal element has incorrect format");
+        SMPL_ERROR("goal element has incorrect format");
         return false;
     }
 
     if (goal.tgt_off_pose.size() != 6) {
-        ROS_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
+        SMPL_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
         return false;
     }
 
     SV_SHOW_INFO(::viz::getPosesMarkerArray({ goal.tgt_off_pose }, m_viz_frame_id, "target_goal"));
 
-    ROS_DEBUG_NAMED(params()->graph_log, "set the goal state");
+    SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
 
     // check if an IK solution exists for the goal pose before we do
     // the search we plan even if there is no solution
     RobotState seed(robot()->jointVariableCount(), 0);
     RobotState ik_solution;
     if (!m_ik_iface->computeIK(goal.pose, seed, ik_solution)) {
-        ROS_WARN("No valid IK solution for the goal pose.");
+        SMPL_WARN("No valid IK solution for the goal pose.");
     }
 
-    ROS_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose[0], goal.pose[1], goal.pose[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", goal.pose[3], goal.pose[4], goal.pose[5]);
-    ROS_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose[0], goal.pose[1], goal.pose[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", goal.pose[3], goal.pose[4], goal.pose[5]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
 
     m_near_goal = false;
     m_t_start = clock::now();
@@ -703,7 +704,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
     // check position
     switch (goal().type) {
     case GoalType::JOINT_STATE_GOAL:
-        ROS_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
+        SMPL_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
         return false;
     case GoalType::XYZ_RPY_GOAL: {
         double dx = std::fabs(state[0] - goal().tgt_off_pose[0]);
@@ -719,7 +720,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
                 double time_to_goal_region =
                         std::chrono::duration<double>(now - m_t_start).count();
                 m_near_goal = true;
-                ROS_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
+                SMPL_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
             }
 
             Eigen::Quaterniond qg(
@@ -744,7 +745,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
         return false;
     }   break;
     case GoalType::XYZ_GOAL: {
-        ROS_WARN_ONCE("WorkspaceLattice xyz goals not implemented");
+        SMPL_WARN_ONCE("WorkspaceLattice xyz goals not implemented");
         return false;
     }   break;
     default:
@@ -773,7 +774,7 @@ void WorkspaceLattice::getActions(
     WorkspaceState cont_state;
     stateCoordToWorkspace(entry.coord, cont_state);
 
-    ROS_DEBUG_STREAM_NAMED(params()->expands_log, "  create actions for state: " << cont_state);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  create actions for state: " << cont_state);
 
     for (size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
         const auto& prim = m_prims[pidx];
@@ -827,11 +828,11 @@ bool WorkspaceLattice::checkAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
+        SMPL_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
+            SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
         }
@@ -839,7 +840,7 @@ bool WorkspaceLattice::checkAction(
         wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
             violation_mask |= 0x00000002;
             break;
         }
@@ -853,7 +854,7 @@ bool WorkspaceLattice::checkAction(
     assert(wptraj.size() == action.size());
 
     if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
-        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
+        SMPL_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
 
@@ -865,7 +866,7 @@ bool WorkspaceLattice::checkAction(
         const RobotState& prev_istate = wptraj[widx - 1];
         const RobotState& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
+            SMPL_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
             break;
         }
@@ -895,11 +896,11 @@ bool WorkspaceLattice::checkLazyAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
+        SMPL_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
+            SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
         }
@@ -907,7 +908,7 @@ bool WorkspaceLattice::checkLazyAction(
         wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
             violation_mask |= 0x00000002;
             break;
         }
@@ -971,23 +972,23 @@ bool WorkspaceLattice::getMotionPrimitive(
             m_goal_entry->coord[4] == parent->coord[4] &&
             m_goal_entry->coord[5] == parent->coord[5])
         {
-            ROS_DEBUG_NAMED(params()->expands_log, "Already at goal rpy. Not doing the retract motion.");
+            SMPL_DEBUG_NAMED(params()->expands_log, "Already at goal rpy. Not doing the retract motion.");
             return false;
         }
 
         int x, y, z;
         if (!getDistanceGradient(x, y, z)) {
-            ROS_ERROR("Zero GRadient");
+            SMPL_ERROR("Zero GRadient");
             return false;
         }
 
         getAdaptiveMotionPrim(RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ, parent, mp);
     } else {
-        ROS_WARN("Invalid motion primitive type");
+        SMPL_WARN("Invalid motion primitive type");
     }
 
     if (all_equal(mp.coord.begin(), mp.coord.end(), 0)) {
-        ROS_DEBUG_NAMED(params()->graph_log, "Not using adaptive mprim cause its all zeros. We should be at goal??? (type: %s)", to_string(mp.type).c_str());
+        SMPL_DEBUG_NAMED(params()->graph_log, "Not using adaptive mprim cause its all zeros. We should be at goal??? (type: %s)", to_string(mp.type).c_str());
         return false;
     }
 
@@ -1074,13 +1075,13 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         mp.m[0][3] = angles::normalize_angle(double(mp.coord[3]) * m_res[3]);
         mp.m[0][4] = angles::normalize_angle(double(mp.coord[4]) * m_res[4]);
         mp.m[0][5] = angles::normalize_angle(double(mp.coord[5]) * m_res[5]);
-        ROS_DEBUG_NAMED(params()->expands_log, "     [snap_to_rpy_at_start] xyz-coord: %d %d %d  rpy-coord: %d %d %d  fa-coord: %d", mp.coord[0], mp.coord[1], mp.coord[2], mp.coord[3], mp.coord[4], mp.coord[5], mp.coord[6]);
-        ROS_DEBUG_NAMED(params()->expands_log, "     [snap_to_rpy_at_start] xyz: %0.3f %0.3f %0.3f    rpy: %0.3f %0.3f %0.3f   fa: %0.3f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
+        SMPL_DEBUG_NAMED(params()->expands_log, "     [snap_to_rpy_at_start] xyz-coord: %d %d %d  rpy-coord: %d %d %d  fa-coord: %d", mp.coord[0], mp.coord[1], mp.coord[2], mp.coord[3], mp.coord[4], mp.coord[5], mp.coord[6]);
+        SMPL_DEBUG_NAMED(params()->expands_log, "     [snap_to_rpy_at_start] xyz: %0.3f %0.3f %0.3f    rpy: %0.3f %0.3f %0.3f   fa: %0.3f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
     } else if (type == RETRACT_THEN_SNAP_TO_RPY_THEN_TO_XYZ) {
         int x, y, z;
         std::vector<int> icoord(m_dof_count, 0);
         if (!getDistanceGradient(x, y, z)) {
-            ROS_ERROR("I shouldn't be here...");
+            SMPL_ERROR("I shouldn't be here...");
         }
 
         // get xyz for retracted pose
@@ -1111,28 +1112,28 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
             std::vector<double> wcoord(m_dof_count, 0), gwcoord(m_dof_count, 0);
             coordToWorldPose(parent->coord, wcoord);
             coordToWorldPose(m_goal_entry->coord, gwcoord);
-            ROS_DEBUG_NAMED(params()->expands_log, " [distance_gradiant] %d %d %d", x, y, z);
-            ROS_DEBUG_NAMED(params()->expands_log, "          [parent]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", wcoord[0], wcoord[1], wcoord[2], wcoord[3], wcoord[4], wcoord[5], wcoord[6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "     [towards-xyz]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[2][0], mp.m[2][1], mp.m[2][2], mp.m[2][3], mp.m[2][4], mp.m[2][5], mp.m[2][6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, " [distance_gradiant] %d %d %d", x, y, z);
+            SMPL_DEBUG_NAMED(params()->expands_log, "          [parent]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", wcoord[0], wcoord[1], wcoord[2], wcoord[3], wcoord[4], wcoord[5], wcoord[6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "     [towards-xyz]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[2][0], mp.m[2][1], mp.m[2][2], mp.m[2][3], mp.m[2][4], mp.m[2][5], mp.m[2][6], parent->h);
         } else {
             std::vector<double> wcoord(m_dof_count, 0), gwcoord(m_dof_count, 0);
             coordToWorldPose(parent->coord, wcoord);
             coordToWorldPose(m_goal_entry->coord, gwcoord);
-            ROS_DEBUG_NAMED(params()->expands_log, " [distance_gradiant] %d %d %d", x, y, z);
-            ROS_DEBUG_NAMED(params()->expands_log, "          [parent]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", wcoord[0], wcoord[1], wcoord[2], wcoord[3], wcoord[4], wcoord[5], wcoord[6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
-            ROS_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  -- ");
-            ROS_DEBUG_NAMED(params()->expands_log, "     [towards-xyz]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, " [distance_gradiant] %d %d %d", x, y, z);
+            SMPL_DEBUG_NAMED(params()->expands_log, "          [parent]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", wcoord[0], wcoord[1], wcoord[2], wcoord[3], wcoord[4], wcoord[5], wcoord[6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
+            SMPL_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  -- ");
+            SMPL_DEBUG_NAMED(params()->expands_log, "     [towards-xyz]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
         }
     } else if (type == RETRACT_THEN_TOWARDS_RPY_THEN_TOWARDS_XYZ) {
         int x, y, z;
         std::vector<int> icoord(m_dof_count, 0);
         if (!getDistanceGradient(x, y, z)) {
-            ROS_ERROR("I shouldn't be here...");
+            SMPL_ERROR("I shouldn't be here...");
         }
 
         // get xyz for retracted pose
@@ -1163,13 +1164,13 @@ void WorkspaceLattice::getAdaptiveMotionPrim(
         std::vector<double> wcoord(m_dof_count, 0), gwcoord(m_dof_count, 0);
         coordToWorldPose(parent->coord, wcoord);
         coordToWorldPose(m_goal_entry->coord, gwcoord);
-        ROS_DEBUG_NAMED(params()->expands_log, " [distance_gradiant] %d %d %d", x, y, z);
-        ROS_DEBUG_NAMED(params()->expands_log, "          [parent]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", wcoord[0], wcoord[1], wcoord[2], wcoord[3], wcoord[4], wcoord[5], wcoord[6], parent->h);
-        ROS_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
-        ROS_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
-        ROS_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
+        SMPL_DEBUG_NAMED(params()->expands_log, " [distance_gradiant] %d %d %d", x, y, z);
+        SMPL_DEBUG_NAMED(params()->expands_log, "          [parent]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", wcoord[0], wcoord[1], wcoord[2], wcoord[3], wcoord[4], wcoord[5], wcoord[6], parent->h);
+        SMPL_DEBUG_NAMED(params()->expands_log, "    [diff-to-goal]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", gwcoord[0] - wcoord[0], gwcoord[1] - wcoord[1], gwcoord[2] - wcoord[2], gwcoord[3] - wcoord[3], gwcoord[4] - wcoord[4], gwcoord[5] - wcoord[5], gwcoord[6] - wcoord[6], parent->h);
+        SMPL_DEBUG_NAMED(params()->expands_log, "         [retract]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[0][0], mp.m[0][1], mp.m[0][2], mp.m[0][3], mp.m[0][4], mp.m[0][5], mp.m[0][6], parent->h);
+        SMPL_DEBUG_NAMED(params()->expands_log, "     [towards-rpy]  xyz: %2.2f %2.2f %2.2f    rpy: %2.2f %2.2f %2.2f   fa: %2.2f   (parent-dist: %d)", mp.m[1][0], mp.m[1][1], mp.m[1][2], mp.m[1][3], mp.m[1][4], mp.m[1][5], mp.m[1][6], parent->h);
     } else {
-        ROS_WARN("Invalid adaptive motion primitive type.");
+        SMPL_WARN("Invalid adaptive motion primitive type.");
     }
 }
 
@@ -1228,8 +1229,8 @@ void WorkspaceLattice::getVector(
             zout = 0;
         }
     }
-    ROS_DEBUG_NAMED(params()->graph_log, "xyz1: %d %d %d    xyz2: %d %d %d", x1, y1, z1, x2, y2, z2);
-    ROS_DEBUG_NAMED(params()->graph_log, "dx: %1.2f dy: %1.2f dz: %1.2f length: %1.2f multiplier: %d unit_double{%1.2f %1.2f %1.2f}  unit_int{%d %d %d}", dx, dy, dz, length, multiplier, dx / length, dy / length, dz / length, xout, yout, zout);
+    SMPL_DEBUG_NAMED(params()->graph_log, "xyz1: %d %d %d    xyz2: %d %d %d", x1, y1, z1, x2, y2, z2);
+    SMPL_DEBUG_NAMED(params()->graph_log, "dx: %1.2f dy: %1.2f dz: %1.2f length: %1.2f multiplier: %d unit_double{%1.2f %1.2f %1.2f}  unit_int{%d %d %d}", dx, dy, dz, length, multiplier, dx / length, dy / length, dz / length, xout, yout, zout);
 }
 
 bool WorkspaceLattice::getDistanceGradient(int& x, int& y, int& z)
@@ -1259,7 +1260,7 @@ bool WorkspaceLattice::getDistanceGradient(int& x, int& y, int& z)
     }
 
     double norm = sqrt(mp_gradient_[0] * mp_gradient_[0] + mp_gradient_[1] * mp_gradient_[1] + mp_gradient_[2] * mp_gradient_[2]);
-    ROS_INFO("gradient_x: %2.2f   gradient_y: %2.2f   gradient_z: %2.2f  norm: %2.2f", mp_gradient_[0], mp_gradient_[1], mp_gradient_[2], norm);
+    SMPL_INFO("gradient_x: %2.2f   gradient_y: %2.2f   gradient_z: %2.2f  norm: %2.2f", mp_gradient_[0], mp_gradient_[1], mp_gradient_[2], norm);
     return true;
 }
 
