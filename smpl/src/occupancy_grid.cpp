@@ -39,7 +39,7 @@
 #include <leatherman/viz.h>
 
 // project includes
-#include <smpl/ros/propagation_distance_field.h>
+#include <smpl/distance_map/euclid_distance_map.h>
 
 namespace sbpl {
 
@@ -67,7 +67,7 @@ namespace sbpl {
 ///
 /// An arbitrary distance map implementation may be used with this class. If
 /// none is specified, by calling the verbose constructor, an instance of
-/// sbpl::PropagationDistanceField is constructed.
+/// sbpl::EuclidDistanceMap is constructed.
 
 /// Construct an Occupancy Grid.
 ///
@@ -90,7 +90,7 @@ OccupancyGrid::OccupancyGrid(
     double max_dist,
     bool ref_counted)
 :
-    m_grid(std::make_shared<PropagationDistanceField>(
+    m_grid(std::make_shared<EuclidDistanceMap>(
             origin_x, origin_y, origin_z,
             size_x, size_y, size_z,
             resolution,
