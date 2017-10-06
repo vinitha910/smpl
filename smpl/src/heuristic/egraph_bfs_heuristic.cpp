@@ -32,9 +32,9 @@
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
 #include <boost/functional/hash.hpp>
-#include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 
 namespace sbpl {
@@ -249,7 +249,6 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
     }
 
     visualization_msgs::Marker marker;
-    marker.header.stamp = ros::Time(0);
     marker.header.frame_id = grid()->getReferenceFrame();
     marker.ns = "h_values";
     marker.id = 0;
@@ -260,7 +259,6 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
     marker.scale.y = 0.5 * grid()->resolution();
     marker.scale.z = 0.5 * grid()->resolution();
 //    marker.color;
-    marker.lifetime = ros::Duration(0.0);
     marker.frame_locked = false;
     marker.points = std::move(points);
     marker.colors = std::move(colors);
@@ -453,7 +451,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
         int first_id = m_eg->getStateID(*nit);
-        SMPL_DEBUG_NAMED(params()->heuristic_log, "Project experience graph state %d %s into 3D", first_id, to_string(eg->state(*nit)).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->heuristic_log, "Project experience graph state " << first_id << " " << eg->state(*nit) << " into 3D");
         Eigen::Vector3d p;
         m_pp->projectToPoint(first_id, p);
         SMPL_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());

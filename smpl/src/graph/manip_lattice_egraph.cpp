@@ -32,9 +32,9 @@
 #include <fstream>
 
 #include <boost/filesystem.hpp>
-#include <leatherman/print.h>
 
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/csv_parser.h>
 #include <smpl/intrusive_heap.h>
 #include <smpl/debug/visualize.h>
@@ -67,7 +67,7 @@ bool ManipLatticeEgraph::extractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
 {
-    SMPL_DEBUG_NAMED(params()->graph_log, "State ID Path: %s", to_string(idpath).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "State ID Path: " << idpath);
     if (idpath.empty()) {
         return true;
     }
@@ -194,7 +194,7 @@ bool ManipLatticeEgraph::extractPath(
         }
 
         if (best_state) {
-            SMPL_DEBUG_NAMED(params()->graph_log, "Extract successor state %s", to_string(best_state->state).c_str());
+            SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "Extract successor state " << best_state->state);
             opath.push_back(best_state->state);
             continue;
         }
@@ -348,7 +348,7 @@ bool ManipLatticeEgraph::shortcut(
         return false;
     }
 
-    SMPL_INFO("Shortcut %s -> %s", to_string(first_entry->state).c_str(), to_string(second_entry->state).c_str());
+    SMPL_INFO_STREAM("Shortcut " << first_entry->state << " -> " << second_entry->state);
     SV_SHOW_INFO(getStateVisualization(first_entry->state, "shortcut_from"));
     SV_SHOW_INFO(getStateVisualization(second_entry->state, "shortcut_to"));
 
@@ -369,7 +369,7 @@ bool ManipLatticeEgraph::snap(
         return false;
     }
 
-    SMPL_INFO("Snap %s -> %s", to_string(first_entry->state).c_str(), to_string(second_entry->state).c_str());
+    SMPL_INFO_STREAM("Snap " << first_entry->state << " -> " << second_entry->state);
     SV_SHOW_INFO(getStateVisualization(first_entry->state, "snap_from"));
     SV_SHOW_INFO(getStateVisualization(second_entry->state, "snap_to"));
 
@@ -564,7 +564,7 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //
 //    SMPL_INFO("Experience contains %zu discrete states", egraph_coords.size());
 //    for (const RobotCoord& coord : egraph_coords) {
-//        SMPL_INFO("  %s", to_string(coord).c_str());
+//        SMPL_STREAM_INFO("  " << coord);
 //    }
 //
 //    SMPL_INFO("Insert states into experience graph and map coords to experience graph nodes");
@@ -609,7 +609,7 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //        for (const Action& action : actions) {
 //            RobotCoord last(robot()->jointVariableCount());
 //            stateToCoord(action.back(), last);
-//            SMPL_INFO("Check for experience graph edge %s -> %s", to_string(*it).c_str(), to_string(last).c_str());
+//            SMPL_INFO("Check for experience graph edge " << *it << " -> " << last);
 //            auto iit = m_coord_to_nodes.find(last);
 //            if (iit != m_coord_to_nodes.end() && !m_egraph.edge(n, iit->second)) {
 //                m_egraph.insert_edge(n, iit->second);

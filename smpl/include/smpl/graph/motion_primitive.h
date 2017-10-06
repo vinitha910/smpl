@@ -63,35 +63,29 @@ struct MotionPrimitive
     void print() const;
 };
 
-inline
-std::ostream& operator<<(std::ostream& o, MotionPrimitive::Type type)
-{
+inline auto to_cstring(MotionPrimitive::Type type) -> const char* {
     switch (type) {
     case MotionPrimitive::LONG_DISTANCE:
-        o << "LONG_DISTANCE";
-        break;
+        return "LONG_DISTANCE";
     case MotionPrimitive::SNAP_TO_RPY:
-        o << "SNAP_TO_RPY";
-        break;
+        return "SNAP_TO_RPY";
     case MotionPrimitive::SNAP_TO_XYZ:
-        o << "SNAP_TO_XYZ";
-        break;
+        return "SNAP_TO_XYZ";
     case MotionPrimitive::SNAP_TO_XYZ_RPY:
-        o << "SNAP_TO_XYZ_RPY";
-        break;
+        return "SNAP_TO_XYZ_RPY";
     case MotionPrimitive::SHORT_DISTANCE:
-        o << "SHORT_DISTANCE";
-        break;
+        return "SHORT_DISTANCE";
+    default:
+        assert(0);
+        return "";
     }
-    return o;
 }
 
-inline
-std::string to_string(MotionPrimitive::Type type)
+inline auto operator<<(std::ostream& o, MotionPrimitive::Type type)
+    -> std::ostream&
 {
-    std::stringstream ss;
-    ss << type;
-    return ss.str();
+    o << to_cstring(type);
+    return o;
 }
 
 inline

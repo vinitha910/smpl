@@ -34,10 +34,11 @@
 // standard includes
 #include <unordered_map>
 
-// system includes
-#include <leatherman/print.h>
+#include <ros/console.h>
 
 // project includes
+#include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 
@@ -156,7 +157,7 @@ RobotPlanningSpacePtr ManipLatticeAllocator::allocate(
 
     ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
     for (auto ait = aspace->begin(); ait != aspace->end(); ++ait) {
-        ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_string(ait->type).c_str());
+        ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_cstring(ait->type));
         if (ait->type == MotionPrimitive::SNAP_TO_RPY) {
             ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
             ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY));
@@ -169,7 +170,7 @@ RobotPlanningSpacePtr ManipLatticeAllocator::allocate(
         } else if (ait->type == MotionPrimitive::LONG_DISTANCE ||
             ait->type == MotionPrimitive::SHORT_DISTANCE)
         {
-            ROS_DEBUG_NAMED(PI_LOGGER, "    action: %s", to_string(ait->action).c_str());
+            ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "    action: " << ait->action);
         }
     }
 

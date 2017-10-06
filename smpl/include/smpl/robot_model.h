@@ -121,7 +121,7 @@ enum IkOption
 };
 
 std::ostream& operator<<(std::ostream& o, IkOption option);
-std::string to_string(IkOption option);
+auto to_cstring(IkOption option) -> const char*;
 
 } // namespace ik_option
 

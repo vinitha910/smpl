@@ -35,9 +35,9 @@
 #include <chrono>
 
 // project includes
-#include <leatherman/print.h>
 #include <smpl/time.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 
 namespace sbpl {
 namespace motion {
@@ -210,7 +210,7 @@ int AdaptivePlanner::replan(
         auto plan_finish = clock::now();
 
         SMPL_INFO("Planner terminated");
-        SMPL_INFO("  Path: %s", to_string(plan_path).c_str());
+        SMPL_INFO_STREAM("  Path: " << plan_path);
         SMPL_INFO("  Cost: %d", plan_cost);
         SMPL_INFO("  Time: %0.3f", m_planner.get_final_eps_planning_time());
         SMPL_INFO("  Expansions: %d", m_planner.get_n_expands());
@@ -249,7 +249,7 @@ int AdaptivePlanner::replan(
         auto track_finish = clock::now();
 
         SMPL_INFO("Tracker terminated");
-        SMPL_INFO("  Path: %s", to_string(track_path).c_str());
+        SMPL_INFO_STREAM("  Path: " << track_path);
         SMPL_INFO("  Cost: %d", track_cost);
         SMPL_INFO("  Time: %0.3f", m_tracker.get_final_eps_planning_time());
         SMPL_INFO("  Expansions: %d", m_tracker.get_n_expands());

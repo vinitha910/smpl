@@ -34,12 +34,12 @@
 
 // system includes
 #include <boost/functional/hash.hpp>
-#include <leatherman/print.h>
 #include <leatherman/viz.h>
 
 // project includes
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
@@ -177,7 +177,7 @@ bool WorkspaceLattice::setStart(const RobotState& state)
         return false;
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "  angles: %s", to_string(state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  angles: " << state);
 
     if (!robot()->checkJointLimits(state)) {
         SMPL_ERROR_NAMED(params()->graph_log, "start state violates joint limits");
@@ -362,8 +362,8 @@ void WorkspaceLattice::GetSuccs(
     assert(parent_entry);
     assert(parent_entry->coord.size() == m_dof_count);
 
-    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
-    SMPL_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(parent_entry->state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  state: " << parent_entry->state);
 
     SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
 
@@ -407,8 +407,8 @@ void WorkspaceLattice::GetSuccs(
         costs->push_back(edge_cost);
 
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
-        SMPL_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_state->state);
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
     }
 }
@@ -464,8 +464,8 @@ void WorkspaceLattice::GetLazySuccs(
     assert(state_entry);
     assert(state_entry->coord.size() == m_dof_count);
 
-    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
-    SMPL_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(state_entry->state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  state: " << state_entry->state);
 
     SV_SHOW_DEBUG(getStateVisualization(state_entry->state, "expansion"));
 
@@ -510,8 +510,8 @@ void WorkspaceLattice::GetLazySuccs(
         true_costs->push_back(false);
 
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_state->coord).c_str());
-        SMPL_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_state->state).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_state->state);
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
     }
 }
@@ -828,7 +828,7 @@ bool WorkspaceLattice::checkAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        SMPL_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
@@ -896,7 +896,7 @@ bool WorkspaceLattice::checkLazyAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        SMPL_DEBUG_NAMED(params()->expands_log, "        %zu: %s", widx, to_string(istate).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {

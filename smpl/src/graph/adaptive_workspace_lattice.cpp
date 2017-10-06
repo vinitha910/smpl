@@ -33,12 +33,13 @@
 
 // system includes
 #include <boost/functional/hash.hpp>
-#include <leatherman/print.h>
-#include <leatherman/viz.h>
 #include <sbpl/planners/planner.h>
+
+#include <leatherman/viz.h>
 
 // project includes
 #include <smpl/angles.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
@@ -431,7 +432,7 @@ bool AdaptiveWorkspaceLattice::setStart(const RobotState& state)
         return false;
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "  angles: %s", to_string(state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  angles: " << state);
 
     if (!robot()->checkJointLimits(state)) {
         SMPL_ERROR_NAMED(params()->graph_log, "start state violates joint limits");
@@ -757,8 +758,8 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state.coord).c_str());
-    SMPL_DEBUG_NAMED(params()->expands_log, "  state: %s", to_string(state.state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state.coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  state: " << state.state);
     SV_SHOW_DEBUG(getStateVisualization(state.state, "expansion"));
 
     std::vector<Action> actions;
@@ -805,7 +806,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             }
             costs->push_back(120);
 
-            SMPL_DEBUG_NAMED(params()->successors_log, "         succ: { id: %d, coord: %s, state: %s, cost: %d }", succs->back(), to_string(succ_coord).c_str(), to_string(final_rstate).c_str(), costs->back());
+            SMPL_DEBUG_STREAM_NAMED(params()->successors_log, "         succ: { id: " << succs->back() << ", coord: " << succ_coord << ", state: " << final_rstate << ", cost: " << costs->back() << " }");
         } else if (m_plan_mode) {
             SMPL_DEBUG_NAMED(params()->successors_log, "      -> low-dimensional");
             int succ_id = getLoHashEntry(succ_coord[0], succ_coord[1], succ_coord[2]);
@@ -1003,7 +1004,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        SMPL_DEBUG_NAMED(params()->successors_log, "        %zu: %s", widx, to_string(istate).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->successors_log, "        " << widx << ": " << istate);
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
@@ -1094,7 +1095,6 @@ AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
     visualization_msgs::MarkerArray ma;
     visualization_msgs::Marker m;
     m.header.frame_id = m_grid->getReferenceFrame();
-    m.header.stamp = ros::Time::now();
     m.ns = plan_mode ? "adaptive_grid_plan" : "adaptive_grid_track";
     m.id = 0;
     m.type = visualization_msgs::Marker::CUBE_LIST;
@@ -1106,7 +1106,6 @@ AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
     } else {
         m.color.b = m.color.a = 1.0;
     }
-    m.lifetime = ros::Duration(0);
     for (int x = 0; x < m_grid->numCellsX(); ++x) {
     for (int y = 0; y < m_grid->numCellsY(); ++y) {
     for (int z = 0; z < m_grid->numCellsZ(); ++z) {

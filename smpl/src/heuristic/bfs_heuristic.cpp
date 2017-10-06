@@ -323,7 +323,6 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
     }
 
     visualization_msgs::Marker marker;
-    marker.header.stamp = ros::Time(0);
     marker.header.frame_id = grid()->getReferenceFrame();
     marker.ns = "bfs_values";
     marker.id = 0;
@@ -334,7 +333,6 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
     marker.scale.y = 0.5 * grid()->resolution();
     marker.scale.z = 0.5 * grid()->resolution();
 //    marker.color;
-    marker.lifetime = ros::Duration(0.0);
     marker.frame_locked = false;
     marker.points = std::move(points);
     marker.colors = std::move(colors);

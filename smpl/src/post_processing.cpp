@@ -37,13 +37,12 @@
 
 // system includes
 #include <Eigen/Dense>
-#include <leatherman/print.h>
-#include <ros/console.h>
 
 // project includes
 #include <smpl/angles.h>
 #include <smpl/time.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/geometry/shortcut.h>
 
 namespace sbpl {

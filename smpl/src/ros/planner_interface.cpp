@@ -44,7 +44,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 #include <eigen_conversions/eigen_msg.h>
-#include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>
 #include <trajectory_msgs/JointTrajectory.h>
@@ -55,6 +54,7 @@
 #include <smpl/time.h>
 #include <smpl/types.h>
 
+#include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 
 #include <smpl/heuristic/bfs_heuristic.h>
@@ -264,7 +264,7 @@ bool PlannerInterface::solve(
     ROS_DEBUG_NAMED(PI_LOGGER, "planner path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
         const auto& point = path[pidx];
-        ROS_DEBUG_NAMED(PI_LOGGER, "  %3zu: %s", pidx, to_string(point).c_str());
+        ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "  " << pidx << ": " << point);
     }
 
     postProcessPath(path);
@@ -273,7 +273,7 @@ bool PlannerInterface::solve(
     ROS_DEBUG_NAMED(PI_LOGGER, "smoothed path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
         const auto& point = path[pidx];
-        ROS_DEBUG_NAMED(PI_LOGGER, "  %3zu: %s", pidx, to_string(point).c_str());
+        ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "  " << pidx << ": " << point);
     }
 
     auto& traj = res.trajectory.joint_trajectory;
@@ -332,11 +332,11 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
             initial_positions,
             missing))
     {
-        ROS_ERROR("start state is missing planning joints: %s", to_string(missing).c_str());
+        ROS_ERROR_STREAM("start state is missing planning joints: " << missing);
         return false;
     }
 
-    ROS_INFO_NAMED(PI_LOGGER, "  joint variables: %s", to_string(initial_positions).c_str());
+    ROS_INFO_STREAM_NAMED(PI_LOGGER, "  joint variables: " << initial_positions);
 
     if (!m_pspace->setStart(initial_positions)) {
         ROS_ERROR("Failed to set start state");
@@ -1131,12 +1131,11 @@ void PlannerInterface::profilePath(
     }
 }
 
-bool PlannerInterface::isPathValid(
-    const std::vector<RobotState>& path) const
+bool PlannerInterface::isPathValid(const std::vector<RobotState>& path) const
 {
     for (size_t i = 1; i < path.size(); ++i) {
         if (!m_checker->isStateToStateValid(path[i - 1], path[i])) {
-            ROS_ERROR("path between %s and %s is invalid (%zu -> %zu)", to_string(path[i - 1]).c_str(), to_string(path[i]).c_str(), i - 1, i);
+            ROS_ERROR_STREAM("path between " << path[i - 1] << " and " << path[i] << " is invalid (" << i - 1 << " -> " << i << ")");
             return false;
         }
     }

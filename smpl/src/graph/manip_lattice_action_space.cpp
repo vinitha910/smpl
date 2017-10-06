@@ -35,9 +35,6 @@
 // standard includes
 #include <limits>
 
-// system includes
-#include <leatherman/print.h>
-
 // project includes
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
@@ -467,7 +464,7 @@ bool ManipLatticeActionSpace::computeIkAction(
         std::vector<std::vector<double>> solutions;
         if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
             SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
-                    to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+                    to_cstring(option), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
         actions.resize(solutions.size());
@@ -479,7 +476,7 @@ bool ManipLatticeActionSpace::computeIkAction(
         //get single action for single ik solution
         std::vector<double> ik_sol;
         if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
-            SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_string(option).c_str(), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
+            SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_cstring(option), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
         actions.resize(1);

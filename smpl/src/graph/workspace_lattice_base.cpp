@@ -33,7 +33,6 @@
 
 // system includes
 #include <Eigen/Dense>
-#include <leatherman/print.h>
 
 // project includes
 #include <smpl/angles.h>

@@ -38,11 +38,11 @@
 // system includes
 #include <Eigen/Dense>
 #include <leatherman/viz.h>
-#include <leatherman/print.h>
 #include <sbpl/planners/planner.h>
 
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/debug/visualize.h>
 #include "../profiling.h"
@@ -158,10 +158,10 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         switch (goal().type) {
         case GoalType::XYZ_GOAL:
         case GoalType::XYZ_RPY_GOAL:
-            ss << "pose: " << to_string(goal().tgt_off_pose);
+            ss << "pose: " << goal().tgt_off_pose;
             break;
         case GoalType::JOINT_STATE_GOAL:
-            ss << "state: " << to_string(goal().angles);
+            ss << "state: " << goal().angles;
             break;
         }
         ss << " }>";
@@ -213,8 +213,8 @@ void ManipLattice::GetSuccs(
     assert(parent_entry->coord.size() >= robot()->jointVariableCount());
 
     // log expanded state details
-    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
-    SMPL_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(parent_entry->state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << parent_entry->state);
     SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
@@ -275,9 +275,9 @@ void ManipLattice::GetSuccs(
         // log successor details
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
         SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_coord).c_str());
-        SMPL_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
-        SMPL_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        pose: " << tgt_off_pose);
         SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
@@ -324,8 +324,8 @@ void ManipLattice::GetLazySuccs(
     assert(state_entry->coord.size() >= robot()->jointVariableCount());
 
     // log expanded state details
-    SMPL_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
-    SMPL_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(state_entry->state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << state_entry->state);
     SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(SourceStateID));
 
     const RobotState& source_angles = state_entry->state;
@@ -374,9 +374,9 @@ void ManipLattice::GetLazySuccs(
         // log successor details
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
         SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_coord).c_str());
-        SMPL_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
-        SMPL_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        pose: " << tgt_off_pose);
         SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
@@ -668,7 +668,7 @@ bool ManipLattice::checkAction(const RobotState& state, const Action& action)
     // check intermediate states for collisions
     for (size_t iidx = 0; iidx < action.size(); ++iidx) {
         const RobotState& istate = action[iidx];
-        SMPL_DEBUG_NAMED(params()->expands_log, "        %zu: %s", iidx, to_string(istate).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << iidx << ": " << istate);
 
         // check joint limits
         if (!robot()->checkJointLimits(istate)) {
@@ -820,7 +820,7 @@ bool ManipLattice::setStart(const RobotState& state)
         return false;
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "  state: %s", to_string(state).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  state: " << state);
 
     // get joint positions of starting configuration
     std::vector<double> pose(6, 0.0);
@@ -848,7 +848,7 @@ bool ManipLattice::setStart(const RobotState& state)
     // get arm position in environment
     RobotCoord start_coord(robot()->jointVariableCount());
     stateToCoord(state, start_coord);
-    SMPL_DEBUG_NAMED(params()->graph_log, "  coord: %s", to_string(start_coord).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  coord: " << start_coord);
 
     m_start_state_id = getOrCreateState(start_coord, state);
 
@@ -1013,7 +1013,7 @@ bool ManipLattice::extractPath(
             }
 
             if (!best_goal_state) {
-                SMPL_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor from state %s during path extraction", to_string(prev_entry->state).c_str());
+                SMPL_ERROR_STREAM_NAMED(params()->graph_log, "Failed to find valid goal successor from state " << prev_entry->state << " during path extraction");
                 return false;
             }
 
@@ -1025,7 +1025,7 @@ bool ManipLattice::extractPath(
                 return false;
             }
 
-            SMPL_DEBUG_NAMED(params()->graph_log, "Extract successor state %s", to_string(entry->state).c_str());
+            SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "Extract successor state " << entry->state);
             opath.push_back(entry->state);
         }
     }

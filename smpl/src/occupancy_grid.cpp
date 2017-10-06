@@ -367,14 +367,12 @@ auto OccupancyGrid::getOccupiedVoxelsVisualization() const
     visualization_msgs::Marker marker;
 
     marker.header.seq = 0;
-    marker.header.stamp = ros::Time(0);
     marker.header.frame_id = getReferenceFrame();
 
     marker.ns = "occupied_voxels";
     marker.id = 0;
     marker.type = visualization_msgs::Marker::CUBE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.lifetime = ros::Duration(0.0);
 
     marker.scale.x = m_grid->resolution();
     marker.scale.y = m_grid->resolution();

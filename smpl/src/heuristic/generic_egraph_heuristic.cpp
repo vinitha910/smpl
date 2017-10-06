@@ -29,9 +29,6 @@
 
 /// \author Andrew Dornbush
 
-// system includes
-#include <leatherman/print.h>
-
 // project includes
 #include <smpl/console/console.h>
 #include <smpl/heuristic/generic_egraph_heuristic.h>

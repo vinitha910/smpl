@@ -1,15 +1,17 @@
 #include <cmath>
 #include <chrono>
 
-#include <leatherman/print.h>
 #include <ros/ros.h>
 #include <sbpl/planners/araplanner.h>
+
 #include <smpl/collision_checker.h>
+#include <smpl/occupancy_grid.h>
+#include <smpl/robot_model.h>
+#include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
-#include <smpl/occupancy_grid.h>
-#include <smpl/robot_model.h>
 
 namespace smpl = sbpl::motion;
 
@@ -141,18 +143,18 @@ bool GridCollisionChecker::isStateValid(
     bool verbose)
 {
     if (state.size() < 2) {
-        ROS_ERROR("State contains insufficient data");
+        SMPL_ERROR("State contains insufficient data");
         return false;
     }
     double x = state[0];
     double y = state[1];
     double z = 0.0;
     if (!m_grid->isInBounds(x, y, z)) {
-        ROS_DEBUG("state (%0.3f, %0.3f) is out of bounds", x, y);
+        SMPL_DEBUG("state (%0.3f, %0.3f) is out of bounds", x, y);
         return false;
     }
     if (m_grid->getDistanceFromPoint(x, y, z) <= 0.0) {
-        ROS_DEBUG("state (%0.3f, %0.3f) is occupied", x, y);
+        SMPL_DEBUG("state (%0.3f, %0.3f) is occupied", x, y);
         return false;
     }
     return true;
@@ -186,7 +188,7 @@ bool GridCollisionChecker::interpolatePath(
     int num_waypoints =
             std::ceil((vfinish - vstart).norm() / m_grid->resolution());
     num_waypoints = std::max(num_waypoints, 2);
-    ROS_DEBUG("interpolate path with %d waypoints", num_waypoints);
+    SMPL_DEBUG("interpolate path with %d waypoints", num_waypoints);
     for (int i = 0; i < num_waypoints; ++i) {
         const double alpha = (double)i / (double)(num_waypoints - 1);
         Eigen::Vector2d vinterm = (1.0 - alpha) * vstart + alpha * vfinish;
@@ -220,7 +222,7 @@ void SetupOccupancyGrid(sbpl::OccupancyGrid& grid)
         points.emplace_back(cx, cy, cz);
     }
 
-    ROS_INFO("Add %zu points to grid", points.size());
+    SMPL_INFO("Add %zu points to grid", points.size());
     grid.addPointsToField(points);
 }
 
@@ -240,29 +242,29 @@ void PrintGrid(std::ostream& o, sbpl::OccupancyGrid& grid)
 
 void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
 {
-    ROS_INFO("Action Set:");
+    SMPL_INFO("Action Set:");
     for (int i = 0; i < smpl::MotionPrimitive::Type::NUMBER_OF_MPRIM_TYPES; ++i) {
         smpl::MotionPrimitive::Type prim((smpl::MotionPrimitive::Type)i);
-        ROS_INFO("  %s: %s @ %0.3f", to_string(prim).c_str(), aspace.useAmp(prim) ? "true" : "false", aspace.ampThresh(prim));
+        SMPL_INFO("  %s: %s @ %0.3f", to_cstring(prim), aspace.useAmp(prim) ? "true" : "false", aspace.ampThresh(prim));
     }
     for (auto ait = aspace.begin(); ait != aspace.end(); ++ait) {
-        ROS_INFO("  type: %s", to_string(ait->type).c_str());
+        SMPL_INFO("  type: %s", to_cstring(ait->type));
         if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_RPY) {
-            ROS_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-            ROS_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY));
+            SMPL_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY));
         }
         else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) {
-            ROS_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-            ROS_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ));
+            SMPL_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ));
         }
         else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) {
-            ROS_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-            ROS_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY));
+            SMPL_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY));
         }
         else if (ait->type == sbpl::motion::MotionPrimitive::LONG_DISTANCE ||
                 ait->type == sbpl::motion::MotionPrimitive::SHORT_DISTANCE)
         {
-            ROS_INFO("    action: %s", to_string(ait->action).c_str());
+            SMPL_INFO_STREAM("    action: " << ait->action);
         }
     }
 }
@@ -304,7 +306,7 @@ int main(int argc, char* argv[])
     auto pspace =
             std::make_shared<smpl::ManipLattice>(&robot_model, &cc, &params);
     if (!pspace->init({ 0.02, 0.02 })) {
-        ROS_ERROR("Failed to initialize Manip Lattice");
+        SMPL_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }
     pspace->setVisualizationFrameId("map");
@@ -312,7 +314,7 @@ int main(int argc, char* argv[])
     // 5. Instantiate and Initialize Motion Primitives
     std::string mprim_path;
     if (!ph.getParam("mprim_path", mprim_path)) {
-        ROS_ERROR("Failed to retrieve 'mprim_path' from the param server");
+        SMPL_ERROR("Failed to retrieve 'mprim_path' from the param server");
         return 1;
     }
 
@@ -356,34 +358,34 @@ int main(int argc, char* argv[])
     goal.angle_tolerances = { 0.02, 0.02 };
 
     if (!pspace->setGoal(goal)) {
-        ROS_ERROR("Failed to set goal");
+        SMPL_ERROR("Failed to set goal");
         return 1;
     }
 
     if (!pspace->setStart(start_state)) {
-        ROS_ERROR("Failed to set start");
+        SMPL_ERROR("Failed to set start");
         return 1;
     }
 
     int start_id = pspace->getStartStateID();
     if (start_id < 0) {
-        ROS_ERROR("Start state id is invalid");
+        SMPL_ERROR("Start state id is invalid");
         return 1;
     }
 
     int goal_id = pspace->getGoalStateID();
     if (goal_id < 0)  {
-        ROS_ERROR("Goal state id is invalid");
+        SMPL_ERROR("Goal state id is invalid");
         return 1;
     }
 
     if (search->set_start(start_id) == 0) {
-        ROS_ERROR("Failed to set planner start state");
+        SMPL_ERROR("Failed to set planner start state");
         return 1;
     }
 
     if (search->set_goal(goal_id) == 0) {
-        ROS_ERROR("Failed to set planner goal state");
+        SMPL_ERROR("Failed to set planner goal state");
         return 1;
     }
 
@@ -401,7 +403,7 @@ int main(int argc, char* argv[])
     int solcost;
     bool bret = search->replan(&solution, search_params, &solcost);
     if (!bret) {
-        ROS_ERROR("Search failed to find a solution");
+        SMPL_ERROR("Search failed to find a solution");
         return 1;
     }
     auto now = std::chrono::high_resolution_clock::now();
@@ -411,20 +413,20 @@ int main(int argc, char* argv[])
 
     std::vector<smpl::RobotState> path;
     if (!pspace->extractPath(solution, path)) {
-        ROS_ERROR("Failed to extract path");
+        SMPL_ERROR("Failed to extract path");
     }
 
-    ROS_INFO("Path found!");
-    ROS_INFO("  Planning Time: %0.3f", elapsed);
-    ROS_INFO("  Expansion Count (total): %d", search->get_n_expands());
-    ROS_INFO("  Expansion Count (initial): %d", search->get_n_expands_init_solution());
-    ROS_INFO("  Solution (%zu)", solution.size());
+    SMPL_INFO("Path found!");
+    SMPL_INFO("  Planning Time: %0.3f", elapsed);
+    SMPL_INFO("  Expansion Count (total): %d", search->get_n_expands());
+    SMPL_INFO("  Expansion Count (initial): %d", search->get_n_expands_init_solution());
+    SMPL_INFO("  Solution (%zu)", solution.size());
     for (int id : solution) {
-        ROS_INFO("    %d", id);
+        SMPL_INFO("    %d", id);
     }
-    ROS_INFO("  Path (%zu)", path.size());
+    SMPL_INFO("  Path (%zu)", path.size());
     for (const smpl::RobotState& point : path) {
-        ROS_INFO("    (x: %0.3f, y: %0.3f)", point[0], point[1]);
+        SMPL_INFO("    (x: %0.3f, y: %0.3f)", point[0], point[1]);
     }
 
     return 0;
