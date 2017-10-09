@@ -74,11 +74,7 @@ public:
 
     virtual void visualize(
         levels::Level level,
-        const visualization_msgs::Marker& m);
-
-    virtual void visualize(
-        levels::Level level,
-        const visualization_msgs::MarkerArray& markers);
+        const visual::Marker& marker);
 
     virtual void visualize(
         levels::Level level,
@@ -86,7 +82,11 @@ public:
 
     virtual void visualize(
         levels::Level level,
-        const visual::Marker& marker);
+        const visualization_msgs::Marker& m);
+
+    virtual void visualize(
+        levels::Level level,
+        const visualization_msgs::MarkerArray& markers);
 };
 
 void set_visualizer(VisualizerBase* visualizer);
@@ -107,19 +107,11 @@ bool set_visualization_level(const std::string& name, levels::Level level);
 
 /// \name Internal
 ///@{
-void visualize(
-    levels::Level level,
-    const visualization_msgs::MarkerArray& markers);
 
-inline void visualize(levels::Level level, const std::vector<visual::Marker>& markers)
-{
-
-}
-
-inline void visualize(levels::Level level, const visual::Marker& marker)
-{
-
-}
+void visualize(levels::Level level, const visual::Marker& marker);
+void visualize(levels::Level level, const std::vector<visual::Marker>& markers);
+void visualize(levels::Level level, const visualization_msgs::Marker& marker);
+void visualize(levels::Level level, const visualization_msgs::MarkerArray& markers);
 
 struct VizLocation {
     void* handle; // struct representing the named visualization at location

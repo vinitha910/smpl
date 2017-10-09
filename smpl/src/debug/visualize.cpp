@@ -244,9 +244,37 @@ bool set_visualization_level(const std::string& name, levels::Level level)
     return changed;
 }
 
-void visualize(
-    levels::Level level,
-    const visualization_msgs::MarkerArray& markers)
+void visualize(levels::Level level, const visual::Marker& marker)
+{
+    std::unique_lock<std::mutex> lock(g_viz_mutex);
+    if (!g_visualizer) {
+        return;
+    }
+
+    g_visualizer->visualize(level, marker);
+}
+
+void visualize(levels::Level level, const std::vector<visual::Marker>& markers)
+{
+    std::unique_lock<std::mutex> lock(g_viz_mutex);
+    if (!g_visualizer) {
+        return;
+    }
+
+    g_visualizer->visualize(level, markers);
+}
+
+void visualize(levels::Level level, const visualization_msgs::Marker& marker)
+{
+    std::unique_lock<std::mutex> lock(g_viz_mutex);
+    if (!g_visualizer) {
+        return;
+    }
+
+    g_visualizer->visualize(level, marker);
+}
+
+void visualize(levels::Level level, const visualization_msgs::MarkerArray& markers)
 {
     std::unique_lock<std::mutex> lock(g_viz_mutex);
     if (!g_visualizer) {
