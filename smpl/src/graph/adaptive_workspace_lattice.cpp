@@ -35,12 +35,11 @@
 #include <boost/functional/hash.hpp>
 #include <sbpl/planners/planner.h>
 
-#include <leatherman/viz.h>
-
 // project includes
 #include <smpl/angles.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/debug/marker_utils.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 auto std::hash<sbpl::motion::AdaptiveGridState>::operator()(
@@ -621,7 +620,16 @@ bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         return false;
     }
 
-    SV_SHOW_INFO(::viz::getPosesMarkerArray({ goal.tgt_off_pose }, m_grid->getReferenceFrame(), "target_goal"));
+    Eigen::Affine3d goal_pose(
+            Eigen::Translation3d(
+                    goal.tgt_off_pose[0],
+                    goal.tgt_off_pose[1],
+                    goal.tgt_off_pose[2]) *
+            Eigen::AngleAxisd(goal.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(goal.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(goal.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+    auto markers = visual::MakePoseMarkers(goal_pose, m_grid->getReferenceFrame(), "target_goal");
+    SV_SHOW_INFO(markers);
 
     SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
 
@@ -651,9 +659,15 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 {
     SMPL_DEBUG_NAMED(params()->expands_log, "  coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f)", state.gx, state.gy, state.gz, state.x, state.y, state.z);
 
-    auto m = ::viz::getSphereMarker(state.x, state.y, state.z, m_grid->resolution(), 30, m_grid->getReferenceFrame(), "expansion_lo", 0);
-    visualization_msgs::MarkerArray ma; ma.markers.push_back(m);
-    SV_SHOW_INFO(ma);
+    auto m = visual::MakeSphereMarker(
+            state.x, state.y, state.z,
+            m_grid->resolution(),
+            30,
+            m_grid->getReferenceFrame(),
+            "expansion_lo",
+            0);
+
+    SV_SHOW_INFO(m);
 
     SMPL_DEBUG_NAMED(params()->successors_log, "  actions: %zu", m_lo_prims.size());
     for (size_t aidx = 0; aidx < m_lo_prims.size(); ++aidx) {

@@ -38,6 +38,7 @@
 // project includes
 #include <smpl/grid.h>
 #include <smpl/intrusive_heap.h>
+#include <smpl/debug/marker.h>
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 #include <smpl/heuristic/robot_heuristic.h>
@@ -55,8 +56,8 @@ public:
         const RobotPlanningSpacePtr& pspace,
         const OccupancyGrid* grid);
 
-    visualization_msgs::MarkerArray getWallsVisualization();
-    visualization_msgs::MarkerArray getValuesVisualization();
+    auto getWallsVisualization() -> visual::Marker;
+    auto getValuesVisualization() -> visual::Marker;
 
     /// \name Required Public Functions from ExperienceGraphHeuristicExtension
     ///@{

@@ -59,6 +59,7 @@ add_library(
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
+    src/debug/marker_utils.cpp
     src/debug/visualize.cpp
     src/distance_map/chessboard_distance_map.cpp
     src/distance_map/distance_map_common.cpp
@@ -109,7 +110,7 @@ add_library(
     src/ros/propagation_distance_field.cpp
     src/ros/workspace_lattice_allocator.cpp)
 
-target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
+target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES} ${leatherman_LIBRARIES})
 target_link_libraries(smpl_ros smpl ${catkin_LIBRARIES})
 
 install(

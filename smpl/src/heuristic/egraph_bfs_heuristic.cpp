@@ -36,6 +36,7 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/debug/marker_utils.h>
 
 namespace sbpl {
 namespace motion {
@@ -151,55 +152,51 @@ void DijkstraEgraphHeuristic3D::getShortcutSuccs(
     }
 }
 
-visualization_msgs::MarkerArray
-DijkstraEgraphHeuristic3D::getWallsVisualization()
+auto DijkstraEgraphHeuristic3D::getWallsVisualization() -> visual::Marker
 {
+    std::vector<Eigen::Vector3d> centers;
     std::vector<geometry_msgs::Point> points;
     for (int z = 0; z < grid()->numCellsZ(); z++) {
     for (int y = 0; y < grid()->numCellsY(); y++) {
     for (int x = 0; x < grid()->numCellsX(); x++) {
         if (m_dist_grid(x + 1, y + 1, z + 1).dist == Wall) {
-            geometry_msgs::Point p;
-            grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
-            points.push_back(p);
+            Eigen::Vector3d p;
+            grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            centers.push_back(p);
         }
     }
     }
     }
 
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", centers.size());
 
-    std_msgs::ColorRGBA color;
+    visual::Color color;
     color.r = 100.0f / 255.0f;
     color.g = 149.0f / 255.0f;
     color.b = 238.0f / 255.0f;
     color.a = 1.0f;
 
-    visualization_msgs::Marker cubes_marker = ::viz::getCubesMarker(
-            points,
+    auto cubes_marker = visual::MakeCubesMarker(
+            centers,
             grid()->resolution(),
             color,
             grid()->getReferenceFrame(),
             "bfs_walls",
             0);
 
-    visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(std::move(cubes_marker));
-    return ma;
+    return cubes_marker;
 }
 
-visualization_msgs::MarkerArray
-DijkstraEgraphHeuristic3D::getValuesVisualization()
+auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
 {
     SMPL_INFO("Retrieve values visualization");
-    visualization_msgs::MarkerArray ma;
 
     int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
 
     int max_cost = (int)(1.1 * start_heur);
 
-    std::vector<geometry_msgs::Point> points;
-    std::vector<std_msgs::ColorRGBA> colors;
+    std::vector<Eigen::Vector3d> points;
+    std::vector<visual::Color> colors;
     for (int z = 0; z < grid()->numCellsZ(); ++z) {
     for (int y = 0; y < grid()->numCellsY(); ++y) {
     for (int x = 0; x < grid()->numCellsX(); ++x) {
@@ -219,7 +216,7 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
         double r, g, b;
         leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
 
-        std_msgs::ColorRGBA color;
+        visual::Color color;
         color.r = (float)r;
         color.g = (float)g;
         color.b = (float)b;
@@ -239,8 +236,8 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
         color.g = clamp(color.g, 0.0f, 1.0f);
         color.b = clamp(color.b, 0.0f, 1.0f);
 
-        geometry_msgs::Point p;
-        grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
+        Eigen::Vector3d p;
+        grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
         points.push_back(p);
 
         colors.push_back(color);
@@ -248,26 +245,15 @@ DijkstraEgraphHeuristic3D::getValuesVisualization()
     }
     }
 
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = grid()->getReferenceFrame();
-    marker.ns = "h_values";
-    marker.id = 0;
-    marker.type = visualization_msgs::Marker::CUBE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.5 * grid()->resolution();
-    marker.scale.y = 0.5 * grid()->resolution();
-    marker.scale.z = 0.5 * grid()->resolution();
-//    marker.color;
-    marker.frame_locked = false;
-    marker.points = std::move(points);
-    marker.colors = std::move(colors);
-    marker.text = "";
-    marker.mesh_use_embedded_materials = false;
+    auto marker = MakeCubesMarker(
+            std::move(points),
+            0.5 * grid()->resolution(),
+            std::move(colors),
+            grid()->getReferenceFrame(),
+            "h_values");
 
-    ma.markers.push_back(std::move(marker));
-    SMPL_INFO("Retrieved values visualization with %zu points", ma.markers.front().points.size());
-    return ma;
+    SMPL_INFO("Retrieved values visualization with %zu points", boost::get<visual::CubeList>(marker.shape).points.size());
+    return marker;
 }
 
 double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, double z)

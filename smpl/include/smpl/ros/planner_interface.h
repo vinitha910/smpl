@@ -56,6 +56,7 @@
 #include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
+#include <smpl/debug/marker.h>
 #include <smpl/ros/heuristic_allocator.h>
 #include <smpl/ros/planner_allocator.h>
 #include <smpl/ros/planning_space_allocator.h>
@@ -123,8 +124,8 @@ public:
     /// \name Visualization
     ///@{
 
-    visualization_msgs::MarkerArray getBfsWallsVisualization() const;
-    visualization_msgs::MarkerArray getBfsValuesVisualization() const;
+    auto getBfsWallsVisualization() const -> visual::Marker;
+    auto getBfsValuesVisualization() const -> visual::Marker;
 
     visualization_msgs::MarkerArray getCollisionModelTrajectoryVisualization(
         const std::vector<RobotState>& path) const;

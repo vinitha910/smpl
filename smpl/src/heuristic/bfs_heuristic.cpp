@@ -39,6 +39,7 @@
 #include <smpl/console/console.h>
 #include <smpl/intrusive_heap.h>
 #include <smpl/grid.h>
+#include <smpl/debug/marker_utils.h>
 
 namespace sbpl {
 namespace motion {
@@ -164,55 +165,48 @@ int BfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
     }
 }
 
-visualization_msgs::MarkerArray BfsHeuristic::getWallsVisualization() const
+auto BfsHeuristic::getWallsVisualization() const -> visual::Marker
 {
-    std::vector<geometry_msgs::Point> points;
+    std::vector<Eigen::Vector3d> centers;
     int dimX = grid()->numCellsX();
     int dimY = grid()->numCellsY();
     int dimZ = grid()->numCellsZ();
     for (int z = 0; z < dimZ; z++) {
-        for (int y = 0; y < dimY; y++) {
-            for (int x = 0; x < dimX; x++) {
-                if (m_bfs->isWall(x, y, z)) {
-                    geometry_msgs::Point p;
-                    grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
-                    points.push_back(p);
-                }
-            }
+    for (int y = 0; y < dimY; y++) {
+    for (int x = 0; x < dimX; x++) {
+        if (m_bfs->isWall(x, y, z)) {
+            Eigen::Vector3d p;
+            grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            centers.push_back(p);
         }
     }
+    }
+    }
 
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", centers.size());
 
-    std_msgs::ColorRGBA color;
+    visual::Color color;
     color.r = 100.0f / 255.0f;
     color.g = 149.0f / 255.0f;
     color.b = 238.0f / 255.0f;
     color.a = 1.0f;
 
-    visualization_msgs::Marker cubes_marker = viz::getCubesMarker(
-            points,
+    return visual::MakeCubesMarker(
+            centers,
             grid()->resolution(),
             color,
             grid()->getReferenceFrame(),
-            "bfs_walls",
-            0);
-
-    visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(std::move(cubes_marker));
-    return ma;
+            "bfs_walls");
 }
 
-visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
+auto BfsHeuristic::getValuesVisualization() -> visual::Marker
 {
-    visualization_msgs::MarkerArray ma;
-
     if (m_goal_x < 0 || m_goal_y < 0 || m_goal_z < 0) {
-        return ma;
+        return visual::MakeEmptyMarker();
     }
 
     if (m_bfs->isWall(m_goal_x, m_goal_y, m_goal_z)) {
-        return ma;
+        return visual::MakeEmptyMarker();
     }
 
     // hopefully this doesn't screw anything up too badly...this will flush the
@@ -220,7 +214,7 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
     // hereafter anyway
     int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
     if (start_heur == Infinity) {
-        return ma;
+        return visual::MakeEmptyMarker();
     }
 
     SMPL_INFO("Start cell heuristic: %d", start_heur);
@@ -233,8 +227,8 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
 
     const size_t max_points = 4 * 4096;
 
-    std::vector<geometry_msgs::Point> points;
-    std::vector<std_msgs::ColorRGBA> colors;
+    std::vector<Eigen::Vector3d> points;
+    std::vector<visual::Color> colors;
 
     struct CostCell
     {
@@ -261,7 +255,7 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
             double r, g, b;
             leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
 
-            std_msgs::ColorRGBA color;
+            visual::Color color;
             color.r = (float)r;
             color.g = (float)g;
             color.b = (float)b;
@@ -281,8 +275,8 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
             color.g = clamp(color.g, 0.0f, 1.0f);
             color.b = clamp(color.b, 0.0f, 1.0f);
 
-            geometry_msgs::Point p;
-            grid()->gridToWorld(c.x, c.y, c.z, p.x, p.y, p.z);
+            Eigen::Vector3d p;
+            grid()->gridToWorld(c.x, c.y, c.z, p.x(), p.y(), p.z());
             points.push_back(p);
 
             colors.push_back(color);
@@ -322,25 +316,12 @@ visualization_msgs::MarkerArray BfsHeuristic::getValuesVisualization()
         }
     }
 
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = grid()->getReferenceFrame();
-    marker.ns = "bfs_values";
-    marker.id = 0;
-    marker.type = visualization_msgs::Marker::CUBE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.5 * grid()->resolution();
-    marker.scale.y = 0.5 * grid()->resolution();
-    marker.scale.z = 0.5 * grid()->resolution();
-//    marker.color;
-    marker.frame_locked = false;
-    marker.points = std::move(points);
-    marker.colors = std::move(colors);
-    marker.text = "";
-    marker.mesh_use_embedded_materials = false;
-
-    ma.markers.push_back(std::move(marker));
-    return ma;
+    return visual::MakeCubesMarker(
+            std::move(points),
+            0.5 * grid()->resolution(),
+            std::move(colors),
+            grid()->getReferenceFrame(),
+            "bfs_values");
 }
 
 void BfsHeuristic::syncGridAndBfs()

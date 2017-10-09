@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 namespace sbpl {
-namespace viz {
+namespace visual {
 
 namespace impl { // debug visualization level manager implementation
 
@@ -254,6 +254,119 @@ void visualize(
     }
 
     g_visualizer->visualize(level, markers);
+}
+
+static void ConvertMarkerMsgToMarker(
+    const visualization_msgs::Marker& mm,
+    Marker& m)
+{
+    Eigen::Affine3d pose(
+            Eigen::Translation3d(
+                    mm.pose.position.x,
+                    mm.pose.position.y,
+                    mm.pose.position.z) *
+            Eigen::Quaterniond(
+                    mm.pose.orientation.w,
+                    mm.pose.orientation.x,
+                    mm.pose.orientation.y,
+                    mm.pose.orientation.z));
+    m.pose =  pose;
+
+    auto convert_points = [](
+        const std::vector<geometry_msgs::Point>& points)
+        -> std::vector<Eigen::Vector3d>
+    {
+        std::vector<Eigen::Vector3d> new_points(points.size());
+        for (size_t i = 0; i < points.size(); ++i) {
+            auto& point = points[i];
+            new_points[i] = Eigen::Vector3d(point.x, point.y, point.z);
+        }
+        return new_points;
+    };
+
+    switch (mm.type) {
+    case visualization_msgs::Marker::ARROW:
+        m.shape = Arrow{ mm.scale.x, mm.scale.y };
+        break;
+    case visualization_msgs::Marker::CUBE:
+        m.shape = Cube{ mm.scale.x, mm.scale.y, mm.scale.z };
+        break;
+    case visualization_msgs::Marker::SPHERE:
+        m.shape = Ellipse{ mm.scale.x, mm.scale.y, mm.scale.z };
+        break;
+    case visualization_msgs::Marker::CYLINDER:
+        m.shape = Cylinder{ mm.scale.x, mm.scale.z };
+        break;
+    case visualization_msgs::Marker::LINE_STRIP:
+        m.shape = LineStrip{ convert_points(mm.points) };
+        break;
+    case visualization_msgs::Marker::LINE_LIST:
+        m.shape = LineList{ convert_points(mm.points) };
+        break;
+    case visualization_msgs::Marker::CUBE_LIST:
+        m.shape = CubeList{ convert_points(mm.points), mm.scale.x };
+        break;
+    case visualization_msgs::Marker::SPHERE_LIST:
+        m.shape = SphereList{ convert_points(mm.points), mm.scale.x };
+        break;
+    case visualization_msgs::Marker::POINTS:
+        m.shape = PointList{ convert_points(mm.points) };
+        break;
+    case visualization_msgs::Marker::TEXT_VIEW_FACING:
+        m.shape = BillboardText{ mm.text };
+        break;
+    case visualization_msgs::Marker::MESH_RESOURCE:
+        m.shape = MeshResource{ mm.text };
+        break;
+    case visualization_msgs::Marker::TRIANGLE_LIST:
+        m.shape = TriangleList{ convert_points(mm.points) };
+        break;
+    }
+
+    m.frame_id = mm.header.frame_id;
+    m.ns = mm.ns;
+    m.lifetime = mm.lifetime.toSec();
+    m.id = mm.id;
+    m.action = (Marker::Action)(int)mm.action;
+    if (mm.mesh_use_embedded_materials) {
+        m.flags |= Marker::MESH_USE_EMBEDDED_MATERIALS;
+    }
+    if (mm.frame_locked) {
+        m.flags |= Marker::FRAME_LOCKED;
+    }
+}
+
+void VisualizerBase::visualize(
+    levels::Level level,
+    const visualization_msgs::Marker& mm)
+{
+    visual::Marker m;
+    ConvertMarkerMsgToMarker(mm, m);
+    visualize(level, m);
+}
+
+void VisualizerBase::visualize(
+    levels::Level level,
+    const visualization_msgs::MarkerArray& markers)
+{
+    for (auto& m : markers.markers) {
+        visualize(level, m);
+    }
+}
+
+void VisualizerBase::visualize(
+    levels::Level level,
+    const std::vector<visual::Marker>& markers)
+{
+    for (auto& m : markers) {
+        visualize(level, m);
+    }
+}
+
+void VisualizerBase::visualize(
+    levels::Level level,
+    const visual::Marker& marker)
+{
 }
 
 } // namespace viz

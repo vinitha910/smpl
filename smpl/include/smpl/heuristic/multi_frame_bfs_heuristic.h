@@ -35,11 +35,9 @@
 // standard includes
 #include <memory>
 
-// system includes
-#include <visualization_msgs/MarkerArray.h>
-
 // project includes
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/debug/marker.h>
 
 namespace sbpl {
 namespace motion {
@@ -56,8 +54,8 @@ public:
 
     virtual ~MultiFrameBfsHeuristic();
 
-    visualization_msgs::MarkerArray getWallsVisualization() const;
-    visualization_msgs::MarkerArray getValuesVisualization() const;
+    auto getWallsVisualization() const -> visual::Marker;
+    auto getValuesVisualization() const -> visual::Marker;
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{

@@ -31,12 +31,10 @@
 
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
 
-// system includes
-#include <leatherman/viz.h>
-
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
 #include <smpl/console/console.h>
+#include <smpl/debug/marker_utils.h>
 
 namespace sbpl {
 namespace motion {
@@ -164,51 +162,42 @@ int MultiFrameBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
     }
 }
 
-visualization_msgs::MarkerArray
-MultiFrameBfsHeuristic::getWallsVisualization() const
+auto MultiFrameBfsHeuristic::getWallsVisualization() const -> visual::Marker
 {
-    std::vector<geometry_msgs::Point> points;
+    std::vector<Eigen::Vector3d> points;
     const int dimX = grid()->numCellsX();
     const int dimY = grid()->numCellsY();
     const int dimZ = grid()->numCellsZ();
     for (int z = 0; z < dimZ; z++) {
-        for (int y = 0; y < dimY; y++) {
-            for (int x = 0; x < dimX; x++) {
-                if (m_bfs->isWall(x, y, z)) {
-                    geometry_msgs::Point p;
-                    grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
-                    points.push_back(p);
-                }
-            }
+    for (int y = 0; y < dimY; y++) {
+    for (int x = 0; x < dimX; x++) {
+        if (m_bfs->isWall(x, y, z)) {
+            Eigen::Vector3d p;
+            grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            points.push_back(p);
         }
+    }
+    }
     }
 
     SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
 
-    std_msgs::ColorRGBA color;
+    visual::Color color;
     color.r = 100.0f / 255.0f;
     color.g = 149.0f / 255.0f;
     color.b = 238.0f / 255.0f;
     color.a = 1.0f;
 
-    visualization_msgs::Marker cubes_marker = viz::getCubesMarker(
+    return visual::MakeCubesMarker(
             points,
             grid()->resolution(),
             color,
             grid()->getReferenceFrame(),
-            "bfs_walls",
-            0);
-
-    visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(std::move(cubes_marker));
-    return ma;
+            "bfs_walls");
 }
 
-visualization_msgs::MarkerArray
-MultiFrameBfsHeuristic::getValuesVisualization() const
+auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
 {
-    visualization_msgs::MarkerArray ma;
-
     // factor in the ee bfs values? This doesn't seem to make a whole lot of
     // sense since the color would be derived from colocated cell values
     const bool factor_ee = false;
@@ -224,8 +213,8 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
 
     // ...and this will also flush the bfs...
 
-    std::vector<geometry_msgs::Point> points;
-    std::vector<std_msgs::ColorRGBA> colors;
+    std::vector<Eigen::Vector3d> points;
+    std::vector<visual::Color> colors;
     for (int z = 0; z < grid()->numCellsZ(); ++z) {
     for (int y = 0; y < grid()->numCellsY(); ++y) {
     for (int x = 0; x < grid()->numCellsX(); ++x) {
@@ -242,13 +231,14 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
             continue;
         }
 
-        double hue = 300.0 - 300.0 * cost_pct;
-        double sat = 1.0;
-        double val = 1.0;
-        double r, g, b;
-        leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
+        // FIXME:
+//        double hue = 300.0 - 300.0 * cost_pct;
+//        double sat = 1.0;
+//        double val = 1.0;
+        double r = 1.0f, g = 1.0, b = 1.0;
+//        leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
 
-        std_msgs::ColorRGBA color;
+        visual::Color color;
         color.r = (float)r;
         color.g = (float)g;
         color.b = (float)b;
@@ -268,8 +258,8 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
         color.g = clamp(color.g, 0.0f, 1.0f);
         color.b = clamp(color.b, 0.0f, 1.0f);
 
-        geometry_msgs::Point p;
-        grid()->gridToWorld(x, y, z, p.x, p.y, p.z);
+        Eigen::Vector3d p;
+        grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
         points.push_back(p);
 
         colors.push_back(color);
@@ -277,25 +267,12 @@ MultiFrameBfsHeuristic::getValuesVisualization() const
     }
     }
 
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = grid()->getReferenceFrame();
-    marker.ns = "bfs_values";
-    marker.id = 0;
-    marker.type = visualization_msgs::Marker::CUBE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.5 * grid()->resolution();
-    marker.scale.y = 0.5 * grid()->resolution();
-    marker.scale.z = 0.5 * grid()->resolution();
-//    marker.color;
-    marker.frame_locked = false;
-    marker.points = std::move(points);
-    marker.colors = std::move(colors);
-    marker.text = "";
-    marker.mesh_use_embedded_materials = false;
-
-    ma.markers.push_back(std::move(marker));
-    return ma;
+    return visual::MakeCubesMarker(
+            std::move(points),
+            0.5 * grid()->resolution(),
+            std::move(colors),
+            grid()->getReferenceFrame(),
+            "bfs_values");
 }
 
 int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const

@@ -782,11 +782,10 @@ PlannerInterface::getCollisionModelTrajectoryVisualization(
     return ma;
 }
 
-visualization_msgs::MarkerArray
-PlannerInterface::getBfsValuesVisualization() const
+auto PlannerInterface::getBfsValuesVisualization() const -> visual::Marker
 {
     if (m_heuristics.empty()) {
-        return visualization_msgs::MarkerArray();
+        return visual::Marker{ };
     }
 
     auto first = m_heuristics.begin();
@@ -796,17 +795,16 @@ PlannerInterface::getBfsValuesVisualization() const
     } else if (auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second)) {
         return hmfbfs->getValuesVisualization();
     } else if (auto debfs = std::dynamic_pointer_cast<DijkstraEgraphHeuristic3D>(first->second)) {
-        return debfs->getValuesVisualization();
+        return { debfs->getValuesVisualization() };
     } else {
-        return visualization_msgs::MarkerArray();
+        return visual::Marker{ };
     }
 }
 
-visualization_msgs::MarkerArray
-PlannerInterface::getBfsWallsVisualization() const
+auto PlannerInterface::getBfsWallsVisualization() const -> visual::Marker
 {
     if (m_heuristics.empty()) {
-        return visualization_msgs::MarkerArray();
+        return visual::Marker{ };
     }
 
     auto first = m_heuristics.begin();
@@ -818,7 +816,7 @@ PlannerInterface::getBfsWallsVisualization() const
     } else if (auto debfs = std::dynamic_pointer_cast<DijkstraEgraphHeuristic3D>(first->second)) {
         return debfs->getWallsVisualization();
     } else {
-        return visualization_msgs::MarkerArray();
+        return visual::Marker{ };
     }
 }
 

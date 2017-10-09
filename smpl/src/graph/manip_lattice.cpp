@@ -37,7 +37,6 @@
 
 // system includes
 #include <Eigen/Dense>
-#include <leatherman/viz.h>
 #include <sbpl/planners/planner.h>
 
 #include <smpl/angles.h>
@@ -45,6 +44,7 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/debug/marker_utils.h>
 #include "../profiling.h"
 
 auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
@@ -1089,7 +1089,15 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
         return false;
     }
 
-    SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
+    Eigen::Affine3d goal_pose(
+            Eigen::Translation3d(
+                    gc.tgt_off_pose[0],
+                    gc.tgt_off_pose[1],
+                    gc.tgt_off_pose[2]) *
+            Eigen::AngleAxisd(gc.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(gc.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(gc.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+    SV_SHOW_INFO(visual::MakePoseMarkers(goal_pose, m_viz_frame_id, "target_goal"));
 
     using namespace std::chrono;
     auto now = clock::now();
