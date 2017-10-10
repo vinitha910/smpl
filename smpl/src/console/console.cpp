@@ -1,4 +1,4 @@
-#include <smpl/console/console.h>
+#include <smpl/console/detail/console_std.h>
 
 // standard includes
 #include <stdarg.h>
