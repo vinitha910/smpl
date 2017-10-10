@@ -523,7 +523,7 @@ void ManipLattice::GetPreds(
 
 // angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
 // 0, ...
-inline void ManipLattice::coordToState(
+void ManipLattice::coordToState(
     const RobotCoord& coord,
     RobotState& state) const
 {
@@ -541,7 +541,7 @@ inline void ManipLattice::coordToState(
     }
 }
 
-inline void ManipLattice::stateToCoord(
+void ManipLattice::stateToCoord(
     const RobotState& state,
     RobotCoord& coord) const
 {
