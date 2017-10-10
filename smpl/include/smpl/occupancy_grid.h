@@ -41,11 +41,11 @@
 // system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
-#include <visualization_msgs/MarkerArray.h>
 
 // project includes
-#include <smpl/distance_map/distance_map_interface.h>
 #include <smpl/forward.h>
+#include <smpl/debug/marker.h>
+#include <smpl/distance_map/distance_map_interface.h>
 
 namespace sbpl {
 
@@ -150,12 +150,9 @@ public:
 
     /// \name Visualization
     ///@{
-    auto getBoundingBoxVisualization() const
-        -> visualization_msgs::MarkerArray;
-    auto getDistanceFieldVisualization(double max_dist = -1.0) const
-        -> visualization_msgs::MarkerArray;
-    auto getOccupiedVoxelsVisualization() const
-        -> visualization_msgs::MarkerArray;
+    auto getBoundingBoxVisualization() const -> visual::Marker;
+    auto getDistanceFieldVisualization(double max_dist = -1.0) const -> visual::Marker;
+    auto getOccupiedVoxelsVisualization() const -> visual::Marker;
     ///@}
 
 private:

@@ -41,16 +41,18 @@
 #include <sbpl_collision_checking/collision_space.h>
 #include <smpl/ros/propagation_distance_field.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <smpl/debug/visualize.h>
+#include <smpl/debug/visualizer_ros.h>
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "sbpl_collision_space_test");
     ros::NodeHandle nh;
-    double dist = 0;
-    ros::Publisher p = nh.advertise<visualization_msgs::MarkerArray>(
-            "visualization_marker_array", 500, true);
+
+    sbpl::VisualizerROS visualizer;
+    sbpl::visual::set_visualizer(&visualizer);
+
     ros::NodeHandle ph("~");
-    sleep(1);
 
     std::string group_name;
     std::string world_frame;
@@ -147,10 +149,10 @@ int main(int argc, char **argv)
     angles[6] = 0.4;
 
     ros::spinOnce();
-    p.publish(cspace.getBoundingBoxVisualization());
-    p.publish(cspace.getOccupiedVoxelsVisualization());
-    p.publish(cspace.getDistanceFieldVisualization());
-    p.publish(cspace.getCollisionModelVisualization(angles));
+    SV_SHOW_INFO(cspace.getBoundingBoxVisualization());
+    SV_SHOW_INFO(cspace.getOccupiedVoxelsVisualization());
+    SV_SHOW_INFO(cspace.getDistanceFieldVisualization());
+    SV_SHOW_INFO(cspace.getCollisionModelVisualization(angles));
 
     ros::spinOnce();
     sleep(1);

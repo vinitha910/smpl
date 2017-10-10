@@ -98,11 +98,12 @@ void FillGoalConstraint(
     ROS_INFO("Done packing the goal constraints message.");
 }
 
-moveit_msgs::CollisionObject GetCollisionCube(
+auto GetCollisionCube(
     const geometry_msgs::Pose& pose,
     std::vector<double>& dims,
     const std::string& frame_id,
     const std::string& id)
+    -> moveit_msgs::CollisionObject
 {
     moveit_msgs::CollisionObject object;
     object.id = id;
@@ -122,10 +123,11 @@ moveit_msgs::CollisionObject GetCollisionCube(
     return object;
 }
 
-std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
+auto GetCollisionCubes(
     std::vector<std::vector<double>>& objects,
     std::vector<std::string>& object_ids,
     const std::string& frame_id)
+    -> std::vector<moveit_msgs::CollisionObject>
 {
     std::vector<moveit_msgs::CollisionObject> objs;
     std::vector<double> dims(3,0);
@@ -153,9 +155,10 @@ std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
     return objs;
 }
 
-std::vector<moveit_msgs::CollisionObject> GetCollisionObjects(
+auto GetCollisionObjects(
     const std::string& filename,
     const std::string& frame_id)
+    -> std::vector<moveit_msgs::CollisionObject>
 {
     char sTemp[1024];
     int num_obs = 0;
@@ -391,10 +394,11 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
     return true;
 }
 
-std::unique_ptr<smpl::KDLRobotModel> SetupRobotModel(
+auto SetupRobotModel(
     const std::string& urdf,
     const RobotModelConfig &config,
     const std::string& planning_frame)
+    -> std::unique_ptr<smpl::KDLRobotModel>
 {
     std::unique_ptr<smpl::KDLRobotModel> rm;
 
@@ -1531,9 +1535,6 @@ int main(int argc, char* argv[])
     sbpl::VisualizerROS visualizer(nh, 100);
     sbpl::viz::set_visualizer(&visualizer);
 
-    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>(
-            "visualization_markers", 100);
-
     // let publishers set up
     ros::Duration(1.0).sleep();
 
@@ -1608,7 +1609,7 @@ int main(int argc, char* argv[])
     sbpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
-    ma_pub.publish(grid.getBoundingBoxVisualization());
+    SV_SHOW_INFO(grid.getBoundingBoxVisualization());
 
     ///////////////////////
     // Collision Checker //
@@ -1662,7 +1663,7 @@ int main(int argc, char* argv[])
         return false;
     }
 
-    ma_pub.publish(grid.getDistanceFieldVisualization(0.2));
+    SV_SHOW_INFO(grid.getDistanceFieldVisualization(0.2));
 
     // set the kinematics to planning transform if found in the initial
     // configuration as a multi-dof transform...this is to account for the kdl
@@ -1689,14 +1690,12 @@ int main(int argc, char* argv[])
         ROS_WARN("You might want to provide the planning frame -> kinematics frame transform in the multi-dof joint state");
     }
 
-    auto markers = cc.getBoundingBoxVisualization();
-    ROS_INFO("Publish %zu bounding box markers", markers.markers.size());
-    ma_pub.publish(markers);
-    markers = cc.getCollisionWorldVisualization();
+    SV_SHOW_INFO(cc.getBoundingBoxVisualization());
+    auto markers = cc.getCollisionWorldVisualization();
     ROS_INFO("Publish %zu collision world markers", markers.markers.size());
-    ma_pub.publish(cc.getCollisionRobotVisualization());
-    ma_pub.publish(markers);
-    ma_pub.publish(cc.getOccupiedVoxelsVisualization());
+    SV_SHOW_INFO(cc.getCollisionRobotVisualization());
+    SV_SHOW_INFO(markers);
+    SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
 
     ///////////////////
     // Planner Setup //
@@ -1786,7 +1785,7 @@ int main(int argc, char* argv[])
     while (ros::ok()) {
         for (const auto &point : res.trajectory.joint_trajectory.points) {
             auto markers = cc.getCollisionRobotVisualization(point.positions);
-            ma_pub.publish(markers);
+            SV_SHOW_INFO(markers);
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }

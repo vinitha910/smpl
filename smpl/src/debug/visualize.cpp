@@ -284,7 +284,7 @@ void visualize(levels::Level level, const visualization_msgs::MarkerArray& marke
     g_visualizer->visualize(level, markers);
 }
 
-static void ConvertMarkerMsgToMarker(
+void ConvertMarkerMsgToMarker(
     const visualization_msgs::Marker& mm,
     Marker& m)
 {
@@ -362,6 +362,106 @@ static void ConvertMarkerMsgToMarker(
     if (mm.frame_locked) {
         m.flags |= Marker::FRAME_LOCKED;
     }
+}
+
+void ConvertMarkerToMarkerMsg(
+    const Marker& m,
+    visualization_msgs::Marker& mm)
+{
+    mm.header.frame_id = m.frame_id;
+    mm.ns = m.ns;
+    mm.id = m.id;
+    switch (type(m.shape)) {
+    case SHAPE_EMPTY:
+        mm.type = visualization_msgs::Marker::SPHERE;
+        break;
+    case SHAPE_ARROW:
+        mm.type = visualization_msgs::Marker::ARROW;
+        break;
+    case SHAPE_CUBE:
+        mm.type = visualization_msgs::Marker::CUBE;
+        break;
+    case SHAPE_SPHERE:
+        mm.type = visualization_msgs::Marker::SPHERE;
+        break;
+    case SHAPE_ELLIPSE:
+        mm.type = visualization_msgs::Marker::SPHERE;
+        break;
+    case SHAPE_CYLINDER:
+        mm.type = visualization_msgs::Marker::CYLINDER;
+        break;
+    case SHAPE_LINE_LIST:
+        mm.type = visualization_msgs::Marker::LINE_LIST;
+        break;
+    case SHAPE_LINE_STRIP:
+        mm.type = visualization_msgs::Marker::LINE_STRIP;
+        break;
+    case SHAPE_CUBE_LIST:
+        mm.type = visualization_msgs::Marker::CUBE_LIST;
+        break;
+    case SHAPE_SPHERE_LIST:
+        mm.type = visualization_msgs::Marker::SPHERE_LIST;
+        break;
+    case SHAPE_POINT_LIST:
+        mm.type = visualization_msgs::Marker::POINTS;
+        break;
+    case SHAPE_BILLBOARD_TEXT:
+        mm.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        break;
+    case SHAPE_MESH_RESOURCE:
+        mm.type = visualization_msgs::Marker::MESH_RESOURCE;
+        break;
+    case SHAPE_TRIANGLE_LIST:
+        mm.type = visualization_msgs::Marker::TRIANGLE_LIST;
+        break;
+    default:
+        break;
+    }
+
+    switch (m.action) {
+    case Marker::ACTION_ADD:
+        mm.action = visualization_msgs::Marker::ADD;
+        break;
+    case Marker::ACTION_MODIFY:
+        mm.action = visualization_msgs::Marker::MODIFY;
+        break;
+    case Marker::ACTION_DELETE:
+        mm.action = visualization_msgs::Marker::DELETE;
+        break;
+    case Marker::ACTION_DELETE_ALL:
+        mm.action = 3;
+        break;
+    }
+
+    mm.pose.position.x = m.pose.position.x();
+    mm.pose.position.y = m.pose.position.y();
+    mm.pose.position.z = m.pose.position.z();
+    mm.pose.orientation.w = m.pose.orientation.w();
+    mm.pose.orientation.x = m.pose.orientation.x();
+    mm.pose.orientation.y = m.pose.orientation.y();
+    mm.pose.orientation.z = m.pose.orientation.z();
+
+    if (m.color.which() == 0) {
+        auto& color = boost::get<Color>(m.color);
+        mm.color.r = color.r;
+        mm.color.g = color.g;
+        mm.color.b = color.b;
+        mm.color.a = color.a;
+    } else {
+        auto& colors = boost::get<std::vector<Color>>(m.color);
+        mm.colors.resize(colors.size());
+        for (size_t i = 0; i < colors.size(); ++i) {
+            std_msgs::ColorRGBA c;
+            c.r = colors[i].r;
+            c.g = colors[i].g;
+            c.b = colors[i].b;
+            c.a = colors[i].a;
+            mm.colors.push_back(c);
+        }
+    }
+
+    mm.frame_locked = (m.flags & Marker::FRAME_LOCKED);
+    mm.mesh_use_embedded_materials = (m.flags & Marker::MESH_USE_EMBEDDED_MATERIALS);
 }
 
 void VisualizerBase::visualize(

@@ -167,12 +167,9 @@ public:
     auto getCollisionDetailsVisualization(const double* jvals)
         -> visualization_msgs::MarkerArray;
 
-    auto getBoundingBoxVisualization() const
-        -> visualization_msgs::MarkerArray;
-    auto getDistanceFieldVisualization() const
-        -> visualization_msgs::MarkerArray;
-    auto getOccupiedVoxelsVisualization() const
-        -> visualization_msgs::MarkerArray;
+    auto getBoundingBoxVisualization() const -> visual::Marker;
+    auto getDistanceFieldVisualization() const -> visual::Marker;
+    auto getOccupiedVoxelsVisualization() const -> visual::Marker;
     ///@}
 
     bool checkCollision(

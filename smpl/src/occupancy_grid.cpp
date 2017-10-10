@@ -35,10 +35,9 @@
 // standard includes
 #include <memory>
 
-// system includes
-#include <leatherman/viz.h>
-
 // project includes
+#include <smpl/debug/marker_utils.h>
+#include <smpl/debug/colors.h>
 #include <smpl/distance_map/euclid_distance_map.h>
 
 namespace sbpl {
@@ -233,168 +232,122 @@ void OccupancyGrid::getOccupiedVoxels(
 }
 
 /// Return a visualization of the bounding box of the distance map.
-auto OccupancyGrid::getBoundingBoxVisualization() const
-    -> visualization_msgs::MarkerArray
+auto OccupancyGrid::getBoundingBoxVisualization() const -> visual::Marker
 {
-    visualization_msgs::MarkerArray ma;
+    std::vector<Eigen::Vector3d> points;
+    points.reserve(
+            4 * (m_grid->numCellsX() + 2) +
+            4 * (m_grid->numCellsY()) +
+            4 * (m_grid->numCellsZ()));
 
-    visualization_msgs::Marker m;
-    m.header.frame_id = getReferenceFrame();
-    m.ns = "collision_space_bounds";
-    m.id = 0;
-    m.type = visualization_msgs::Marker::CUBE_LIST;
-    m.action = visualization_msgs::Marker::ADD;
-    m.scale.x = m.scale.y = m.scale.z = resolution();
-    leatherman::msgHSVToRGB(10.0, 1.0, 1.0, m.color);
-
-    m.points.reserve(4 * (m_grid->numCellsX() + 2) + 4 * (m_grid->numCellsY()) + 4 * (m_grid->numCellsZ()));
-
-    geometry_msgs::Point p;
+    Eigen::Vector3d p;
     int x, y, z;
 
     for (x = -1; x <= m_grid->numCellsX(); ++x) {
         y = -1, z = -1;
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         y = m_grid->numCellsY(), z = -1;
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         y = -1, z = m_grid->numCellsZ();
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         y = m_grid->numCellsY(), z = m_grid->numCellsZ();
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
     }
 
     for (y = 0; y < m_grid->numCellsY(); ++y) {
         x = -1, z = -1;
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         x = m_grid->numCellsX(), z = -1;
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         x = -1, z = m_grid->numCellsZ();
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         x = m_grid->numCellsX(), z = m_grid->numCellsZ();
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
     }
 
     for (z = 0; z < m_grid->numCellsZ(); ++z) {
         y = -1, x = -1;
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         y = m_grid->numCellsY(), x = -1;
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         y = -1, x = m_grid->numCellsX();
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
 
         y = m_grid->numCellsY(), x = m_grid->numCellsX();
-        m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-        m.points.push_back(p);
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        points.push_back(p);
     }
 
-    ma.markers = { m };
-
-    return ma;
+    return MakeCubesMarker(
+            std::move(points),
+            resolution(),
+            sbpl::visual::MakeColorHSV(10.0f),
+            getReferenceFrame(),
+            "collision_space_bounds");
 }
 
 /// Return a visualization of the distance values stored in the distance map.
 auto OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
-    -> visualization_msgs::MarkerArray
+    -> visual::Marker
 {
-    visualization_msgs::MarkerArray ma;
-
-    visualization_msgs::Marker m;
-    m.header.frame_id = reference_frame_;
-    m.ns = "distance_field";
-    m.id = 0;
-    m.type = visualization_msgs::Marker::CUBE_LIST;
-    m.action = visualization_msgs::Marker::ADD;
-    m.pose.orientation.w = 1.0;
-    m.scale.x = m.scale.y = m.scale.z = 0.5 * m_grid->resolution();
-    m.color.r = 1.0f;
-    m.color.g = 0.5f;
-    m.color.b = 0.0f;
-    m.color.a = 1.0f;
-
     const double min_value = m_grid->resolution();
-    const double max_value =
-            max_dist < 0.0 ? m_grid->getUninitializedDistance() : max_dist;
+    const double max_value = max_dist < 0.0 ?
+            m_grid->getUninitializedDistance() : max_dist;
+
+    std::vector<Eigen::Vector3d> points;
+    std::vector<visual::Color> colors;
     iterateCells([&](int x, int y, int z)
     {
         const double d = m_grid->getCellDistance(x, y, z);
         if (d >= min_value && d <= max_value) {
-            double wx, wy, wz;
-            m_grid->gridToWorld(x, y, z, wx, wy, wz);
-            geometry_msgs::Point p;
-            p.x = wx;
-            p.y = wy;
-            p.z = wz;
-            m.points.push_back(p);
+            Eigen::Vector3d p;
+            m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            points.push_back(p);
 
             const double alpha = (d - min_value) / (max_value - min_value);
-            const double hue = 120.0 + alpha * (240.0);
-            std_msgs::ColorRGBA color;
-            leatherman::msgHSVToRGB(hue, 1.0, 1.0, color);
-
-            m.colors.push_back(color);
+            colors.push_back(visual::MakeColorHSV(120.0 + alpha * (240.0)));
         }
     });
 
-    ma.markers.push_back(m);
-    return ma;
+    return MakeCubesMarker(
+            std::move(points),
+            0.5 * m_grid->resolution(),
+            std::move(colors),
+            reference_frame_,
+            "distance_field");
 }
 
 /// Return a visualization of the obstacle cells stored in the distance map.
-auto OccupancyGrid::getOccupiedVoxelsVisualization() const
-    -> visualization_msgs::MarkerArray
+auto OccupancyGrid::getOccupiedVoxelsVisualization() const -> visual::Marker
 {
-    visualization_msgs::MarkerArray ma;
-
-    visualization_msgs::Marker marker;
-
-    marker.header.seq = 0;
-    marker.header.frame_id = getReferenceFrame();
-
-    marker.ns = "occupied_voxels";
-    marker.id = 0;
-    marker.type = visualization_msgs::Marker::CUBE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-
-    marker.scale.x = m_grid->resolution();
-    marker.scale.y = m_grid->resolution();
-    marker.scale.z = m_grid->resolution();
-
-    marker.color.r = 0.8f;
-    marker.color.g = 0.3f;
-    marker.color.b = 0.5f;
-    marker.color.a = 1.0f;
-
     std::vector<Eigen::Vector3d> voxels;
     getOccupiedVoxels(voxels);
 
-    marker.points.resize(voxels.size());
-    for (size_t i = 0; i < voxels.size(); ++i) {
-        marker.points[i].x = voxels[i].x();
-        marker.points[i].y = voxels[i].y();
-        marker.points[i].z = voxels[i].z();
-    }
-
-    ma.markers.push_back(marker);
-    return ma;
+    return MakeCubesMarker(
+            std::move(voxels),
+            m_grid->resolution(),
+            visual::Color{ 0.8f, 0.3f, 0.5f, 1.0f },
+            getReferenceFrame(),
+            "occupied_voxels");
 }
 
 /// Add a set of obstacle cells to the occupancy grid.

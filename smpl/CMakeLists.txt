@@ -59,6 +59,7 @@ add_library(
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
+    src/debug/colors.cpp
     src/debug/marker_utils.cpp
     src/debug/visualize.cpp
     src/distance_map/chessboard_distance_map.cpp

@@ -445,22 +445,19 @@ CollisionSpace::getCollisionDetailsVisualization(
 }
 
 /// \brief Return a visualization of the bounding box
-visualization_msgs::MarkerArray
-CollisionSpace::getBoundingBoxVisualization() const
+auto CollisionSpace::getBoundingBoxVisualization() const -> visual::Marker
 {
     return m_grid->getBoundingBoxVisualization();
 }
 
 /// \brief Return a visualization of the distance field
-visualization_msgs::MarkerArray
-CollisionSpace::getDistanceFieldVisualization() const
+auto CollisionSpace::getDistanceFieldVisualization() const -> visual::Marker
 {
     return m_grid->getDistanceFieldVisualization();
 }
 
 /// \brief Return a visualization of the occupied voxels
-visualization_msgs::MarkerArray
-CollisionSpace::getOccupiedVoxelsVisualization() const
+auto CollisionSpace::getOccupiedVoxelsVisualization() const -> visual::Marker
 {
     return m_grid->getOccupiedVoxelsVisualization();
 }

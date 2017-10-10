@@ -43,6 +43,14 @@ auto MakeCubesMarker(
 auto MakeCubesMarker(
     std::vector<Eigen::Vector3d>&& centers,
     double size,
+    const Color& color,
+    const std::string& frame_id,
+    const std::string& ns,
+    int id = 0) -> Marker;
+
+auto MakeCubesMarker(
+    std::vector<Eigen::Vector3d>&& centers,
+    double size,
     std::vector<Color>&& colors,
     const std::string& frame_id,
     const std::string& ns,
