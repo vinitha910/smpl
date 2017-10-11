@@ -220,9 +220,8 @@ private:
 
     bool isGoal(const WorkspaceState& state) const;
 
-    visualization_msgs::MarkerArray getStateVisualization(
-        const RobotState& state,
-        const std::string& ns);
+    auto getStateVisualization(const RobotState& state, const std::string& ns)
+        -> std::vector<visual::Marker>;
 
 #if !BROKEN
     std::vector<double> mp_gradient_;

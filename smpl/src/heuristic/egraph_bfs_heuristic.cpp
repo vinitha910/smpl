@@ -32,11 +32,12 @@
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 
 #include <boost/functional/hash.hpp>
-#include <leatherman/viz.h>
+
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/marker_utils.h>
+#include <smpl/debug/colors.h>
 
 namespace sbpl {
 namespace motion {
@@ -210,17 +211,7 @@ auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
             continue;
         }
 
-        double hue = 300.0 - 300.0 * cost_pct;
-        double sat = 1.0;
-        double val = 1.0;
-        double r, g, b;
-        leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
-
-        visual::Color color;
-        color.r = (float)r;
-        color.g = (float)g;
-        color.b = (float)b;
-        color.a = 1.0f;
+        visual::Color color = visual::MakeColorHSV(300.0 - 300.0 * cost_pct);
 
         auto clamp = [](double d, double lo, double hi) {
             if (d < lo) {
@@ -407,8 +398,6 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 {
     m_heur_nodes.clear();
 
-    std::vector<geometry_msgs::Point> viz_points;
-
     // project experience graph into 3d space (projections of adjacent nodes in
     // the experience graph impose additional edges in 3d, cost equal to the
     // cheapest transition):
@@ -429,6 +418,8 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         return;
     }
 
+    std::vector<Eigen::Vector3d> viz_points;
+
     m_projected_nodes.resize(eg->num_nodes());
 
     size_t proj_node_count = 0;
@@ -444,8 +435,8 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         Eigen::Vector3i dp;
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
-        geometry_msgs::Point viz_pt;
-        grid()->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x, viz_pt.y, viz_pt.z);
+        Eigen::Vector3d viz_pt;
+        grid()->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x(), viz_pt.y(), viz_pt.z());
         viz_points.push_back(viz_pt);
 
         dp += Eigen::Vector3i::Ones();
@@ -526,15 +517,19 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
     SMPL_INFO("Experience graph contains %d components", comp_count);
 
-    std_msgs::ColorRGBA color;
+    visual::Color color;
     color.r = (float)0xFF / (float)0xFF;
     color.g = (float)0x8C / (float)0xFF;
     color.b = (float)0x00 / (float)0xFF;
     color.a = 1.0f;
 
-    visualization_msgs::MarkerArray ma;
-    ma.markers.push_back(::viz::getCubesMarker(viz_points, grid()->resolution(), color, grid()->getReferenceFrame(), "egraph_projection", 0));
-    SV_SHOW_INFO(ma);
+    auto vis = visual::MakeCubesMarker(
+            std::move(viz_points),
+            grid()->resolution(),
+            color,
+            grid()->getReferenceFrame(),
+            "egraph_projection");
+    SV_SHOW_INFO(vis);
 }
 
 int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)

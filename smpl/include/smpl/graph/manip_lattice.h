@@ -195,9 +195,8 @@ protected:
 
     bool isGoal(const RobotState& state, const std::vector<double>& pose);
 
-    visualization_msgs::MarkerArray getStateVisualization(
-        const RobotState& vars,
-        const std::string& ns);
+    auto getStateVisualization(const RobotState& vars, const std::string& ns)
+        -> std::vector<visual::Marker>;
 
 private:
 

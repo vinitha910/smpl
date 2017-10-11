@@ -761,15 +761,16 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
     }
 }
 
-visualization_msgs::MarkerArray WorkspaceLattice::getStateVisualization(
+auto WorkspaceLattice::getStateVisualization(
     const RobotState& state,
     const std::string& ns)
+    -> std::vector<visual::Marker>
 {
-    auto ma = collisionChecker()->getCollisionModelVisualization(state);
-    for (auto& marker : ma.markers) {
+    auto markers = collisionChecker()->getCollisionModelVisualization(state);
+    for (auto& marker : markers) {
         marker.ns = ns;
     }
-    return ma;
+    return markers;
 }
 
 void WorkspaceLattice::getActions(

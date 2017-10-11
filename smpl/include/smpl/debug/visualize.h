@@ -113,14 +113,6 @@ void visualize(levels::Level level, const std::vector<visual::Marker>& markers);
 void visualize(levels::Level level, const visualization_msgs::Marker& marker);
 void visualize(levels::Level level, const visualization_msgs::MarkerArray& markers);
 
-void ConvertMarkerMsgToMarker(
-    const visualization_msgs::Marker& mm,
-    Marker& m);
-
-void ConvertMarkerToMarkerMsg(
-    const Marker& m,
-    visualization_msgs::Marker& mm);
-
 struct VizLocation {
     void* handle; // struct representing the named visualization at location
     VizLocation *next; // forward list pointer to the next viz location

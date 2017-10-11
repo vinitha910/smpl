@@ -45,7 +45,6 @@
 #include <boost/regex.hpp>
 #include <eigen_conversions/eigen_msg.h>
 #include <leatherman/utils.h>
-#include <leatherman/viz.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
 // project includes
@@ -268,7 +267,7 @@ bool PlannerInterface::solve(
     }
 
     postProcessPath(path);
-    visualizePath(path);
+    SV_SHOW_INFO(makePathVisualization(path));
 
     ROS_DEBUG_NAMED(PI_LOGGER, "smoothed path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
@@ -751,11 +750,11 @@ std::map<std::string, double> PlannerInterface::getPlannerStats()
     return stats;
 }
 
-visualization_msgs::MarkerArray
-PlannerInterface::getCollisionModelTrajectoryVisualization(
+auto PlannerInterface::makePathVisualization(
     const std::vector<RobotState>& path) const
+    -> std::vector<visual::Marker>
 {
-    visualization_msgs::MarkerArray ma;
+    std::vector<visual::Marker> ma;
 
     if (path.empty()) {
         return ma;
@@ -763,20 +762,24 @@ PlannerInterface::getCollisionModelTrajectoryVisualization(
 
     double cinc = 1.0 / double(path.size());
     for (size_t i = 0; i < path.size(); ++i) {
-        visualization_msgs::MarkerArray ma1 =
-                m_checker->getCollisionModelVisualization(path[i]);
+        auto markers = m_checker->getCollisionModelVisualization(path[i]);
 
-        for (size_t j = 0; j < ma1.markers.size(); ++j) {
-            ma1.markers[j].color.r = 0.1;
-            ma1.markers[j].color.g = cinc * double(path.size() - (i + 1));
-            ma1.markers[j].color.b = cinc * double(i);
+        for (auto& marker : ma) {
+            const float r = 0.1f;
+            const float g = cinc * (float)(path.size() - (i + 1));
+            const float b = cinc * (float)i;
+            marker.color = visual::Color{ r, g, b };
         }
-        ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
+
+        for (auto&& m : std::move(markers)) {
+            ma.push_back(std::move(m));
+        }
     }
 
-    for (size_t i = 0; i < ma.markers.size(); ++i) {
-        ma.markers[i].ns = "trajectory";
-        ma.markers[i].id = i;
+    for (size_t i = 0; i < ma.size(); ++i) {
+        auto& marker = ma[i];
+        marker.ns = "trajectory";
+        marker.id = i;
     }
 
     return ma;
@@ -1183,11 +1186,6 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
         traj_pt.positions = point;
         traj.points.push_back(std::move(traj_pt));
     }
-}
-
-void PlannerInterface::visualizePath(const std::vector<RobotState>& path) const
-{
-    SV_SHOW_INFO(getCollisionModelTrajectoryVisualization(path));
 }
 
 bool PlannerInterface::writePath(

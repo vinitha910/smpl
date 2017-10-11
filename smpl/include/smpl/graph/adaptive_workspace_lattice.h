@@ -273,12 +273,10 @@ private:
     bool isGoal(const WorkspaceState& state) const;
     bool isLoGoal(double x, double y, double z) const;
 
-    visualization_msgs::MarkerArray getStateVisualization(
-        const RobotState& state,
-        const std::string& ns);
+    auto getStateVisualization(const RobotState& state, const std::string& ns)
+        -> std::vector<visual::Marker>;
 
-    visualization_msgs::MarkerArray
-    getAdaptiveGridVisualization(bool plan_mode) const;
+    auto getAdaptiveGridVisualization(bool plan_mode) const -> visual::Marker;
 };
 
 } // namespace motion

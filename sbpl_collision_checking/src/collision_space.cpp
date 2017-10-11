@@ -610,10 +610,18 @@ bool CollisionSpace::interpolatePath(
     return true;
 }
 
-auto CollisionSpace::getCollisionModelVisualization(const motion::RobotState& vals)
-    -> visualization_msgs::MarkerArray
+auto CollisionSpace::getCollisionModelVisualization(const motion::RobotState& state)
+    -> std::vector<visual::Marker>
 {
-    return getCollisionRobotVisualization(vals);
+    auto ma = getCollisionRobotVisualization(state);
+    std::vector<visual::Marker> markers;
+    markers.reserve(ma.markers.size());
+    visual::Marker m;
+    for (auto& mm : ma.markers) {
+        visual::ConvertMarkerMsgToMarker(mm, m);
+        markers.push_back(m);
+    }
+    return markers;
 }
 
 CollisionSpace::CollisionSpace() :

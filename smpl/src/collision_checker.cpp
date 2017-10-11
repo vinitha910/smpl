@@ -44,9 +44,9 @@ CollisionChecker::~CollisionChecker()
 }
 
 auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
-    -> visualization_msgs::MarkerArray
+    -> std::vector<visual::Marker>
 {
-    return visualization_msgs::MarkerArray();
+    return { };
 }
 
 } // namespace motion

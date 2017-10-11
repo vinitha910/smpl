@@ -800,15 +800,16 @@ bool ManipLattice::isGoal(
     return false;
 }
 
-visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
-    const RobotState& vars,
+auto ManipLattice::getStateVisualization(
+    const RobotState& state,
     const std::string& ns)
+    -> std::vector<visual::Marker>
 {
-    auto ma = collisionChecker()->getCollisionModelVisualization(vars);
-    for (auto& marker : ma.markers) {
+    auto markers = collisionChecker()->getCollisionModelVisualization(state);
+    for (auto& marker : markers) {
         marker.ns = ns;
     }
-    return ma;
+    return markers;
 }
 
 bool ManipLattice::setStart(const RobotState& state)

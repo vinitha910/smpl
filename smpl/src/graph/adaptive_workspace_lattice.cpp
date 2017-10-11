@@ -1092,48 +1092,52 @@ bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
             dz <= goal().xyz_tolerance[2];
 }
 
-visualization_msgs::MarkerArray AdaptiveWorkspaceLattice::getStateVisualization(
+auto AdaptiveWorkspaceLattice::getStateVisualization(
     const RobotState& state,
-    const std::string& ns)
+    const std::string& ns) -> std::vector<visual::Marker>
 {
-    auto ma = collisionChecker()->getCollisionModelVisualization(state);
-    for (auto& marker : ma.markers) {
+    auto markers = collisionChecker()->getCollisionModelVisualization(state);
+    for (auto& marker : markers) {
         marker.ns = ns;
     }
-    return ma;
+    return markers;
 }
 
-visualization_msgs::MarkerArray
-AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
+auto AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
+    -> visual::Marker
 {
-    visualization_msgs::MarkerArray ma;
-    visualization_msgs::Marker m;
-    m.header.frame_id = m_grid->getReferenceFrame();
-    m.ns = plan_mode ? "adaptive_grid_plan" : "adaptive_grid_track";
-    m.id = 0;
-    m.type = visualization_msgs::Marker::CUBE_LIST;
-    m.action = visualization_msgs::Marker::ADD;
-    m.pose.orientation.w = 1.0;
-    m.scale.x = m.scale.y = m.scale.z = 0.5 * m_grid->resolution();
-    if (m_plan_mode) {
-        m.color.r = m.color.a = 1.0;
-    } else {
-        m.color.b = m.color.a = 1.0;
-    }
+    visual::Marker m;
+
+    std::vector<Eigen::Vector3d> points;
     for (int x = 0; x < m_grid->numCellsX(); ++x) {
     for (int y = 0; y < m_grid->numCellsY(); ++y) {
     for (int z = 0; z < m_grid->numCellsZ(); ++z) {
         if (isHighDimensional(x, y, z)) {
-            geometry_msgs::Point p;
-            m_grid->gridToWorld(x, y, z, p.x, p.y, p.z);
-            m.points.push_back(p);
+            Eigen::Vector3d p;
+            m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            points.push_back(p);
         }
     }
     }
     }
-    SMPL_INFO("Visualize %zu/%zu adaptive cells", m.points.size(), m_dim_grid.size());
-    ma.markers.push_back(m);
-    return ma;
+
+    visual::Color color;
+    if (m_plan_mode) {
+        color.r = color.a = 1.0f;
+        color.g = color.b = 0.0f;
+    } else {
+        color.b = color.a = 1.0f;
+        color.r = color.g = 0.0f;
+    }
+
+    SMPL_INFO("Visualize %zu/%zu adaptive cells", points.size(), m_dim_grid.size());
+
+    return MakeCubesMarker(
+        std::move(points),
+        0.5 * m_grid->resolution(),
+        color,
+        m_grid->getReferenceFrame(),
+        plan_mode ? "adaptive_grid_plan" : "adaptive_grid_track");
 }
 
 } // namespace motion

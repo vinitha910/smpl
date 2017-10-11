@@ -37,12 +37,10 @@
 #include <string>
 #include <vector>
 
-// system includes
-#include <visualization_msgs/MarkerArray.h>
-
 // project includes
 #include <smpl/extension.h>
 #include <smpl/types.h>
+#include <smpl/debug/marker.h>
 
 namespace sbpl {
 namespace motion {
@@ -96,7 +94,7 @@ public:
     /// \name Visualization
     ///@{
     virtual auto getCollisionModelVisualization(const RobotState& state)
-        -> visualization_msgs::MarkerArray;
+        -> std::vector<visual::Marker>;
     ///@}
 };
 

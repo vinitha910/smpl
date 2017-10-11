@@ -213,7 +213,7 @@ public:
     /// \name Reimplemented Functions from CollisionChecker
     ///@{
     auto getCollisionModelVisualization(const motion::RobotState& vals)
-        -> visualization_msgs::MarkerArray override;
+        -> std::vector<visual::Marker> override;
     ///@}
 
 private:

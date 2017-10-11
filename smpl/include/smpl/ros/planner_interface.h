@@ -127,8 +127,8 @@ public:
     auto getBfsWallsVisualization() const -> visual::Marker;
     auto getBfsValuesVisualization() const -> visual::Marker;
 
-    visualization_msgs::MarkerArray getCollisionModelTrajectoryVisualization(
-        const std::vector<RobotState>& path) const;
+    auto makePathVisualization(const std::vector<RobotState>& path) const
+        -> std::vector<visual::Marker>;
     ///@}
 
 protected:
@@ -219,7 +219,6 @@ protected:
         const std::vector<RobotState>& path,
         trajectory_msgs::JointTrajectory& traj) const;
     void profilePath(trajectory_msgs::JointTrajectory& traj) const;
-    void visualizePath(const std::vector<RobotState>& path) const;
 
     bool writePath(
         const moveit_msgs::RobotState& ref,

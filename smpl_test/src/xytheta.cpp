@@ -121,17 +121,6 @@ public:
         std::vector<smpl::RobotState>& path) override;
     ///@}
 
-    /// \name Reimplemented Functions from CollisionChecker
-    ///@{
-    visualization_msgs::MarkerArray getCollisionModelVisualization(
-        const smpl::RobotState& state)
-    { return visualization_msgs::MarkerArray(); }
-
-    visualization_msgs::MarkerArray getVisualization(
-        const smpl::RobotState& state)
-    { return visualization_msgs::MarkerArray(); }
-    ///@}
-
 private:
 
     // a bit heavy-weight for this, since it overlays a distance transform

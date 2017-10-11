@@ -31,15 +31,13 @@
 
 #include <smpl/heuristic/bfs_heuristic.h>
 
-// system includes
-#include <leatherman/viz.h>
-
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
 #include <smpl/console/console.h>
 #include <smpl/intrusive_heap.h>
 #include <smpl/grid.h>
 #include <smpl/debug/marker_utils.h>
+#include <smpl/debug/colors.h>
 
 namespace sbpl {
 namespace motion {
@@ -249,17 +247,7 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
         {
             double cost_pct = (double)c.g / (double)max_cost;
 
-            double hue = 300.0 - 300.0 * cost_pct;
-            double sat = 1.0;
-            double val = 1.0;
-            double r, g, b;
-            leatherman::HSVtoRGB(&r, &g, &b, hue, sat, val);
-
-            visual::Color color;
-            color.r = (float)r;
-            color.g = (float)g;
-            color.b = (float)b;
-            color.a = 1.0f;
+            visual::Color color = visual::MakeColorHSV(300.0 - 300.0 * cost_pct);
 
             auto clamp = [](double d, double lo, double hi) {
                 if (d < lo) {
