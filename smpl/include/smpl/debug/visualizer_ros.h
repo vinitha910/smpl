@@ -34,7 +34,6 @@
 
 // standard includes
 #include <stdlib.h>
-#include <unordered_set>
 
 // system includes
 #include <boost/regex.hpp>
@@ -45,7 +44,7 @@
 
 namespace sbpl {
 
-class VisualizerROS : public viz::VisualizerBase
+class VisualizerROS : public visual::VisualizerBase
 {
 public:
 
@@ -53,19 +52,28 @@ public:
         const ros::NodeHandle& nh = ros::NodeHandle(),
         size_t queue_size = 100);
 
+    void visualize(visual::Level level, const visual::Marker& marker) override;
+
     void visualize(
-        sbpl::viz::levels::Level level,
-        const visualization_msgs::MarkerArray& markers);
+        visual::Level level,
+        const std::vector<visual::Marker>& marker) override;
+
+    void visualize(
+        visual::Level level,
+        const visualization_msgs::Marker& marker) override;
+
+    void visualize(
+        visual::Level level,
+        const visualization_msgs::MarkerArray& markers) override;
 
 private:
 
     ros::NodeHandle m_nh;
     ros::Publisher m_pub;
 
-//    std::unordered_set<std::string> m_disabled;
-    std::vector<boost::regex> m_disabled;
+    boost::regex m_disabled_regex;
 
-    std::vector<int> m_match_index;
+    std::vector<bool> m_excluded;
 
     visualization_msgs::MarkerArray m_enabled;
 };

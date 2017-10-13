@@ -13,23 +13,23 @@ namespace impl { // debug visualization level manager implementation
 // manages the state of a named visualization
 
 struct DebugViz {
-    levels::Level level = levels::Info;
+    Level level = Level::Info;
 };
 
 static std::unordered_map<std::string, DebugViz> g_visualizations;
 static bool g_initialized = false;
 
-const char *to_cstring(levels::Level level) {
+const char *to_cstring(Level level) {
     switch (level) {
-    case levels::Debug:
+    case Level::Debug:
         return "DEBUG";
-    case levels::Info:
+    case Level::Info:
         return "INFO";
-    case levels::Warn:
+    case Level::Warn:
         return "WARN";
-    case levels::Error:
+    case Level::Error:
         return "ERROR";
-    case levels::Fatal:
+    case Level::Fatal:
         return "FATAL";
     default:
         return "";
@@ -39,7 +39,7 @@ const char *to_cstring(levels::Level level) {
 bool ParseVisualizationConfigLine(
     const std::string& line,
     std::vector<std::string>& split,
-    levels::Level& level)
+    Level& level)
 {
     split.clear();
 
@@ -68,15 +68,15 @@ bool ParseVisualizationConfigLine(
                 // parse the right hand side
                 std::string rhs(line.substr(next + 1));
                 if (rhs == "DEBUG") {
-                    level = levels::Debug;
+                    level = Level::Debug;
                 } else if (rhs == "INFO") {
-                    level = levels::Info;
+                    level = Level::Info;
                 } else if (rhs == "WARN") {
-                    level = levels::Warn;
+                    level = Level::Warn;
                 } else if (rhs == "ERROR") {
-                    level = levels::Error;
+                    level = Level::Error;
                 } else if (rhs == "FATAL") {
-                    level = levels::Fatal;
+                    level = Level::Fatal;
                 } else {
                     split.clear();
                 }
@@ -103,7 +103,7 @@ void Initialize()
                 std::getline(f, line);
 
                 std::vector<std::string> split;
-                levels::Level level;
+                Level level;
                 if (ParseVisualizationConfigLine(line, split, level)) {
                     std::string name = split.front();
                     for (size_t i = 1; i < split.size(); ++i) {
@@ -126,13 +126,13 @@ void* GetHandle(const std::string& name)
     return &g_visualizations[name];
 }
 
-bool IsEnabledFor(void* handle, levels::Level level)
+bool IsEnabledFor(void* handle, Level level)
 {
     Initialize();
     return static_cast<DebugViz*>(handle)->level <= level;
 }
 
-void GetVisualizations(std::unordered_map<std::string, levels::Level>& visualizations)
+void GetVisualizations(std::unordered_map<std::string, Level>& visualizations)
 {
     Initialize();
     visualizations.clear();
@@ -141,7 +141,7 @@ void GetVisualizations(std::unordered_map<std::string, levels::Level>& visualiza
     }
 }
 
-bool SetVisualizationLevel(const std::string& name, levels::Level level)
+bool SetVisualizationLevel(const std::string& name, Level level)
 {
     Initialize();
     auto& vis = g_visualizations[name];
@@ -176,7 +176,7 @@ void CheckLocationEnabledNoLock(VizLocation* loc)
 void InitializeVizLocation(
     VizLocation* loc,
     const std::string& name,
-    levels::Level level)
+    Level level)
 {
     std::unique_lock<std::mutex> lock(g_locations_mutex);
 
@@ -228,13 +228,13 @@ VisualizerBase* visualizer()
     return g_visualizer;
 }
 
-void get_visualizations(std::unordered_map<std::string, levels::Level>& visualizations)
+void get_visualizations(std::unordered_map<std::string, Level>& visualizations)
 {
     std::unique_lock<std::mutex> lock(g_locations_mutex);
     impl::GetVisualizations(visualizations);
 }
 
-bool set_visualization_level(const std::string& name, levels::Level level)
+bool set_visualization_level(const std::string& name, Level level)
 {
     std::unique_lock<std::mutex> lock(g_locations_mutex);
     bool changed = impl::SetVisualizationLevel(name, level);
@@ -244,7 +244,7 @@ bool set_visualization_level(const std::string& name, levels::Level level)
     return changed;
 }
 
-void visualize(levels::Level level, const visual::Marker& marker)
+void visualize(Level level, const visual::Marker& marker)
 {
     std::unique_lock<std::mutex> lock(g_viz_mutex);
     if (!g_visualizer) {
@@ -254,7 +254,7 @@ void visualize(levels::Level level, const visual::Marker& marker)
     g_visualizer->visualize(level, marker);
 }
 
-void visualize(levels::Level level, const std::vector<visual::Marker>& markers)
+void visualize(Level level, const std::vector<visual::Marker>& markers)
 {
     std::unique_lock<std::mutex> lock(g_viz_mutex);
     if (!g_visualizer) {
@@ -264,7 +264,7 @@ void visualize(levels::Level level, const std::vector<visual::Marker>& markers)
     g_visualizer->visualize(level, markers);
 }
 
-void visualize(levels::Level level, const visualization_msgs::Marker& marker)
+void visualize(Level level, const visualization_msgs::Marker& marker)
 {
     std::unique_lock<std::mutex> lock(g_viz_mutex);
     if (!g_visualizer) {
@@ -274,7 +274,7 @@ void visualize(levels::Level level, const visualization_msgs::Marker& marker)
     g_visualizer->visualize(level, marker);
 }
 
-void visualize(levels::Level level, const visualization_msgs::MarkerArray& markers)
+void visualize(Level level, const visualization_msgs::MarkerArray& markers)
 {
     std::unique_lock<std::mutex> lock(g_viz_mutex);
     if (!g_visualizer) {
@@ -374,45 +374,68 @@ void ConvertMarkerToMarkerMsg(
     switch (type(m.shape)) {
     case SHAPE_EMPTY:
         mm.type = visualization_msgs::Marker::SPHERE;
+        mm.scale.x = mm.scale.y = mm.scale.z = 0.1;
         break;
     case SHAPE_ARROW:
         mm.type = visualization_msgs::Marker::ARROW;
+        mm.scale.x = boost::get<Arrow>(m.shape).length;
+        mm.scale.y = mm.scale.z = boost::get<Arrow>(m.shape).width;
         break;
     case SHAPE_CUBE:
         mm.type = visualization_msgs::Marker::CUBE;
+        mm.scale.x = boost::get<Cube>(m.shape).length;
+        mm.scale.y = boost::get<Cube>(m.shape).width;
+        mm.scale.z = boost::get<Cube>(m.shape).height;
         break;
     case SHAPE_SPHERE:
         mm.type = visualization_msgs::Marker::SPHERE;
+        mm.scale.x = mm.scale.y = mm.scale.z = 2.0 * boost::get<Sphere>(m.shape).radius;
         break;
     case SHAPE_ELLIPSE:
         mm.type = visualization_msgs::Marker::SPHERE;
+        mm.scale.x = boost::get<Ellipse>(m.shape).axis_x;
+        mm.scale.y = boost::get<Ellipse>(m.shape).axis_y;
+        mm.scale.z = boost::get<Ellipse>(m.shape).axis_z;
         break;
     case SHAPE_CYLINDER:
+        mm.scale.x = boost::get<Cylinder>(m.shape).radius;
+        mm.scale.y = boost::get<Cylinder>(m.shape).radius;
+        mm.scale.z = boost::get<Cylinder>(m.shape).height;
         mm.type = visualization_msgs::Marker::CYLINDER;
         break;
     case SHAPE_LINE_LIST:
         mm.type = visualization_msgs::Marker::LINE_LIST;
+        mm.scale.x = 0.02; // line width
         break;
     case SHAPE_LINE_STRIP:
         mm.type = visualization_msgs::Marker::LINE_STRIP;
+        mm.scale.x = 0.02; // line width
         break;
     case SHAPE_CUBE_LIST:
         mm.type = visualization_msgs::Marker::CUBE_LIST;
+        mm.scale.x = mm.scale.y = mm.scale.z = boost::get<CubeList>(m.shape).size;
         break;
     case SHAPE_SPHERE_LIST:
         mm.type = visualization_msgs::Marker::SPHERE_LIST;
+        mm.scale.x = mm.scale.y = mm.scale.z = 2.0 * boost::get<SphereList>(m.shape).radius;
         break;
     case SHAPE_POINT_LIST:
         mm.type = visualization_msgs::Marker::POINTS;
+        mm.scale.x = mm.scale.y = 0.02; // point width and height
         break;
     case SHAPE_BILLBOARD_TEXT:
         mm.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        mm.text = boost::get<BillboardText>(m.shape).text;
+        mm.scale.z = 0.1; // height of 'A'
         break;
     case SHAPE_MESH_RESOURCE:
         mm.type = visualization_msgs::Marker::MESH_RESOURCE;
+        mm.mesh_resource = boost::get<MeshResource>(m.shape).uri;
+        mm.scale.x = mm.scale.y = mm.scale.z = 1.0;
         break;
     case SHAPE_TRIANGLE_LIST:
         mm.type = visualization_msgs::Marker::TRIANGLE_LIST;
+        mm.scale.x = mm.scale.y = mm.scale.z = 1.0;
         break;
     default:
         break;
@@ -465,7 +488,7 @@ void ConvertMarkerToMarkerMsg(
 }
 
 void VisualizerBase::visualize(
-    levels::Level level,
+    Level level,
     const visualization_msgs::Marker& mm)
 {
     visual::Marker m;
@@ -474,7 +497,7 @@ void VisualizerBase::visualize(
 }
 
 void VisualizerBase::visualize(
-    levels::Level level,
+    Level level,
     const visualization_msgs::MarkerArray& markers)
 {
     for (auto& m : markers.markers) {
@@ -483,7 +506,7 @@ void VisualizerBase::visualize(
 }
 
 void VisualizerBase::visualize(
-    levels::Level level,
+    Level level,
     const std::vector<visual::Marker>& markers)
 {
     for (auto& m : markers) {
@@ -492,7 +515,7 @@ void VisualizerBase::visualize(
 }
 
 void VisualizerBase::visualize(
-    levels::Level level,
+    Level level,
     const visual::Marker& marker)
 {
 }
