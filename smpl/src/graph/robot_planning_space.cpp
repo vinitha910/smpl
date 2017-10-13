@@ -31,9 +31,6 @@
 
 #include <smpl/graph/robot_planning_space.h>
 
-// system includes
-#include <ros/console.h>
-
 // project includes
 #include <smpl/console/console.h>
 #include <smpl/heuristic/robot_heuristic.h>

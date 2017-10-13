@@ -34,6 +34,7 @@
 
 // standard includes
 #include <limits>
+#include <numeric>
 
 // project includes
 #include <smpl/angles.h>

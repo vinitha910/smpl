@@ -34,6 +34,7 @@
 
 // standard includes
 #include <chrono>
+#include <numeric>
 
 // system includes
 #include <Eigen/Dense>

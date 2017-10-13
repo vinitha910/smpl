@@ -42,7 +42,7 @@ auto MakePoseMarkers(
 
     markers[0].pose = pose;
     markers[0].shape = Arrow{ 0.1, 0.015 };
-    markers[0].color = Color{ 0.0, 0.7, 0.6, 0.7 };
+    markers[0].color = Color{ 0.0f, 0.7f, 0.6f, 0.7f };
     markers[0].frame_id = frame_id;
     markers[0].ns = ns;
     markers[0].id = id;

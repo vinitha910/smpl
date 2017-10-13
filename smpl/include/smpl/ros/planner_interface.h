@@ -48,6 +48,7 @@
 #include <moveit_msgs/RobotTrajectory.h>
 #include <ros/ros.h>
 #include <sbpl/headers.h>
+#include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes

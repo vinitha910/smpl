@@ -38,7 +38,9 @@
 #include <unordered_map>
 
 // system includes
+#ifdef SMPL_SV_VISUALIZATION_MSGS
 #include <visualization_msgs/MarkerArray.h>
+#endif
 
 // project includes
 #include <smpl/time.h>
@@ -70,8 +72,10 @@ public:
 
     virtual void visualize(Level level, const visual::Marker& marker);
     virtual void visualize(Level level, const std::vector<visual::Marker>& markers);
+#ifdef SMPL_SV_VISUALIZATION_MSGS
     virtual void visualize(Level level, const visualization_msgs::Marker& m);
     virtual void visualize(Level level, const visualization_msgs::MarkerArray& markers);
+#endif
 };
 
 void set_visualizer(VisualizerBase* visualizer);
@@ -95,8 +99,10 @@ bool set_visualization_level(const std::string& name, Level level);
 
 void visualize(Level level, const visual::Marker& marker);
 void visualize(Level level, const std::vector<visual::Marker>& markers);
+#ifdef SMPL_VS_VISUALIZATION_MSGS
 void visualize(Level level, const visualization_msgs::Marker& marker);
 void visualize(Level level, const visualization_msgs::MarkerArray& markers);
+#endif
 
 struct VizLocation {
     void* handle; // struct representing the named visualization at location

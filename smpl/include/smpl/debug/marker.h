@@ -7,7 +7,6 @@
 
 #include <Eigen/Dense>
 #include <boost/variant.hpp>
-#include <visualization_msgs/Marker.h>
 
 namespace sbpl {
 namespace visual {
@@ -153,14 +152,6 @@ struct Marker
         flags(0)
     { }
 };
-
-void ConvertMarkerMsgToMarker(
-    const visualization_msgs::Marker& mm,
-    Marker& m);
-
-void ConvertMarkerToMarkerMsg(
-    const Marker& m,
-    visualization_msgs::Marker& mm);
 
 } // namespace visual
 } // namespace sbpl

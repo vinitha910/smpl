@@ -156,7 +156,6 @@ void DijkstraEgraphHeuristic3D::getShortcutSuccs(
 auto DijkstraEgraphHeuristic3D::getWallsVisualization() -> visual::Marker
 {
     std::vector<Eigen::Vector3d> centers;
-    std::vector<geometry_msgs::Point> points;
     for (int z = 0; z < grid()->numCellsZ(); z++) {
     for (int y = 0; y < grid()->numCellsY(); y++) {
     for (int x = 0; x < grid()->numCellsX(); x++) {

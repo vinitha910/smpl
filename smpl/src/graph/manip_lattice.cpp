@@ -33,6 +33,7 @@
 #include <smpl/graph/manip_lattice.h>
 
 // standard includes
+#include <iomanip>
 #include <sstream>
 
 // system includes
