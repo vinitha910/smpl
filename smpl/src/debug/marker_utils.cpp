@@ -1,5 +1,7 @@
 #include <smpl/debug/marker_utils.h>
 
+#include <smpl/debug/colors.h>
+
 namespace sbpl {
 namespace visual {
 
@@ -17,14 +19,10 @@ auto MakeSphereMarker(
     const std::string& ns,
     int id) -> Marker
 {
-//    double r = 0, g = 0, b = 0;
-//    visualization_msgs::Marker marker;
-//    leatherman::HSVtoRGB(&r, &g, &b, hue, 1.0, 1.0);
-
     visual::Marker m;
     m.pose = Eigen::Affine3d(Eigen::Translation3d(x, y, z));
     m.shape = Sphere{ radius };
-    m.color = Color{ 1.0, 1.0, 1.0, 1.0 };
+    m.color = MakeColorHSV(hue);
     m.frame_id = frame_id;
     m.ns = ns;
     m.id = id;
