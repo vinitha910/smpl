@@ -16,8 +16,8 @@
 #define SMPL_CONSOLE_COLORIZE_OUTPUT 0
 #endif
 
-#ifndef SMPL_CONSOLE_BUFFERED
-#define SMPL_CONSOLE_BUFFERED 1
+#ifndef SMPL_CONSOLE_UNBUFFERED
+#define SMPL_CONSOLE_UNBUFFERED 0
 #endif
 
 namespace sbpl {
@@ -103,7 +103,7 @@ void print(Level level, const char* filename, int line, const char* fmt, ...)
 
     fprintf(f, "\n");
 
-#if SMPL_CONSOLE_BUFFERED
+#if SMPL_CONSOLE_UNBUFFERED
     fflush(f);
 #endif
 
@@ -167,7 +167,7 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 #endif
 
     o << '\n';
-#if SMPL_CONSOLE_BUFFERED
+#if SMPL_CONSOLE_UNBUFFERED
     o << std::flush;
 #endif
 }
