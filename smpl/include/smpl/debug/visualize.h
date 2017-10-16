@@ -37,6 +37,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <smpl/config.h>
+
 // system includes
 #ifdef SMPL_SV_VISUALIZATION_MSGS
 #include <visualization_msgs/MarkerArray.h>
@@ -99,7 +101,7 @@ bool set_visualization_level(const std::string& name, Level level);
 
 void visualize(Level level, const visual::Marker& marker);
 void visualize(Level level, const std::vector<visual::Marker>& markers);
-#ifdef SMPL_VS_VISUALIZATION_MSGS
+#ifdef SMPL_SV_VISUALIZATION_MSGS
 void visualize(Level level, const visualization_msgs::Marker& marker);
 void visualize(Level level, const visualization_msgs::MarkerArray& markers);
 #endif

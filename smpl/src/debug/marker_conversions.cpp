@@ -17,7 +17,7 @@ void ConvertMarkerMsgToMarker(
                     mm.pose.orientation.x,
                     mm.pose.orientation.y,
                     mm.pose.orientation.z));
-    m.pose =  pose;
+    m.pose = pose;
 
     auto convert_points = [](
         const std::vector<geometry_msgs::Point>& points)

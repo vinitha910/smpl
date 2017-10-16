@@ -46,7 +46,7 @@ endif()
 
 if(SMPL_ROS_BUILD)
     add_definitions(-DSMPL_CONSOLE_ROS)
-    add_definitions(-DSMPL_SV_VISUALIZATION_MSGS)
+    set(SMPL_SV_VISUALIZATION_MSGS ON)
 endif()
 
 add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
@@ -58,6 +58,11 @@ if(SMPL_ROS_BUILD)
     include_directories(${catkin_INCLUDE_DIRS})
 endif()
 include_directories(include)
+
+configure_file(
+    ${PROJECT_SOURCE_DIR}/include/smpl/config.h.in
+    ${PROJECT_SOURCE_DIR}/include/smpl/config.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/smpl)
 
 add_library(
     smpl
@@ -100,7 +105,6 @@ add_library(
     src/search/arastar.cpp
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp)
-
 target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES} ${leatherman_LIBRARIES})
 
 if(SMPL_ROS_BUILD)

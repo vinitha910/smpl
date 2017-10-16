@@ -1,0 +1,8 @@
+#ifndef SMPL_CONFIG_H
+#define SMPL_CONFIG_H
+
+#ifndef SMPL_SV_VISUALIZATION_MSGS
+#cmakedefine SMPL_SV_VISUALIZATION_MSGS
+#endif
+
+#endif
