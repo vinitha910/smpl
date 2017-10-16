@@ -7,6 +7,7 @@
 #ifdef SMPL_SV_VISUALIZATION_MSGS
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <smpl/debug/marker_conversions.h>
 #endif
 
 namespace sbpl {
@@ -294,9 +295,6 @@ void VisualizerBase::visualize(
     Level level,
     const visualization_msgs::Marker& mm)
 {
-    visual::Marker m;
-    ConvertMarkerMsgToMarker(mm, m);
-    visualize(level, m);
 }
 
 void VisualizerBase::visualize(

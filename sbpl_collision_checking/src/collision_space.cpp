@@ -46,6 +46,7 @@
 #include <leatherman/viz.h>
 #include <moveit_msgs/RobotState.h>
 #include <smpl/angles.h>
+#include <smpl/debug/marker_conversions.h>
 
 namespace sbpl {
 namespace collision {

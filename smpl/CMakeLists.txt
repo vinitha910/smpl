@@ -111,6 +111,7 @@ if(SMPL_ROS_BUILD)
     add_library(
         smpl_ros
         src/debug/visualizer_ros.cpp
+        src/debug/marker_conversions.cpp
         src/ros/adaptive_workspace_lattice_allocator.cpp
         src/ros/araplanner_allocator.cpp
         src/ros/bfs_heuristic_allocator.cpp

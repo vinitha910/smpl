@@ -3,6 +3,8 @@
 // standard includes
 #include <sstream>
 
+#include <smpl/debug/marker_conversions.h>
+
 namespace sbpl {
 
 VisualizerROS::VisualizerROS(
