@@ -8,7 +8,7 @@ add_compile_options("-std=c++11")
 
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
-find_package(EIGEN3 REQUIRED)
+find_package(Eigen3 REQUIRED)
 set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 
 find_package(sbpl REQUIRED)
