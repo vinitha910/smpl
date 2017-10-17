@@ -52,7 +52,7 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 
 #define SMPL_LOG_DEFINE_LOCATION(cond_, level_, name_) \
     static ::sbpl::console::LogLocation __sc_define_location__loc = { \
-        nullptr, nullptr, ::sbpl::console::Levels::LEVEL_COUNT, false, false \
+        nullptr, nullptr, ::sbpl::console::LEVEL_COUNT, false, false \
     }; \
     if (!__sc_define_location__loc.initialized) { \
         InitializeLogLocation(&__sc_define_location__loc, name_, level_); \
@@ -62,7 +62,8 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 
 #define SMPL_LOG_COND(cond, level, name, fmt, ...) \
     do { \
-        if ((cond)) { \
+        SMPL_LOG_DEFINE_LOCATION(cond, level, name); \
+        if (__sc_define_location__enabled) { \
             ::sbpl::console::print(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__); \
         } \
     } while (0)
@@ -71,7 +72,8 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 
 #define SMPL_LOG_STREAM_COND(cond, level, name, args) \
     do { \
-        if ((cond)) { \
+        SMPL_LOG_DEFINE_LOCATION(cond, level, name); \
+        if (__sc_define_location__enabled) { \
             std::stringstream _smpl_log_stream_ss_; \
             _smpl_log_stream_ss_ << args; \
             ::sbpl::console::print(level, __FILE__, __LINE__, _smpl_log_stream_ss_); \

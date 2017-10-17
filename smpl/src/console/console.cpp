@@ -28,7 +28,13 @@ void InitializeLogLocation(
     const std::string& name,
     Level level)
 {
+    if (loc->initialized) {
+        return;
+    }
 
+    loc->level = level;
+    loc->enabled = level > LEVEL_DEBUG;
+    loc->initialized = true;
 }
 
 void print(Level level, const char* filename, int line, const char* fmt, ...)
