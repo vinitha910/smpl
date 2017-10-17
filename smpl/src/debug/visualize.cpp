@@ -7,7 +7,6 @@
 #ifdef SMPL_SV_VISUALIZATION_MSGS
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <smpl/debug/marker_conversions.h>
 #endif
 
 namespace sbpl {

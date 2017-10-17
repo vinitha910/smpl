@@ -20,6 +20,7 @@ find_package(catkin
         octomap_msgs
         roscpp
         smpl
+        smpl_ros
         sensor_msgs
         shape_msgs
         tf_conversions
@@ -45,6 +46,7 @@ catkin_package(
         octomap_msgs
         roscpp
         smpl
+        smpl_ros
         sensor_msgs
         shape_msgs
         tf_conversions

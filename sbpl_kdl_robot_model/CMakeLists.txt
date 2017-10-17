@@ -7,6 +7,7 @@ list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 find_package(catkin
     REQUIRED
     COMPONENTS
+        kdl_parser
         leatherman
         roscpp
         smpl
