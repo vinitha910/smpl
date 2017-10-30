@@ -154,10 +154,24 @@ public:
     visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
     ///@}
 
+    /// \name Projections
+    ///@{
+    void ProjectOccupancyGrid();
+
+    unsigned char* GetProjectedOccupancyGrid() const;
+
+    void SaveProjectionToFile(const char* filename);
+    ///@}
+
+    void SetProjection(unsigned char* proj) { projection_ = proj; };
+
+    size_t index(int x, int y) const;
+
 private:
 
     DistanceMapInterfacePtr m_grid;
     std::string reference_frame_;
+    unsigned char* projection_;
 
     bool m_ref_counted;
     int m_x_stride;
@@ -178,6 +192,7 @@ private:
         int fx, int fy, int fz,
         int tx, int ty, int tz,
         CellFunction f) const;
+
 };
 
 inline
@@ -273,6 +288,18 @@ inline
 int OccupancyGrid::getCellCount() const
 {
     return m_grid->numCellsX() * m_grid->numCellsY() * m_grid->numCellsZ();
+}
+
+inline
+unsigned char* OccupancyGrid::GetProjectedOccupancyGrid() const
+{ 
+    return projection_; 
+}
+
+inline
+size_t OccupancyGrid::index(int x, int y) const
+{ 
+    return (x*m_grid->numCellsX())+y;
 }
 
 } // namespace sbpl

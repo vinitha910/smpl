@@ -100,7 +100,8 @@ OccupancyGrid::OccupancyGrid(
     m_ref_counted(ref_counted),
     m_x_stride(m_grid->numCellsY() * m_grid->numCellsZ()),
     m_y_stride(m_grid->numCellsZ()),
-    m_counts()
+    m_counts(),
+    projection_(new unsigned char[m_grid->numCellsX() * m_grid->numCellsY()])
 {
     // distance field guaranteed to be empty -> faster initialization
     if (m_ref_counted) {
@@ -121,7 +122,8 @@ OccupancyGrid::OccupancyGrid(
     m_ref_counted(ref_counted),
     m_x_stride(m_grid->numCellsY() * m_grid->numCellsZ()),
     m_y_stride(m_grid->numCellsZ()),
-    m_counts()
+    m_counts(),
+    projection_(new unsigned char[m_grid->numCellsX() * m_grid->numCellsY()])
 {
     initRefCounts();
 }
@@ -136,6 +138,7 @@ OccupancyGrid::OccupancyGrid(const OccupancyGrid& o)
     m_x_stride = o.m_x_stride;
     m_y_stride = o.m_y_stride;
     m_counts = o.m_counts;
+    projection_ = o.projection_;
 }
 
 /// Reset the grid, removing all obstacles setting distances to their
@@ -399,9 +402,9 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
     marker.scale.y = m_grid->resolution();
     marker.scale.z = m_grid->resolution();
 
-    marker.color.r = 0.8f;
-    marker.color.g = 0.3f;
-    marker.color.b = 0.5f;
+    marker.color.r = 209.0/255.0;
+    marker.color.g = 3.0/255.0;
+    marker.color.b = 3.0/255.0;
     marker.color.a = 1.0f;
 
     std::vector<Eigen::Vector3d> voxels;
@@ -416,6 +419,49 @@ OccupancyGrid::getOccupiedVoxelsVisualization() const
 
     ma.markers.push_back(marker);
     return ma;
+}
+
+
+/// Create Projection of occupancy grid
+void OccupancyGrid::ProjectOccupancyGrid()
+{
+    double d;
+    for (int gx = 0; gx < m_grid->numCellsX(); ++gx) {
+        for (int gy = 0; gy < m_grid->numCellsY(); ++gy) {
+            projection_[index(gx, gy)] = 0;
+            for (int gz = 4; gz < m_grid->numCellsZ()-100; ++gz) {
+                d = getDistance(gx, gy, gz);
+                if (d <= 0) {
+                    projection_[index(gx, gy)] = 1;
+                    break;
+                } 
+            }
+        }
+    }
+}
+
+/// Saves projection to file
+void OccupancyGrid::SaveProjectionToFile(const char* filename)
+{
+    FILE* f = fopen(filename, "w");
+    fprintf(f, "discretization(cells): %d %d\n", m_grid->numCellsX(), m_grid->numCellsY());
+    fprintf(f, "obsthresh: 1\n");
+    fprintf(f, "cost_inscribed_thresh: 1\n");
+    fprintf(f, "cost_possibly_circumscribed_thresh: 0\n");
+    fprintf(f, "cellsize(meters): %f\n", m_grid->resolution());
+    fprintf(f, "nominalvel(mpersecs): 1.0\n");
+    fprintf(f, "timetoturn45degsinplace(secs): 2.0\n");
+    fprintf(f, "start(meters,rads): 0.05 0.05 0\n");
+    fprintf(f, "end(meters,rads): %f %f 0\n", ((m_grid->numCellsX() - 1) * m_grid->resolution()), ((m_grid->numCellsY() - 1) * m_grid->resolution()));
+    fprintf(f, "inflation_radius: 0.22\n");    
+    fprintf(f, "environment:\n");
+    for(int y = 0; y < m_grid->numCellsY(); ++y) {
+        for(int x = 0; x < m_grid->numCellsX(); ++x) {
+            fprintf(f, "%d ", projection_[index(x,y)]);
+        }
+        fprintf(f, "\n");
+    }
+    fclose(f);
 }
 
 /// Add a set of obstacle cells to the occupancy grid.
