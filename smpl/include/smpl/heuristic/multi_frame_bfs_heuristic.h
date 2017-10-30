@@ -36,12 +36,9 @@
 #include <memory>
 
 // project includes
-#include <smpl/heuristic/robot_heuristic.h>
-<<<<<<< HEAD
-#include <smpl/debug/marker.h>
-=======
 #include <smpl/occupancy_grid.h>
->>>>>>> dev
+#include <smpl/debug/marker.h>
+#include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace motion {
