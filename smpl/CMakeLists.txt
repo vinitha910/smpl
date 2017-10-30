@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(smpl)
 
-set(SMPL_ROS_BUILD OFF)
+set(SMPL_ROS_BUILD ON)
 set(CMAKE_BUILD_TYPE Release)
 
 add_compile_options("-std=c++11")
@@ -32,7 +32,7 @@ endif()
 
 set(SMPL_CLOCK_API SMPL_CLOCK_CHRONO_HIGH_RESOLUTION)
 
-#add_definitions(-DSMPL_CONSOLE_ROS)
+add_definitions(-DSMPL_CONSOLE_ROS)
 #add_definitions(-DSMPL_CONSOLE_COLORIZE_OUTPUT=1)
 #add_definitions(-DSMPL_CONSOLE_UNBUFFERED=1)
 #add_definitions(-DSMPL_LOG_FILE_AND_LINE=1)
@@ -45,7 +45,7 @@ add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
-if (SMPL_ROS_BUILD)
+if(SMPL_ROS_BUILD)
     include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 endif()
 include_directories(SYSTEM ${sbpl_INCLUDE_DIRS})
