@@ -47,6 +47,7 @@
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <leatherman/viz.h>
+#include <sbpl/planners/mhaplanner.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
 // project includes
@@ -57,9 +58,22 @@
 
 #include <smpl/debug/visualize.h>
 
+#include <smpl/graph/adaptive_workspace_lattice.h>
+#include <smpl/graph/manip_lattice.h>
+#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/workspace_lattice.h>
+#include <smpl/graph/manip_lattice_egraph.h>
+
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
+#include <smpl/heuristic/euclid_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
+#include <smpl/heuristic/joint_dist_heuristic.h>
+#include <smpl/heuristic/generic_egraph_heuristic.h>
+
+#include <smpl/search/adaptive_planner.h>
+#include <smpl/search/arastar.h>
+#include <smpl/search/experience_graph_planner.h>
 
 #include <smpl/ros/adaptive_planner_allocator.h>
 #include <smpl/ros/adaptive_workspace_lattice_allocator.h>
@@ -80,7 +94,434 @@
 namespace sbpl {
 namespace motion {
 
+template <class T, class... Args>
+auto make_unique(Args&&... args) -> std::unique_ptr<T> {
+    return std::unique_ptr<T>(new T(args...));
+}
+
 const char* PI_LOGGER = "simple";
+
+auto MakeManipLattice(
+    const OccupancyGrid* grid,
+    RobotModel* robot,
+    CollisionChecker* checker,
+    PlanningParams* params)
+    -> std::unique_ptr<RobotPlanningSpace>
+{
+    ////////////////
+    // Parameters //
+    ////////////////
+
+    std::vector<double> resolutions(robot->jointVariableCount());
+    std::string mprim_filename;
+    bool use_multiple_ik_solutions;
+    bool use_xyz_snap_mprim;
+    bool use_rpy_snap_mprim;
+    bool use_xyzrpy_snap_mprim;
+    bool use_short_dist_mprims;
+    double xyz_snap_thresh;
+    double rpy_snap_thresh;
+    double xyzrpy_snap_thresh;
+    double short_dist_mprims_thresh;
+
+    std::string disc_string;
+    if (!params->getParam("discretization", disc_string)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
+        return nullptr;
+    }
+
+    std::unordered_map<std::string, double> disc;
+    std::stringstream ss(disc_string);
+    std::string joint;
+    double jres;
+    while (ss >> joint >> jres) {
+        disc.insert(std::make_pair(joint, jres));
+    }
+    ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
+
+    for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
+        const std::string& vname = robot->getPlanningJoints()[vidx];
+        const size_t sidx = vname.find('/');
+        if (sidx != std::string::npos) {
+            // adjust variable name if a variable of a multi-dof joint
+            std::string mdof_vname =
+                    vname.substr(0, sidx) + "_" + vname.substr(sidx + 1);
+            auto dit = disc.find(mdof_vname);
+            if (dit == disc.end()) {
+                ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+                return nullptr;
+            }
+            resolutions[vidx] = dit->second;
+        } else {
+            auto dit = disc.find(vname);
+            if (dit == disc.end()) {
+                ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+                return nullptr;
+            }
+            resolutions[vidx] = dit->second;
+        }
+
+        ROS_DEBUG_NAMED(PI_LOGGER, "resolution(%s) = %0.3f", vname.c_str(), resolutions[vidx]);
+    }
+
+    if (!params->getParam("mprim_filename", mprim_filename)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
+        return nullptr;
+    }
+
+    params->param("use_multiple_ik_solutions", use_multiple_ik_solutions, false);
+
+    params->param("use_xyz_snap_mprim", use_xyz_snap_mprim, false);
+    params->param("use_rpy_snap_mprim", use_rpy_snap_mprim, false);
+    params->param("use_xyzrpy_snap_mprim", use_xyzrpy_snap_mprim, false);
+    params->param("use_short_dist_mprims", use_short_dist_mprims, false);
+
+    params->param("xyz_snap_dist_thresh", xyz_snap_thresh, 0.0);
+    params->param("rpy_snap_dist_thresh", rpy_snap_thresh, 0.0);
+    params->param("xyzrpy_snap_dist_thresh", xyzrpy_snap_thresh, 0.0);
+    params->param("short_dist_mprims_thresh", short_dist_mprims_thresh, 0.0);
+
+    ////////////////////
+    // Initialization //
+    ////////////////////
+
+    auto space = make_unique<ManipLattice>(robot, checker, params);
+    if (!space->init(resolutions)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manip Lattice");
+        return nullptr;
+    }
+
+    if (grid) {
+        space->setVisualizationFrameId(grid->getReferenceFrame());
+    }
+
+    auto aspace = std::make_shared<ManipLatticeActionSpace>(space.get());
+    aspace->useMultipleIkSolutions(use_multiple_ik_solutions);
+    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, use_xyz_snap_mprim);
+    aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, use_rpy_snap_mprim);
+    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, use_xyzrpy_snap_mprim);
+    aspace->useAmp(MotionPrimitive::SHORT_DISTANCE, use_short_dist_mprims);
+    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ, xyz_snap_thresh);
+    aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY, rpy_snap_thresh);
+    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, xyzrpy_snap_thresh);
+    aspace->ampThresh(MotionPrimitive::SHORT_DISTANCE, short_dist_mprims_thresh);
+
+    if (!aspace->load(mprim_filename)) {
+        ROS_ERROR("Failed to load actions from file '%s'", mprim_filename.c_str());
+        return nullptr;
+    }
+
+    ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
+    for (auto ait = aspace->begin(); ait != aspace->end(); ++ait) {
+        ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_string(ait->type).c_str());
+        if (ait->type == MotionPrimitive::SNAP_TO_RPY) {
+            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY));
+        } else if (ait->type == MotionPrimitive::SNAP_TO_XYZ) {
+            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ));
+        } else if (ait->type == MotionPrimitive::SNAP_TO_XYZ_RPY) {
+            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY));
+        } else if (ait->type == MotionPrimitive::LONG_DISTANCE ||
+            ait->type == MotionPrimitive::SHORT_DISTANCE)
+        {
+            ROS_DEBUG_NAMED(PI_LOGGER, "    action: %s", to_string(ait->action).c_str());
+        }
+    }
+
+    // associate action space with lattice
+    if (!space->setActionSpace(aspace)) {
+        ROS_ERROR("Failed to associate action space with planning space");
+        return nullptr;
+    }
+    return std::move(space);
+}
+
+auto MakeManipLatticeEGraph(
+    const OccupancyGrid* grid,
+    RobotModel* robot,
+    CollisionChecker* checker,
+    PlanningParams* params)
+    -> std::unique_ptr<RobotPlanningSpace>
+{
+    // TODO: remove the copypasta between here and ManipLatticeAllocator
+    ////////////////
+    // Parameters //
+    ////////////////
+
+    std::vector<double> resolutions(robot->jointVariableCount());
+    std::string mprim_filename;
+    bool use_multiple_ik_solutions = false; // TODO: config parameter for this
+    bool use_xyz_snap_mprim;
+    bool use_rpy_snap_mprim;
+    bool use_xyzrpy_snap_mprim;
+    bool use_short_dist_mprims;
+    double xyz_snap_thresh;
+    double rpy_snap_thresh;
+    double xyzrpy_snap_thresh;
+    double short_dist_mprims_thresh;
+
+    std::string disc_string;
+    if (!params->getParam("discretization", disc_string)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
+        return nullptr;
+    }
+    std::map<std::string, double> disc;
+    std::stringstream ss(disc_string);
+    std::string joint;
+    double jres;
+    while (ss >> joint >> jres) {
+        disc.insert(std::make_pair(joint, jres));
+    }
+    ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
+
+    for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
+        const std::string& vname = robot->getPlanningJoints()[vidx];
+        auto dit = disc.find(vname);
+        if (dit == disc.end()) {
+            ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
+            return nullptr;
+        }
+        resolutions[vidx] = dit->second;
+    }
+
+    if (!params->getParam("mprim_filename", mprim_filename)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
+        return nullptr;
+    }
+
+    params->param("use_multiple_ik_solutions", use_multiple_ik_solutions, false);
+
+    params->param("use_xyz_snap_mprim", use_xyz_snap_mprim, false);
+    params->param("use_rpy_snap_mprim", use_rpy_snap_mprim, false);
+    params->param("use_xyzrpy_snap_mprim", use_xyzrpy_snap_mprim, false);
+    params->param("use_short_dist_mprims", use_short_dist_mprims, false);
+
+    params->param("xyz_snap_dist_thresh", xyz_snap_thresh, 0.0);
+    params->param("rpy_snap_dist_thresh", rpy_snap_thresh, 0.0);
+    params->param("xyzrpy_snap_dist_thresh", xyzrpy_snap_thresh, 0.0);
+    params->param("short_dist_mprims_thresh", short_dist_mprims_thresh, 0.0);
+
+    auto space = make_unique<ManipLatticeEgraph>(robot, checker, params);
+    if (!space->init(resolutions)) {
+        ROS_ERROR("Failed to initialize Manip Lattice Egraph");
+        return nullptr;
+    }
+
+    ////////////////////
+    // Initialization //
+    ////////////////////
+
+    auto aspace = std::make_shared<ManipLatticeActionSpace>(space.get());
+    aspace->useMultipleIkSolutions(use_multiple_ik_solutions);
+    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, use_xyz_snap_mprim);
+    aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, use_rpy_snap_mprim);
+    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, use_xyzrpy_snap_mprim);
+    aspace->useAmp(MotionPrimitive::SHORT_DISTANCE, use_short_dist_mprims);
+    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ, xyz_snap_thresh);
+    aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY, rpy_snap_thresh);
+    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, xyzrpy_snap_thresh);
+    aspace->ampThresh(MotionPrimitive::SHORT_DISTANCE, short_dist_mprims_thresh);
+    if (!aspace->load(mprim_filename)) {
+        ROS_ERROR("Failed to load actions from file '%s'", mprim_filename.c_str());
+        return nullptr;
+    }
+
+    // associate action space with lattice
+    if (!space->setActionSpace(aspace)) {
+        ROS_ERROR("Failed to associate action space with planning space");
+        return nullptr;
+    }
+
+    std::string egraph_path;
+    if (params->getParam("egraph_path", egraph_path)) {
+        // warning printed within, allow to fail silently
+        (void)space->loadExperienceGraph(egraph_path);
+    } else {
+        ROS_WARN("No experience graph file parameter");
+    }
+
+    return std::move(space);
+}
+
+auto MakeWorkspaceLattice(
+    const OccupancyGrid* grid,
+    RobotModel* robot,
+    CollisionChecker* checker,
+    PlanningParams* params)
+    -> std::unique_ptr<RobotPlanningSpace>
+{
+    ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
+    auto space = make_unique<WorkspaceLattice>(robot, checker, params);
+    WorkspaceLatticeBase::Params wsp;
+    wsp.res_x = grid->resolution();
+    wsp.res_y = grid->resolution();
+    wsp.res_z = grid->resolution();
+    wsp.R_count = 360;
+    wsp.P_count = 180 + 1;
+    wsp.Y_count = 360;
+
+    auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
+    if (!rmi) {
+        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
+        return nullptr;
+    }
+    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
+    if (!space->init(wsp)) {
+        ROS_ERROR("Failed to initialize Workspace Lattice");
+        return nullptr;
+    }
+
+    space->setVisualizationFrameId(grid->getReferenceFrame());
+
+    return std::move(space);
+}
+
+auto MakeAdaptiveWorkspaceLattice(
+    const OccupancyGrid* grid,
+    RobotModel* robot,
+    CollisionChecker* checker,
+    PlanningParams* params)
+    -> std::unique_ptr<RobotPlanningSpace>
+{
+    ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
+    auto space = make_unique<AdaptiveWorkspaceLattice>(
+            robot, checker, params, grid);
+    WorkspaceLatticeBase::Params wsp;
+    wsp.res_x = grid->resolution();
+    wsp.res_y = grid->resolution();
+    wsp.res_z = grid->resolution();
+    wsp.R_count = 36; //360;
+    wsp.P_count = 19; //180 + 1;
+    wsp.Y_count = 36; //360;
+
+    auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
+    if (!rmi) {
+        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
+        return nullptr;
+    }
+    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
+    if (!space->init(wsp)) {
+        ROS_ERROR("Failed to initialize Workspace Lattice");
+        return nullptr;
+    }
+
+    return std::move(space);
+}
+
+auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    const bool forward_search = true;
+    auto search = make_unique<ARAStar>(space, heuristic);
+
+    double epsilon;
+    space->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+
+    bool search_mode;
+    space->params()->param("search_mode", search_mode, false);
+    search->set_search_mode(search_mode);
+
+    double repair_time;
+    if (space->params()->getParam("repair_time", repair_time)) {
+        search->setAllowedRepairTime(repair_time);
+    }
+
+    return std::move(search);
+}
+
+auto MakeMHAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    struct MHAPlannerAdapter : public MHAPlanner {
+        std::vector<Heuristic*> heuristics;
+
+        MHAPlannerAdapter(
+            DiscreteSpaceInformation* space,
+            Heuristic* anchor,
+            Heuristic** heurs,
+            int hcount)
+        :
+            MHAPlanner(space, anchor, heurs, hcount)
+        { }
+    };
+
+    std::vector<Heuristic*> heuristics;
+    heuristics.push_back(heuristic);
+
+    const bool forward_search = true;
+    auto search = make_unique<MHAPlannerAdapter>(
+            space, heuristics[0], &heuristics[0], heuristics.size());
+
+    search->heuristics = std::move(heuristics);
+
+    double mha_eps;
+    space->params()->param("epsilon_mha", mha_eps, 1.0);
+    search->set_initial_mha_eps(mha_eps);
+
+    double epsilon;
+    space->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+
+    bool search_mode;
+    space->params()->param("search_mode", search_mode, false);
+    search->set_search_mode(search_mode);
+
+    return std::move(search);
+}
+
+auto MakeLARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    const bool forward_search = true;
+    auto search = make_unique<LazyARAPlanner>(space, forward_search);
+    double epsilon;
+    space->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+    bool search_mode;
+    space->params()->param("search_mode", search_mode, false);
+    search->set_search_mode(search_mode);
+    return std::move(search);
+}
+
+auto MakeEGWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    return make_unique<ExperienceGraphPlanner>(space, heuristic);
+}
+
+auto MakePADAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    auto search = make_unique<AdaptivePlanner>(space, heuristic);
+
+    double epsilon_plan;
+    space->params()->param("epsilon_plan", epsilon_plan, 1.0);
+    search->set_plan_eps(epsilon_plan);
+
+    double epsilon_track;
+    space->params()->param("epsilon_track", epsilon_track, 1.0);
+    search->set_track_eps(epsilon_track);
+
+    AdaptivePlanner::TimeParameters tparams;
+    tparams.planning.bounded = true;
+    tparams.planning.improve = false;
+    tparams.planning.type = ARAStar::TimeParameters::TIME;
+    tparams.planning.max_allowed_time_init = clock::duration::zero();
+    tparams.planning.max_allowed_time = clock::duration::zero();
+
+    tparams.tracking.bounded = true;
+    tparams.tracking.improve = false;
+    tparams.tracking.type = ARAStar::TimeParameters::TIME;
+    tparams.tracking.max_allowed_time_init = std::chrono::seconds(5);
+    tparams.tracking.max_allowed_time = clock::duration::zero();
+
+    search->set_time_parameters(tparams);
+
+    return std::move(search);
+}
 
 PlannerInterface::PlannerInterface(
     RobotModel* robot,
@@ -105,48 +546,90 @@ PlannerInterface::PlannerInterface(
         m_fk_iface = m_robot->getExtension<ForwardKinematicsInterface>();
     }
 
-    m_pspace_allocators.insert(std::make_pair(
-            "manip",
-            std::make_shared<ManipLatticeAllocator>(m_grid)));
-    m_pspace_allocators.insert(std::make_pair(
-            "manip_lattice_egraph",
-            std::make_shared<ManipLatticeEgraphAllocator>()));
-    m_pspace_allocators.insert(std::make_pair(
-            "workspace",
-            std::make_shared<WorkspaceLatticeAllocator>(m_grid)));
-    m_pspace_allocators.insert(std::make_pair(
-            "adaptive_workspace_lattice",
-            std::make_shared<AdaptiveWorkspaceLatticeAllocator>(m_grid)));
+    ////////////////////////////////////
+    // Setup Planning Space Factories //
+    ////////////////////////////////////
 
-    m_heuristic_allocators.insert(std::make_pair(
-            "mfbfs",
-            std::make_shared<MultiFrameBfsHeuristicAllocator>(m_grid)));
-    m_heuristic_allocators.insert(std::make_pair(
-            "bfs",
-            std::make_shared<BfsHeuristicAllocator>(m_grid)));
-    m_heuristic_allocators.insert(std::make_pair(
-            "euclid",
-            std::make_shared<EuclidDistHeuristicAllocator>(m_grid)));
-    m_heuristic_allocators.insert(std::make_pair(
-            "joint_distance",
-            std::make_shared<JointDistHeuristicAllocator>(m_grid)));
-    m_heuristic_allocators.insert(std::make_pair(
-            "bfs_egraph",
-            std::make_shared<DijkstraEgraph3dHeuristicAllocator>(m_grid)));
-    m_heuristic_allocators.insert(std::make_pair(
-            "joint_distance_egraph",
-            std::make_shared<JointDistEgraphHeuristicAllocator>(m_grid)));
+    m_space_factories["manip"] = [this](
+        RobotModel* r,
+        CollisionChecker* c,
+        PlanningParams* p)
+    {
+        return MakeManipLattice(m_grid, r, c, p);
+    };
 
-    m_planner_allocators.insert(std::make_pair(
-            "arastar", std::make_shared<ARAPlannerAllocator>()));
-    m_planner_allocators.insert(std::make_pair(
-            "mhastar", std::make_shared<MHAPlannerAllocator>()));
-    m_planner_allocators.insert(std::make_pair(
-            "larastar", std::make_shared<LARAPlannerAllocator>()));
-    m_planner_allocators.insert(std::make_pair(
-            "egwastar", std::make_shared<ExperienceGraphPlannerAllocator>()));
-    m_planner_allocators.insert(std::make_pair(
-            "padastar", std::make_shared<AdaptivePlannerAllocator>()));
+    m_space_factories["manip_lattice_egraph"] = [this](
+        RobotModel* r,
+        CollisionChecker* c,
+        PlanningParams* p)
+    {
+        return MakeManipLatticeEGraph(m_grid, r, c, p);
+    };
+
+    m_space_factories["workspace"] = [this](
+        RobotModel* r,
+        CollisionChecker* c,
+        PlanningParams* p)
+    {
+        return MakeWorkspaceLattice(m_grid, r, c, p);
+    };
+
+    m_space_factories["adaptive_workspace_lattice"] = [this](
+        RobotModel* r,
+        CollisionChecker* c,
+        PlanningParams* p)
+    {
+        return MakeAdaptiveWorkspaceLattice(m_grid, r, c, p);
+    };
+
+    ///////////////////////////////
+    // Setup Heuristic Factories //
+    ///////////////////////////////
+
+    m_heuristic_factories["mfbfs"] = [this](RobotPlanningSpace* space) {
+        return make_unique<MultiFrameBfsHeuristic>(space, m_grid);
+    };
+
+    m_heuristic_factories["bfs"] = [this](RobotPlanningSpace* space) {
+        return make_unique<BfsHeuristic>(space, m_grid);
+    };
+
+    m_heuristic_factories["euclid"] = [this](RobotPlanningSpace* space) {
+        return make_unique<EuclidDistHeuristic>(space);
+    };
+
+    m_heuristic_factories["joint_distance"] = [this](RobotPlanningSpace* space) {
+        return make_unique<JointDistHeuristic>(space);
+    };
+
+    m_heuristic_factories["bfs_egraph"] = [this](RobotPlanningSpace* space) {
+        return make_unique<DijkstraEgraphHeuristic3D>(space, m_grid);
+    };
+
+    m_heuristic_factories["joint_distance_egraph"] = [this](RobotPlanningSpace* space) {
+        struct JointDistEGraphHeuristic : public GenericEgraphHeuristic {
+            using Base = GenericEgraphHeuristic;
+
+            JointDistHeuristic jd;
+
+            JointDistEGraphHeuristic(RobotPlanningSpace* space) :
+                Base(space, &jd),
+                jd(space)
+            { }
+        };
+
+        return make_unique<JointDistEGraphHeuristic>(space);
+    };
+
+    /////////////////////////////
+    // Setup Planner Factories //
+    /////////////////////////////
+
+    m_planner_factories["arastar"] = MakeARAStar;
+    m_planner_factories["mhastar"] = MakeMHAStar;
+    m_planner_factories["larastar"] = MakeLARAStar;
+    m_planner_factories["egwastar"] = MakeEGWAStar;
+    m_planner_factories["padastar"] = MakePADAStar;
 }
 
 PlannerInterface::~PlannerInterface()
@@ -791,11 +1274,11 @@ PlannerInterface::getBfsValuesVisualization() const
 
     auto first = m_heuristics.begin();
 
-    if (auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second)) {
+    if (auto* hbfs = dynamic_cast<BfsHeuristic*>(first->second.get())) {
         return hbfs->getValuesVisualization();
-    } else if (auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second)) {
+    } else if (auto* hmfbfs = dynamic_cast<MultiFrameBfsHeuristic*>(first->second.get())) {
         return hmfbfs->getValuesVisualization();
-    } else if (auto debfs = std::dynamic_pointer_cast<DijkstraEgraphHeuristic3D>(first->second)) {
+    } else if (auto* debfs = dynamic_cast<DijkstraEgraphHeuristic3D*>(first->second.get())) {
         return debfs->getValuesVisualization();
     } else {
         return visualization_msgs::MarkerArray();
@@ -811,11 +1294,11 @@ PlannerInterface::getBfsWallsVisualization() const
 
     auto first = m_heuristics.begin();
 
-    if (auto hbfs = std::dynamic_pointer_cast<BfsHeuristic>(first->second)) {
+    if (auto* hbfs = dynamic_cast<BfsHeuristic*>(first->second.get())) {
         return hbfs->getWallsVisualization();
-    } else if (auto hmfbfs = std::dynamic_pointer_cast<MultiFrameBfsHeuristic>(first->second)) {
+    } else if (auto* hmfbfs = dynamic_cast<MultiFrameBfsHeuristic*>(first->second.get())) {
         return hmfbfs->getWallsVisualization();
-    } else if (auto debfs = std::dynamic_pointer_cast<DijkstraEgraphHeuristic3D>(first->second)) {
+    } else if (auto* debfs = dynamic_cast<DijkstraEgraphHeuristic3D*>(first->second.get())) {
         return debfs->getWallsVisualization();
     } else {
         return visualization_msgs::MarkerArray();
@@ -1021,47 +1504,48 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     ROS_INFO_NAMED(PI_LOGGER, " -> Heuristic: %s", heuristic_name.c_str());
     ROS_INFO_NAMED(PI_LOGGER, " -> Search: %s", search_name.c_str());
 
-    auto psait = m_pspace_allocators.find(space_name);
-    if (psait == m_pspace_allocators.end()) {
+    auto psait = m_space_factories.find(space_name);
+    if (psait == m_space_factories.end()) {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
         return false;
     }
 
-    m_pspace = psait->second->allocate(m_robot, m_checker, &m_params);
+    m_pspace = psait->second(m_robot, m_checker, &m_params);
     if (!m_pspace) {
-        ROS_ERROR("Failed to allocate planning space '%s'", space_name.c_str());
+        ROS_ERROR("Failed to build planning space '%s'", space_name.c_str());
         return false;
     }
 
-    auto hait = m_heuristic_allocators.find(heuristic_name);
-    if (hait == m_heuristic_allocators.end()) {
+    auto hait = m_heuristic_factories.find(heuristic_name);
+    if (hait == m_heuristic_factories.end()) {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
         return false;
     }
 
-    auto heuristic = hait->second->allocate(m_pspace);
+    auto heuristic = hait->second(m_pspace.get());
     if (!heuristic) {
-        ROS_ERROR("Failed to allocate heuristic '%s'", heuristic_name.c_str());
+        ROS_ERROR("Failed to build heuristic '%s'", heuristic_name.c_str());
         return false;
     }
 
     // initialize heuristics
     m_heuristics.clear();
-    m_heuristics.insert(std::make_pair(heuristic_name, heuristic));
+    m_heuristics.insert(std::make_pair(heuristic_name, std::move(heuristic)));
 
     for (const auto& entry : m_heuristics) {
         m_pspace->insertHeuristic(entry.second.get());
     }
 
-    auto pait = m_planner_allocators.find(search_name);
-    if (pait == m_planner_allocators.end()) {
+    auto pait = m_planner_factories.find(search_name);
+    if (pait == m_planner_factories.end()) {
         ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
         return false;
     }
 
-    m_planner = pait->second->allocate(m_pspace, heuristic);
+    auto first_heuristic = begin(m_heuristics);
+    m_planner = pait->second(m_pspace.get(), first_heuristic->second.get());
     if (!m_planner) {
-        ROS_ERROR("Failed to allocate planner '%s'", search_name.c_str());
+        ROS_ERROR("Failed to build planner '%s'", search_name.c_str());
         return false;
     }
     m_planner_id = planner_id;

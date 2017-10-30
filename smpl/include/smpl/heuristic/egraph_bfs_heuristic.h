@@ -41,6 +41,7 @@
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/occupancy_grid.h>
 
 namespace sbpl {
 namespace motion {
@@ -52,8 +53,10 @@ class DijkstraEgraphHeuristic3D :
 public:
 
     DijkstraEgraphHeuristic3D(
-        const RobotPlanningSpacePtr& pspace,
+        RobotPlanningSpace* space,
         const OccupancyGrid* grid);
+
+    auto grid() const -> const OccupancyGrid* { return m_grid; }
 
     visualization_msgs::MarkerArray getWallsVisualization();
     visualization_msgs::MarkerArray getValuesVisualization();
@@ -98,6 +101,8 @@ private:
     static const int Wall = std::numeric_limits<int>::max();
     static const int Infinity = Unknown;
 
+    const OccupancyGrid* m_grid;
+
     struct Cell : public heap_element
     {
         int dist;
@@ -119,8 +124,8 @@ private:
 
     intrusive_heap<Cell, CellCompare> m_open;
 
-    PointProjectionExtension* m_pp;
-    ExperienceGraphExtension* m_eg;
+    PointProjectionExtension* m_pp = nullptr;
+    ExperienceGraphExtension* m_eg = nullptr;
 
     // map down-projected state cells to adjacent down-projected state cells
     struct Vector3iHash

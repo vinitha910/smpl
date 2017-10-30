@@ -45,31 +45,6 @@ RobotPlanningSpacePtr WorkspaceLatticeAllocator::allocate(
     CollisionChecker* checker,
     PlanningParams* params)
 {
-    ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
-    auto pspace = std::make_shared<WorkspaceLattice>(robot, checker, params);
-    WorkspaceLatticeBase::Params wsp;
-    wsp.res_x = m_grid->resolution();
-    wsp.res_y = m_grid->resolution();
-    wsp.res_z = m_grid->resolution();
-    wsp.R_count = 360;
-    wsp.P_count = 180 + 1;
-    wsp.Y_count = 360;
-
-    RedundantManipulatorInterface* rmi =
-            robot->getExtension<RedundantManipulatorInterface>();
-    if (!rmi) {
-        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
-        return RobotPlanningSpacePtr();
-    }
-    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
-    if (!pspace->init(wsp)) {
-        ROS_ERROR("Failed to initialize Workspace Lattice");
-        return RobotPlanningSpacePtr();
-    }
-
-    pspace->setVisualizationFrameId(m_grid->getReferenceFrame());
-
-    return pspace;
 }
 
 } // namespace motion

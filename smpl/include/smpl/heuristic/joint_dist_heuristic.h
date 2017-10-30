@@ -42,9 +42,7 @@ class JointDistHeuristic : public RobotHeuristic
 {
 public:
 
-    JointDistHeuristic(
-        const RobotPlanningSpacePtr& ps,
-        const OccupancyGrid* grid);
+    JointDistHeuristic(RobotPlanningSpace* space);
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{

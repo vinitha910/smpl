@@ -82,23 +82,8 @@ add_library(
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
-    src/ros/adaptive_workspace_lattice_allocator.cpp
-    src/ros/araplanner_allocator.cpp
-    src/ros/bfs_heuristic_allocator.cpp
-    src/ros/dijkstra_egraph_3d_heuristic_allocator.cpp
-    src/ros/experience_graph_planner_allocator.cpp
-    src/ros/euclid_dist_heuristic_allocator.cpp
-    src/ros/joint_dist_heuristic_allocator.cpp
-    src/ros/joint_dist_egraph_heuristic_allocator.cpp
-    src/ros/laraplanner_allocator.cpp
-    src/ros/manip_lattice_allocator.cpp
-    src/ros/manip_lattice_egraph_allocator.cpp
-    src/ros/mhaplanner_allocator.cpp
-    src/ros/multi_frame_bfs_heuristic_allocator.cpp
-    src/ros/adaptive_planner_allocator.cpp
     src/ros/planner_interface.cpp
     src/ros/propagation_distance_field.cpp
-    src/ros/workspace_lattice_allocator.cpp
     src/search/arastar.cpp
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp)

@@ -39,12 +39,11 @@ namespace sbpl {
 namespace motion {
 
 GenericEgraphHeuristic::GenericEgraphHeuristic(
-    const RobotPlanningSpacePtr& pspace,
-    const OccupancyGrid *grid,
-    const RobotHeuristicPtr& h)
+    RobotPlanningSpace* space,
+    RobotHeuristic* h)
 :
     Extension(),
-    RobotHeuristic(pspace, grid),
+    RobotHeuristic(space),
     ExperienceGraphHeuristicExtension(),
     m_orig_h(h),
     m_eg(nullptr),
@@ -58,7 +57,7 @@ GenericEgraphHeuristic::GenericEgraphHeuristic(
 
     ROS_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
 
-    m_eg = pspace->getExtension<ExperienceGraphExtension>();
+    m_eg = space->getExtension<ExperienceGraphExtension>();
     if (!m_eg) {
         ROS_WARN_NAMED(params()->heuristic_log, "GenericEgraphHeuristic recommends ExperienceGraphExtension");
     }
@@ -70,14 +69,10 @@ void GenericEgraphHeuristic::getEquivalentStates(
 {
     ExperienceGraph* eg = m_eg->getExperienceGraph();
     auto nodes = eg->nodes();
-    int best_h = std::numeric_limits<int>::max();
     const int equiv_thresh = 100;
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         int egraph_state_id = m_eg->getStateID(*nit);
         int h = m_orig_h->GetFromToHeuristic(state_id, egraph_state_id);
-        if (h < best_h) {
-            best_h = h;
-        }
         if (h <= equiv_thresh) {
             ids.push_back(egraph_state_id);
         }

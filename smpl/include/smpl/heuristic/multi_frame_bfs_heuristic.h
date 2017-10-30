@@ -40,6 +40,7 @@
 
 // project includes
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/occupancy_grid.h>
 
 namespace sbpl {
 namespace motion {
@@ -50,11 +51,11 @@ class MultiFrameBfsHeuristic : public RobotHeuristic
 {
 public:
 
-    MultiFrameBfsHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid* grid);
+    MultiFrameBfsHeuristic(RobotPlanningSpace* space, const OccupancyGrid* grid);
 
     virtual ~MultiFrameBfsHeuristic();
+
+    auto grid() const -> const OccupancyGrid* { return m_grid; }
 
     visualization_msgs::MarkerArray getWallsVisualization() const;
     visualization_msgs::MarkerArray getValuesVisualization() const;
@@ -83,6 +84,8 @@ public:
     ///@}
 
 private:
+
+    const OccupancyGrid* m_grid;
 
     PointProjectionExtension* m_pp;
     ExtractRobotStateExtension* m_ers;

@@ -34,21 +34,17 @@
 namespace sbpl {
 namespace motion {
 
-RobotHeuristic::RobotHeuristic(
-    const RobotPlanningSpacePtr& pspace,
-    const OccupancyGrid* grid)
-:
-    Heuristic(pspace.get()),
-    RobotPlanningSpaceObserver(),
-    m_pspace(pspace),
-    m_grid(grid)
+RobotHeuristic::RobotHeuristic(RobotPlanningSpace* space) :
+    Heuristic(space),
+    RobotPlanningSpaceObserver()
 {
-    m_pspace->insertObserver(this);
+    m_space = space;
+    m_space->insertObserver(this);
 }
 
 RobotHeuristic::~RobotHeuristic()
 {
-    m_pspace->eraseObserver(this);
+    m_space->eraseObserver(this);
 }
 
 bool RobotHeuristic::setGoal(const GoalConstraint& goal)

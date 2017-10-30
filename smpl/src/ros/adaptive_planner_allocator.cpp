@@ -43,32 +43,6 @@ SBPLPlannerPtr AdaptivePlannerAllocator::allocate(
     const RobotPlanningSpacePtr& pspace,
     const RobotHeuristicPtr& heuristic)
 {
-    auto search = std::make_shared<AdaptivePlanner>(pspace, heuristic);
-
-    double epsilon_plan;
-    pspace->params()->param("epsilon_plan", epsilon_plan, 1.0);
-    search->set_plan_eps(epsilon_plan);
-
-    double epsilon_track;
-    pspace->params()->param("epsilon_track", epsilon_track, 1.0);
-    search->set_track_eps(epsilon_track);
-
-    AdaptivePlanner::TimeParameters tparams;
-    tparams.planning.bounded = true;
-    tparams.planning.improve = false;
-    tparams.planning.type = ARAStar::TimeParameters::TIME;
-    tparams.planning.max_allowed_time_init = clock::duration::zero();
-    tparams.planning.max_allowed_time = clock::duration::zero();
-
-    tparams.tracking.bounded = true;
-    tparams.tracking.improve = false;
-    tparams.tracking.type = ARAStar::TimeParameters::TIME;
-    tparams.tracking.max_allowed_time_init = std::chrono::seconds(5);
-    tparams.tracking.max_allowed_time = clock::duration::zero();
-
-    search->set_time_parameters(tparams);
-
-    return search;
 }
 
 } // namespace motion

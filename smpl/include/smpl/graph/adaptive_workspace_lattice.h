@@ -128,7 +128,7 @@ public:
         RobotModel* robot,
         CollisionChecker* checker,
         const PlanningParams* params,
-        OccupancyGrid* grid);
+        const OccupancyGrid* grid);
 
     ~AdaptiveWorkspaceLattice();
 
@@ -189,7 +189,7 @@ public:
 
 private:
 
-    OccupancyGrid* m_grid;
+    const OccupancyGrid* m_grid;
 
     AdaptiveState* m_goal_state;
     int m_goal_state_id;

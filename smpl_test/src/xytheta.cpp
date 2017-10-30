@@ -3,7 +3,7 @@
 
 #include <leatherman/print.h>
 #include <ros/ros.h>
-#include <sbpl/planners/araplanner.h>
+#include <smpl/search/arastar.h>
 #include <smpl/collision_checker.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
@@ -301,13 +301,12 @@ int main(int argc, char* argv[])
     smpl::PlanningParams params;
 
     // 4. Instantiate Planning Space
-    auto pspace =
-            std::make_shared<smpl::ManipLattice>(&robot_model, &cc, &params);
-    if (!pspace->init({ 0.02, 0.02 })) {
+    smpl::ManipLattice space(&robot_model, &cc, &params);
+    if (!space.init({ 0.02, 0.02 })) {
         ROS_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }
-    pspace->setVisualizationFrameId("map");
+    space.setVisualizationFrameId("map");
 
     // 5. Instantiate and Initialize Motion Primitives
     std::string mprim_path;
@@ -316,25 +315,24 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto aspace = std::make_shared<smpl::ManipLatticeActionSpace>(pspace.get());
+    auto aspace = std::make_shared<smpl::ManipLatticeActionSpace>(&space);
     if (!aspace->load(mprim_path)) {
         return 1;
     }
     PrintActionSpace(*aspace);
 
     // 6. Associate Action Space with Planning Space
-    pspace->setActionSpace(aspace);
+    space.setActionSpace(aspace);
 
     // 7. Instantiate Heuristic
-    auto h = std::make_shared<smpl::JointDistHeuristic>(pspace, &grid);
+    smpl::JointDistHeuristic h(&space);
 
     // 8. Associate Heuristic with Planning Space (for adaptive motion
     // primitives)
-    pspace->insertHeuristic(h.get());
+    space.insertHeuristic(&h);
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
-    const bool forward = true;
-    auto search = std::make_shared<ARAPlanner>(pspace.get(), forward);
+    auto search = std::make_shared<sbpl::ARAStar>(&space, &h);
 
     const double epsilon = 5.0;
     search->set_initialsolution_eps(epsilon);
@@ -355,23 +353,23 @@ int main(int argc, char* argv[])
     goal.angles = goal_state;
     goal.angle_tolerances = { 0.02, 0.02 };
 
-    if (!pspace->setGoal(goal)) {
+    if (!space.setGoal(goal)) {
         ROS_ERROR("Failed to set goal");
         return 1;
     }
 
-    if (!pspace->setStart(start_state)) {
+    if (!space.setStart(start_state)) {
         ROS_ERROR("Failed to set start");
         return 1;
     }
 
-    int start_id = pspace->getStartStateID();
+    int start_id = space.getStartStateID();
     if (start_id < 0) {
         ROS_ERROR("Start state id is invalid");
         return 1;
     }
 
-    int goal_id = pspace->getGoalStateID();
+    int goal_id = space.getGoalStateID();
     if (goal_id < 0)  {
         ROS_ERROR("Goal state id is invalid");
         return 1;
@@ -410,7 +408,7 @@ int main(int argc, char* argv[])
     // 12. Extract path from Planning Space
 
     std::vector<smpl::RobotState> path;
-    if (!pspace->extractPath(solution, path)) {
+    if (!space.extractPath(solution, path)) {
         ROS_ERROR("Failed to extract path");
     }
 
