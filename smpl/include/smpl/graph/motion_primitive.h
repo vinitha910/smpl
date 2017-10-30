@@ -83,6 +83,8 @@ std::ostream& operator<<(std::ostream& o, MotionPrimitive::Type type)
     case MotionPrimitive::SHORT_DISTANCE:
         o << "SHORT_DISTANCE";
         break;
+    default:
+        break;
     }
     return o;
 }

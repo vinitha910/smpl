@@ -99,7 +99,7 @@ public:
         double world_x, double world_y, double world_z,
         int& x, int& y, int& z) const override;
 
-    bool isCellValid(int x, int y, int z) const;
+    bool isCellValid(int x, int y, int z) const override;
     ///@}
 
     friend Derived;
