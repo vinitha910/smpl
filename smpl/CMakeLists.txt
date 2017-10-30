@@ -4,8 +4,6 @@ project(smpl)
 set(SMPL_ROS_BUILD ON)
 set(CMAKE_BUILD_TYPE Release)
 
-add_compile_options("-std=c++11")
-
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
 find_package(Eigen3 REQUIRED)
@@ -32,14 +30,16 @@ endif()
 
 set(SMPL_CLOCK_API SMPL_CLOCK_CHRONO_HIGH_RESOLUTION)
 
+if(SMPL_ROS_BUILD)
+    set(SMPL_SV_VISUALIZATION_MSGS ON)
+endif()
+
+add_compile_options("-std=c++11")
+
 add_definitions(-DSMPL_CONSOLE_ROS)
 #add_definitions(-DSMPL_CONSOLE_COLORIZE_OUTPUT=1)
 #add_definitions(-DSMPL_CONSOLE_UNBUFFERED=1)
 #add_definitions(-DSMPL_LOG_FILE_AND_LINE=1)
-
-if(SMPL_ROS_BUILD)
-    set(SMPL_SV_VISUALIZATION_MSGS ON)
-endif()
 
 add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
 
@@ -98,6 +98,9 @@ add_library(
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp)
 target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
+if(SMPL_ROS_BUILD)
+    target_link_libraries(smpl ${catkin_LIBRARIES})
+endif()
 
 if(SMPL_ROS_BUILD)
     set(SMPL_INCLUDE_DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
