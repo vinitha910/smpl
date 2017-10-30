@@ -79,7 +79,7 @@ AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
     RobotModel* robot,
     CollisionChecker* checker,
     const PlanningParams* params,
-    OccupancyGrid* grid)
+    const OccupancyGrid* grid)
 :
     Extension(),
     WorkspaceLatticeBase(robot, checker, params),

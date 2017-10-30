@@ -53,6 +53,8 @@ auto to_cstring(IkOption option) -> const char*
         return "UNRESTRICTED";
     case RESTRICT_XYZ:
         return "RESTRICT_XYZ";
+    case RESTRICT_RPY:
+        return "RESTRICT_RPY";
     default:
         assert(0);
         return "";

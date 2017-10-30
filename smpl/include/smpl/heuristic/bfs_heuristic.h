@@ -36,8 +36,9 @@
 #include <memory>
 
 // project includes
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/occupancy_grid.h>
 #include <smpl/debug/marker.h>
+#include <smpl/heuristic/robot_heuristic.h>
 
 namespace sbpl {
 namespace motion {
@@ -48,11 +49,11 @@ class BfsHeuristic : public RobotHeuristic
 {
 public:
 
-    BfsHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid* grid);
+    BfsHeuristic(RobotPlanningSpace* space, const OccupancyGrid* grid);
 
     virtual ~BfsHeuristic();
+
+    auto grid() const -> const OccupancyGrid* { return m_grid; }
 
     auto getWallsVisualization() const -> visual::Marker;
     auto getValuesVisualization() -> visual::Marker;
@@ -81,6 +82,8 @@ public:
     ///@}
 
 private:
+
+    const OccupancyGrid* m_grid;
 
     std::unique_ptr<BFS_3D> m_bfs;
     PointProjectionExtension* m_pp;

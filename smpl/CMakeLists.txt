@@ -43,12 +43,12 @@ endif()
 
 add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
 
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIR})
-include_directories(${sbpl_INCLUDE_DIRS})
-if(SMPL_ROS_BUILD)
-    include_directories(${catkin_INCLUDE_DIRS})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+if (SMPL_ROS_BUILD)
+    include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 endif()
+include_directories(SYSTEM ${sbpl_INCLUDE_DIRS})
 include_directories(include)
 
 configure_file(

@@ -43,16 +43,17 @@ namespace sbpl {
 namespace motion {
 
 BfsHeuristic::BfsHeuristic(
-    const RobotPlanningSpacePtr& ps,
+    RobotPlanningSpace* space,
     const OccupancyGrid* grid)
 :
-    RobotHeuristic(ps, grid),
-    m_bfs(),
-    m_goal_x(-1),
-    m_goal_y(-1),
-    m_goal_z(-1)
+    RobotHeuristic(space)
 {
-    m_pp = ps->getExtension<PointProjectionExtension>();
+    m_grid = grid;
+    m_goal_x = -1;
+    m_goal_y = -1;
+    m_goal_z = -1;
+
+    m_pp = space->getExtension<PointProjectionExtension>();
     if (m_pp) {
         SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
     }

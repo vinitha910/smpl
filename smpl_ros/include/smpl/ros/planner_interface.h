@@ -68,6 +68,18 @@ SBPL_CLASS_FORWARD(SBPLPlanner);
 namespace sbpl {
 namespace motion {
 
+using PlanningSpaceFactory = std::function<
+        std::unique_ptr<RobotPlanningSpace>(
+                RobotModel*, CollisionChecker*, PlanningParams*)>;
+
+using HeuristicFactory = std::function<
+        std::unique_ptr<RobotHeuristic>(
+                RobotPlanningSpace*)>;
+
+using PlannerFactory = std::function<
+        std::unique_ptr<SBPLPlanner>(
+                RobotPlanningSpace*, RobotHeuristic*)>;
+
 SBPL_CLASS_FORWARD(PlannerInterface);
 class PlannerInterface
 {
@@ -96,15 +108,14 @@ public:
         const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MotionPlanResponse& res) const;
 
-    const RobotPlanningSpacePtr& space() const { return m_pspace; }
-    const SBPLPlannerPtr& search() const { return m_planner; }
+    auto space() const -> const RobotPlanningSpace* { return m_pspace.get(); }
+    auto search() const -> const SBPLPlanner* { return m_planner.get(); }
 
-    std::pair<
-        std::map<std::string, RobotHeuristicPtr>::const_iterator,
-        std::map<std::string, RobotHeuristicPtr>::const_iterator>
-    heuristics() const
-    {
-        return std::make_pair(m_heuristics.begin(), m_heuristics.end());
+    using heuristic_iterator =
+            std::map<std::string, std::unique_ptr<RobotHeuristic>>::const_iterator;
+
+    auto heuristics() const -> std::pair<heuristic_iterator, heuristic_iterator> {
+        return std::make_pair(begin(m_heuristics), end(m_heuristics));
     }
 
     /// @brief Return planning statistics from the last call to solve.
@@ -145,15 +156,15 @@ protected:
     // params
     bool m_initialized;
 
-    std::map<std::string, PlanningSpaceAllocatorPtr> m_pspace_allocators;
-    std::map<std::string, HeuristicAllocatorPtr> m_heuristic_allocators;
-    std::map<std::string, PlannerAllocatorPtr> m_planner_allocators;
+    std::map<std::string, PlanningSpaceFactory> m_space_factories;
+    std::map<std::string, HeuristicFactory> m_heuristic_factories;
+    std::map<std::string, PlannerFactory> m_planner_factories;
 
     // planner components
 
-    RobotPlanningSpacePtr m_pspace;
-    std::map<std::string, RobotHeuristicPtr> m_heuristics;
-    SBPLPlannerPtr m_planner;
+    std::unique_ptr<RobotPlanningSpace> m_pspace;
+    std::map<std::string, std::unique_ptr<RobotHeuristic>> m_heuristics;
+    std::unique_ptr<SBPLPlanner> m_planner;
 
     int m_sol_cost;
 

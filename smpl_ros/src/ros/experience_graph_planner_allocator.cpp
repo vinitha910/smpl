@@ -41,7 +41,6 @@ SBPLPlannerPtr ExperienceGraphPlannerAllocator::allocate(
     const RobotPlanningSpacePtr& pspace,
     const RobotHeuristicPtr& heuristic)
 {
-    return std::make_shared<ExperienceGraphPlanner>(pspace, heuristic);
 }
 
 } // namespace motion

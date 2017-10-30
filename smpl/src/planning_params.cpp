@@ -142,6 +142,8 @@ Parameter::~Parameter()
     case Type::String:
         delete m_value.asString;
         break;
+    default:
+        break;
     }
 }
 
@@ -197,6 +199,8 @@ void Parameter::destroy()
             delete m_value.asString;
             m_value.asString = nullptr;
         }
+        break;
+    default:
         break;
     }
     m_type = Type::Invalid;

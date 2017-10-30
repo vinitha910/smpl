@@ -41,22 +41,22 @@ namespace sbpl {
 namespace motion {
 
 MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
-    const RobotPlanningSpacePtr& ps,
+    RobotPlanningSpace* space,
     const OccupancyGrid* grid)
 :
-    RobotHeuristic(ps, grid),
-    m_bfs(),
-    m_ee_bfs()
+    RobotHeuristic(space)
 {
-    m_pp = ps->getExtension<PointProjectionExtension>();
+    m_grid = grid;
+
+    m_pp = space->getExtension<PointProjectionExtension>();
     if (m_pp) {
         SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
     }
-    m_ers = ps->getExtension<ExtractRobotStateExtension>();
+    m_ers = space->getExtension<ExtractRobotStateExtension>();
     if (m_ers) {
         SMPL_INFO_NAMED(params()->heuristic_log, "Got Extract Robot State Extension!");
     }
-    m_fk_iface = ps->robot()->getExtension<ForwardKinematicsInterface>();
+    m_fk_iface = space->robot()->getExtension<ForwardKinematicsInterface>();
     if (m_fk_iface) {
         SMPL_INFO_NAMED(params()->heuristic_log, "Got Forward Kinematics Interface!");
     }

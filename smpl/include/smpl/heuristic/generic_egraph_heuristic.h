@@ -47,35 +47,31 @@ class GenericEgraphHeuristic :
 {
 public:
 
-    GenericEgraphHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid *grid,
-        const RobotHeuristicPtr& h);
+    GenericEgraphHeuristic(RobotPlanningSpace* pspace, RobotHeuristic* h);
 
-    /// \name Required Functions from ExperienceGraphHeuristicExtension
+    /// \name ExperienceGraphHeuristicExtension Interface
     ///@{
     void getEquivalentStates(int state_id, std::vector<int>& ids) override;
-
     void getShortcutSuccs(int state_id, std::vector<int>& ids) override;
     ///@}
 
-    /// \name Required Functions from RobotHeuristic
+    /// \name RobotHeuristic Interface
     ///@{
     double getMetricStartDistance(double x, double y, double z) override;
     double getMetricGoalDistance(double x, double y, double z) override;
     ///@}
 
-    /// \name Required Functions from Extension
+    /// \name Extension Interface
     ///@{
     Extension* getExtension(size_t class_code) override;
     ///@}
 
-    /// \name Reimplemented Functions from RobotPlanningSpaceObserver
+    /// \name RobotPlanningSpaceObserver Interface
     ///@{
     void updateGoal(const GoalConstraint& goal) override;
     ///@}
 
-    /// \name Required Functions from Heuristic
+    /// \name Heuristic Interface
     ///@{
     int GetGoalHeuristic(int state_id) override;
     int GetStartHeuristic(int state_id) override;
@@ -88,7 +84,7 @@ private:
     static const int Wall = std::numeric_limits<int>::max();
     static const int Infinity = Unknown;
 
-    RobotHeuristicPtr m_orig_h;
+    RobotHeuristic* m_orig_h;
 
     ExperienceGraphExtension* m_eg;
 

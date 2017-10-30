@@ -14,11 +14,11 @@ namespace sbpl {
 namespace motion {
 
 ExperienceGraphPlanner::ExperienceGraphPlanner(
-    const RobotPlanningSpacePtr& pspace,
-    const RobotHeuristicPtr& heur)
+    RobotPlanningSpace* space,
+    RobotHeuristic* heur)
 :
     SBPLPlanner(),
-    m_pspace(pspace),
+    m_space(space),
     m_ege(nullptr),
     m_heur(heur),
     m_egh(nullptr),
@@ -31,9 +31,9 @@ ExperienceGraphPlanner::ExperienceGraphPlanner(
     m_eps(5.0),
     m_expand_count(0)
 {
-    environment_ = pspace.get();
+    environment_ = space;
 
-    m_ege = pspace->getExtension<ExperienceGraphExtension>();
+    m_ege = space->getExtension<ExperienceGraphExtension>();
     if (!m_ege) {
         SMPL_WARN_ONCE("ExperienceGraphPlanner recommends ExperienceGraphExtension");
     }
@@ -117,7 +117,7 @@ int ExperienceGraphPlanner::replan(
 
         succs.clear();
         costs.clear();
-        m_pspace->GetSuccs(min_state->state_id, &succs, &costs);
+        m_space->GetSuccs(min_state->state_id, &succs, &costs);
 
         SMPL_DEBUG("  %zu successors", succs.size());
 

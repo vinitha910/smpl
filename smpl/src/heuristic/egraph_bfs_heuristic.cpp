@@ -53,19 +53,20 @@ auto DijkstraEgraphHeuristic3D::Vector3iHash::operator()(const argument_type& s)
 }
 
 DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
-    const RobotPlanningSpacePtr& ps,
-    const OccupancyGrid* _grid)
+    RobotPlanningSpace* space,
+    const OccupancyGrid* grid)
 :
     Extension(),
-    RobotHeuristic(ps, _grid),
-    ExperienceGraphHeuristicExtension(),
-    m_pp(nullptr)
+    RobotHeuristic(space),
+    ExperienceGraphHeuristicExtension()
 {
+    m_grid = grid;
+
     params()->param("egraph_epsilon", m_eg_eps, 1.0);
     SMPL_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
 
-    m_pp = ps->getExtension<PointProjectionExtension>();
-    m_eg = ps->getExtension<ExperienceGraphExtension>();
+    m_pp = space->getExtension<PointProjectionExtension>();
+    m_eg = space->getExtension<ExperienceGraphExtension>();
 
     if (!m_pp) {
         SMPL_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends PointProjectionExtension");
@@ -74,9 +75,9 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
         SMPL_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
     }
 
-    size_t num_cells_x = grid()->numCellsX() + 2;
-    size_t num_cells_y = grid()->numCellsY() + 2;
-    size_t num_cells_z = grid()->numCellsZ() + 2;
+    size_t num_cells_x = m_grid->numCellsX() + 2;
+    size_t num_cells_y = m_grid->numCellsY() + 2;
+    size_t num_cells_z = m_grid->numCellsZ() + 2;
 
     m_dist_grid.assign(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
 

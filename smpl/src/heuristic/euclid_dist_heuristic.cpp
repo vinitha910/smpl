@@ -52,17 +52,14 @@ double EuclideanDistance(
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-EuclidDistHeuristic::EuclidDistHeuristic(
-    const RobotPlanningSpacePtr& pspace,
-    const OccupancyGrid* grid)
-:
-    RobotHeuristic(pspace, grid)
+EuclidDistHeuristic::EuclidDistHeuristic(RobotPlanningSpace* space) :
+    RobotHeuristic(space)
 {
-    m_point_ext = pspace->getExtension<PointProjectionExtension>();
+    m_point_ext = space->getExtension<PointProjectionExtension>();
     if (m_point_ext) {
         SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
     }
-    m_pose_ext = pspace->getExtension<PoseProjectionExtension>();
+    m_pose_ext = space->getExtension<PoseProjectionExtension>();
     if (m_pose_ext) {
         SMPL_INFO_NAMED(params()->heuristic_log, "Got Pose Projection Extension!");
     }

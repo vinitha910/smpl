@@ -43,18 +43,18 @@ namespace sbpl {
 namespace motion {
 
 AdaptivePlanner::AdaptivePlanner(
-    const RobotPlanningSpacePtr& pspace,
-    const RobotHeuristicPtr& heur)
+    RobotPlanningSpace* space,
+    RobotHeuristic* heur)
 :
-    m_planner(pspace.get(), heur.get()),
-    m_tracker(pspace.get(), heur.get()),
+    m_planner(space, heur),
+    m_tracker(space, heur),
     m_adaptive_graph(nullptr),
     m_start_state_id(-1),
     m_goal_state_id(-1),
     m_eps_plan(1.0),
     m_eps_track(1.0)
 {
-    m_adaptive_graph = pspace->getExtension<AdaptiveGraphExtension>();
+    m_adaptive_graph = space->getExtension<AdaptiveGraphExtension>();
     if (!m_adaptive_graph) {
         SMPL_WARN("Adaptive Planner recommends Adaptive Graph Extension");
     }

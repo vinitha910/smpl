@@ -42,9 +42,7 @@ class EuclidDistHeuristic : public RobotHeuristic
 {
 public:
 
-    EuclidDistHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid* grid);
+    EuclidDistHeuristic(RobotPlanningSpace* space);
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{
