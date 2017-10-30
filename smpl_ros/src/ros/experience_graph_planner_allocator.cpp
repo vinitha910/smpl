@@ -41,6 +41,7 @@ SBPLPlannerPtr ExperienceGraphPlannerAllocator::allocate(
     const RobotPlanningSpacePtr& pspace,
     const RobotHeuristicPtr& heuristic)
 {
+    return nullptr;
 }
 
 } // namespace motion

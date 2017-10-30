@@ -40,7 +40,8 @@ namespace motion {
 RobotHeuristicPtr JointDistHeuristicAllocator::allocate(
     const RobotPlanningSpacePtr& pspace)
 {
-    return std::make_shared<JointDistHeuristic>(pspace, m_grid);
+    return nullptr;
+//    return std::make_shared<JointDistHeuristic>(pspace, m_grid);
 }
 
 } // namespace motion
