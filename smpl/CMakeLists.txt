@@ -41,10 +41,10 @@ catkin_package(
 
 add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
 
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${Eigen_INCLUDE_DIRS})
-include_directories(${catkin_INCLUDE_DIRS})
-include_directories(${sbpl_INCLUDE_DIRS})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
+include_directories(SYSTEM ${sbpl_INCLUDE_DIRS})
 include_directories(include)
 
 add_library(

@@ -25,10 +25,10 @@ find_package(orocos_kdl REQUIRED)
 
 find_package(Eigen REQUIRED)
 
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${Eigen_INCLUDE_DIRS})
-include_directories(${catkin_INCLUDE_DIRS})
-include_directories(${orocos_kdl_INCLUDE_DIRS})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
+include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
 
 catkin_package()
 
