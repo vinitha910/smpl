@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(smpl)
 
-set(SMPL_ROS_BUILD ON)
-set(CMAKE_BUILD_TYPE Release)
+set(SMPL_ROS_BUILD ON CACHE BOOL "Build smpl as a catkin package")
+set(SMPL_CONSOLE_ROS ${SMPL_ROS_BUILD} CACHE BOOL "Replace smpl log macros with rosconsole macros")
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
@@ -36,15 +40,19 @@ endif()
 
 add_compile_options("-std=c++11")
 
-add_definitions(-DSMPL_CONSOLE_ROS)
-#add_definitions(-DSMPL_CONSOLE_COLORIZE_OUTPUT=1)
-#add_definitions(-DSMPL_CONSOLE_UNBUFFERED=1)
-#add_definitions(-DSMPL_LOG_FILE_AND_LINE=1)
+if(SMPL_ROS_BUILD AND SMPL_CONSOLE_ROS)
+    add_definitions(-DSMPL_CONSOLE_ROS)
+else()
+    # configure printf backend
+    add_definitions(-DSMPL_CONSOLE_COLORIZE_OUTPUT=1)
+    add_definitions(-DSMPL_CONSOLE_UNBUFFERED=1)
+    add_definitions(-DSMPL_LOG_FILE_AND_LINE=1)
+endif()
 
 add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 if(SMPL_ROS_BUILD)
     include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 endif()
