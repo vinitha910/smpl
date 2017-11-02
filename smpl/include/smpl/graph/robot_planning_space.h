@@ -61,12 +61,19 @@ class RobotPlanningSpace :
 {
 public:
 
+    RobotPlanningSpace();
+
     RobotPlanningSpace(
         RobotModel* robot,
         CollisionChecker* checker,
         const PlanningParams* params);
 
     virtual ~RobotPlanningSpace();
+
+    virtual bool init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* params);
 
     virtual bool setStart(const RobotState& state);
     virtual bool setGoal(const GoalConstraint& goal);
