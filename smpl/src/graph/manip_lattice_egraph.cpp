@@ -51,18 +51,6 @@ auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) cons
     return seed;
 }
 
-ManipLatticeEgraph::ManipLatticeEgraph(
-    RobotModel* robot,
-    CollisionChecker* checker,
-    PlanningParams* params)
-:
-    ManipLattice(robot, checker, params),
-    m_coord_to_nodes(),
-    m_egraph(),
-    m_egraph_state_ids()
-{
-}
-
 bool ManipLatticeEgraph::extractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
@@ -116,11 +104,6 @@ bool ManipLatticeEgraph::extractPath(
         opath.push_back(entry->state);
     }
 
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return false;
-    }
-
     // grab the rest of the points
     for (size_t i = 1; i < idpath.size(); ++i) {
         const int prev_id = idpath[i - 1];
@@ -138,7 +121,7 @@ bool ManipLatticeEgraph::extractPath(
         const RobotState& prev_state = prev_entry->state;
 
         std::vector<Action> actions;
-        if (!action_space->apply(prev_state, actions)) {
+        if (!actionSpace()->apply(prev_state, actions)) {
             SMPL_ERROR_NAMED(params()->graph_log, "Failed to get actions while extracting the path");
             return false;
         }

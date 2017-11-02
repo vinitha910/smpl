@@ -124,17 +124,16 @@ class AdaptiveWorkspaceLattice :
 {
 public:
 
-    AdaptiveWorkspaceLattice(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params,
-        const OccupancyGrid* grid);
-
     ~AdaptiveWorkspaceLattice();
 
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
-    bool init(const Params& _params) override;
+    bool init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* pp,
+        const Params& params,
+        const OccupancyGrid* grid);
     ///@}
 
     /// \name Required Public Functions from PointProjectionExtension
@@ -189,13 +188,13 @@ public:
 
 private:
 
-    const OccupancyGrid* m_grid;
+    const OccupancyGrid* m_grid = nullptr;
 
-    AdaptiveState* m_goal_state;
-    int m_goal_state_id;
+    AdaptiveState* m_goal_state = nullptr;
+    int m_goal_state_id = -1;
 
-    AdaptiveState* m_start_state;
-    int m_start_state_id;
+    AdaptiveState* m_start_state = nullptr;
+    int m_start_state_id = -1;
 
     typedef AdaptiveWorkspaceState HiStateKey;
     typedef PointerValueHash<HiStateKey> HiStateHash;
@@ -210,18 +209,18 @@ private:
     std::vector<AdaptiveState*> m_states;
 
     clock::time_point m_t_start;
-    mutable bool m_near_goal;
+    mutable bool m_near_goal = false;
 
     std::vector<Eigen::Vector3d> m_lo_prims;
     std::vector<MotionPrimitive> m_hi_prims;
 
-    bool m_ik_amp_enabled;
-    double m_ik_amp_thresh;
+    bool m_ik_amp_enabled = true;
+    double m_ik_amp_thresh = 0.2;
 
-    int m_region_radius;
-    int m_tunnel_radius;
+    int m_region_radius = 1;
+    int m_tunnel_radius = 3;
 
-    bool m_plan_mode;
+    bool m_plan_mode = true;
 
     struct AdaptiveGridCell
     {

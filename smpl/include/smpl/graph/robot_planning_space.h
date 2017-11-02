@@ -46,7 +46,6 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/types.h>
-#include <smpl/graph/action_space.h>
 #include <smpl/graph/robot_planning_space_observer.h>
 
 namespace sbpl {
@@ -60,13 +59,6 @@ class RobotPlanningSpace :
     public virtual Extension
 {
 public:
-
-    RobotPlanningSpace();
-
-    RobotPlanningSpace(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params);
 
     virtual ~RobotPlanningSpace();
 
@@ -85,8 +77,6 @@ public:
         const std::vector<int>& ids,
         std::vector<RobotState>& path) = 0;
 
-    virtual bool setActionSpace(const ActionSpacePtr& actions);
-
     virtual bool insertHeuristic(RobotHeuristic* h);
     virtual bool eraseHeuristic(const RobotHeuristic* h);
     virtual bool hasHeuristic(const RobotHeuristic* h);
@@ -98,9 +88,6 @@ public:
     const CollisionChecker* collisionChecker() const { return m_checker; }
 
     const PlanningParams* params() const { return m_params; }
-
-    const ActionSpacePtr& actionSpace() { return m_actions; }
-    const ActionSpaceConstPtr& actionSpace() const { return m_actions_const; }
 
     const RobotState& startState() const { return m_start; }
     const GoalConstraint& goal() const { return m_goal; }
@@ -116,7 +103,7 @@ public:
     void notifyStartChanged(const RobotState& state);
     void notifyGoalChanged(const GoalConstraint& goal);
 
-    /// \name Reimplemented Public Functions from DiscreteSpaceInformation
+    /// \name DiscreteSpaceInformation Interface Overrides
     ///@{
     virtual int GetGoalHeuristic(int state_id) override;
     virtual int GetStartHeuristic(int state_id) override;
@@ -131,7 +118,7 @@ public:
     virtual int GetTrueCost(int parentID, int childID) override;
     ///@}
 
-    /// \name Restate Required Public Functions from DiscreteSpaceInformation
+    /// \name Restate DiscreteSpaceInformation Interface
     ///@{
     virtual void GetSuccs(
         int state_id,
@@ -151,12 +138,9 @@ public:
 
 private:
 
-    RobotModel* m_robot;
-    CollisionChecker* m_checker;
-    const PlanningParams* m_params;
-
-    ActionSpacePtr m_actions;
-    ActionSpaceConstPtr m_actions_const;
+    RobotModel* m_robot             = nullptr;
+    CollisionChecker* m_checker     = nullptr;
+    const PlanningParams* m_params  = nullptr;
 
     RobotState m_start;
     GoalConstraint m_goal;

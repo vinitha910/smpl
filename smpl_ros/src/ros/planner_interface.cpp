@@ -100,6 +100,45 @@ auto make_unique(Args&&... args) -> std::unique_ptr<T> {
 
 const char* PI_LOGGER = "simple";
 
+struct ManipLatticeActionSpaceParams
+{
+    std::string mprim_filename;
+    bool use_multiple_ik_solutions = false;
+    bool use_xyz_snap_mprim;
+    bool use_rpy_snap_mprim;
+    bool use_xyzrpy_snap_mprim;
+    bool use_short_dist_mprims;
+    double xyz_snap_thresh;
+    double rpy_snap_thresh;
+    double xyzrpy_snap_thresh;
+    double short_dist_mprims_thresh;
+};
+
+// Lookup parameters for ManipLatticeActionSpace, setting reasonable defaults
+// for missing parameters. Return false if any required parameter is not found.
+bool GetManipLatticeActionSpaceParams(
+    ManipLatticeActionSpaceParams& params,
+    const PlanningParams& pp)
+{
+    if (!pp.getParam("mprim_filename", params.mprim_filename)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
+        return false;
+    }
+
+    pp.param("use_multiple_ik_solutions", params.use_multiple_ik_solutions, false);
+
+    pp.param("use_xyz_snap_mprim", params.use_xyz_snap_mprim, false);
+    pp.param("use_rpy_snap_mprim", params.use_rpy_snap_mprim, false);
+    pp.param("use_xyzrpy_snap_mprim", params.use_xyzrpy_snap_mprim, false);
+    pp.param("use_short_dist_mprims", params.use_short_dist_mprims, false);
+
+    pp.param("xyz_snap_dist_thresh", params.xyz_snap_thresh, 0.0);
+    pp.param("rpy_snap_dist_thresh", params.rpy_snap_thresh, 0.0);
+    pp.param("xyzrpy_snap_dist_thresh", params.xyzrpy_snap_thresh, 0.0);
+    pp.param("short_dist_mprims_thresh", params.short_dist_mprims_thresh, 0.0);
+    return true;
+}
+
 auto MakeManipLattice(
     const OccupancyGrid* grid,
     RobotModel* robot,
@@ -112,16 +151,6 @@ auto MakeManipLattice(
     ////////////////
 
     std::vector<double> resolutions(robot->jointVariableCount());
-    std::string mprim_filename;
-    bool use_multiple_ik_solutions;
-    bool use_xyz_snap_mprim;
-    bool use_rpy_snap_mprim;
-    bool use_xyzrpy_snap_mprim;
-    bool use_short_dist_mprims;
-    double xyz_snap_thresh;
-    double rpy_snap_thresh;
-    double xyzrpy_snap_thresh;
-    double short_dist_mprims_thresh;
 
     std::string disc_string;
     if (!params->getParam("discretization", disc_string)) {
@@ -163,30 +192,30 @@ auto MakeManipLattice(
         ROS_DEBUG_NAMED(PI_LOGGER, "resolution(%s) = %0.3f", vname.c_str(), resolutions[vidx]);
     }
 
-    if (!params->getParam("mprim_filename", mprim_filename)) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
+    ManipLatticeActionSpaceParams action_params;
+    if (!GetManipLatticeActionSpaceParams(action_params, *params)) {
         return nullptr;
     }
-
-    params->param("use_multiple_ik_solutions", use_multiple_ik_solutions, false);
-
-    params->param("use_xyz_snap_mprim", use_xyz_snap_mprim, false);
-    params->param("use_rpy_snap_mprim", use_rpy_snap_mprim, false);
-    params->param("use_xyzrpy_snap_mprim", use_xyzrpy_snap_mprim, false);
-    params->param("use_short_dist_mprims", use_short_dist_mprims, false);
-
-    params->param("xyz_snap_dist_thresh", xyz_snap_thresh, 0.0);
-    params->param("rpy_snap_dist_thresh", rpy_snap_thresh, 0.0);
-    params->param("xyzrpy_snap_dist_thresh", xyzrpy_snap_thresh, 0.0);
-    params->param("short_dist_mprims_thresh", short_dist_mprims_thresh, 0.0);
 
     ////////////////////
     // Initialization //
     ////////////////////
 
-    auto space = make_unique<ManipLattice>(robot, checker, params);
-    if (!space->init(resolutions)) {
+    // helper struct to couple the lifetime of ManipLattice and
+    // ManipLatticeActionSpace
+    struct SimpleManipLattice : public ManipLattice {
+        ManipLatticeActionSpace actions;
+    };
+
+    auto space = make_unique<SimpleManipLattice>();
+
+    if (!space->init(robot, checker, params, resolutions, &space->actions)) {
         ROS_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manip Lattice");
+        return nullptr;
+    }
+
+    if (!space->actions.init(space.get())) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manip Lattice Action Space");
         return nullptr;
     }
 
@@ -194,34 +223,34 @@ auto MakeManipLattice(
         space->setVisualizationFrameId(grid->getReferenceFrame());
     }
 
-    auto aspace = std::make_shared<ManipLatticeActionSpace>(space.get());
-    aspace->useMultipleIkSolutions(use_multiple_ik_solutions);
-    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, use_xyz_snap_mprim);
-    aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, use_rpy_snap_mprim);
-    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, use_xyzrpy_snap_mprim);
-    aspace->useAmp(MotionPrimitive::SHORT_DISTANCE, use_short_dist_mprims);
-    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ, xyz_snap_thresh);
-    aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY, rpy_snap_thresh);
-    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, xyzrpy_snap_thresh);
-    aspace->ampThresh(MotionPrimitive::SHORT_DISTANCE, short_dist_mprims_thresh);
+    auto& actions = space->actions;
+    actions.useMultipleIkSolutions(action_params.use_multiple_ik_solutions);
+    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ, action_params.use_xyz_snap_mprim);
+    actions.useAmp(MotionPrimitive::SNAP_TO_RPY, action_params.use_rpy_snap_mprim);
+    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.use_xyzrpy_snap_mprim);
+    actions.useAmp(MotionPrimitive::SHORT_DISTANCE, action_params.use_short_dist_mprims);
+    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ, action_params.xyz_snap_thresh);
+    actions.ampThresh(MotionPrimitive::SNAP_TO_RPY, action_params.rpy_snap_thresh);
+    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.xyzrpy_snap_thresh);
+    actions.ampThresh(MotionPrimitive::SHORT_DISTANCE, action_params.short_dist_mprims_thresh);
 
-    if (!aspace->load(mprim_filename)) {
-        ROS_ERROR("Failed to load actions from file '%s'", mprim_filename.c_str());
+    if (!actions.load(action_params.mprim_filename)) {
+        ROS_ERROR("Failed to load actions from file '%s'", action_params.mprim_filename.c_str());
         return nullptr;
     }
 
     ROS_DEBUG_NAMED(PI_LOGGER, "Action Set:");
-    for (auto ait = aspace->begin(); ait != aspace->end(); ++ait) {
+    for (auto ait = actions.begin(); ait != actions.end(); ++ait) {
         ROS_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_cstring(ait->type));
         if (ait->type == MotionPrimitive::SNAP_TO_RPY) {
-            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY));
+            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", actions.useAmp(MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", actions.ampThresh(MotionPrimitive::SNAP_TO_RPY));
         } else if (ait->type == MotionPrimitive::SNAP_TO_XYZ) {
-            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ));
+            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", actions.useAmp(MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ));
         } else if (ait->type == MotionPrimitive::SNAP_TO_XYZ_RPY) {
-            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY));
+            ROS_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", actions.useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+            ROS_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY));
         } else if (ait->type == MotionPrimitive::LONG_DISTANCE ||
             ait->type == MotionPrimitive::SHORT_DISTANCE)
         {
@@ -229,11 +258,6 @@ auto MakeManipLattice(
         }
     }
 
-    // associate action space with lattice
-    if (!space->setActionSpace(aspace)) {
-        ROS_ERROR("Failed to associate action space with planning space");
-        return nullptr;
-    }
     return std::move(space);
 }
 
@@ -244,22 +268,11 @@ auto MakeManipLatticeEGraph(
     PlanningParams* params)
     -> std::unique_ptr<RobotPlanningSpace>
 {
-    // TODO: remove the copypasta between here and ManipLatticeAllocator
     ////////////////
     // Parameters //
     ////////////////
 
     std::vector<double> resolutions(robot->jointVariableCount());
-    std::string mprim_filename;
-    bool use_multiple_ik_solutions = false; // TODO: config parameter for this
-    bool use_xyz_snap_mprim;
-    bool use_rpy_snap_mprim;
-    bool use_xyzrpy_snap_mprim;
-    bool use_short_dist_mprims;
-    double xyz_snap_thresh;
-    double rpy_snap_thresh;
-    double xyzrpy_snap_thresh;
-    double short_dist_mprims_thresh;
 
     std::string disc_string;
     if (!params->getParam("discretization", disc_string)) {
@@ -285,51 +298,45 @@ auto MakeManipLatticeEGraph(
         resolutions[vidx] = dit->second;
     }
 
-    if (!params->getParam("mprim_filename", mprim_filename)) {
-        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'mprim_filename' not found in planning params");
-        return nullptr;
-    }
-
-    params->param("use_multiple_ik_solutions", use_multiple_ik_solutions, false);
-
-    params->param("use_xyz_snap_mprim", use_xyz_snap_mprim, false);
-    params->param("use_rpy_snap_mprim", use_rpy_snap_mprim, false);
-    params->param("use_xyzrpy_snap_mprim", use_xyzrpy_snap_mprim, false);
-    params->param("use_short_dist_mprims", use_short_dist_mprims, false);
-
-    params->param("xyz_snap_dist_thresh", xyz_snap_thresh, 0.0);
-    params->param("rpy_snap_dist_thresh", rpy_snap_thresh, 0.0);
-    params->param("xyzrpy_snap_dist_thresh", xyzrpy_snap_thresh, 0.0);
-    params->param("short_dist_mprims_thresh", short_dist_mprims_thresh, 0.0);
-
-    auto space = make_unique<ManipLatticeEgraph>(robot, checker, params);
-    if (!space->init(resolutions)) {
-        ROS_ERROR("Failed to initialize Manip Lattice Egraph");
-        return nullptr;
+    ManipLatticeActionSpaceParams action_params;
+    if (!GetManipLatticeActionSpaceParams(action_params, *params)) {
+        return nullptr; // errors logged within
     }
 
     ////////////////////
     // Initialization //
     ////////////////////
 
-    auto aspace = std::make_shared<ManipLatticeActionSpace>(space.get());
-    aspace->useMultipleIkSolutions(use_multiple_ik_solutions);
-    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, use_xyz_snap_mprim);
-    aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, use_rpy_snap_mprim);
-    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, use_xyzrpy_snap_mprim);
-    aspace->useAmp(MotionPrimitive::SHORT_DISTANCE, use_short_dist_mprims);
-    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ, xyz_snap_thresh);
-    aspace->ampThresh(MotionPrimitive::SNAP_TO_RPY, rpy_snap_thresh);
-    aspace->ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, xyzrpy_snap_thresh);
-    aspace->ampThresh(MotionPrimitive::SHORT_DISTANCE, short_dist_mprims_thresh);
-    if (!aspace->load(mprim_filename)) {
-        ROS_ERROR("Failed to load actions from file '%s'", mprim_filename.c_str());
+    // helper struct to couple the lifetime of ManipLatticeEgraph and
+    // ManipLatticeActionSpace
+    struct SimpleManipLatticeEgraph : public ManipLatticeEgraph {
+        ManipLatticeActionSpace actions;
+    };
+
+    auto space = make_unique<SimpleManipLatticeEgraph>();
+
+    if (!space->init(robot, checker, params, resolutions, &space->actions)) {
+        ROS_ERROR("Failed to initialize Manip Lattice Egraph");
         return nullptr;
     }
 
-    // associate action space with lattice
-    if (!space->setActionSpace(aspace)) {
-        ROS_ERROR("Failed to associate action space with planning space");
+    if (!space->actions.init(space.get())) {
+        ROS_ERROR("Failed to initialize Manip Lattice Action Space");
+        return nullptr;
+    }
+
+    auto& actions = space->actions;
+    actions.useMultipleIkSolutions(action_params.use_multiple_ik_solutions);
+    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ, action_params.use_xyz_snap_mprim);
+    actions.useAmp(MotionPrimitive::SNAP_TO_RPY, action_params.use_rpy_snap_mprim);
+    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.use_xyzrpy_snap_mprim);
+    actions.useAmp(MotionPrimitive::SHORT_DISTANCE, action_params.use_short_dist_mprims);
+    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ, action_params.xyz_snap_thresh);
+    actions.ampThresh(MotionPrimitive::SNAP_TO_RPY, action_params.rpy_snap_thresh);
+    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.xyzrpy_snap_thresh);
+    actions.ampThresh(MotionPrimitive::SHORT_DISTANCE, action_params.short_dist_mprims_thresh);
+    if (!actions.load(action_params.mprim_filename)) {
+        ROS_ERROR("Failed to load actions from file '%s'", action_params.mprim_filename.c_str());
         return nullptr;
     }
 
@@ -352,7 +359,7 @@ auto MakeWorkspaceLattice(
     -> std::unique_ptr<RobotPlanningSpace>
 {
     ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
-    auto space = make_unique<WorkspaceLattice>(robot, checker, params);
+
     WorkspaceLatticeBase::Params wsp;
     wsp.res_x = grid->resolution();
     wsp.res_y = grid->resolution();
@@ -367,7 +374,9 @@ auto MakeWorkspaceLattice(
         return nullptr;
     }
     wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
-    if (!space->init(wsp)) {
+
+    auto space = make_unique<WorkspaceLattice>();
+    if (!space->init(robot, checker, params, wsp)) {
         ROS_ERROR("Failed to initialize Workspace Lattice");
         return nullptr;
     }
@@ -385,8 +394,6 @@ auto MakeAdaptiveWorkspaceLattice(
     -> std::unique_ptr<RobotPlanningSpace>
 {
     ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
-    auto space = make_unique<AdaptiveWorkspaceLattice>(
-            robot, checker, params, grid);
     WorkspaceLatticeBase::Params wsp;
     wsp.res_x = grid->resolution();
     wsp.res_y = grid->resolution();
@@ -401,7 +408,9 @@ auto MakeAdaptiveWorkspaceLattice(
         return nullptr;
     }
     wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
-    if (!space->init(wsp)) {
+
+    auto space = make_unique<AdaptiveWorkspaceLattice>();
+    if (!space->init(robot, checker, params, wsp, grid)) {
         ROS_ERROR("Failed to initialize Workspace Lattice");
         return nullptr;
     }

@@ -38,29 +38,6 @@
 namespace sbpl {
 namespace motion {
 
-RobotPlanningSpace::RobotPlanningSpace() : DiscreteSpaceInformation()
-{
-    m_robot = nullptr;
-    m_checker = nullptr;
-    m_params = nullptr;
-    m_actions = nullptr;
-    m_actions_const = nullptr;
-}
-
-RobotPlanningSpace::RobotPlanningSpace(
-    RobotModel* robot,
-    CollisionChecker* checker,
-    const PlanningParams* params)
-:
-    DiscreteSpaceInformation()
-{
-    m_robot = robot;
-    m_checker = checker;
-    m_params = params;
-    m_actions = nullptr;
-    m_actions_const = nullptr;
-}
-
 RobotPlanningSpace::~RobotPlanningSpace()
 {
 }
@@ -77,13 +54,6 @@ bool RobotPlanningSpace::init(
     m_robot = robot;
     m_checker = checker;
     m_params = params;
-    return true;
-}
-
-bool RobotPlanningSpace::setActionSpace(const ActionSpacePtr& as)
-{
-    m_actions = as;
-    m_actions_const = as;
     return true;
 }
 

@@ -103,11 +103,6 @@ public:
         SixPose tolerance;
     };
 
-    WorkspaceLattice(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params);
-
     ~WorkspaceLattice();
 
     void setVisualizationFrameId(const std::string& frame_id);
@@ -115,7 +110,11 @@ public:
 
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
-    bool init(const Params& params) override;
+    bool init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* pp,
+        const Params& params) override;
     ///@}
 
     /// \name Required Functions from PoseProjectionExtension
@@ -174,11 +173,11 @@ public:
 
 private:
 
-    WorkspaceLatticeState* m_goal_entry;
-    int m_goal_state_id;
+    WorkspaceLatticeState* m_goal_entry = nullptr;
+    int m_goal_state_id = - 1;
 
-    WorkspaceLatticeState* m_start_entry;
-    int m_start_state_id;
+    WorkspaceLatticeState* m_start_entry = nullptr;
+    int m_start_state_id = -1;
 
     // maps state -> id
     typedef WorkspaceLatticeState StateKey;
@@ -190,11 +189,11 @@ private:
     std::vector<WorkspaceLatticeState*> m_states;
 
     clock::time_point m_t_start;
-    mutable bool m_near_goal; // mutable for assignment in isGoal
+    mutable bool m_near_goal = false; // mutable for assignment in isGoal
 
     std::vector<MotionPrimitive> m_prims;
-    bool m_ik_amp_enabled;
-    double m_ik_amp_thresh;
+    bool m_ik_amp_enabled = true;
+    double m_ik_amp_thresh = 0.2;
 
     std::string m_viz_frame_id;
 

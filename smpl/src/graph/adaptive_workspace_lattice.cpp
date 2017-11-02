@@ -75,42 +75,6 @@ std::ostream& operator<<(std::ostream& o, const AdaptiveWorkspaceState& s)
     return o;
 }
 
-AdaptiveWorkspaceLattice::AdaptiveWorkspaceLattice(
-    RobotModel* robot,
-    CollisionChecker* checker,
-    const PlanningParams* params,
-    const OccupancyGrid* grid)
-:
-    Extension(),
-    WorkspaceLatticeBase(robot, checker, params),
-    m_grid(grid),
-    m_goal_state(nullptr),
-    m_goal_state_id(-1),
-    m_start_state(nullptr),
-    m_start_state_id(-1),
-    m_hi_to_id(),
-    m_lo_to_id(),
-    m_states(),
-    m_t_start(),
-    m_near_goal(false),
-    m_region_radius(1),
-    m_tunnel_radius(3),
-    m_dim_grid()
-{
-    m_dim_grid.assign(
-            m_grid->numCellsX(),
-            m_grid->numCellsY(),
-            m_grid->numCellsZ(),
-            AdaptiveGridCell());
-
-    m_goal_state_id = reserveHashEntry(true);
-    m_goal_state = getHashEntry(m_goal_state_id);
-    SMPL_DEBUG_NAMED(params->graph_log, " goal state has state ID %d", m_goal_state_id);
-
-    m_ik_amp_enabled = true;
-    m_ik_amp_thresh = 0.2;
-}
-
 AdaptiveWorkspaceLattice::~AdaptiveWorkspaceLattice()
 {
     for (AdaptiveState* state : m_states) {
@@ -126,11 +90,28 @@ AdaptiveWorkspaceLattice::~AdaptiveWorkspaceLattice()
     // NOTE: StateID2IndexMapping cleared by DiscreteSpaceInformation
 }
 
-bool AdaptiveWorkspaceLattice::init(const Params& _params)
+bool AdaptiveWorkspaceLattice::init(
+    RobotModel* _robot,
+    CollisionChecker* checker,
+    const PlanningParams* pp,
+    const Params& _params,
+    const OccupancyGrid* grid)
 {
-    if (!WorkspaceLatticeBase::init(_params)) {
+    if (!WorkspaceLatticeBase::init(_robot, checker, pp, _params)) {
         return false;
     }
+
+    m_grid = grid;
+
+    m_dim_grid.assign(
+            m_grid->numCellsX(),
+            m_grid->numCellsY(),
+            m_grid->numCellsZ(),
+            AdaptiveGridCell());
+
+    m_goal_state_id = reserveHashEntry(true);
+    m_goal_state = getHashEntry(m_goal_state_id);
+    SMPL_DEBUG_NAMED(pp->graph_log, " goal state has state ID %d", m_goal_state_id);
 
     if (!initMotionPrimitives()) {
         return false;

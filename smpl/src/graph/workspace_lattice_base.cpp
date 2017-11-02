@@ -41,37 +41,29 @@
 namespace sbpl {
 namespace motion {
 
-WorkspaceLatticeBase::WorkspaceLatticeBase(
-    RobotModel* robot,
+bool WorkspaceLatticeBase::init(
+    RobotModel* _robot,
     CollisionChecker* checker,
-    const PlanningParams* params)
-:
-    RobotPlanningSpace(robot, checker, params),
-    m_fk_iface(nullptr),
-    m_ik_iface(nullptr),
-    m_rm_iface(nullptr),
-    m_res(),
-    m_val_count(),
-    m_dof_count(0),
-    m_fangle_indices()
+    const PlanningParams* pp,
+    const Params& _params)
 {
-}
+    if (!RobotPlanningSpace::init(_robot, checker, pp)) {
+        return false;
+    }
 
-bool WorkspaceLatticeBase::init(const Params& _params)
-{
-    m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
+    m_fk_iface = _robot->getExtension<ForwardKinematicsInterface>();
     if (!m_fk_iface) {
         SMPL_WARN("Workspace Lattice requires Forward Kinematics Interface extension");
         return false;
     }
 
-    m_ik_iface = robot()->getExtension<InverseKinematicsInterface>();
+    m_ik_iface = _robot->getExtension<InverseKinematicsInterface>();
     if (!m_ik_iface) {
         SMPL_WARN("Workspace Lattice requires Inverse Kinematics Interface extension");
         return false;
     }
 
-    m_rm_iface = robot()->getExtension<RedundantManipulatorInterface>();
+    m_rm_iface = _robot->getExtension<RedundantManipulatorInterface>();
     if (!m_rm_iface) {
         SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return false;

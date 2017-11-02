@@ -43,11 +43,6 @@ class ManipLatticeEgraph : public ManipLattice, public ExperienceGraphExtension
 {
 public:
 
-    ManipLatticeEgraph(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        PlanningParams* params);
-
     /// \name Reimplemented Public Functions from ManipLattice
     ///@{
     bool extractPath(

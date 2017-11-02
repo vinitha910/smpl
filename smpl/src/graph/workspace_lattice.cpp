@@ -71,32 +71,6 @@ bool all_equal(InputIt first, InputIt last, typename std::iterator_traits<InputI
             [&val](reference a) { return Equal()(a, val); });
 }
 
-WorkspaceLattice::WorkspaceLattice(
-    RobotModel* robot,
-    CollisionChecker* checker,
-    const PlanningParams* params)
-:
-    WorkspaceLatticeBase(robot, checker, params),
-    m_goal_entry(nullptr),
-    m_goal_state_id(-1),
-    m_start_entry(nullptr),
-    m_start_state_id(-1),
-    m_state_to_id(),
-    m_states(),
-    m_t_start(),
-    m_near_goal(false)
-{
-    // this should serve as a reasonable dummy state since no valid state should
-    // have an empty coordinate vector
-    WorkspaceCoord fake_coord;
-    m_goal_state_id = createState(fake_coord);
-    m_goal_entry = getState(m_goal_state_id);
-    SMPL_DEBUG_NAMED(params->graph_log, "  goal state has id %d", m_goal_state_id);
-
-    m_ik_amp_enabled = true;
-    m_ik_amp_thresh = 0.2;
-}
-
 WorkspaceLattice::~WorkspaceLattice()
 {
     for (size_t i = 0; i < m_states.size(); i++) {
@@ -118,13 +92,24 @@ const std::string& WorkspaceLattice::visualizationFrameId() const
     return m_viz_frame_id;
 }
 
-bool WorkspaceLattice::init(const Params& _params)
+bool WorkspaceLattice::init(
+    RobotModel* _robot,
+    CollisionChecker* checker,
+    const PlanningParams* pp,
+    const Params& _params)
 {
-    if (!WorkspaceLatticeBase::init(_params)) {
+    if (!WorkspaceLatticeBase::init(_robot, checker, pp, _params)) {
         return false;
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "initialize environment");
+    // this should serve as a reasonable dummy state since no valid state should
+    // have an empty coordinate vector
+    WorkspaceCoord fake_coord;
+    m_goal_state_id = createState(fake_coord);
+    m_goal_entry = getState(m_goal_state_id);
+    SMPL_DEBUG_NAMED(pp->graph_log, "  goal state has id %d", m_goal_state_id);
+
+    SMPL_DEBUG_NAMED(pp->graph_log, "initialize environment");
 
     if (!initMotionPrimitives()) {
         return false;

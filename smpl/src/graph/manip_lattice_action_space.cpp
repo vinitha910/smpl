@@ -45,14 +45,12 @@
 namespace sbpl {
 namespace motion {
 
-ManipLatticeActionSpace::ManipLatticeActionSpace(ManipLattice* pspace) :
-    ActionSpace(pspace),
-    m_mprims(),
-    m_mprim_enabled(),
-    m_mprim_thresh(),
-    m_use_multiple_ik_solutions(false),
-    m_use_long_and_short_dist_mprims(false)
+bool ManipLatticeActionSpace::init(ManipLattice* space)
 {
+    if (!ActionSpace::init(space)) {
+        return false;
+    }
+
     // NOTE: other default thresholds will be set in readParameters, with
     // default values specified in PlanningParams
     m_mprim_thresh[MotionPrimitive::Type::LONG_DISTANCE] =
@@ -82,6 +80,8 @@ ManipLatticeActionSpace::ManipLatticeActionSpace(ManipLattice* pspace) :
     ampThresh(MotionPrimitive::SNAP_TO_RPY, 0.2);
     ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, 0.2);
     ampThresh(MotionPrimitive::SHORT_DISTANCE, 0.2);
+
+    return true;
 }
 
 /// \brief Load motion primitives from file.

@@ -59,47 +59,6 @@ auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
 namespace sbpl {
 namespace motion {
 
-ManipLattice::ManipLattice(
-    RobotModel* robot_model,
-    CollisionChecker* checker,
-    PlanningParams* _params)
-:
-    Extension(),
-    RobotPlanningSpace(robot_model, checker, _params),
-    PoseProjectionExtension(),
-    ExtractRobotStateExtension(),
-    m_fk_iface(nullptr),
-    m_min_limits(),
-    m_max_limits(),
-    m_continuous(),
-    m_goal_state_id(-1),
-    m_start_state_id(-1),
-    m_states(),
-    m_expanded_states(),
-    m_near_goal(false),
-    m_t_start(),
-    m_viz_frame_id()
-{
-    m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
-
-    m_min_limits.resize(robot()->jointVariableCount());
-    m_max_limits.resize(robot()->jointVariableCount());
-    m_continuous.resize(robot()->jointVariableCount());
-    m_bounded.resize(robot()->jointVariableCount());
-    for (int jidx = 0; jidx < robot()->jointVariableCount(); ++jidx) {
-        m_min_limits[jidx] = robot_model->minPosLimit(jidx);
-        m_max_limits[jidx] = robot_model->maxPosLimit(jidx);
-        m_continuous[jidx] = robot_model->isContinuous(jidx);
-        m_bounded[jidx] = robot_model->hasPosLimit(jidx);
-    }
-
-    m_goal_state_id = reserveHashEntry();
-    SMPL_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_state_id);
-
-    // compute the cost per cell to be used by heuristic
-    computeCostPerCell();
-}
-
 ManipLattice::~ManipLattice()
 {
     for (size_t i = 0; i < m_states.size(); i++) {
@@ -110,35 +69,77 @@ ManipLattice::~ManipLattice()
     m_state_to_id.clear();
 }
 
-bool ManipLattice::init(const std::vector<double>& var_res)
+bool ManipLattice::init(
+    RobotModel* _robot,
+    CollisionChecker* checker,
+    const PlanningParams* _params,
+    const std::vector<double>& resolutions,
+    ActionSpace* actions)
 {
-    SMPL_DEBUG_NAMED(params()->graph_log, "Initialize Manip Lattice");
-    if (var_res.size() != robot()->jointVariableCount()) {
-        SMPL_ERROR_NAMED(params()->graph_log, "Insufficient variable resolutions for robot model");
+    SMPL_DEBUG_NAMED(_params->graph_log, "Initialize Manip Lattice");
+
+    if (!actions) {
+        SMPL_ERROR_NAMED(_params->graph_log, "Action Space is null");
         return false;
     }
 
-    std::vector<int> discretization(robot()->jointVariableCount());
-    std::vector<double> deltas(robot()->jointVariableCount());
-    for (size_t vidx = 0; vidx < robot()->jointVariableCount(); ++vidx) {
+    if (resolutions.size() != _robot->jointVariableCount()) {
+        SMPL_ERROR_NAMED(_params->graph_log, "Insufficient variable resolutions for robot model");
+        return false;
+    }
+
+    if (!RobotPlanningSpace::init(_robot, checker, _params)) {
+        SMPL_ERROR_NAMED(_params->graph_log, "Failed to initialize Robot Planning Space");
+        return false;
+    }
+
+    m_fk_iface = _robot->getExtension<ForwardKinematicsInterface>();
+
+    m_min_limits.resize(_robot->jointVariableCount());
+    m_max_limits.resize(_robot->jointVariableCount());
+    m_continuous.resize(_robot->jointVariableCount());
+    m_bounded.resize(_robot->jointVariableCount());
+    for (int jidx = 0; jidx < _robot->jointVariableCount(); ++jidx) {
+        m_min_limits[jidx] = _robot->minPosLimit(jidx);
+        m_max_limits[jidx] = _robot->maxPosLimit(jidx);
+        m_continuous[jidx] = _robot->isContinuous(jidx);
+        m_bounded[jidx] = _robot->hasPosLimit(jidx);
+
+        SMPL_DEBUG_NAMED(_params->graph_log, "variable %zu: { min: %f, max: %f, continuous: %s, bounded: %s }",
+            jidx,
+            m_min_limits[jidx],
+            m_max_limits[jidx],
+            m_continuous[jidx] ? "true" : "false",
+            m_bounded[jidx] ? "true" : "false");
+    }
+
+    m_goal_state_id = reserveHashEntry();
+    SMPL_DEBUG_NAMED(_params->graph_log, "  goal state has state ID %d", m_goal_state_id);
+
+    std::vector<int> discretization(_robot->jointVariableCount());
+    std::vector<double> deltas(_robot->jointVariableCount());
+    for (size_t vidx = 0; vidx < _robot->jointVariableCount(); ++vidx) {
         if (m_continuous[vidx]) {
-            discretization[vidx] = (int)std::round((2.0 * M_PI) / var_res[vidx]);
+            discretization[vidx] = (int)std::round((2.0 * M_PI) / resolutions[vidx]);
             deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
         } else if (m_bounded[vidx]) {
             const double span = std::fabs(m_max_limits[vidx] - m_min_limits[vidx]);
-            discretization[vidx] = std::max(1, (int)std::round(span / var_res[vidx]));
+            discretization[vidx] = std::max(1, (int)std::round(span / resolutions[vidx]));
             deltas[vidx] = span / (double)discretization[vidx];
         } else {
             discretization[vidx] = std::numeric_limits<int>::max();
-            deltas[vidx] = var_res[vidx];
+            deltas[vidx] = resolutions[vidx];
         }
     }
 
-    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  coord vals: " << discretization);
-    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  coord deltas: " << deltas);
+    SMPL_DEBUG_STREAM_NAMED(_params->graph_log, "  coord vals: " << discretization);
+    SMPL_DEBUG_STREAM_NAMED(_params->graph_log, "  coord deltas: " << deltas);
 
     m_coord_vals = std::move(discretization);
     m_coord_deltas = std::move(deltas);
+
+    m_actions = actions;
+
     return true;
 }
 
@@ -191,17 +192,14 @@ void ManipLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    assert(state_id >= 0 && state_id < m_states.size());
+    assert(state_id >= 0 && state_id < m_states.size() && "state id out of bounds");
+    assert(succs && costs && "successor buffer is null");
+    assert(m_actions && "action space is uninitialized");
 
     succs->clear();
     costs->clear();
 
     SMPL_DEBUG_NAMED(params()->expands_log, "expanding state %d", state_id);
-
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return;
-    }
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -223,7 +221,7 @@ void ManipLattice::GetSuccs(
     int goal_succ_count = 0;
 
     std::vector<Action> actions;
-    if (!action_space->apply(parent_entry->state, actions)) {
+    if (!m_actions->apply(parent_entry->state, actions)) {
         SMPL_WARN("Failed to get actions");
         return;
     }
@@ -309,11 +307,6 @@ void ManipLattice::GetLazySuccs(
 
     SMPL_DEBUG_NAMED(params()->expands_log, "expand state %d", SourceStateID);
 
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return;
-    }
-
     // goal state should be absorbing
     if (SourceStateID == m_goal_state_id) {
         return;
@@ -333,7 +326,7 @@ void ManipLattice::GetLazySuccs(
     SV_SHOW_DEBUG(getStateVisualization(source_angles, "expansion"));
 
     std::vector<Action> actions;
-    if (!action_space->apply(source_angles, actions)) {
+    if (!m_actions->apply(source_angles, actions)) {
         SMPL_WARN("Failed to get successors");
         return;
     }
@@ -409,13 +402,8 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     const RobotState& parent_angles = parent_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(parent_angles, "expansion"));
 
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return -1;
-    }
-
     std::vector<Action> actions;
-    if (!action_space->apply(parent_angles, actions)) {
+    if (!m_actions->apply(parent_angles, actions)) {
         SMPL_WARN("Failed to get actions");
         return -1;
     }
@@ -895,9 +883,12 @@ const std::string& ManipLattice::visualizationFrameId() const
     return m_viz_frame_id;
 }
 
-void ManipLattice::computeCostPerCell()
-{
-    SMPL_WARN("yeah...");
+RobotState ManipLattice::getDiscreteCenter(const RobotState& state) const {
+    RobotCoord coord(robot()->jointVariableCount());
+    RobotState center(robot()->jointVariableCount());
+    stateToCoord(state, coord);
+    coordToState(coord, center);
+    return center;
 }
 
 bool ManipLattice::extractPath(
@@ -950,12 +941,6 @@ bool ManipLattice::extractPath(
         opath.push_back(entry->state);
     }
 
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        SMPL_ERROR_NAMED(params()->graph_log, "No action space available for path extraction");
-        return false;
-    }
-
     // grab the rest of the points
     for (size_t i = 1; i < idpath.size(); ++i) {
         const int prev_id = idpath[i - 1];
@@ -974,7 +959,7 @@ bool ManipLattice::extractPath(
             const RobotState& prev_state = prev_entry->state;
 
             std::vector<Action> actions;
-            if (!action_space->apply(prev_state, actions)) {
+            if (!m_actions->apply(prev_state, actions)) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get actions while extracting the path");
                 return false;
             }

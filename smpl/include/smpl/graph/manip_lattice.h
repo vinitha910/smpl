@@ -52,6 +52,7 @@
 #include <smpl/robot_model.h>
 #include <smpl/types.h>
 #include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/action_space.h>
 
 namespace sbpl {
 namespace motion {
@@ -100,16 +101,18 @@ class ManipLattice :
 {
 public:
 
-    ManipLattice(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        PlanningParams* params);
-
     ~ManipLattice();
 
-    bool init(const std::vector<double>& var_res);
+    bool init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* params,
+        const std::vector<double>& resolutions,
+        ActionSpace* actions);
 
     const std::vector<double>& resolutions() const { return m_coord_deltas; }
+    ActionSpace* actionSpace() { return m_actions; }
+    const ActionSpace* actionSpace() const { return m_actions; }
 
     RobotState getStartConfiguration() const;
 
@@ -117,6 +120,8 @@ public:
 
     void setVisualizationFrameId(const std::string& frame_id);
     const std::string& visualizationFrameId() const;
+
+    RobotState getDiscreteCenter(const RobotState& state) const;
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
@@ -200,7 +205,8 @@ protected:
 
 private:
 
-    ForwardKinematicsInterface* m_fk_iface;
+    ForwardKinematicsInterface* m_fk_iface = nullptr;
+    ActionSpace* m_actions = nullptr;
 
     // cached from robot model
     std::vector<double> m_min_limits;
@@ -211,8 +217,8 @@ private:
     std::vector<int> m_coord_vals;
     std::vector<double> m_coord_deltas;
 
-    int m_goal_state_id;
-    int m_start_state_id;
+    int m_goal_state_id = -1;
+    int m_start_state_id = -1;
 
     // maps from coords to stateID
     typedef ManipLatticeState StateKey;
@@ -225,7 +231,7 @@ private:
 
     // stateIDs of expanded states
     std::vector<int> m_expanded_states;
-    bool m_near_goal;
+    bool m_near_goal = false;
     clock::time_point m_t_start;
 
     std::string m_viz_frame_id;
@@ -240,11 +246,6 @@ private:
 
     /// \name planning
     ///@{
-    ///@}
-
-    /// \name costs
-    ///@{
-    void computeCostPerCell();
     ///@}
 };
 

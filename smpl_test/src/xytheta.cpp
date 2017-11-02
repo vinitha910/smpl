@@ -11,8 +11,17 @@
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
+#include <smpl/console/ansi.h>
 
 namespace smpl = sbpl::motion;
+
+template <class CharT, class Traits = std::char_traits<CharT>>
+auto donothing(std::basic_ostream<CharT, Traits>& o)
+    -> std::basic_ostream<CharT, Traits>&
+{ return o; }
+
+const bool g_colorize = true;
+#define COLOR(o, color) if (g_colorize) { o << (color); }
 
 /// \brief Defines a Robot Model for an (x, y) point robot
 ///
@@ -216,16 +225,42 @@ void SetupOccupancyGrid(sbpl::OccupancyGrid& grid)
 
 void PrintGrid(std::ostream& o, sbpl::OccupancyGrid& grid)
 {
+    COLOR(o, sbpl::console::yellow);
+    o << '+';
+    for (int x = 0; x < grid.numCellsX(); ++x) {
+        o << '-';
+    }
+    o << '+';
+    COLOR(o, sbpl::console::reset);
+    o << '\n';
+
     for (int y = grid.numCellsY() - 1; y >= 0; --y) {
+        COLOR(o, sbpl::console::yellow);
+        o << '|';
+        COLOR(o, sbpl::console::reset);
         for (int x = 0; x < grid.numCellsX(); ++x) {
             if (grid.getDistance(x, y, 0) <= 0) {
-                o << "1 ";
+                COLOR(o, sbpl::console::red);
+                o << "X";
+                COLOR(o, sbpl::console::reset);
             } else {
-                o << "0 ";
+                o << " ";
             }
         }
+        COLOR(o, sbpl::console::yellow);
+        o << '|';
+        COLOR(o, sbpl::console::reset);
         o << '\n';
     }
+
+    COLOR(o, sbpl::console::yellow);
+    o << '+';
+    for (int x = 0; x < grid.numCellsX(); ++x) {
+        o << '-';
+    }
+    o << '+';
+    COLOR(o, sbpl::console::reset);
+    o << '\n';
 }
 
 void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
@@ -257,24 +292,83 @@ void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
     }
 }
 
+void PrintSolution(
+    std::ostream& o,
+    const sbpl::OccupancyGrid& grid,
+    const std::vector<smpl::RobotState>& path)
+{
+    std::vector<std::pair<int, int>> discrete_states;
+    for (auto& point : path) {
+        int dx = point[0] / grid.resolution();
+        int dy = point[1] / grid.resolution();
+        discrete_states.push_back(std::make_pair(dx, dy));
+    }
+
+    COLOR(o, sbpl::console::yellow);
+    o << '+';
+    for (int x = 0; x < grid.numCellsX(); ++x) {
+        o << '-';
+    }
+    o << '+';
+    COLOR(o, sbpl::console::reset);
+    o << '\n';
+
+    for (int y = grid.numCellsY() - 1; y >= 0; --y) {
+        COLOR(o, sbpl::console::yellow);
+        o << '|';
+        COLOR(o, sbpl::console::reset);
+        for (int x = 0; x < grid.numCellsX(); ++x) {
+            auto it = std::find(begin(discrete_states), end(discrete_states), std::make_pair(x, y));
+            if (it != end(discrete_states)) {
+                COLOR(o, sbpl::console::cyan);
+                o << 'P';
+                COLOR(o, sbpl::console::reset);
+            } else {
+                if (grid.getDistance(x, y, 0) <= 0) {
+                    COLOR(o, sbpl::console::red);
+                    o << 'X';
+                    COLOR(o, sbpl::console::reset);
+                } else {
+                    o << " ";
+                }
+            }
+        }
+        COLOR(o, sbpl::console::yellow);
+        o << '|';
+        COLOR(o, sbpl::console::reset);
+        o << '\n';
+    }
+
+    COLOR(o, sbpl::console::yellow);
+    o << '+';
+    for (int x = 0; x < grid.numCellsX(); ++x) {
+        o << '-';
+    }
+    o << '+';
+    COLOR(o, sbpl::console::reset);
+    o << '\n';
+}
+
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "xytheta");
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
 
-    // 1. Instantiate Robot Model
+    // 1. Create Robot Model
     KinematicVehicleModel robot_model;
 
-    // 2. Instantiate the Environment
-    const double grid_res = 0.02;
-    const double world_size_x = 1.0;
-    const double world_size_y = 1.0;
+    const double res = 1.0; //0.02; // match resolution of grid and state space
+
+    // 2. Create and Initialize the Environment
+    const double grid_res = res;
+    const double world_size_x = 50.0;
+    const double world_size_y = 50.0;
     const double world_size_z = 1.5 * grid_res;
     const double world_origin_x = 0.0;
     const double world_origin_y = 0.0;
     const double world_origin_z = 0.0;
-    const double max_distance_m = 0.2;
+    const double max_distance_m = 4.0;
     const bool ref_count = false;
     sbpl::OccupancyGrid grid(
             world_size_x, world_size_y, world_size_z,
@@ -285,63 +379,78 @@ int main(int argc, char* argv[])
     SetupOccupancyGrid(grid);
     PrintGrid(std::cout, grid);
 
+    // 3. Create Collision Checker
     GridCollisionChecker cc(&grid);
 
-    // 3. Define Parameters
+    // 4. Define Parameters
     smpl::PlanningParams params;
 
-    // 4. Instantiate Planning Space
-    smpl::ManipLattice space(&robot_model, &cc, &params);
-    if (!space.init({ 0.02, 0.02 })) {
+    // 5. Create Action Space
+    smpl::ManipLatticeActionSpace actions;
+
+    // 6. Create Planning Space
+    smpl::ManipLattice space;
+
+    // 7. Initialize Manipulation Lattice with RobotModel, CollisionChecker,
+    // PlanningParams, variable resolutions, and ActionSpace
+    std::vector<double> resolutions = { res, res };
+    if (!space.init(&robot_model, &cc, &params, resolutions, &actions)) {
         ROS_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }
-    space.setVisualizationFrameId("map");
 
-    // 5. Instantiate and Initialize Motion Primitives
+    space.setVisualizationFrameId("map"); // for correct rviz visualization
+
+    // 8. Initialize Manipulation Lattice Action Space
+
+    // associate actions with planning space
+    if (!actions.init(&space)) {
+        ROS_ERROR("Failed to initialize Manip Lattice Action Space");
+        return 1;
+    }
+
+    // load primitives from file, whose path is stored on the param server
     std::string mprim_path;
     if (!ph.getParam("mprim_path", mprim_path)) {
         SMPL_ERROR("Failed to retrieve 'mprim_path' from the param server");
         return 1;
     }
 
-    auto aspace = std::make_shared<smpl::ManipLatticeActionSpace>(&space);
-    if (!aspace->load(mprim_path)) {
+    if (!actions.load(mprim_path)) {
         return 1;
     }
-    PrintActionSpace(*aspace);
+    PrintActionSpace(actions);
 
-    // 6. Associate Action Space with Planning Space
-    space.setActionSpace(aspace);
-
-    // 7. Instantiate Heuristic
+    // 9. Create Heuristic
     smpl::JointDistHeuristic h(&space);
 
-    // 8. Associate Heuristic with Planning Space (for adaptive motion
-    // primitives)
+    // 10. Associate Heuristic with Planning Space. In this case, Manip Lattice
+    // Action Space may use this to determine when to use adaptive motion
+    // primitives.
     space.insertHeuristic(&h);
 
-    // 9. Instantiate and Initialize Search (associated with Planning Space)
+    // 11. Create Search, associated with the planning space and heuristic
     auto search = std::make_shared<sbpl::ARAStar>(&space, &h);
 
+    // 12. Configure Search Behavior
     const double epsilon = 5.0;
     search->set_initialsolution_eps(epsilon);
     search->set_search_mode(false);
 
-    // 10. Set start state and goal condition in the Planning Space and
+    // 13. Set start state and goal condition in the Planning Space and
     // propagate state IDs to search
-    double start_x = 0.5;
-    double start_y = 0.33;
-    const smpl::RobotState start_state = { start_x, start_y };
+    double start_x = 0.5 * world_size_x;
+    double start_y = 0.33 * world_size_y;
+    const smpl::RobotState start_state = space.getDiscreteCenter({ start_x, start_y });
 
-    double goal_x = 0.5;
-    double goal_y = 0.66;
-    const smpl::RobotState goal_state = { goal_x, goal_y };
+    double goal_x = 0.5 * world_size_x;
+    double goal_y = 0.66 * world_size_y;
+    const smpl::RobotState goal_state = space.getDiscreteCenter({ goal_x, goal_y });
 
     smpl::GoalConstraint goal;
     goal.type = smpl::GoalType::JOINT_STATE_GOAL;
     goal.angles = goal_state;
-    goal.angle_tolerances = { 0.02, 0.02 };
+    goal.angle_tolerances = { res, res };
 
     if (!space.setGoal(goal)) {
         ROS_ERROR("Failed to set goal");
@@ -375,7 +484,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // 11. Plan a path
+    // 14. Plan a path
 
     ReplanParams search_params(10.0);
     search_params.initial_eps = epsilon;
@@ -395,7 +504,7 @@ int main(int argc, char* argv[])
     auto now = std::chrono::high_resolution_clock::now();
     const double elapsed = std::chrono::duration<double>(now - then).count();
 
-    // 12. Extract path from Planning Space
+    // 15. Extract path from Planning Space
 
     std::vector<smpl::RobotState> path;
     if (!space.extractPath(solution, path)) {
@@ -407,13 +516,16 @@ int main(int argc, char* argv[])
     SMPL_INFO("  Expansion Count (total): %d", search->get_n_expands());
     SMPL_INFO("  Expansion Count (initial): %d", search->get_n_expands_init_solution());
     SMPL_INFO("  Solution (%zu)", solution.size());
-    for (int id : solution) {
-        SMPL_INFO("    %d", id);
-    }
+//    for (int id : solution) {
+//        SMPL_INFO("    %d", id);
+//    }
     SMPL_INFO("  Path (%zu)", path.size());
-    for (const smpl::RobotState& point : path) {
-        SMPL_INFO("    (x: %0.3f, y: %0.3f)", point[0], point[1]);
-    }
+
+    PrintSolution(std::cout, grid, path);
+
+//    for (const smpl::RobotState& point : path) {
+//        SMPL_INFO("    (x: %0.3f, y: %0.3f)", point[0], point[1]);
+//    }
 
     return 0;
 }
