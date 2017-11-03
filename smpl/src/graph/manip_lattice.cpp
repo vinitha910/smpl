@@ -105,7 +105,7 @@ bool ManipLattice::init(
         m_continuous[jidx] = _robot->isContinuous(jidx);
         m_bounded[jidx] = _robot->hasPosLimit(jidx);
 
-        SMPL_DEBUG_NAMED(_params->graph_log, "variable %zu: { min: %f, max: %f, continuous: %s, bounded: %s }",
+        SMPL_DEBUG_NAMED(_params->graph_log, "variable %d: { min: %f, max: %f, continuous: %s, bounded: %s }",
             jidx,
             m_min_limits[jidx],
             m_max_limits[jidx],

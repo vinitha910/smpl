@@ -53,11 +53,15 @@ class DijkstraEgraphHeuristic3D :
 {
 public:
 
-    DijkstraEgraphHeuristic3D(
-        RobotPlanningSpace* space,
-        const OccupancyGrid* grid);
+    bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
 
     auto grid() const -> const OccupancyGrid* { return m_grid; }
+
+    double weightEGraph() const { return m_eg_eps; }
+    void setWeightEGraph(double w);
+
+    double inflationRadius() const { return m_inflation_radius; }
+    void setInflationRadius(double radius);
 
     auto getWallsVisualization() -> visual::Marker;
     auto getValuesVisualization() -> visual::Marker;
@@ -102,7 +106,7 @@ private:
     static const int Wall = std::numeric_limits<int>::max();
     static const int Infinity = Unknown;
 
-    const OccupancyGrid* m_grid;
+    const OccupancyGrid* m_grid = nullptr;
 
     struct Cell : public heap_element
     {
@@ -121,7 +125,8 @@ private:
         }
     };
 
-    double m_eg_eps;
+    double m_eg_eps = 1.0;
+    double m_inflation_radius = 0.0;
 
     intrusive_heap<Cell, CellCompare> m_open;
 

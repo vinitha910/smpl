@@ -58,9 +58,7 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/debug/marker.h>
-#include <smpl/ros/heuristic_allocator.h>
-#include <smpl/ros/planner_allocator.h>
-#include <smpl/ros/planning_space_allocator.h>
+#include <smpl/graph/robot_planning_space.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
 SBPL_CLASS_FORWARD(SBPLPlanner);

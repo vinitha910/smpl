@@ -39,10 +39,14 @@
 namespace sbpl {
 namespace motion {
 
-JointDistHeuristic::JointDistHeuristic(RobotPlanningSpace* space) :
-    RobotHeuristic(space)
+bool JointDistHeuristic::init(RobotPlanningSpace* space)
 {
+    if (!RobotHeuristic::init(space)) {
+        return false;
+    }
+
     m_ers = space->getExtension<ExtractRobotStateExtension>();
+    return true;
 }
 
 double JointDistHeuristic::getMetricGoalDistance(double x, double y, double z)

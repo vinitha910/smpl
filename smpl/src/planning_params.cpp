@@ -273,7 +273,6 @@ void PlanningParams::param(const std::string& name, bool& val, bool def) const
 {
     auto it = params.find(name);
     if (it == params.end()) {
-        std::stringstream ss;
         val = def;
         if (m_warn_defaults) {
             SMPL_WARN("%s", construct_warn_string(name, def).c_str());
@@ -298,10 +297,7 @@ void PlanningParams::param(const std::string& name, int& val, int def) const
     convertToInt(it->second, val);
 }
 
-void PlanningParams::param(
-    const std::string& name,
-    double& val,
-    double def) const
+void PlanningParams::param(const std::string& name, double& val, double def) const
 {
     auto it = params.find(name);
     if (it == params.end()) {

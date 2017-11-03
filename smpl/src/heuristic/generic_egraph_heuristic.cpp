@@ -36,29 +36,32 @@
 namespace sbpl {
 namespace motion {
 
-GenericEgraphHeuristic::GenericEgraphHeuristic(
-    RobotPlanningSpace* space,
-    RobotHeuristic* h)
-:
-    Extension(),
-    RobotHeuristic(space),
-    ExperienceGraphHeuristicExtension(),
-    m_orig_h(h),
-    m_eg(nullptr),
-    m_eg_eps(1.0),
-    m_component_ids(),
-    m_shortcut_nodes(),
-    m_h_nodes(),
-    m_open()
-{
-    params()->param("egraph_epsilon", m_eg_eps, 1.0);
+static const char* LOG = "heuristic.generic_egraph";
 
-    SMPL_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
+bool GenericEgraphHeuristic::init(RobotPlanningSpace* space, RobotHeuristic* h)
+{
+    if (!h) {
+        return false;
+    }
+
+    if (!RobotHeuristic::init(space)) {
+        return false;
+    }
+
+    m_orig_h = h;
 
     m_eg = space->getExtension<ExperienceGraphExtension>();
     if (!m_eg) {
-        SMPL_WARN_NAMED(params()->heuristic_log, "GenericEgraphHeuristic recommends ExperienceGraphExtension");
+        SMPL_WARN_NAMED(LOG, "GenericEgraphHeuristic recommends ExperienceGraphExtension");
     }
+
+    return true;
+}
+
+void GenericEgraphHeuristic::setWeightEGraph(double w)
+{
+    m_eg_eps = w;
+    SMPL_INFO_NAMED(LOG, "egraph_epsilon: %0.3f", m_eg_eps);
 }
 
 void GenericEgraphHeuristic::getEquivalentStates(
@@ -160,7 +163,7 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
         ++comp_count;
     }
 
-    SMPL_INFO_NAMED(params()->heuristic_log, "Experience graph contains %d connected components", comp_count);
+    SMPL_INFO_NAMED(LOG, "Experience graph contains %d connected components", comp_count);
 
     ////////////////////////////
     // Compute Shortcut Nodes //

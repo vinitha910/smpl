@@ -40,32 +40,52 @@
 namespace sbpl {
 namespace motion {
 
-MultiFrameBfsHeuristic::MultiFrameBfsHeuristic(
-    RobotPlanningSpace* space,
-    const OccupancyGrid* grid)
-:
-    RobotHeuristic(space)
-{
-    m_grid = grid;
-
-    m_pp = space->getExtension<PointProjectionExtension>();
-    if (m_pp) {
-        SMPL_INFO_NAMED(params()->heuristic_log, "Got Point Projection Extension!");
-    }
-    m_ers = space->getExtension<ExtractRobotStateExtension>();
-    if (m_ers) {
-        SMPL_INFO_NAMED(params()->heuristic_log, "Got Extract Robot State Extension!");
-    }
-    m_fk_iface = space->robot()->getExtension<ForwardKinematicsInterface>();
-    if (m_fk_iface) {
-        SMPL_INFO_NAMED(params()->heuristic_log, "Got Forward Kinematics Interface!");
-    }
-    syncGridAndBfs();
-}
+static const char* LOG = "heuristic.mfbfs";
 
 MultiFrameBfsHeuristic::~MultiFrameBfsHeuristic()
 {
     // empty to allow forward declaration of BFS_3D
+}
+
+bool MultiFrameBfsHeuristic::init(
+    RobotPlanningSpace* space,
+    const OccupancyGrid* grid)
+{
+    if (!grid) {
+        return false;
+    }
+
+    if (!RobotHeuristic::init(space)) {
+        return false;
+    }
+
+    m_grid = grid;
+
+    m_pp = space->getExtension<PointProjectionExtension>();
+    if (m_pp) {
+        SMPL_INFO_NAMED(LOG, "Got Point Projection Extension!");
+    }
+    m_ers = space->getExtension<ExtractRobotStateExtension>();
+    if (m_ers) {
+        SMPL_INFO_NAMED(LOG, "Got Extract Robot State Extension!");
+    }
+    m_fk_iface = space->robot()->getExtension<ForwardKinematicsInterface>();
+    if (m_fk_iface) {
+        SMPL_INFO_NAMED(LOG, "Got Forward Kinematics Interface!");
+    }
+    syncGridAndBfs();
+
+    return true;
+}
+
+void MultiFrameBfsHeuristic::setInflationRadius(double radius)
+{
+    m_inflation_radius = radius;
+}
+
+void MultiFrameBfsHeuristic::setCostPerCell(int cost)
+{
+    m_cost_per_cell = cost;
 }
 
 Extension* MultiFrameBfsHeuristic::getExtension(size_t class_code)
@@ -78,7 +98,7 @@ Extension* MultiFrameBfsHeuristic::getExtension(size_t class_code)
 
 void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "Update goal");
+    SMPL_DEBUG_NAMED(LOG, "Update goal");
 
     int ogx, ogy, ogz;
     grid()->worldToGrid(
@@ -90,12 +110,12 @@ void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
             goal.pose[0], goal.pose[1], goal.pose[2],
             plgx, plgy, plgz);
 
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
+    SMPL_DEBUG_NAMED(LOG, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
 
     if (!m_bfs->inBounds(ogx, ogy, ogz) ||
         !m_ee_bfs->inBounds(plgx, plgy, plgz))
     {
-        SMPL_ERROR_NAMED(params()->heuristic_log, "Heuristic goal is out of BFS bounds");
+        SMPL_ERROR_NAMED(LOG, "Heuristic goal is out of BFS bounds");
         return;
     }
 
@@ -181,7 +201,7 @@ auto MultiFrameBfsHeuristic::getWallsVisualization() const -> visual::Marker
     }
     }
 
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", points.size());
+    SMPL_DEBUG_NAMED(LOG, "BFS Visualization contains %zu points", points.size());
 
     visual::Color color;
     color.r = 100.0f / 255.0f;
@@ -208,7 +228,7 @@ auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
     // hereafter anyway
     int start_heur = getGoalHeuristic(planningSpace()->getStartStateID(), factor_ee);
 
-    const int edge_cost = params()->cost_per_cell;
+    const int edge_cost = m_cost_per_cell;
 
     int max_cost = (int)(1.1 * start_heur);
 
@@ -290,7 +310,7 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
             grid()->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
             h_planning_link = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
         } else {
-            SMPL_ERROR_NAMED(params()->heuristic_log, "Failed to compute FK for planning link (state = %d)", state_id);
+            SMPL_ERROR_NAMED(LOG, "Failed to compute FK for planning link (state = %d)", state_id);
         }
     }
 
@@ -309,7 +329,7 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
     for (int z = 0; z < zc; ++z) {
         for (int y = 0; y < yc; ++y) {
             for (int x = 0; x < xc; ++x) {
-                const double radius = params()->planning_link_sphere_radius;
+                const double radius = m_inflation_radius;
                 if (grid()->getDistance(x, y, z) <= radius) {
                     m_bfs->setWall(x, y, z);
                     m_ee_bfs->setWall(x, y, z);
@@ -319,7 +339,7 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
         }
     }
 
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    SMPL_DEBUG_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 int MultiFrameBfsHeuristic::getBfsCostToGoal(
@@ -332,7 +352,7 @@ int MultiFrameBfsHeuristic::getBfsCostToGoal(
         return Infinity;
     }
     else {
-        return params()->cost_per_cell * bfs.getDistance(x, y, z);
+        return m_cost_per_cell * bfs.getDistance(x, y, z);
     }
 }
 

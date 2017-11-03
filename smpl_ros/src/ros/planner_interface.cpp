@@ -74,22 +74,6 @@
 #include <smpl/search/arastar.h>
 #include <smpl/search/experience_graph_planner.h>
 
-#include <smpl/ros/adaptive_planner_allocator.h>
-#include <smpl/ros/adaptive_workspace_lattice_allocator.h>
-#include <smpl/ros/araplanner_allocator.h>
-#include <smpl/ros/bfs_heuristic_allocator.h>
-#include <smpl/ros/dijkstra_egraph_3d_heuristic_allocator.h>
-#include <smpl/ros/euclid_dist_heuristic_allocator.h>
-#include <smpl/ros/experience_graph_planner_allocator.h>
-#include <smpl/ros/joint_dist_heuristic_allocator.h>
-#include <smpl/ros/joint_dist_egraph_heuristic_allocator.h>
-#include <smpl/ros/laraplanner_allocator.h>
-#include <smpl/ros/manip_lattice_allocator.h>
-#include <smpl/ros/manip_lattice_egraph_allocator.h>
-#include <smpl/ros/mhaplanner_allocator.h>
-#include <smpl/ros/multi_frame_bfs_heuristic_allocator.h>
-#include <smpl/ros/workspace_lattice_allocator.h>
-
 namespace sbpl {
 namespace motion {
 
@@ -418,6 +402,107 @@ auto MakeAdaptiveWorkspaceLattice(
     return std::move(space);
 }
 
+auto MakeMultiFrameBFSHeuristic(
+    RobotPlanningSpace* space,
+    const OccupancyGrid* grid,
+    const PlanningParams& params)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    auto h = make_unique<MultiFrameBfsHeuristic>();
+    h->setCostPerCell(params.cost_per_cell);
+    h->setInflationRadius(params.planning_link_sphere_radius);
+    if (!h->init(space, grid)) {
+        return nullptr;
+    }
+    return std::move(h);
+}
+
+auto MakeBFSHeuristic(
+    RobotPlanningSpace* space,
+    const OccupancyGrid* grid,
+    const PlanningParams& params)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    auto h = make_unique<BfsHeuristic>();
+    h->setCostPerCell(params.cost_per_cell);
+    h->setInflationRadius(params.planning_link_sphere_radius);
+    if (!h->init(space, grid)) {
+        return nullptr;
+    }
+    return std::move(h);
+};
+
+auto MakeEuclidDistHeuristic(
+    RobotPlanningSpace* space,
+    const PlanningParams& params)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    auto h = make_unique<EuclidDistHeuristic>();
+
+    if (!h->init(space)) {
+        return nullptr;
+    }
+
+    double wx, wy, wz, wr;
+    params.param("x_coeff", wx, 1.0);
+    params.param("y_coeff", wy, 1.0);
+    params.param("z_coeff", wz, 1.0);
+    params.param("rot_coeff", wr, 1.0);
+
+    h->setWeightX(wx);
+    h->setWeightY(wx);
+    h->setWeightZ(wx);
+    h->setWeightRot(wx);
+    return std::move(h);
+};
+
+auto MakeJointDistHeuristic(RobotPlanningSpace* space)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    auto h = make_unique<JointDistHeuristic>();
+    if (!h->init(space)) {
+        return nullptr;
+    }
+    return std::move(h);
+};
+
+auto MakeDijkstraEgraphHeuristic3D(
+    RobotPlanningSpace* space,
+    const OccupancyGrid* grid,
+    const PlanningParams& params)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    auto h = make_unique<DijkstraEgraphHeuristic3D>();
+
+//    h->setCostPerCell(params.cost_per_cell);
+    h->setInflationRadius(params.planning_link_sphere_radius);
+    if (!h->init(space, grid)) {
+        return nullptr;
+    }
+
+    return std::move(h);
+};
+
+auto MakeJointDistEGraphHeuristic(
+    RobotPlanningSpace* space,
+    const PlanningParams& params)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    struct JointDistEGraphHeuristic : public GenericEgraphHeuristic {
+        JointDistHeuristic jd;
+    };
+
+    auto h = make_unique<JointDistEGraphHeuristic>();
+    if (!h->init(space, &h->jd)) {
+        return nullptr;
+    }
+
+    double egw;
+    params.param("egraph_epsilon", egw, 1.0);
+    h->setWeightEGraph(egw);
+    return std::move(h);
+};
+
 auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -595,38 +680,27 @@ PlannerInterface::PlannerInterface(
     ///////////////////////////////
 
     m_heuristic_factories["mfbfs"] = [this](RobotPlanningSpace* space) {
-        return make_unique<MultiFrameBfsHeuristic>(space, m_grid);
+        return MakeMultiFrameBFSHeuristic(space, m_grid, m_params);
     };
 
     m_heuristic_factories["bfs"] = [this](RobotPlanningSpace* space) {
-        return make_unique<BfsHeuristic>(space, m_grid);
+        return MakeBFSHeuristic(space, m_grid, m_params);
     };
 
     m_heuristic_factories["euclid"] = [this](RobotPlanningSpace* space) {
-        return make_unique<EuclidDistHeuristic>(space);
+        return MakeEuclidDistHeuristic(space, m_params);
     };
 
     m_heuristic_factories["joint_distance"] = [this](RobotPlanningSpace* space) {
-        return make_unique<JointDistHeuristic>(space);
+        return MakeJointDistHeuristic(space);
     };
 
     m_heuristic_factories["bfs_egraph"] = [this](RobotPlanningSpace* space) {
-        return make_unique<DijkstraEgraphHeuristic3D>(space, m_grid);
+        return MakeDijkstraEgraphHeuristic3D(space, m_grid, m_params);
     };
 
     m_heuristic_factories["joint_distance_egraph"] = [this](RobotPlanningSpace* space) {
-        struct JointDistEGraphHeuristic : public GenericEgraphHeuristic {
-            using Base = GenericEgraphHeuristic;
-
-            JointDistHeuristic jd;
-
-            JointDistEGraphHeuristic(RobotPlanningSpace* space) :
-                Base(space, &jd),
-                jd(space)
-            { }
-        };
-
-        return make_unique<JointDistEGraphHeuristic>(space);
+        return MakeJointDistEGraphHeuristic(space, m_params);
     };
 
     /////////////////////////////

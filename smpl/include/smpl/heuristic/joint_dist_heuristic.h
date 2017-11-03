@@ -42,7 +42,7 @@ class JointDistHeuristic : public RobotHeuristic
 {
 public:
 
-    JointDistHeuristic(RobotPlanningSpace* space);
+    bool init(RobotPlanningSpace* space);
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{
@@ -66,7 +66,7 @@ private:
 
     static constexpr double FIXED_POINT_RATIO = 1000.0;
 
-    ExtractRobotStateExtension* m_ers;
+    ExtractRobotStateExtension* m_ers = nullptr;
 
     double computeJointDistance(const RobotState &s, const RobotState &t) const;
 };

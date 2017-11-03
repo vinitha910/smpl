@@ -422,7 +422,11 @@ int main(int argc, char* argv[])
     PrintActionSpace(actions);
 
     // 9. Create Heuristic
-    smpl::JointDistHeuristic h(&space);
+    smpl::JointDistHeuristic h;
+    if (!h.init(&space)) {
+        SMPL_ERROR("Failed to initialize Joint Dist Heuristic");
+        return 1;
+    }
 
     // 10. Associate Heuristic with Planning Space. In this case, Manip Lattice
     // Action Space may use this to determine when to use adaptive motion

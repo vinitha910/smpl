@@ -42,6 +42,8 @@
 namespace sbpl {
 namespace motion {
 
+static const char* LOG = "heuristic.egraph_bfs";
+
 auto DijkstraEgraphHeuristic3D::Vector3iHash::operator()(const argument_type& s) const
     -> result_type
 {
@@ -52,27 +54,28 @@ auto DijkstraEgraphHeuristic3D::Vector3iHash::operator()(const argument_type& s)
     return seed;
 }
 
-DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
+bool DijkstraEgraphHeuristic3D::init(
     RobotPlanningSpace* space,
     const OccupancyGrid* grid)
-:
-    Extension(),
-    RobotHeuristic(space),
-    ExperienceGraphHeuristicExtension()
 {
-    m_grid = grid;
+    if (!grid) {
+        return false;
+    }
 
-    params()->param("egraph_epsilon", m_eg_eps, 1.0);
-    SMPL_INFO_NAMED(params()->heuristic_log, "egraph_epsilon: %0.3f", m_eg_eps);
+    if (!RobotHeuristic::init(space)) {
+        return false;
+    }
+
+    m_grid = grid;
 
     m_pp = space->getExtension<PointProjectionExtension>();
     m_eg = space->getExtension<ExperienceGraphExtension>();
 
     if (!m_pp) {
-        SMPL_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends PointProjectionExtension");
+        SMPL_WARN_NAMED(LOG, "EgraphBfsHeuristic recommends PointProjectionExtension");
     }
     if (!m_eg) {
-        SMPL_WARN_NAMED(params()->heuristic_log, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
+        SMPL_WARN_NAMED(LOG, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
     }
 
     size_t num_cells_x = m_grid->numCellsX() + 2;
@@ -108,6 +111,19 @@ DijkstraEgraphHeuristic3D::DijkstraEgraphHeuristic3D(
             add_wall(x, y, num_cells_z - 1);
         }
     }
+
+    return true;
+}
+
+void DijkstraEgraphHeuristic3D::setWeightEGraph(double w)
+{
+    m_eg_eps = w;
+    SMPL_INFO_NAMED(LOG, "egraph_epsilon: %0.3f", m_eg_eps);
+}
+
+void DijkstraEgraphHeuristic3D::setInflationRadius(double radius)
+{
+    m_inflation_radius = radius;
 }
 
 void DijkstraEgraphHeuristic3D::getEquivalentStates(
@@ -157,9 +173,9 @@ void DijkstraEgraphHeuristic3D::getShortcutSuccs(
 auto DijkstraEgraphHeuristic3D::getWallsVisualization() -> visual::Marker
 {
     std::vector<Eigen::Vector3d> centers;
-    for (int z = 0; z < grid()->numCellsZ(); z++) {
-    for (int y = 0; y < grid()->numCellsY(); y++) {
     for (int x = 0; x < grid()->numCellsX(); x++) {
+    for (int y = 0; y < grid()->numCellsY(); y++) {
+    for (int z = 0; z < grid()->numCellsZ(); z++) {
         if (m_dist_grid(x + 1, y + 1, z + 1).dist == Wall) {
             Eigen::Vector3d p;
             grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
@@ -169,7 +185,7 @@ auto DijkstraEgraphHeuristic3D::getWallsVisualization() -> visual::Marker
     }
     }
 
-    SMPL_DEBUG_NAMED(params()->heuristic_log, "BFS Visualization contains %zu points", centers.size());
+    SMPL_DEBUG_NAMED(LOG, "BFS Visualization contains %zu points", centers.size());
 
     visual::Color color;
     color.r = 100.0f / 255.0f;
@@ -198,9 +214,9 @@ auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
 
     std::vector<Eigen::Vector3d> points;
     std::vector<visual::Color> colors;
-    for (int z = 0; z < grid()->numCellsZ(); ++z) {
-    for (int y = 0; y < grid()->numCellsY(); ++y) {
     for (int x = 0; x < grid()->numCellsX(); ++x) {
+    for (int y = 0; y < grid()->numCellsY(); ++y) {
+    for (int z = 0; z < grid()->numCellsZ(); ++z) {
         Eigen::Vector3i dp(x, y, z);
         dp += Eigen::Vector3i::Ones();
 
@@ -299,7 +315,7 @@ Extension* DijkstraEgraphHeuristic3D::getExtension(size_t class_code)
 
 void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 {
-    SMPL_INFO_NAMED(params()->heuristic_log, "Update EGraphBfsHeuristic goal");
+    SMPL_INFO_NAMED(LOG, "Update EGraphBfsHeuristic goal");
 
     // reset all distances
     for (size_t x = 1; x < m_dist_grid.xsize() - 1; ++x) {
@@ -361,7 +377,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     c->dist = 0;
     m_open.push(c);
 
-    SMPL_INFO_NAMED(params()->heuristic_log, "Updated EGraphBfsHeuristic goal");
+    SMPL_INFO_NAMED(LOG, "Updated EGraphBfsHeuristic goal");
 }
 
 int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
@@ -428,10 +444,10 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
         int first_id = m_eg->getStateID(*nit);
-        SMPL_DEBUG_STREAM_NAMED(params()->heuristic_log, "Project experience graph state " << first_id << " " << eg->state(*nit) << " into 3D");
+        SMPL_DEBUG_STREAM_NAMED(LOG, "Project experience graph state " << first_id << " " << eg->state(*nit) << " into 3D");
         Eigen::Vector3d p;
         m_pp->projectToPoint(first_id, p);
-        SMPL_DEBUG_NAMED(params()->heuristic_log, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
+        SMPL_DEBUG_NAMED(LOG, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
         Eigen::Vector3i dp;
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
@@ -448,10 +464,10 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         auto ent = m_heur_nodes.insert(std::make_pair(dp, std::move(empty)));
         auto eit = ent.first;
         if (ent.second) {
-            SMPL_DEBUG_NAMED(params()->heuristic_log, "Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
+            SMPL_DEBUG_NAMED(LOG, "Inserted down-projected cell (%d, %d, %d) into experience graph heuristic", dp.x(), dp.y(), dp.z());
             ++proj_node_count;
         } else {
-            SMPL_DEBUG_NAMED(params()->heuristic_log, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
+            SMPL_DEBUG_NAMED(LOG, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
         }
 
         HeuristicNode& hnode = eit->second;
@@ -462,7 +478,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             // project adjacent experience graph state and discretize
             int second_id = m_eg->getStateID(*ait);
-            SMPL_DEBUG_NAMED(params()->heuristic_log, "  Project experience graph edge to state %d", second_id);
+            SMPL_DEBUG_NAMED(LOG, "  Project experience graph edge to state %d", second_id);
             Eigen::Vector3d q;
             m_pp->projectToPoint(second_id, q);
             Eigen::Vector3i dq;
@@ -477,10 +493,10 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
                 hnode.edges.end())
             {
                 ++proj_edge_count;
-                SMPL_DEBUG_NAMED(params()->heuristic_log, "  Insert edge to state %d", second_id);
+                SMPL_DEBUG_NAMED(LOG, "  Insert edge to state %d", second_id);
                 hnode.edges.push_back(dq);
             } else {
-                SMPL_DEBUG_NAMED(params()->heuristic_log, "  Duplicate edge to state %d", second_id);
+                SMPL_DEBUG_NAMED(LOG, "  Duplicate edge to state %d", second_id);
             }
         }
     }
@@ -551,13 +567,13 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
         int cidx = std::distance(m_dist_grid.data(), curr_cell);
         size_t cx, cy, cz;
         m_dist_grid.index_to_coord(cidx, cx, cy, cz);
-        SMPL_DEBUG_NAMED(params()->heuristic_log, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
+        SMPL_DEBUG_NAMED(LOG, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
 
         // relax experience graph adjacency edges
         auto it = m_heur_nodes.find(Eigen::Vector3i(cx, cy, cz));
         if (it != m_heur_nodes.end()) {
             const HeuristicNode& hnode = it->second;
-            SMPL_DEBUG_NAMED(params()->heuristic_log, "  %zu adjacent egraph cells", hnode.edges.size());
+            SMPL_DEBUG_NAMED(LOG, "  %zu adjacent egraph cells", hnode.edges.size());
             for (const Eigen::Vector3i& adj : hnode.edges) {
                 const int dx = adj.x() - cx;
                 const int dy = adj.y() - cy;
@@ -569,10 +585,10 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
                 if (new_cost < ncell->dist) {
                     ncell->dist = new_cost;
                     if (m_open.contains(ncell)) {
-                        SMPL_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
+                        SMPL_DEBUG_NAMED(LOG, "  Update cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
                         m_open.decrease(ncell);
                     } else {
-                        SMPL_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
+                        SMPL_DEBUG_NAMED(LOG, "  Insert cell (%d, %d, %d) with egraph edge (-> %d)", adj.x(), adj.y(), adj.z(), new_cost);
                         m_open.push(ncell);
                     }
                 }
@@ -604,10 +620,10 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
             if (new_cost < ncell->dist) {
                 ncell->dist = new_cost;
                 if (m_open.contains(ncell)) {
-                    SMPL_DEBUG_NAMED(params()->heuristic_log, "  Update cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
+                    SMPL_DEBUG_NAMED(LOG, "  Update cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
                     m_open.decrease(ncell);
                 } else {
-                    SMPL_DEBUG_NAMED(params()->heuristic_log, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
+                    SMPL_DEBUG_NAMED(LOG, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
                     m_open.push(ncell);
                 }
             }
@@ -639,10 +655,10 @@ void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
     const int cell_count = xc * yc * zc;
 
     int wall_count = 0;
-    for (int z = 0; z < grid()->numCellsZ(); ++z) {
-    for (int y = 0; y < grid()->numCellsY(); ++y) {
     for (int x = 0; x < grid()->numCellsX(); ++x) {
-        const double radius = params()->planning_link_sphere_radius;
+    for (int y = 0; y < grid()->numCellsY(); ++y) {
+    for (int z = 0; z < grid()->numCellsZ(); ++z) {
+        const double radius = m_inflation_radius;
         if (grid()->getDistance(x, y, z) <= radius) {
             m_dist_grid(x + 1, y + 1, z + 1).dist = Wall;
             ++wall_count;
@@ -651,7 +667,7 @@ void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
     }
     }
 
-    SMPL_INFO_NAMED(params()->heuristic_log, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    SMPL_INFO_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 } // namespace motion

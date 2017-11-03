@@ -31,20 +31,28 @@
 
 #include <smpl/heuristic/robot_heuristic.h>
 
+#include <smpl/console/console.h>
+
 namespace sbpl {
 namespace motion {
 
-RobotHeuristic::RobotHeuristic(RobotPlanningSpace* space) :
-    Heuristic(space),
-    RobotPlanningSpaceObserver()
+bool RobotHeuristic::init(RobotPlanningSpace* space)
 {
+    if (!space) {
+        SMPL_ERROR("Robot Planning Space is null");
+        return false;
+    }
+
     m_space = space;
     m_space->insertObserver(this);
+    return true;
 }
 
 RobotHeuristic::~RobotHeuristic()
 {
-    m_space->eraseObserver(this);
+    if (m_space) {
+        m_space->eraseObserver(this);
+    }
 }
 
 bool RobotHeuristic::setGoal(const GoalConstraint& goal)

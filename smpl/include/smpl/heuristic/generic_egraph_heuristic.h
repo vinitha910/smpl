@@ -47,7 +47,10 @@ class GenericEgraphHeuristic :
 {
 public:
 
-    GenericEgraphHeuristic(RobotPlanningSpace* pspace, RobotHeuristic* h);
+    bool init(RobotPlanningSpace* space, RobotHeuristic* h);
+
+    double weightEGraph() const { return m_eg_eps; }
+    void setWeightEGraph(double w);
 
     /// \name ExperienceGraphHeuristicExtension Interface
     ///@{
@@ -84,11 +87,11 @@ private:
     static const int Wall = std::numeric_limits<int>::max();
     static const int Infinity = Unknown;
 
-    RobotHeuristic* m_orig_h;
+    RobotHeuristic* m_orig_h = nullptr;
 
-    ExperienceGraphExtension* m_eg;
+    ExperienceGraphExtension* m_eg = nullptr;
 
-    double m_eg_eps;
+    double m_eg_eps = 1.0;
 
     std::vector<int> m_component_ids;
     std::vector<std::vector<ExperienceGraph::node_id>> m_shortcut_nodes;
