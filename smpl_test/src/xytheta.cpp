@@ -1,17 +1,16 @@
 #include <cmath>
 #include <chrono>
 
-#include <ros/ros.h>
-#include <smpl/search/arastar.h>
 #include <smpl/collision_checker.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
+#include <smpl/search/arastar.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
+#include <smpl/console/ansi.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
-#include <smpl/console/ansi.h>
 
 namespace smpl = sbpl::motion;
 
@@ -30,14 +29,12 @@ const bool g_colorize = true;
 /// ForwardKinematicsInterface: forward kinematics interface required by much
 /// of smpl; trivial in this case to establish frame of reference
 class KinematicVehicleModel :
-    public virtual smpl::RobotModel,
-    public virtual smpl::ForwardKinematicsInterface
+//    public virtual smpl::RobotModel,
+    public smpl::ForwardKinematicsInterface
 {
 public:
 
-    KinematicVehicleModel() :
-        smpl::RobotModel(),
-        smpl::ForwardKinematicsInterface()
+    KinematicVehicleModel() : smpl::RobotModel(), smpl::ForwardKinematicsInterface()
     {
         const std::vector<std::string> joint_names = { "x", "y" };
         setPlanningJoints(joint_names);
@@ -183,7 +180,7 @@ bool GridCollisionChecker::interpolatePath(
     const Eigen::Vector2d vstart(start[0], start[1]);
     const Eigen::Vector2d vfinish(finish[0], finish[1]);
     int num_waypoints =
-            std::ceil((vfinish - vstart).norm() / m_grid->resolution());
+            (int)std::ceil((vfinish - vstart).norm() / m_grid->resolution());
     num_waypoints = std::max(num_waypoints, 2);
     SMPL_DEBUG("interpolate path with %d waypoints", num_waypoints);
     for (int i = 0; i < num_waypoints; ++i) {
@@ -299,8 +296,8 @@ void PrintSolution(
 {
     std::vector<std::pair<int, int>> discrete_states;
     for (auto& point : path) {
-        int dx = point[0] / grid.resolution();
-        int dy = point[1] / grid.resolution();
+        int dx = (int)(point[0] / grid.resolution());
+        int dy = (int)(point[1] / grid.resolution());
         discrete_states.push_back(std::make_pair(dx, dy));
     }
 
@@ -351,9 +348,13 @@ void PrintSolution(
 
 int main(int argc, char* argv[])
 {
-    ros::init(argc, argv, "xytheta");
-    ros::NodeHandle nh;
-    ros::NodeHandle ph("~");
+    if (argc < 2) {
+        printf("Usage: xytheta <mprim filepath>\n");
+        return 1;
+    }
+
+    const char* mprim_path = argv[1];
+    SMPL_INFO("Load motion primitives from %s", mprim_path);
 
     // 1. Create Robot Model
     KinematicVehicleModel robot_model;
@@ -395,7 +396,7 @@ int main(int argc, char* argv[])
     // PlanningParams, variable resolutions, and ActionSpace
     std::vector<double> resolutions = { res, res };
     if (!space.init(&robot_model, &cc, &params, resolutions, &actions)) {
-        ROS_ERROR("Failed to initialize Manip Lattice");
+        SMPL_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }
 
@@ -405,21 +406,15 @@ int main(int argc, char* argv[])
 
     // associate actions with planning space
     if (!actions.init(&space)) {
-        ROS_ERROR("Failed to initialize Manip Lattice Action Space");
+        SMPL_ERROR("Failed to initialize Manip Lattice Action Space");
         return 1;
     }
 
     // load primitives from file, whose path is stored on the param server
-    std::string mprim_path;
-    if (!ph.getParam("mprim_path", mprim_path)) {
-        SMPL_ERROR("Failed to retrieve 'mprim_path' from the param server");
-        return 1;
-    }
-
     if (!actions.load(mprim_path)) {
         return 1;
     }
-    PrintActionSpace(actions);
+//    PrintActionSpace(actions);
 
     // 9. Create Heuristic
     smpl::JointDistHeuristic h;
@@ -434,12 +429,12 @@ int main(int argc, char* argv[])
     space.insertHeuristic(&h);
 
     // 11. Create Search, associated with the planning space and heuristic
-    auto search = std::make_shared<sbpl::ARAStar>(&space, &h);
+    sbpl::ARAStar search(&space, &h);
 
     // 12. Configure Search Behavior
     const double epsilon = 5.0;
-    search->set_initialsolution_eps(epsilon);
-    search->set_search_mode(false);
+    search.set_initialsolution_eps(epsilon);
+    search.set_search_mode(false);
 
     // 13. Set start state and goal condition in the Planning Space and
     // propagate state IDs to search
@@ -457,12 +452,12 @@ int main(int argc, char* argv[])
     goal.angle_tolerances = { res, res };
 
     if (!space.setGoal(goal)) {
-        ROS_ERROR("Failed to set goal");
+        SMPL_ERROR("Failed to set goal");
         return 1;
     }
 
     if (!space.setStart(start_state)) {
-        ROS_ERROR("Failed to set start");
+        SMPL_ERROR("Failed to set start");
         return 1;
     }
 
@@ -478,12 +473,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (search->set_start(start_id) == 0) {
+    if (search.set_start(start_id) == 0) {
         SMPL_ERROR("Failed to set planner start state");
         return 1;
     }
 
-    if (search->set_goal(goal_id) == 0) {
+    if (search.set_goal(goal_id) == 0) {
         SMPL_ERROR("Failed to set planner goal state");
         return 1;
     }
@@ -500,7 +495,7 @@ int main(int argc, char* argv[])
     auto then = std::chrono::high_resolution_clock::now();
     std::vector<int> solution;
     int solcost;
-    bool bret = search->replan(&solution, search_params, &solcost);
+    bool bret = search.replan(&solution, search_params, &solcost);
     if (!bret) {
         SMPL_ERROR("Search failed to find a solution");
         return 1;
@@ -512,13 +507,13 @@ int main(int argc, char* argv[])
 
     std::vector<smpl::RobotState> path;
     if (!space.extractPath(solution, path)) {
-        ROS_ERROR("Failed to extract path");
+        SMPL_ERROR("Failed to extract path");
     }
 
     SMPL_INFO("Path found!");
     SMPL_INFO("  Planning Time: %0.3f", elapsed);
-    SMPL_INFO("  Expansion Count (total): %d", search->get_n_expands());
-    SMPL_INFO("  Expansion Count (initial): %d", search->get_n_expands_init_solution());
+    SMPL_INFO("  Expansion Count (total): %d", search.get_n_expands());
+    SMPL_INFO("  Expansion Count (initial): %d", search.get_n_expands_init_solution());
     SMPL_INFO("  Solution (%zu)", solution.size());
 //    for (int id : solution) {
 //        SMPL_INFO("    %d", id);
