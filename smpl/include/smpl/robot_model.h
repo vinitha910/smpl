@@ -51,9 +51,7 @@ class RobotModel : public Extension
 {
 public:
 
-    RobotModel();
-
-    virtual ~RobotModel() { };
+    virtual ~RobotModel();
 
     /// \brief Return the lower position limit for a joint.
     virtual double minPosLimit(int jidx) const = 0;

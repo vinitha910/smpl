@@ -63,7 +63,7 @@ auto to_cstring(IkOption option) -> const char*
 
 } // namespace ik_option
 
-RobotModel::RobotModel()
+RobotModel::~RobotModel()
 {
 }
 
