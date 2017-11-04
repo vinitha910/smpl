@@ -44,7 +44,7 @@ namespace motion {
 const std::string PlanningParams::DefaultRobotModelLog = "robot";
 const std::string PlanningParams::DefaultGraphLog = "graph";
 const std::string PlanningParams::DefaultHeuristicLog = "heuristic";
-const std::string PlanningParams::DefaultExpandsLog = "expands";
+const std::string PlanningParams::DefaultExpandsLog = "graph.expansions";
 const std::string PlanningParams::DefaultPostProcessingLog = "post_process";
 const std::string PlanningParams::DefaultSolutionLog = "solution";
 const std::string PlanningParams::DefaultSuccessorsLog = "successors";
