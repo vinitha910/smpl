@@ -23,7 +23,34 @@ static bool g_colored = false;
 static bool g_show_locations = false;
 
 static std::mutex g_init_mutex;
-static std::unordered_map<std::string, Level> g_log_levels;
+static std::mutex g_locations_mutex;
+
+// map (fully-qualified logger name) -> (logger)
+static std::unordered_map<std::string, Logger> g_loggers;
+
+Logger* GetLogger(const std::string& name)
+{
+    auto lit = g_loggers.find(name);
+    if (lit == end(g_loggers)) {
+        bool inserted;
+        std::tie(lit, inserted) = g_loggers.insert(std::make_pair(name, Logger()));
+
+        // find or create the parent logger
+        Logger* parent;
+        std::string::size_type pos = name.size();
+        auto dotpos = name.find_last_of('.', pos);
+        if (dotpos == std::string::npos) {
+            parent = &g_loggers[""];
+        } else {
+            parent = GetLogger(name.substr(0, dotpos));
+        }
+
+        lit->second.parent = parent;
+        lit->second.level = parent->level;
+    }
+
+    return &lit->second;
+}
 
 void initialize()
 {
@@ -33,7 +60,8 @@ void initialize()
         return;
     }
 
-    // options of the form --name.name.name=level
+    // create the root logger
+    g_loggers[""] = Logger{ nullptr, LEVEL_INFO };
 
     const char* config_filepath = getenv("SMPL_CONSOLE_CONFIG_FILE");
     if (!config_filepath) {
@@ -41,8 +69,7 @@ void initialize()
         return;
     }
 
-    std::cout << "Initialize console system from " << config_filepath << std::endl;
-
+    // parse the config file
     namespace po = boost::program_options;
 
     po::options_description ops;
@@ -52,7 +79,6 @@ void initialize()
             ("format.show_locations", po::value<bool>(&g_show_locations)->default_value(false))
             ;
 
-    // map from logger names to log levels
     bool allow_unregistered = true;
     auto pops = po::parse_config_file<char>(
             config_filepath, ops, allow_unregistered);
@@ -61,18 +87,29 @@ void initialize()
     po::store(pops, vm);
     po::notify(vm);
 
-    printf("unbuffered: %d\n", (int)g_unbuffered);
-    printf("colored: %d\n", (int)g_colored);
-    printf("show_locations: %d\n", (int)g_show_locations);
-
-    std::cout << "unregistered options:" << std::endl;
     for (auto& op : pops.options) {
         if (op.unregistered) {
-            std::cout << "  " << op.string_key << "=" << op.value.size() << ':' << op.value << std::endl;
+            auto& levelstr = op.value.back();
+            Level level = LEVEL_COUNT;
+            if (levelstr == "INFO") {
+                level = LEVEL_INFO;
+            } else if (levelstr == "DEBUG") {
+                level = LEVEL_DEBUG;
+            } else if (levelstr == "WARN") {
+                level = LEVEL_WARN;
+            } else if (levelstr == "ERROR") {
+                level = LEVEL_ERROR;
+            } else if (levelstr == "FATAL") {
+                level = LEVEL_FATAL;
+            }
+
+            if (level != LEVEL_COUNT) { // format correct
+                Logger* logger = GetLogger(op.string_key);
+                logger->level = level;
+            }
         }
     }
 
-    std::cout << "Initialized console system" << std::endl;
     g_initialized = true;
 }
 
@@ -81,12 +118,15 @@ void InitializeLogLocation(
     const std::string& name,
     Level level)
 {
+    std::unique_lock<std::mutex> lock(g_locations_mutex);
+
     if (loc->initialized) {
         return;
     }
 
+    loc->logger = GetLogger(name);
     loc->level = level;
-    loc->enabled = level > LEVEL_DEBUG;
+    loc->enabled = level >= loc->logger->level;
     loc->initialized = true;
 }
 

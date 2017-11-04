@@ -22,8 +22,13 @@ enum Level {
     LEVEL_COUNT
 };
 
+struct Logger {
+    Logger* parent;
+    Level level;
+};
+
 struct LogLocation {
-    void* logger;
+    Logger* logger;
     LogLocation* next;
     ::sbpl::console::Level level;
     bool enabled;
