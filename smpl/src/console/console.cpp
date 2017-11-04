@@ -4,24 +4,77 @@
 #include <stdarg.h>
 #include <string.h>
 #include <iostream>
+#include <mutex>
+#include <unordered_map>
+
+#include <boost/program_options.hpp>
 
 // project includes
 #include <smpl/console/ansi.h>
-
-#ifndef SMPL_CONSOLE_LOG_FILE_AND_LINE
-#define SMPL_CONSOLE_LOG_FILE_AND_LINE 0
-#endif
-
-#ifndef SMPL_CONSOLE_COLORIZE_OUTPUT
-#define SMPL_CONSOLE_COLORIZE_OUTPUT 0
-#endif
-
-#ifndef SMPL_CONSOLE_UNBUFFERED
-#define SMPL_CONSOLE_UNBUFFERED 0
-#endif
+#include <smpl/console/nonstd.h>
 
 namespace sbpl {
 namespace console {
+
+bool g_initialized = false;
+
+static bool g_unbuffered = false;
+static bool g_colored = false;
+static bool g_show_locations = false;
+
+static std::mutex g_init_mutex;
+static std::unordered_map<std::string, Level> g_log_levels;
+
+void initialize()
+{
+    std::unique_lock<std::mutex> lock(g_init_mutex);
+
+    if (g_initialized) {
+        return;
+    }
+
+    // options of the form --name.name.name=level
+
+    const char* config_filepath = getenv("SMPL_CONSOLE_CONFIG_FILE");
+    if (!config_filepath) {
+        g_initialized = true;
+        return;
+    }
+
+    std::cout << "Initialize console system from " << config_filepath << std::endl;
+
+    namespace po = boost::program_options;
+
+    po::options_description ops;
+    ops.add_options()
+            ("format.unbuffered", po::value<bool>(&g_unbuffered)->default_value(false))
+            ("format.colored", po::value<bool>(&g_colored)->default_value(false))
+            ("format.show_locations", po::value<bool>(&g_show_locations)->default_value(false))
+            ;
+
+    // map from logger names to log levels
+    bool allow_unregistered = true;
+    auto pops = po::parse_config_file<char>(
+            config_filepath, ops, allow_unregistered);
+
+    po::variables_map vm;
+    po::store(pops, vm);
+    po::notify(vm);
+
+    printf("unbuffered: %d\n", (int)g_unbuffered);
+    printf("colored: %d\n", (int)g_colored);
+    printf("show_locations: %d\n", (int)g_show_locations);
+
+    std::cout << "unregistered options:" << std::endl;
+    for (auto& op : pops.options) {
+        if (op.unregistered) {
+            std::cout << "  " << op.string_key << "=" << op.value.size() << ':' << op.value << std::endl;
+        }
+    }
+
+    std::cout << "Initialized console system" << std::endl;
+    g_initialized = true;
+}
 
 void InitializeLogLocation(
     LogLocation* loc,
@@ -49,27 +102,27 @@ void print(Level level, const char* filename, int line, const char* fmt, ...)
         f = stdout;
     }
 
-#if SMPL_CONSOLE_COLORIZE_OUTPUT
-    switch (level) {
-    case LEVEL_DEBUG:
-        fprintf(f, "%s", codes::green);
-        break;
-    case LEVEL_INFO:
-        fprintf(f, "%s", codes::white);
-        break;
-    case LEVEL_WARN:
-        fprintf(f, "%s", codes::yellow);
-        break;
-    case LEVEL_ERROR:
-        fprintf(f, "%s", codes::red);
-        break;
-    case LEVEL_FATAL:
-        fprintf(f, "%s", codes::red);
-        break;
-    default:
-        break;
+    if (g_colored) {
+        switch (level) {
+        case LEVEL_DEBUG:
+            fprintf(f, "%s", codes::green);
+            break;
+        case LEVEL_INFO:
+            fprintf(f, "%s", codes::white);
+            break;
+        case LEVEL_WARN:
+            fprintf(f, "%s", codes::yellow);
+            break;
+        case LEVEL_ERROR:
+            fprintf(f, "%s", codes::red);
+            break;
+        case LEVEL_FATAL:
+            fprintf(f, "%s", codes::red);
+            break;
+        default:
+            break;
+        }
     }
-#endif
 
     switch (level) {
     case LEVEL_DEBUG:
@@ -94,24 +147,24 @@ void print(Level level, const char* filename, int line, const char* fmt, ...)
     vfprintf(f, fmt, args);
 
     // print file and line
-#if SMPL_CONSOLE_LOG_FILE_AND_LINE
-    const char* base = strrchr(filename, '\\');
-    if (base) {
-        fprintf(f, " [%s:%d]", base + 1, line);
-    } else {
-        fprintf(f, " [%s:%d]", filename, line);
+    if (g_show_locations) {
+        const char* base = strrchr(filename, '\\');
+        if (base) {
+            fprintf(f, " [%s:%d]", base + 1, line);
+        } else {
+            fprintf(f, " [%s:%d]", filename, line);
+        }
     }
-#endif
 
-#if SMPL_CONSOLE_COLORIZE_OUTPUT
-    fprintf(f, "%s", codes::reset);
-#endif
+    if (g_colored) {
+        fprintf(f, "%s", codes::reset);
+    }
 
     fprintf(f, "\n");
 
-#if SMPL_CONSOLE_UNBUFFERED
-    fflush(f);
-#endif
+    if (g_unbuffered) {
+        fflush(f);
+    }
 
     va_end(args);
 }
@@ -120,27 +173,27 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 {
     auto& o = (level >= LEVEL_ERROR) ? std::cerr : std::cout;
 
-#if SMPL_CONSOLE_COLORIZE_OUTPUT
-    switch (level) {
-    case LEVEL_DEBUG:
-        o << green;
-        break;
-    case LEVEL_INFO:
-        o << white;
-        break;
-    case LEVEL_WARN:
-        o << yellow;
-        break;
-    case LEVEL_ERROR:
-        o << red;
-        break;
-    case LEVEL_FATAL:
-        o << red;
-        break;
-    default:
-        break;
+    if (g_colored) {
+        switch (level) {
+        case LEVEL_DEBUG:
+            o << green;
+            break;
+        case LEVEL_INFO:
+            o << white;
+            break;
+        case LEVEL_WARN:
+            o << yellow;
+            break;
+        case LEVEL_ERROR:
+            o << red;
+            break;
+        case LEVEL_FATAL:
+            o << red;
+            break;
+        default:
+            break;
+        }
     }
-#endif
 
     switch (level) {
     case LEVEL_DEBUG:
@@ -164,18 +217,18 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 
     o << ss.str();
 
-#if SMPL_CONSOLE_LOG_FILE_AND_LINE
-    o << " [" << filename << ':' << line << ']';
-#endif
+    if (g_show_locations) {
+        o << " [" << filename << ':' << line << ']';
+    }
 
-#if SMPL_CONSOLE_COLORIZE_OUTPUT
-    o << reset;
-#endif
+    if (g_colored) {
+        o << reset;
+    }
 
     o << '\n';
-#if SMPL_CONSOLE_UNBUFFERED
-    o << std::flush;
-#endif
+    if (g_unbuffered) {
+        o << std::flush;
+    }
 }
 
 } // namespace console

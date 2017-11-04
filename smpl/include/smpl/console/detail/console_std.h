@@ -47,8 +47,18 @@ void InitializeLogLocation(
 void print(Level level, const char* filename, int line, const char* fmt, ...);
 void print(Level level, const char* filename, int line, const std::stringstream& ss);
 
+extern bool g_initialized;
+void initialize();
+
 } // namespace console
 } // namespace sbpl
+
+#define SMPL_CONSOLE_INIT \
+do { \
+    if (!::sbpl::console::g_initialized) { \
+        ::sbpl::console::initialize(); \
+    } \
+} while(0)
 
 #define SMPL_LOG_DEFINE_LOCATION(cond_, level_, name_) \
     static ::sbpl::console::LogLocation __sc_define_location__loc = { \
@@ -61,6 +71,7 @@ void print(Level level, const char* filename, int line, const std::stringstream&
         __sc_define_location__loc.enabled && (cond_)
 
 #define SMPL_LOG_COND(cond, level, name, fmt, ...) \
+    SMPL_CONSOLE_INIT; \
     do { \
         SMPL_LOG_DEFINE_LOCATION(cond, level, name); \
         if (__sc_define_location__enabled) { \
@@ -71,6 +82,7 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 #define SMPL_LOG(level, name, fmt, ...) SMPL_LOG_COND(true, level, name, fmt, ##__VA_ARGS__)
 
 #define SMPL_LOG_STREAM_COND(cond, level, name, args) \
+    SMPL_CONSOLE_INIT; \
     do { \
         SMPL_LOG_DEFINE_LOCATION(cond, level, name); \
         if (__sc_define_location__enabled) { \
@@ -89,8 +101,7 @@ void print(Level level, const char* filename, int line, const std::stringstream&
             hit = true; \
             ::sbpl::console::print(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__); \
         } \
-    } while (0) \
-
+    } while (0)
 
 #define SMPL_LOG_THROTTLE(level, name, fmt, ...) \
     do { \
