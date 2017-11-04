@@ -138,14 +138,9 @@ bool ManipLatticeEgraph::extractPath(
 
             if (curr_id == getGoalStateID()) {
                 SMPL_DEBUG_NAMED(params()->graph_log, "Search for transition to goal state");
-                std::vector<double> tgt_off_pose;
-                if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-                    SMPL_WARN("Failed to compute FK for planning frame");
-                    continue;
-                }
 
                 // skip non-goal states
-                if (!isGoal(action.back(), tgt_off_pose)) {
+                if (!isGoal(action.back())) {
                     continue;
                 }
 

@@ -198,7 +198,7 @@ protected:
 
     bool checkAction(const RobotState& state, const Action& action);
 
-    bool isGoal(const RobotState& state, const std::vector<double>& pose);
+    bool isGoal(const RobotState& state);
 
     auto getStateVisualization(const RobotState& vars, const std::string& ns)
         -> std::vector<visual::Marker>;

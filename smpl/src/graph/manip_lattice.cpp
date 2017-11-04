@@ -245,19 +245,12 @@ void ManipLattice::GetSuccs(
 
         // get the successor
 
-        // get pose of planning link
-        std::vector<double> tgt_off_pose;
-        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-            SMPL_WARN("Failed to compute FK for planning frame");
-            continue;
-        }
-
         // check if hash entry already exists, if not then create one
         int succ_state_id = getOrCreateState(succ_coord, action.back());
         ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
 
         // check if this state meets the goal criteria
-        const bool is_goal_succ = isGoal(action.back(), tgt_off_pose);
+        const bool is_goal_succ = isGoal(action.back());
         if (is_goal_succ) {
             // update goal state
             ++goal_succ_count;
@@ -276,7 +269,6 @@ void ManipLattice::GetSuccs(
         SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        pose: " << tgt_off_pose);
         SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
@@ -343,13 +335,7 @@ void ManipLattice::GetLazySuccs(
 
         stateToCoord(action.back(), succ_coord);
 
-        std::vector<double> tgt_off_pose;
-        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-            SMPL_WARN("Failed to compute FK for planning frame");
-            continue;
-        }
-
-        const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
+        const bool succ_is_goal_state = isGoal(action.back());
         if (succ_is_goal_state) {
             ++goal_succ_count;
         }
@@ -370,7 +356,6 @@ void ManipLattice::GetLazySuccs(
         SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        pose: " << tgt_off_pose);
         SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
@@ -422,14 +407,8 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
         // check whether this action leads to the child state
         if (goal_edge) {
-            std::vector<double> tgt_off_pose;
-            if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-                SMPL_WARN("Failed to compute FK for planning frame");
-                continue;
-            }
-
             // skip actions which don't end up at a goal state
-            if (!isGoal(action.back(), tgt_off_pose)) {
+            if (!isGoal(action.back())) {
                 continue;
             }
         } else {
@@ -630,8 +609,9 @@ bool ManipLattice::computePlanningFrameFK(
     std::vector<double>& pose) const
 {
     assert(state.size() == robot()->jointVariableCount());
+    assert(m_fk_iface);
 
-    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
+    if (!m_fk_iface->computePlanningLinkFK(state, pose)) {
         return false;
     }
 
@@ -715,9 +695,7 @@ bool ManipLattice::checkAction(const RobotState& state, const Action& action)
     return true;
 }
 
-bool ManipLattice::isGoal(
-    const RobotState& state,
-    const std::vector<double>& pose)
+bool ManipLattice::isGoal(const RobotState& state)
 {
     switch (goal().type) {
     case GoalType::JOINT_STATE_GOAL:
@@ -731,6 +709,13 @@ bool ManipLattice::isGoal(
     }   break;
     case GoalType::XYZ_RPY_GOAL:
     {
+        // get pose of planning link
+        std::vector<double> pose;
+        if (!computePlanningFrameFK(state, pose)) {
+            SMPL_WARN("Failed to compute FK for planning frame");
+            return false;
+        }
+
         const double dx = fabs(pose[0] - goal().tgt_off_pose[0]);
         const double dy = fabs(pose[1] - goal().tgt_off_pose[1]);
         const double dz = fabs(pose[2] - goal().tgt_off_pose[2]);
@@ -773,6 +758,13 @@ bool ManipLattice::isGoal(
     }   break;
     case GoalType::XYZ_GOAL:
     {
+        // get pose of planning link
+        std::vector<double> pose;
+        if (!computePlanningFrameFK(state, pose)) {
+            SMPL_WARN("Failed to compute FK for planning frame");
+            return false;
+        }
+
         if (fabs(pose[0] - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
             fabs(pose[1] - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
             fabs(pose[2] - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2])
@@ -811,14 +803,6 @@ bool ManipLattice::setStart(const RobotState& state)
     }
 
     SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  state: " << state);
-
-    // get joint positions of starting configuration
-    std::vector<double> pose(6, 0.0);
-    if (!computePlanningFrameFK(state, pose)) {
-        SMPL_WARN(" -> unable to compute forward kinematics");
-        return false;
-    }
-    SMPL_DEBUG_NAMED(params()->graph_log, "  planning link pose: { x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f }", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
 
     // check joint limits of starting configuration
     if (!robot()->checkJointLimits(state, true)) {
@@ -971,14 +955,8 @@ bool ManipLattice::extractPath(
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
                 const Action& action = actions[aidx];
 
-                std::vector<double> tgt_off_pose;
-                if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-                    SMPL_WARN("Failed to compute FK for planning frame");
-                    continue;
-                }
-
                 // skip non-goal states
-                if (!isGoal(action.back(), tgt_off_pose)) {
+                if (!isGoal(action.back())) {
                     continue;
                 }
 
@@ -1026,13 +1004,19 @@ bool ManipLattice::extractPath(
 Extension* ManipLattice::getExtension(size_t class_code)
 {
     if (class_code == GetClassCode<RobotPlanningSpace>() ||
-        class_code == GetClassCode<PointProjectionExtension>() ||
-        class_code == GetClassCode<ExtractRobotStateExtension>() ||
-        class_code == GetClassCode<ManipLattice>() ||
-        class_code == GetClassCode<PoseProjectionExtension>())
+        class_code == GetClassCode<ExtractRobotStateExtension>())
     {
         return this;
     }
+
+    if (class_code == GetClassCode<PointProjectionExtension>() ||
+        class_code == GetClassCode<PoseProjectionExtension>())
+    {
+        if (m_fk_iface) {
+            return this;
+        }
+    }
+
     return nullptr;
 }
 
@@ -1105,11 +1089,13 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 /// \brief Set a full joint configuration goal.
 bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 {
-    // compute the goal pose
-    std::vector<double> pose;
-    if (!computePlanningFrameFK(goal.angles, pose)) {
-        SMPL_WARN("Could not compute planning link FK for given goal configuration!");
-        return false;
+    if (goal.type == GoalType::XYZ_GOAL ||
+        goal.type == GoalType::XYZ_RPY_GOAL)
+    {
+        if (!m_fk_iface) {
+            SMPL_WARN("ForwardKinematicsInterface required for pose goals");
+            return false;
+        }
     }
 
     startNewSearch();
