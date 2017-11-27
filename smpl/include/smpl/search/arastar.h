@@ -32,6 +32,9 @@
 #ifndef SMPL_ARASTAR_H
 #define SMPL_ARASTAR_H
 
+// standard includes
+#include <assert.h>
+
 // system includes
 #include <sbpl/heuristics/heuristic.h>
 #include <sbpl/planners/planner.h>
@@ -91,14 +94,41 @@ public:
     ARAStar(DiscreteSpaceInformation* space, Heuristic* heuristic);
     ~ARAStar();
 
-    void allowPartialSolutions(bool enabled) { m_allow_partial_solutions = enabled; }
+    void allowPartialSolutions(bool enabled) {
+        m_allow_partial_solutions = enabled;
+    }
+
     bool allowPartialSolutions() const { return m_allow_partial_solutions; }
 
-    void setAllowedRepairTime(double allowed_time_secs)
-    { m_time_params.max_allowed_time = to_duration(allowed_time_secs); }
+    void setAllowedRepairTime(double allowed_time_secs) {
+        m_time_params.max_allowed_time = to_duration(allowed_time_secs);
+    }
 
-    double allowedRepairTime() const
-    { return to_seconds(m_time_params.max_allowed_time); }
+    double allowedRepairTime() const {
+        return to_seconds(m_time_params.max_allowed_time);
+    }
+
+    void setTargetEpsilon(double target_eps) {
+        m_final_eps = std::max(target_eps, 1.0);
+    }
+
+    double targetEpsilon() const { return m_final_eps; }
+
+    void setDeltaEpsilon(double delta_eps) {
+        assert(delta_eps > 0.0);
+        m_delta_eps = delta_eps;
+    }
+
+    double deltaEpsilon() const { return m_delta_eps; }
+
+    void setImproveSolution(bool improve) {
+        m_time_params.improve = improve;
+    }
+
+    bool improveSolution() const { return m_time_params.improve; }
+
+    void setBoundExpansions(bool bound) { m_time_params.bounded = bound; }
+    bool boundExpansions() const { return m_time_params.bounded; }
 
     int replan(
         const TimeParameters &params,

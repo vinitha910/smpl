@@ -517,6 +517,31 @@ auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     space->params()->param("search_mode", search_mode, false);
     search->set_search_mode(search_mode);
 
+    bool allow_partial_solutions;
+    if (space->params()->getParam("allow_partial_solutions", allow_partial_solutions)) {
+        search->allowPartialSolutions(allow_partial_solutions);
+    }
+
+    double target_eps;
+    if (space->params()->getParam("target_epsilon", target_eps)) {
+        search->setTargetEpsilon(target_eps);
+    }
+
+    double delta_eps;
+    if (space->params()->getParam("delta_epsilon", delta_eps)) {
+        search->setDeltaEpsilon(delta_eps);
+    }
+
+    bool improve_solution;
+    if (space->params()->getParam("improve_solution", improve_solution)) {
+        search->setImproveSolution(improve_solution);
+    }
+
+    bool bound_expansions;
+    if (space->params()->getParam("bound_expansions", bound_expansions)) {
+        search->setBoundExpansions(bound_expansions);
+    }
+
     double repair_time;
     if (space->params()->getParam("repair_time", repair_time)) {
         search->setAllowedRepairTime(repair_time);
