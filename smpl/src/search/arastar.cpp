@@ -484,8 +484,6 @@ int ARAStar::improvePath(
     int& elapsed_expansions,
     clock::duration& elapsed_time)
 {
-    std::vector<int> succs;
-    std::vector<int> costs;
     while (!m_open.empty()) {
         SearchState* min_state = m_open.min();
 
@@ -525,15 +523,15 @@ int ARAStar::improvePath(
 // and INCONS list appropriately.
 void ARAStar::expand(SearchState* s)
 {
-    std::vector<int> succs;
-    std::vector<int> costs;
-    m_space->GetSuccs(s->state_id, &succs, &costs);
+    m_succs.clear();
+    m_costs.clear();
+    m_space->GetSuccs(s->state_id, &m_succs, &m_costs);
 
-    SMPL_DEBUG_NAMED(SELOG, "  %zu successors", succs.size());
+    SMPL_DEBUG_NAMED(SELOG, "  %zu successors", m_succs.size());
 
-    for (size_t sidx = 0; sidx < succs.size(); ++sidx) {
-        int succ_state_id = succs[sidx];
-        int cost = costs[sidx];
+    for (size_t sidx = 0; sidx < m_succs.size(); ++sidx) {
+        int succ_state_id = m_succs[sidx];
+        int cost = m_costs[sidx];
 
         SearchState* succ_state = getSearchState(succ_state_id);
         reinitSearchState(succ_state);
