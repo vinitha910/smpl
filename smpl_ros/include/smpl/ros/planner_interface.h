@@ -229,6 +229,7 @@ protected:
         const std::vector<RobotState>& path,
         trajectory_msgs::JointTrajectory& traj) const;
     void profilePath(trajectory_msgs::JointTrajectory& traj) const;
+    void removeZeroDurationSegments(trajectory_msgs::JointTrajectory& traj) const;
 
     bool writePath(
         const moveit_msgs::RobotState& ref,

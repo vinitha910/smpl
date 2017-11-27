@@ -851,6 +851,7 @@ bool PlannerInterface::solve(
     }
 
     profilePath(traj);
+//    removeZeroDurationSegments(traj);
 
     auto now = clock::now();
     res.planning_time = to_seconds(now - then);
@@ -1636,24 +1637,20 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     return true;
 }
 
-void PlannerInterface::profilePath(
-    trajectory_msgs::JointTrajectory& traj) const
+void PlannerInterface::profilePath(trajectory_msgs::JointTrajectory& traj) const
 {
     if (traj.points.empty()) {
         return;
     }
 
-    const std::vector<std::string>& joint_names = traj.joint_names;
+    auto& joint_names = traj.joint_names;
 
     for (size_t i = 1; i < traj.points.size(); ++i) {
-        trajectory_msgs::JointTrajectoryPoint& prev_point = traj.points[i - 1];
-        trajectory_msgs::JointTrajectoryPoint& curr_point = traj.points[i];
+        auto& prev_point = traj.points[i - 1];
+        auto& curr_point = traj.points[i];
 
-        // find the maximum distance traveled by any joint
-        // find the time required for each joint to travel to the next waypoint
-        // set the time from the start as the time to get to the previous point
-        //     plus the time required for the slowest joint to reach the waypoint
-
+        // find the maximum time required for any joint to reach the next
+        // waypoint
         double max_time = 0.0;
         for (size_t jidx = 0; jidx < joint_names.size(); ++jidx) {
             const double from_pos = prev_point.positions[jidx];
@@ -1663,40 +1660,41 @@ void PlannerInterface::profilePath(
                 continue;
             }
             double t = 0.0;
-            if (m_robot->hasPosLimit(jidx)) {
-                const double dist = fabs(to_pos - from_pos);
-                t = dist / vel;
-            }
-            else {
-                // use the shortest angular distance
-                const double dist =
-                        fabs(angles::shortest_angle_diff(from_pos, to_pos));
-                t = dist / vel;
+            if (m_robot->isContinuous(jidx)) {
+                t = angles::shortest_angle_dist(from_pos, to_pos) / vel;
+            } else {
+                t = fabs(to_pos - from_pos) / vel;
             }
 
-            if (t > max_time) {
-                max_time = t;
-            }
+            max_time = std::max(max_time, t);
         }
 
         curr_point.time_from_start = prev_point.time_from_start + ros::Duration(max_time);
     }
+}
+
+void PlannerInterface::removeZeroDurationSegments(
+    trajectory_msgs::JointTrajectory& traj) const
+{
+    if (traj.points.empty()) {
+        return;
+    }
 
     // filter out any duplicate points
     // TODO: find out where these are happening
-    trajectory_msgs::JointTrajectory itraj = traj;
-    traj.points.clear();
-    const trajectory_msgs::JointTrajectoryPoint* prev_point = &itraj.points.front();
-    if (!itraj.points.empty()) {
-        traj.points.push_back(*prev_point);
-    }
-    for (size_t i = 1; i < itraj.points.size(); ++i) {
-        const trajectory_msgs::JointTrajectoryPoint& curr_point = itraj.points[i];
-        if (curr_point.time_from_start != prev_point->time_from_start) {
-            traj.points.push_back(curr_point);
-            prev_point = &curr_point;
+    size_t end_idx = 1; // current end of the non-filtered range
+    for (size_t i = 1; i < traj.points.size(); ++i) {
+        auto& prev = traj.points[end_idx - 1];
+        auto& curr = traj.points[i];
+        if (curr.time_from_start != prev.time_from_start) {
+            ROS_INFO("Move index %zu into %zu", i, end_idx);
+            if (end_idx != i) {
+                traj.points[end_idx] = std::move(curr);
+            }
+            end_idx++;
         }
     }
+    traj.points.resize(end_idx);
 }
 
 bool PlannerInterface::isPathValid(const std::vector<RobotState>& path) const
@@ -1724,8 +1722,7 @@ void PlannerInterface::postProcessPath(std::vector<RobotState>& path) const
             std::vector<RobotState> ipath = path;
             path.clear();
             ShortcutPath(m_robot, m_checker, ipath, path, m_params.shortcut_type);
-        }
-        else {
+        } else {
             std::vector<RobotState> ipath = path;
             path.clear();
             ShortcutPath(m_robot, m_checker, ipath, path, m_params.shortcut_type);
