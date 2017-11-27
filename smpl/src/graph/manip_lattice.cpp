@@ -196,9 +196,6 @@ void ManipLattice::GetSuccs(
     assert(succs && costs && "successor buffer is null");
     assert(m_actions && "action space is uninitialized");
 
-    succs->clear();
-    costs->clear();
-
     SMPL_DEBUG_NAMED(params()->expands_log, "expanding state %d", state_id);
 
     // goal state should be absorbing
@@ -276,35 +273,29 @@ void ManipLattice::GetSuccs(
     if (goal_succ_count > 0) {
         SMPL_DEBUG_NAMED(params()->expands_log, "Got %d goal successors!", goal_succ_count);
     }
-
-    m_expanded_states.push_back(state_id);
 }
 
 Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
 
 void ManipLattice::GetLazySuccs(
-    int SourceStateID,
-    std::vector<int>* SuccIDV,
-    std::vector<int>* CostV,
-    std::vector<bool>* isTrueCost)
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs,
+    std::vector<bool>* true_costs)
 {
     GetLazySuccsStopwatch.start();
     PROFAUTOSTOP(GetLazySuccsStopwatch);
 
-    assert(SourceStateID >= 0 && SourceStateID < m_states.size());
+    assert(state_id >= 0 && state_id < m_states.size());
 
-    SuccIDV->clear();
-    CostV->clear();
-    isTrueCost->clear();
-
-    SMPL_DEBUG_NAMED(params()->expands_log, "expand state %d", SourceStateID);
+    SMPL_DEBUG_NAMED(params()->expands_log, "expand state %d", state_id);
 
     // goal state should be absorbing
-    if (SourceStateID == m_goal_state_id) {
+    if (state_id == m_goal_state_id) {
         return;
     }
 
-    ManipLatticeState* state_entry = m_states[SourceStateID];
+    ManipLatticeState* state_entry = m_states[state_id];
 
     assert(state_entry);
     assert(state_entry->coord.size() >= robot()->jointVariableCount());
@@ -312,7 +303,7 @@ void ManipLattice::GetLazySuccs(
     // log expanded state details
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state_entry->coord);
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << state_entry->state);
-    SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(SourceStateID));
+    SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     const RobotState& source_angles = state_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(source_angles, "expansion"));
@@ -344,12 +335,12 @@ void ManipLattice::GetLazySuccs(
         ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
 
         if (succ_is_goal_state) {
-            SuccIDV->push_back(m_goal_state_id);
+            succs->push_back(m_goal_state_id);
         } else {
-            SuccIDV->push_back(succ_state_id);
+            succs->push_back(succ_state_id);
         }
-        CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
-        isTrueCost->push_back(false);
+        costs->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
+        true_costs->push_back(false);
 
         // log successor details
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
@@ -363,8 +354,6 @@ void ManipLattice::GetLazySuccs(
     if (goal_succ_count > 0) {
         SMPL_DEBUG_NAMED(params()->expands_log, "Got %d goal successors!", goal_succ_count);
     }
-
-    m_expanded_states.push_back(SourceStateID);
 }
 
 Stopwatch GetTrueCostStopwatch("GetTrueCost", 10);
@@ -482,9 +471,9 @@ bool ManipLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 }
 
 void ManipLattice::GetPreds(
-    int TargetStateID,
-    std::vector<int>* PredIDV,
-    std::vector<int>* CostV)
+    int state_id,
+    std::vector<int>* preds,
+    std::vector<int>* costs)
 {
     SMPL_WARN("GetPreds unimplemented");
 }
@@ -730,12 +719,11 @@ bool ManipLattice::isGoal(const RobotState& state)
                 auto time_to_goal_s =
                         duration_cast<duration<double>>(time_to_goal_region);
                 m_near_goal = true;
-                SMPL_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
+                SMPL_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec.",
                         pose[0], pose[1], pose[2],
                         goal().xyz_tolerance[0],
                         goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
-                        time_to_goal_s.count(),
-                        m_expanded_states.size());
+                        time_to_goal_s.count());
             }
             Eigen::Quaterniond qg(
                     Eigen::AngleAxisd(goal().tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
@@ -841,19 +829,6 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
         return setGoalConfiguration(goal);
     default:
         return false;
-    }
-}
-
-void ManipLattice::getExpandedStates(std::vector<RobotState>& states) const
-{
-    RobotState state(robot()->jointVariableCount(), 0);
-
-    for (size_t i = 0; i < m_expanded_states.size(); ++i) {
-        const ManipLatticeState* entry = getHashEntry(m_expanded_states[i]);
-        if (entry) {
-            states.push_back(entry->state);
-        }
-        states.push_back(state);
     }
 }
 
@@ -1107,7 +1082,6 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 // Reset any variables that should be set just before a new search is started.
 void ManipLattice::startNewSearch()
 {
-    m_expanded_states.clear();
     m_near_goal = false;
     m_t_start = clock::now();
 }

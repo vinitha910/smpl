@@ -116,8 +116,6 @@ public:
 
     RobotState getStartConfiguration() const;
 
-    void getExpandedStates(std::vector<RobotState>& states) const;
-
     void setVisualizationFrameId(const std::string& frame_id);
     const std::string& visualizationFrameId() const;
 
@@ -229,8 +227,6 @@ private:
     // maps from stateID to coords
     std::vector<ManipLatticeState*> m_states;
 
-    // stateIDs of expanded states
-    std::vector<int> m_expanded_states;
     bool m_near_goal = false;
     clock::time_point m_t_start;
 
