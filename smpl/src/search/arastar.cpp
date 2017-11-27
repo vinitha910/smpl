@@ -60,7 +60,6 @@ ARAStar::ARAStar(
     m_states(),
     m_start_state_id(-1),
     m_goal_state_id(-1),
-    m_graph_to_search_map(),
     m_open(),
     m_incons(),
     m_curr_eps(1.0),
@@ -89,7 +88,9 @@ ARAStar::ARAStar(
 ARAStar::~ARAStar()
 {
     for (SearchState* s : m_states) {
-        delete s;
+        if (s != NULL) {
+            delete s;
+        }
     }
 }
 
@@ -288,10 +289,10 @@ int ARAStar::force_planning_from_scratch_and_free_memory()
 {
     force_planning_from_scratch();
     m_open.clear();
-    m_graph_to_search_map.clear();
-    m_graph_to_search_map.shrink_to_fit();
     for (SearchState* s : m_states) {
-        delete s;
+        if (s != NULL) {
+            delete s;
+        }
     }
     m_states.clear();
     m_states.shrink_to_fit();
@@ -397,7 +398,9 @@ void ARAStar::costs_changed(const StateChangeQuery& changes)
 void ARAStar::recomputeHeuristics()
 {
     for (SearchState* s : m_states) {
-        s->h = m_heur->GetGoalHeuristic(s->state_id);
+        if (s != NULL) {
+            s->h = m_heur->GetGoalHeuristic(s->state_id);
+        }
     }
 }
 
@@ -572,28 +575,26 @@ int ARAStar::computeKey(SearchState* s) const
 // one has not been created yet.
 ARAStar::SearchState* ARAStar::getSearchState(int state_id)
 {
-    if (m_graph_to_search_map.size() <= state_id) {
-        m_graph_to_search_map.resize(state_id + 1, -1);
+    if (m_states.size() <= state_id) {
+        m_states.resize(state_id + 1, nullptr);
     }
 
-    if (m_graph_to_search_map[state_id] == -1) {
-        return createState(state_id);
-    } else {
-        return m_states[m_graph_to_search_map[state_id]];
+    auto& state = m_states[state_id];
+    if (state == NULL) {
+        state = createState(state_id);
     }
+
+    return state;
 }
 
 // Create a new search state for a graph state.
 ARAStar::SearchState* ARAStar::createState(int state_id)
 {
-    assert(state_id < m_graph_to_search_map.size());
-
-    m_graph_to_search_map[state_id] = (int)m_states.size();
+    assert(state_id < m_states.size());
 
     SearchState* ss = new SearchState;
     ss->state_id = state_id;
     ss->call_number = 0;
-    m_states.push_back(ss);
 
     return ss;
 }

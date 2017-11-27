@@ -200,10 +200,6 @@ private:
     int m_start_state_id;   // graph state id for the start state
     int m_goal_state_id;    // graph state id for the goal state
 
-    // map from graph state id to search state id, incrementally expanded
-    // as states are encountered during the search
-    std::vector<int> m_graph_to_search_map;
-
     // search state (not including the values of g, f, back pointers, and
     // closed list from m_stats)
     intrusive_heap<SearchState, SearchStateCompare> m_open;
