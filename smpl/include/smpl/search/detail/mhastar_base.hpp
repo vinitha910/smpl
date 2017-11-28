@@ -38,15 +38,10 @@
 #include <sbpl/utils/key.h>
 
 // project includes
-#include <ros/console.h>
 #include <smpl/time.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
-
-static double to_secs(const sbpl::clock::duration &d)
-{
-    return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
-}
 
 template <typename Derived>
 MultiHeuristicAStarBase<Derived>::MultiHeuristicAStarBase(
@@ -71,7 +66,7 @@ MultiHeuristicAStarBase<Derived>::MultiHeuristicAStarBase(
     m_search_states(),
     m_open(nullptr)
 {
-    ROS_INFO("Construct Focal MHA* Search with %d heuristics", hcount);
+    SMPL_INFO("Construct Focal MHA* Search with %d heuristics", hcount);
     environment_ = environment;
 
     m_open = new rank_pq[hcount + 1];
@@ -97,7 +92,7 @@ MultiHeuristicAStarBase<Derived>::~MultiHeuristicAStarBase()
 template <typename Derived>
 int MultiHeuristicAStarBase<Derived>::set_start(int start_state_id)
 {
-    ROS_INFO("Set start to %d", start_state_id);
+    SMPL_INFO("Set start to %d", start_state_id);
     m_start_state = get_state(start_state_id);
     if (!m_start_state) {
         return 0;
@@ -109,7 +104,7 @@ int MultiHeuristicAStarBase<Derived>::set_start(int start_state_id)
 template <typename Derived>
 int MultiHeuristicAStarBase<Derived>::set_goal(int goal_state_id)
 {
-    ROS_INFO("Set goal to %d", goal_state_id);
+    SMPL_INFO("Set goal to %d", goal_state_id);
     m_goal_state = get_state(goal_state_id);
     if (!m_goal_state) {
         return 0;
@@ -153,9 +148,9 @@ int MultiHeuristicAStarBase<Derived>::replan(
     ReplanParams params,
     int* solcost)
 {
-    ROS_INFO("Call replan");
+    SMPL_INFO("Call replan");
     if (!check_params(params)) { // errors printed within
-        ROS_WARN(" -> Parameters invalid");
+        SMPL_WARN(" -> Parameters invalid");
         return 0;
     }
 
@@ -191,7 +186,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
     reinit_state(m_start_state);
     m_start_state->g = 0;
 
-    ROS_INFO("Insert start state into OPEN and PSET");
+    SMPL_INFO("Insert start state into OPEN and PSET");
 
     // insert start state into OPEN with g(s) + h(s) as the priority
     // insert start state into PSET and place in all RANK lists
@@ -200,20 +195,20 @@ int MultiHeuristicAStarBase<Derived>::replan(
     for (int hidx = 1; hidx < num_heuristics(); ++hidx) {
         m_start_state->od[hidx].f = compute_key(m_start_state, hidx);
         m_open[hidx].push(&m_start_state->od[hidx]);
-        ROS_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, hidx, m_start_state->od[hidx].f);
+        SMPL_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, hidx, m_start_state->od[hidx].f);
     }
 
     reinitSearch();
 
     auto end_time = sbpl::clock::now();
-    m_elapsed += to_secs(end_time - start_time);
+    m_elapsed += to_seconds(end_time - start_time);
 
     while (!m_open[0].empty() && !time_limit_reached()) {
         auto start_time = sbpl::clock::now();
 
         for (int hidx = 1; hidx < num_heuristics(); ++hidx) {
             if (m_open[0].empty()) {
-                ROS_WARN("Open list empty during inadmissible expansions?");
+                SMPL_WARN("Open list empty during inadmissible expansions?");
                 break;
             }
 
@@ -228,7 +223,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
                 expand(s, hidx);
                 s->closed_in_add = true;
             } else {
-                ROS_WARN("PSET empty during inadmissible expansions?");
+                SMPL_WARN("PSET empty during inadmissible expansions?");
             }
         }
 
@@ -247,14 +242,14 @@ int MultiHeuristicAStarBase<Derived>::replan(
         }
 
         auto end_time = sbpl::clock::now();
-        m_elapsed += to_secs(end_time - start_time);
+        m_elapsed += to_seconds(end_time - start_time);
     }
 
     if (m_open[0].empty()) {
-        ROS_INFO("Anchor search exhausted");
+        SMPL_INFO("Anchor search exhausted");
     }
     if (time_limit_reached()) {
-        ROS_INFO("Time limit reached");
+        SMPL_INFO("Time limit reached");
     }
 
     return 0;
@@ -496,11 +491,11 @@ void MultiHeuristicAStarBase<Derived>::init_state(
         state->od[i].me = state;
     }
 
-    ROS_DEBUG_STREAM("Initialized state: " << *state);
+    SMPL_DEBUG_STREAM("Initialized state: " << *state);
     for (int i = 0; i < num_heuristics(); ++i) {
-        ROS_DEBUG("  me[%d]: %p", i, state->od[i].me);
-        ROS_DEBUG("  h[%d]: %d", i, state->od[i].h);
-        ROS_DEBUG("  f[%d]: %d", i, state->od[i].f);
+        SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
+        SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
+        SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
     }
 }
 
@@ -523,11 +518,11 @@ void MultiHeuristicAStarBase<Derived>::reinit_state(MHASearchState* state)
             state->od[i].f = INFINITECOST;
         }
 
-        ROS_DEBUG_STREAM("Reinitialized state: " << *state);
+        SMPL_DEBUG_STREAM("Reinitialized state: " << *state);
         for (int i = 0; i < num_heuristics(); ++i) {
-            ROS_DEBUG("  me[%d]: %p", i, state->od[i].me);
-            ROS_DEBUG("  h[%d]: %d", i, state->od[i].h);
-            ROS_DEBUG("  f[%d]: %d", i, state->od[i].f);
+            SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
+            SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
+            SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
         }
     }
 }
@@ -559,7 +554,7 @@ int MultiHeuristicAStarBase<Derived>::compute_key(MHASearchState* state, int hid
 template <typename Derived>
 void MultiHeuristicAStarBase<Derived>::expand(MHASearchState* state, int hidx)
 {
-    ROS_INFO("Expanding state %d in search %d", state->state_id, hidx);
+    SMPL_INFO("Expanding state %d in search %d", state->state_id, hidx);
 
     assert(!closed_in_add_search(state) || !closed_in_anc_search(state));
 
@@ -661,7 +656,7 @@ MHASearchState* MultiHeuristicAStarBase<Derived>::select_state(int hidx)
 template <typename Derived>
 void MultiHeuristicAStarBase<Derived>::extract_path(std::vector<int>* solution_path, int* solcost)
 {
-    ROS_INFO("Extracting path");
+    SMPL_INFO("Extracting path");
     solution_path->clear();
     *solcost = 0;
     for (MHASearchState* state = m_goal_state; state; state = state->bp)
