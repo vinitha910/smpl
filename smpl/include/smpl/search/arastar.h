@@ -34,6 +34,7 @@
 
 // standard includes
 #include <assert.h>
+#include <algorithm>
 
 // system includes
 #include <sbpl/heuristics/heuristic.h>
