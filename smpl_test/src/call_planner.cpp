@@ -32,20 +32,26 @@
 // standard includes
 #include <stdlib.h>
 #include <string>
+#include <thread>
 #include <vector>
 
 // system includes
+#include <eigen_conversions/eigen_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <moveit_msgs/GetMotionPlan.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <ros/ros.h>
 #include <smpl/ros/planner_interface.h>
+#include <smpl/distance_map/edge_euclid_distance_map.h>
+#include <smpl/distance_map/euclid_distance_map.h>
+#include <smpl/ros/propagation_distance_field.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/ubr1_kdl_robot_model.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <smpl/angles.h>
 #include <smpl/debug/visualizer_ros.h>
 
 namespace smpl = sbpl::motion;
@@ -74,7 +80,9 @@ void FillGoalConstraint(
 //    goals.position_constraints[0].position.y = pose[1];
 //    goals.position_constraints[0].position.z = pose[2];
 
-    leatherman::rpyToQuatMsg(pose[3], pose[4], pose[5], goals.orientation_constraints[0].orientation);
+    Eigen::Quaterniond q;
+    sbpl::angles::from_euler_zyx(pose[5], pose[4], pose[3], q);
+    tf::quaternionEigenToMsg(q, goals.orientation_constraints[0].orientation);
 
     geometry_msgs::Pose p;
     p.position = goals.position_constraints[0].constraint_region.primitive_poses[0].position;
@@ -90,11 +98,12 @@ void FillGoalConstraint(
     ROS_INFO("Done packing the goal constraints message.");
 }
 
-moveit_msgs::CollisionObject GetCollisionCube(
-    geometry_msgs::Pose pose,
+auto GetCollisionCube(
+    const geometry_msgs::Pose& pose,
     std::vector<double>& dims,
-    std::string frame_id,
-    std::string id)
+    const std::string& frame_id,
+    const std::string& id)
+    -> moveit_msgs::CollisionObject
 {
     moveit_msgs::CollisionObject object;
     object.id = id;
@@ -114,10 +123,11 @@ moveit_msgs::CollisionObject GetCollisionCube(
     return object;
 }
 
-std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
-    std::vector<std::vector<double> > &objects,
-    std::vector<std::string> &object_ids,
-    std::string frame_id)
+auto GetCollisionCubes(
+    std::vector<std::vector<double>>& objects,
+    std::vector<std::string>& object_ids,
+    const std::string& frame_id)
+    -> std::vector<moveit_msgs::CollisionObject>
 {
     std::vector<moveit_msgs::CollisionObject> objs;
     std::vector<double> dims(3,0);
@@ -145,9 +155,10 @@ std::vector<moveit_msgs::CollisionObject> GetCollisionCubes(
     return objs;
 }
 
-std::vector<moveit_msgs::CollisionObject> GetCollisionObjects(
-    std::string filename,
-    std::string frame_id)
+auto GetCollisionObjects(
+    const std::string& filename,
+    const std::string& frame_id)
+    -> std::vector<moveit_msgs::CollisionObject>
 {
     char sTemp[1024];
     int num_obs = 0;
@@ -155,10 +166,7 @@ std::vector<moveit_msgs::CollisionObject> GetCollisionObjects(
     std::vector<std::vector<double> > objects;
     std::vector<moveit_msgs::CollisionObject> objs;
 
-    char* file = new char[filename.length()+1];
-    filename.copy(file, filename.length(),0);
-    file[filename.length()] = '\0';
-    FILE* fCfg = fopen(file, "r");
+    FILE* fCfg = fopen(filename.c_str(), "r");
 
     if (fCfg == NULL) {
         ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
@@ -247,15 +255,20 @@ bool ReadInitialConfiguration(
                 for (int i = 0; i < xlist.size(); ++i) {
                     multi_dof_joint_state.joint_names[i] = std::string(xlist[i]["child_frame_id"]);
 
-                    geometry_msgs::Pose pose;
-                    leatherman::rpyToQuatMsg(xlist[i]["roll"], xlist[i]["pitch"], xlist[i]["yaw"], pose.orientation);
+                    Eigen::Quaterniond q;
+                    sbpl::angles::from_euler_zyx(
+                            (double)xlist[i]["yaw"], (double)xlist[i]["pitch"], (double)xlist[i]["roll"], q);
+
+                    geometry_msgs::Quaternion orientation;
+                    tf::quaternionEigenToMsg(q, orientation);
+
                     multi_dof_joint_state.transforms[i].translation.x = xlist[i]["x"];
                     multi_dof_joint_state.transforms[i].translation.y = xlist[i]["y"];
                     multi_dof_joint_state.transforms[i].translation.z = xlist[i]["z"];
-                    multi_dof_joint_state.transforms[i].rotation.w = pose.orientation.w;
-                    multi_dof_joint_state.transforms[i].rotation.x = pose.orientation.x;
-                    multi_dof_joint_state.transforms[i].rotation.y = pose.orientation.y;
-                    multi_dof_joint_state.transforms[i].rotation.z = pose.orientation.z;
+                    multi_dof_joint_state.transforms[i].rotation.w = orientation.w;
+                    multi_dof_joint_state.transforms[i].rotation.x = orientation.x;
+                    multi_dof_joint_state.transforms[i].rotation.y = orientation.y;
+                    multi_dof_joint_state.transforms[i].rotation.z = orientation.z;
                 }
             } else {
                 ROS_WARN("initial_configuration/multi_dof_joint_state array is empty");
@@ -316,14 +329,14 @@ struct PlannerConfig
 {
     std::string discretization;
     std::string mprim_filename;
-    std::string use_xyz_snap_mprim;
-    std::string use_rpy_snap_mprim;
-    std::string use_xyzrpy_snap_mprim;
-    std::string use_short_dist_mprims;
-    std::string xyz_snap_dist_thresh;
-    std::string rpy_snap_dist_thresh;
-    std::string xyzrpy_snap_dist_thresh;
-    std::string short_dist_mprims_thresh;
+    bool use_xyz_snap_mprim;
+    bool use_rpy_snap_mprim;
+    bool use_xyzrpy_snap_mprim;
+    bool use_short_dist_mprims;
+    double xyz_snap_dist_thresh;
+    double rpy_snap_dist_thresh;
+    double xyzrpy_snap_dist_thresh;
+    double short_dist_mprims_thresh;
 };
 
 bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
@@ -381,17 +394,18 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
     return true;
 }
 
-std::unique_ptr<smpl::KDLRobotModel> SetupRobotModel(
+auto SetupRobotModel(
     const std::string& urdf,
     const RobotModelConfig &config,
     const std::string& planning_frame)
+    -> std::unique_ptr<smpl::KDLRobotModel>
 {
+    std::unique_ptr<smpl::KDLRobotModel> rm;
+
     if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
         ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
-        return false;
+        return rm;
     }
-
-    std::unique_ptr<smpl::KDLRobotModel> rm;
 
     if (config.group_name == "right_arm") {
         ROS_INFO("Construct PR2 Robot Model");
@@ -1521,9 +1535,6 @@ int main(int argc, char* argv[])
     sbpl::VisualizerROS visualizer(nh, 100);
     sbpl::viz::set_visualizer(&visualizer);
 
-    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>(
-            "visualization_markers", 100);
-
     // let publishers set up
     ros::Duration(1.0).sleep();
 
@@ -1581,19 +1592,24 @@ int main(int argc, char* argv[])
     const double df_origin_y = -1.5;
     const double df_origin_z = 0.0;
     const double max_distance = 1.8;
-    const bool propagate_negative_distances = false;
-    const bool ref_counted = true;
 
-    sbpl::OccupancyGrid grid(
+//    typedef sbpl::EdgeEuclidDistanceMap DistanceMapType;
+    typedef sbpl::EuclidDistanceMap DistanceMapType;
+//    typedef sbpl::PropagationDistanceField DistanceMapType;
+
+    ROS_INFO("Create distance map");
+    auto df = std::make_shared<DistanceMapType>(
+            df_origin_x, df_origin_y, df_origin_z,
             df_size_x, df_size_y, df_size_z,
             df_res,
-            df_origin_x, df_origin_y, df_origin_z,
-            max_distance,
-            propagate_negative_distances,
-            ref_counted);
+            max_distance);
+
+    ROS_INFO("Create grid");
+    const bool ref_counted = false;
+    sbpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
-    ma_pub.publish(grid.getBoundingBoxVisualization());
+    SV_SHOW_INFO(grid.getBoundingBoxVisualization());
 
     ///////////////////////
     // Collision Checker //
@@ -1605,15 +1621,14 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    sbpl::collision::CollisionSpaceBuilder builder;
-    auto cc = builder.build(&grid, urdf, cc_conf, group_name, planning_joints);
-    if (!cc) {
+    sbpl::collision::CollisionSpace cc;
+    if (!cc.init(&grid, urdf, cc_conf, group_name, planning_joints)) {
         ROS_ERROR("Failed to initialize Collision Space");
         return 1;
     }
 
-    if (cc->robotCollisionModel()->name() == "pr2") {
-        initAllowedCollisionsPR2(*cc);
+    if (cc.robotCollisionModel()->name() == "pr2") {
+        initAllowedCollisionsPR2(cc);
     }
 
     /////////////////
@@ -1634,19 +1649,21 @@ int main(int argc, char* argv[])
         ROS_ERROR("Failed to get initial configuration.");
         return 0;
     }
-    scene.robot_model_name = cc->robotCollisionModel()->name();
+    scene.robot_model_name = cc.robotCollisionModel()->name();
     scene.robot_state.joint_state.header.frame_id = planning_frame;
     scene.world.octomap.header.frame_id = planning_frame;
     scene.world.octomap.octomap.binary = true;
     scene.is_diff = true;
 
-    cc->setWorldToModelTransform(Eigen::Affine3d::Identity());
+    cc.setWorldToModelTransform(Eigen::Affine3d::Identity());
 
     // set planning scene
-    if (!cc->setPlanningScene(scene)) {
+    if (!cc.setPlanningScene(scene)) {
         ROS_ERROR("Failed to update Collision Checker from Planning Scene");
         return false;
     }
+
+    SV_SHOW_INFO(grid.getDistanceFieldVisualization(0.2));
 
     // set the kinematics to planning transform if found in the initial
     // configuration as a multi-dof transform...this is to account for the kdl
@@ -1673,14 +1690,12 @@ int main(int argc, char* argv[])
         ROS_WARN("You might want to provide the planning frame -> kinematics frame transform in the multi-dof joint state");
     }
 
-    auto markers = cc->getBoundingBoxVisualization();
-    ROS_INFO("Publish %zu bounding box markers", markers.markers.size());
-    ma_pub.publish(markers);
-    markers = cc->getCollisionWorldVisualization();
+    SV_SHOW_INFO(cc.getBoundingBoxVisualization());
+    auto markers = cc.getCollisionWorldVisualization();
     ROS_INFO("Publish %zu collision world markers", markers.markers.size());
-    ma_pub.publish(cc->getCollisionRobotVisualization());
-    ma_pub.publish(markers);
-    ma_pub.publish(cc->getOccupiedVoxelsVisualization());
+    SV_SHOW_INFO(cc.getCollisionRobotVisualization());
+    SV_SHOW_INFO(markers);
+    SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
 
     ///////////////////
     // Planner Setup //
@@ -1692,22 +1707,26 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    smpl::PlannerInterface planner(rm.get(), cc.get(), &grid);
+    smpl::PlannerInterface planner(rm.get(), &cc, &grid);
 
     smpl::PlanningParams params;
-    params.epsilon = 100.0;
     params.planning_frame = planning_frame;
 
-    params.params["discretization"] = planning_config.discretization;
-    params.params["mprim_filename"] = planning_config.mprim_filename;
-    params.params["use_xyz_snap_mprim"] = planning_config.use_xyz_snap_mprim;
-    params.params["use_rpy_snap_mprim"] = planning_config.use_rpy_snap_mprim;
-    params.params["use_xyzrpy_snap_mprim"] = planning_config.use_xyzrpy_snap_mprim;
-    params.params["use_short_dist_mprims"] = planning_config.use_short_dist_mprims;
-    params.params["xyz_snap_dist_thresh"] = planning_config.xyz_snap_dist_thresh;
-    params.params["rpy_snap_dist_thresh"] = planning_config.rpy_snap_dist_thresh;
-    params.params["xyzrpy_snap_dist_thresh"] = planning_config.xyzrpy_snap_dist_thresh;
-    params.params["short_dist_mprims_thresh"] = planning_config.short_dist_mprims_thresh;
+    params.planning_link_sphere_radius = 0.02;
+
+    params.addParam("discretization", planning_config.discretization);
+    params.addParam("mprim_filename", planning_config.mprim_filename);
+    params.addParam("use_xyz_snap_mprim", planning_config.use_xyz_snap_mprim);
+    params.addParam("use_rpy_snap_mprim", planning_config.use_rpy_snap_mprim);
+    params.addParam("use_xyzrpy_snap_mprim", planning_config.use_xyzrpy_snap_mprim);
+    params.addParam("use_short_dist_mprims", planning_config.use_short_dist_mprims);
+    params.addParam("xyz_snap_dist_thresh", planning_config.xyz_snap_dist_thresh);
+    params.addParam("rpy_snap_dist_thresh", planning_config.rpy_snap_dist_thresh);
+    params.addParam("xyzrpy_snap_dist_thresh", planning_config.xyzrpy_snap_dist_thresh);
+    params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
+    params.addParam("repair_time", 5.0);
+
+    params.addParam("epsilon", 100.0);
 
     if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Planner Interface");
@@ -1754,31 +1773,22 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    std::vector<std::string> statistic_names = {
-            "initial solution planning time",
-            "initial epsilon",
-            "initial solution expansions",
-            "final epsilon planning time",
-            "final epsilon",
-            "solution epsilon",
-            "expansions",
-            "solution cost"
-    };
     std::map<std::string, double> planning_stats = planner.getPlannerStats();
 
     ROS_INFO("Planning statistics");
-    for (const auto& statistic : statistic_names) {
-        auto it = planning_stats.find(statistic);
-        if (it != planning_stats.end()) {
-            ROS_INFO("    %s: %0.3f", statistic.c_str(), it->second);
-        }
-        else {
-            ROS_WARN("Did not find planning statistic \"%s\"", statistic.c_str());
+    for (const auto& entry : planning_stats) {
+        ROS_INFO("    %s: %0.3f", entry.first.c_str(), entry.second);
+    }
+
+    ROS_INFO("Animate path");
+
+    while (ros::ok()) {
+        for (const auto &point : res.trajectory.joint_trajectory.points) {
+            auto markers = cc.getCollisionRobotVisualization(point.positions);
+            SV_SHOW_INFO(markers);
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
-    ROS_INFO("Done");
-
-    ros::spin();
     return 0;
 }

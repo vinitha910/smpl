@@ -33,29 +33,33 @@
 #include <cmath>
 #include <cstdlib>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <random>
 
 // system includes
 #include <ros/ros.h>
-
+#include <smpl/distance_map/distance_map.h>
+#include <smpl/distance_map/sparse_distance_map.h>
+#include <smpl/distance_map/euclid_distance_map.h>
 #include <smpl/occupancy_grid.h>
 #include <sbpl_collision_checking/collision_space.h>
 #include <urdf/model.h>
 
-sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
+auto CreateGrid(const ros::NodeHandle& nh, double max_dist)
+    -> std::unique_ptr<sbpl::OccupancyGrid>
 {
     const char* world_collision_model_param = "world_collision_model";
     std::string wcm_key;
     if (!nh.searchParam(world_collision_model_param, wcm_key)) {
         ROS_ERROR("Failed to find 'world_collision_model' key on the param server");
-        return sbpl::OccupancyGridPtr();
+        return nullptr;
     }
 
     XmlRpc::XmlRpcValue wcm_config;
     if (!nh.getParam(wcm_key, wcm_config)) {
         ROS_ERROR("Failed to retrieve '%s' from the param server", wcm_key.c_str());
-        return sbpl::OccupancyGridPtr();
+        return nullptr;
     }
 
     if (wcm_config.getType() != XmlRpc::XmlRpcValue::TypeStruct ||
@@ -66,7 +70,8 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         !wcm_config.hasMember("origin_x") ||
         !wcm_config.hasMember("origin_y") ||
         !wcm_config.hasMember("origin_z") ||
-        !wcm_config.hasMember("res_m"))
+        !wcm_config.hasMember("res_m") ||
+        !wcm_config.hasMember("max_distance_m"))
     {
         ROS_ERROR("'%s' param is malformed", world_collision_model_param);
         ROS_ERROR_STREAM("has frame_id member " << wcm_config.hasMember("frame_id"));
@@ -77,7 +82,8 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
         ROS_ERROR_STREAM("has origin_y member " << wcm_config.hasMember("origin_y"));
         ROS_ERROR_STREAM("has origin_z member " << wcm_config.hasMember("origin_z"));
         ROS_ERROR_STREAM("has res_m member " << wcm_config.hasMember("res_m"));
-        return sbpl::OccupancyGridPtr();
+        ROS_ERROR_STREAM("has max_distance_m member " << wcm_config.hasMember("max_distance_m"));
+        return nullptr;
     }
 
     const std::string world_frame = wcm_config["frame_id"];
@@ -88,8 +94,8 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     const double origin_x = wcm_config["origin_x"];
     const double origin_y = wcm_config["origin_y"];
     const double origin_z = wcm_config["origin_z"];
-    const double max_distance_m = max_dist + res_m;
-    const bool propagate_negative_distances = false;
+    const double cfg_max_dist = wcm_config["max_distance_m"];
+    const double max_distance_m = std::max(max_dist + sqrt(3.0) * res_m, cfg_max_dist);
     const bool ref_counted = true;
 
     ROS_INFO("Occupancy Grid:");
@@ -98,13 +104,37 @@ sbpl::OccupancyGridPtr CreateGrid(const ros::NodeHandle& nh, double max_dist)
     ROS_INFO("  res: %0.3f", res_m);
     ROS_INFO("  max_distance: %0.3f", max_distance_m);
 
-    auto grid = std::make_shared<sbpl::OccupancyGrid>(
-            size_x, size_y, size_z,
-            res_m,
-            origin_x, origin_y, origin_z,
-            max_distance_m,
-            propagate_negative_distances,
-            ref_counted);
+    const int dflib = 2; // 0 -> my dense, 1 -> my sparse, 2 -> df
+
+    std::unique_ptr<sbpl::OccupancyGrid> grid;
+    if (dflib == 0) {
+        auto df = std::make_shared<sbpl::EuclidDistanceMap>(
+                origin_x, origin_y, origin_z,
+                size_x, size_y, size_z,
+                res_m,
+                max_distance_m);
+
+        grid = std::unique_ptr<sbpl::OccupancyGrid>(
+                new sbpl::OccupancyGrid(df, ref_counted));
+
+    } else if (dflib == 1){
+        auto df = std::make_shared<sbpl::SparseDistanceMap>(
+                origin_x, origin_y, origin_z,
+                size_x, size_y, size_z,
+                res_m,
+                max_distance_m);
+        grid = std::unique_ptr<sbpl::OccupancyGrid>(
+                new sbpl::OccupancyGrid(df, ref_counted));
+    } else {
+        grid = std::unique_ptr<sbpl::OccupancyGrid>(
+                new sbpl::OccupancyGrid(
+                        size_x, size_y, size_z,
+                        res_m,
+                        origin_x, origin_y, origin_z,
+                        max_distance_m,
+                        ref_counted));
+    }
+
     grid->setReferenceFrame(world_frame);
     return grid;
 }
@@ -128,10 +158,10 @@ public:
 private:
 
     ros::NodeHandle m_nh;
-    sbpl::OccupancyGridPtr m_grid;
+    std::unique_ptr<sbpl::OccupancyGrid> m_grid;
     std::vector<std::string> m_planning_joints;
     sbpl::collision::RobotCollisionModelPtr m_rcm;
-    sbpl::collision::CollisionSpacePtr m_cspace;
+    sbpl::collision::CollisionSpace m_cspace;
     std::default_random_engine m_rng;
     ros::Publisher m_pub;
 
@@ -185,17 +215,14 @@ bool CollisionSpaceProfiler::init()
         "r_wrist_roll_joint",
     };
 
-    sbpl::collision::CollisionSpaceBuilder builder;
-    m_cspace = builder.build(m_grid.get(), m_rcm, group_name, m_planning_joints);
+    if (!m_cspace.init(m_grid.get(), m_rcm, group_name, m_planning_joints)) {
+        ROS_ERROR("Failed to initialize Collision Space");
+        return false;
+    }
 
     sbpl::collision::AllowedCollisionMatrix acm;
     initACM(acm);
-    m_cspace->setAllowedCollisionMatrix(acm);
-
-    if (!m_cspace) {
-        ROS_ERROR("Failed to build Collision Space");
-        return false;
-    }
+    m_cspace.setAllowedCollisionMatrix(acm);
 
     m_pub = m_nh.advertise<visualization_msgs::MarkerArray>(
             "visualization_markers", 100);
@@ -216,7 +243,7 @@ CollisionSpaceProfiler::profileCollisionChecks(double time_limit)
         auto variables = createRandomState();
         auto start = std::chrono::high_resolution_clock::now();
         double dist;
-        bool res = m_cspace->checkCollision(variables, dist);
+        bool res = m_cspace.checkCollision(variables, dist);
         auto finish = std::chrono::high_resolution_clock::now();
         elapsed += std::chrono::duration<double>(finish - start).count();
         ++check_count;
@@ -239,7 +266,7 @@ CollisionSpaceProfiler::profileDistanceChecks(double time_limit)
     while (ros::ok() && elapsed < time_limit) {
         auto variables = createRandomState();
         auto start = std::chrono::high_resolution_clock::now();
-        double dist = m_cspace->collisionDistance(variables);
+        double dist = m_cspace.collisionDistance(variables);
         auto finish = std::chrono::high_resolution_clock::now();
         elapsed += std::chrono::duration<double>(finish - start).count();
         ++check_count;
@@ -1370,8 +1397,8 @@ int CollisionSpaceProfiler::exportCheckedStates(const char* filename, int count)
     for (int i = 0; i < count && ros::ok(); ++i) {
         auto variables = createRandomState();
         double dist;
-        bool res = m_cspace->checkCollision(variables, dist);
-        m_pub.publish(m_cspace->getCollisionRobotVisualization(variables));
+        bool res = m_cspace.checkCollision(variables, dist);
+        m_pub.publish(m_cspace.getCollisionRobotVisualization(variables));
         for (auto v : variables) {
             ofs << std::setprecision(12) << v << ' ';
         }
@@ -1392,17 +1419,29 @@ int CollisionSpaceProfiler::verifyCheckedStates(const char* filename)
     std::vector<double> vals(7);
     int ires;
     int line_count = 0;
+    int diff = 0;
+    int now_positive = 0;
+    int now_negative = 0;
     while (ifs >> vals[0] >> vals[1] >> vals[2] >>vals[3] >> vals[4] >> vals[5] >> vals[6] >> ires) {
         ++line_count;
         double dist;
-        bool res = m_cspace->checkCollision(vals, dist);
+        bool res = m_cspace.checkCollision(vals, dist);
         if ((int)res != ires) {
             ROS_ERROR("Different result for line %d", line_count);
-            return 1;
+            ++diff;
+            if (res) {
+                ++now_positive;
+            } else {
+                ++now_negative;
+            }
         }
     }
 
-    return 0;
+    if (diff) {
+        ROS_ERROR("checks for %d configurations differ (%d positive, %d negative)", diff, now_positive, now_negative);
+    }
+
+    return diff;
 }
 
 int main(int argc, char *argv[])
@@ -1454,6 +1493,8 @@ int main(int argc, char *argv[])
             ROS_INFO("checks / second: %g", res.check_count / time_limit);
             ROS_INFO("seconds / check: %g", time_limit / res.check_count);
         }
+    } else if (0 == strcmp(cmd, "load")) {
+        return 0;
     }
 
     return 0;

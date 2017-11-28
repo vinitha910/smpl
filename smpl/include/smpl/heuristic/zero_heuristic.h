@@ -42,9 +42,7 @@ class ZeroHeuristic : public RobotHeuristic
 {
 public:
 
-    ZeroHeuristic(
-        const RobotPlanningSpacePtr& ps,
-        const OccupancyGrid* grid);
+    bool init(RobotPlanningSpace* space);
 
     /// \name Required Functions from RobotHeuristic
     ///@{

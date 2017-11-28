@@ -38,12 +38,10 @@
 #include <vector>
 
 // system includes
-#include <ros/ros.h>
 #include <sbpl/headers.h>
 
 // project includes
 #include <smpl/collision_checker.h>
-#include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/time.h>
@@ -92,7 +90,9 @@ namespace motion {
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
-class WorkspaceLattice : public WorkspaceLatticeBase
+class WorkspaceLattice :
+    public WorkspaceLatticeBase,
+    public PoseProjectionExtension
 {
 public:
 
@@ -103,22 +103,27 @@ public:
         SixPose tolerance;
     };
 
-    WorkspaceLattice(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params,
-        OccupancyGrid* grid);
-
     ~WorkspaceLattice();
+
+    void setVisualizationFrameId(const std::string& frame_id);
+    const std::string& visualizationFrameId() const;
 
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
-    bool init(const Params& params) override;
+    bool init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* pp,
+        const Params& params) override;
+    ///@}
+
+    /// \name Required Functions from PoseProjectionExtension
+    ///@{
+    bool projectToPose(int state_id, Eigen::Affine3d& pose);
     ///@}
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
-    int GetGoalHeuristic(int state_id) override;
     bool setStart(const RobotState& state) override;
     bool setGoal(const GoalConstraint& goal) override;
     ///@}
@@ -156,13 +161,23 @@ public:
         FILE* fout = nullptr) override;
     ///@}
 
+    /// \name Reimplemented Functions from DiscreteSpaceInformation
+    ///@{
+    void GetLazySuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs,
+        std::vector<bool>* true_costs) override;
+    int GetTrueCost(int parent_id, int child_id) override;
+    ///@}
+
 private:
 
-    WorkspaceLatticeState* m_goal_entry;
-    int m_goal_state_id;
+    WorkspaceLatticeState* m_goal_entry = nullptr;
+    int m_goal_state_id = - 1;
 
-    WorkspaceLatticeState* m_start_entry;
-    int m_start_state_id;
+    WorkspaceLatticeState* m_start_entry = nullptr;
+    int m_start_state_id = -1;
 
     // maps state -> id
     typedef WorkspaceLatticeState StateKey;
@@ -174,11 +189,13 @@ private:
     std::vector<WorkspaceLatticeState*> m_states;
 
     clock::time_point m_t_start;
-    bool m_near_goal;
-
-    int m_goal_coord[6];
+    mutable bool m_near_goal = false; // mutable for assignment in isGoal
 
     std::vector<MotionPrimitive> m_prims;
+    bool m_ik_amp_enabled = true;
+    double m_ik_amp_thresh = 0.2;
+
+    std::string m_viz_frame_id;
 
     bool initMotionPrimitives();
 
@@ -186,21 +203,24 @@ private:
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
 
     int createState(const WorkspaceCoord& coord);
-    WorkspaceLatticeState* getState(int state_id);
+    WorkspaceLatticeState* getState(int state_id) const;
 
     void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
 
     bool checkAction(
         const RobotState& state,
         const Action& action,
-        double& dist,
         RobotState* final_rstate = nullptr);
 
-    bool isGoal(const WorkspaceState& state);
-
-    visualization_msgs::MarkerArray getStateVisualization(
+    bool checkLazyAction(
         const RobotState& state,
-        const std::string& ns);
+        const Action& action,
+        RobotState* final_rstate = nullptr);
+
+    bool isGoal(const WorkspaceState& state) const;
+
+    auto getStateVisualization(const RobotState& state, const std::string& ns)
+        -> std::vector<visual::Marker>;
 
 #if !BROKEN
     std::vector<double> mp_gradient_;

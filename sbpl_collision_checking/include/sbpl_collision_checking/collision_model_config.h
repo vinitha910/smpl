@@ -47,6 +47,16 @@
 namespace sbpl {
 namespace collision {
 
+struct WorldJointConfig
+{
+    std::string name;
+    std::string type;
+
+    static bool Load(XmlRpc::XmlRpcValue& config, WorldJointConfig& cfg);
+};
+
+std::ostream& operator<<(std::ostream&, const WorldJointConfig&);
+
 struct CollisionSphereConfig
 {
     std::string name;
@@ -97,6 +107,7 @@ std::ostream& operator<<(std::ostream&, const CollisionGroupConfig&);
 
 struct CollisionModelConfig
 {
+    WorldJointConfig                            world_joint;
     std::vector<CollisionSpheresModelConfig>    spheres_models;
     std::vector<CollisionVoxelModelConfig>      voxel_models;
     std::vector<CollisionGroupConfig>           groups;

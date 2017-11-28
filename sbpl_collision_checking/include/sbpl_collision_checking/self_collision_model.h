@@ -45,6 +45,7 @@
 #include <sbpl_collision_checking/attached_bodies_collision_model.h>
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/types.h>
 
@@ -53,7 +54,7 @@ namespace collision {
 
 class SelfCollisionModelImpl;
 
-SBPL_CLASS_FORWARD(SelfCollisionModel)
+SBPL_CLASS_FORWARD(SelfCollisionModel);
 class SelfCollisionModel
 {
 public:
@@ -74,38 +75,57 @@ public:
     void setWorldToModelTransform(const Eigen::Affine3d& transform);
 
     bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const int gidx,
         double& dist);
 
     bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
         const int gidx,
         double& dist);
 
-    double collisionDistance(
+    bool checkMotionCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
+    double collisionDistance(
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const int gidx);
 
     double collisionDistance(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
         const int gidx);
 
     bool collisionDetails(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const int gidx,
         CollisionDetails& details);
 
     bool collisionDetails(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
         const int gidx,
         CollisionDetails& details);

@@ -33,17 +33,19 @@
 #include <smpl/graph/manip_lattice.h>
 
 // standard includes
+#include <iomanip>
 #include <sstream>
 
 // system includes
 #include <Eigen/Dense>
-#include <leatherman/viz.h>
-#include <leatherman/print.h>
 #include <sbpl/planners/planner.h>
 
 #include <smpl/angles.h>
+#include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/debug/marker_utils.h>
 #include "../profiling.h"
 
 auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
@@ -57,45 +59,6 @@ auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
 namespace sbpl {
 namespace motion {
 
-ManipLattice::ManipLattice(
-    RobotModel* robot_model,
-    CollisionChecker* checker,
-    PlanningParams* _params)
-:
-    Extension(),
-    RobotPlanningSpace(robot_model, checker, _params),
-    PointProjectionExtension(),
-    ExtractRobotStateExtension(),
-    m_fk_iface(nullptr),
-    m_min_limits(),
-    m_max_limits(),
-    m_continuous(),
-    m_goal_state_id(-1),
-    m_start_state_id(-1),
-    m_states(),
-    m_expanded_states(),
-    m_near_goal(false),
-    m_t_start(),
-    m_viz_frame_id()
-{
-    m_fk_iface = robot()->getExtension<ForwardKinematicsInterface>();
-
-    m_min_limits.resize(robot()->jointVariableCount());
-    m_max_limits.resize(robot()->jointVariableCount());
-    m_continuous.resize(robot()->jointVariableCount());
-    for (int jidx = 0; jidx < robot()->jointVariableCount(); ++jidx) {
-        m_min_limits[jidx] = robot_model->minPosLimit(jidx);
-        m_max_limits[jidx] = robot_model->maxPosLimit(jidx);
-        m_continuous[jidx] = robot_model->isContinuous(jidx);
-    }
-
-    m_goal_state_id = reserveHashEntry();
-    ROS_DEBUG_NAMED(params()->graph_log, "  goal state has state ID %d", m_goal_state_id);
-
-    // compute the cost per cell to be used by heuristic
-    computeCostPerCell();
-}
-
 ManipLattice::~ManipLattice()
 {
     for (size_t i = 0; i < m_states.size(); i++) {
@@ -106,32 +69,77 @@ ManipLattice::~ManipLattice()
     m_state_to_id.clear();
 }
 
-bool ManipLattice::init(const std::vector<double>& var_res)
+bool ManipLattice::init(
+    RobotModel* _robot,
+    CollisionChecker* checker,
+    const PlanningParams* _params,
+    const std::vector<double>& resolutions,
+    ActionSpace* actions)
 {
-    if (var_res.size() != robot()->jointVariableCount()) {
-        ROS_ERROR_NAMED(params()->graph_log, "Insufficient variable resolutions for robot model");
+    SMPL_DEBUG_NAMED(_params->graph_log, "Initialize Manip Lattice");
+
+    if (!actions) {
+        SMPL_ERROR_NAMED(_params->graph_log, "Action Space is null");
         return false;
     }
 
-    std::vector<int> discretization(robot()->jointVariableCount());
-    std::vector<double> deltas(robot()->jointVariableCount());
-    for (size_t vidx = 0; vidx < robot()->jointVariableCount(); ++vidx) {
-        if (robot()->isContinuous(vidx)) {
-            discretization[vidx] = (int)std::round((2.0 * M_PI) / var_res[vidx]);
+    if (resolutions.size() != _robot->jointVariableCount()) {
+        SMPL_ERROR_NAMED(_params->graph_log, "Insufficient variable resolutions for robot model");
+        return false;
+    }
+
+    if (!RobotPlanningSpace::init(_robot, checker, _params)) {
+        SMPL_ERROR_NAMED(_params->graph_log, "Failed to initialize Robot Planning Space");
+        return false;
+    }
+
+    m_fk_iface = _robot->getExtension<ForwardKinematicsInterface>();
+
+    m_min_limits.resize(_robot->jointVariableCount());
+    m_max_limits.resize(_robot->jointVariableCount());
+    m_continuous.resize(_robot->jointVariableCount());
+    m_bounded.resize(_robot->jointVariableCount());
+    for (int jidx = 0; jidx < _robot->jointVariableCount(); ++jidx) {
+        m_min_limits[jidx] = _robot->minPosLimit(jidx);
+        m_max_limits[jidx] = _robot->maxPosLimit(jidx);
+        m_continuous[jidx] = _robot->isContinuous(jidx);
+        m_bounded[jidx] = _robot->hasPosLimit(jidx);
+
+        SMPL_DEBUG_NAMED(_params->graph_log, "variable %d: { min: %f, max: %f, continuous: %s, bounded: %s }",
+            jidx,
+            m_min_limits[jidx],
+            m_max_limits[jidx],
+            m_continuous[jidx] ? "true" : "false",
+            m_bounded[jidx] ? "true" : "false");
+    }
+
+    m_goal_state_id = reserveHashEntry();
+    SMPL_DEBUG_NAMED(_params->graph_log, "  goal state has state ID %d", m_goal_state_id);
+
+    std::vector<int> discretization(_robot->jointVariableCount());
+    std::vector<double> deltas(_robot->jointVariableCount());
+    for (size_t vidx = 0; vidx < _robot->jointVariableCount(); ++vidx) {
+        if (m_continuous[vidx]) {
+            discretization[vidx] = (int)std::round((2.0 * M_PI) / resolutions[vidx]);
             deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
-        } else if (robot()->hasPosLimit(vidx)) {
-            const double span = std::fabs(
-                    robot()->maxPosLimit(vidx) - robot()->minPosLimit(vidx));
-            discretization[vidx] = (int)std::round(span / var_res[vidx]);
+        } else if (m_bounded[vidx]) {
+            const double span = std::fabs(m_max_limits[vidx] - m_min_limits[vidx]);
+            discretization[vidx] = std::max(1, (int)std::round(span / resolutions[vidx]));
             deltas[vidx] = span / (double)discretization[vidx];
         } else {
             discretization[vidx] = std::numeric_limits<int>::max();
-            deltas[vidx] = var_res[vidx];
+            deltas[vidx] = resolutions[vidx];
         }
     }
 
+    SMPL_DEBUG_STREAM_NAMED(_params->graph_log, "  coord vals: " << discretization);
+    SMPL_DEBUG_STREAM_NAMED(_params->graph_log, "  coord deltas: " << deltas);
+
     m_coord_vals = std::move(discretization);
     m_coord_deltas = std::move(deltas);
+
+    m_actions = actions;
+
     return true;
 }
 
@@ -152,10 +160,10 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         switch (goal().type) {
         case GoalType::XYZ_GOAL:
         case GoalType::XYZ_RPY_GOAL:
-            ss << "pose: " << to_string(goal().tgt_off_pose);
+            ss << "pose: " << goal().tgt_off_pose;
             break;
         case GoalType::JOINT_STATE_GOAL:
-            ss << "state: " << to_string(goal().angles);
+            ss << "state: " << goal().angles;
             break;
         }
         ss << " }>";
@@ -171,9 +179,9 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
     }
 
     if (fout == stdout) {
-        ROS_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
+        SMPL_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
     } else if (fout == stderr) {
-        ROS_WARN("%s", ss.str().c_str());
+        SMPL_WARN("%s", ss.str().c_str());
     } else {
         fprintf(fout, "%s\n", ss.str().c_str());
     }
@@ -184,17 +192,11 @@ void ManipLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    assert(state_id >= 0 && state_id < m_states.size());
+    assert(state_id >= 0 && state_id < m_states.size() && "state id out of bounds");
+    assert(succs && costs && "successor buffer is null");
+    assert(m_actions && "action space is uninitialized");
 
-    succs->clear();
-    costs->clear();
-
-    ROS_DEBUG_NAMED(params()->expands_log, "expanding state %d", state_id);
-
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return;
-    }
+    SMPL_DEBUG_NAMED(params()->expands_log, "expanding state %d", state_id);
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -207,32 +209,31 @@ void ManipLattice::GetSuccs(
     assert(parent_entry->coord.size() >= robot()->jointVariableCount());
 
     // log expanded state details
-    ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(parent_entry->coord).c_str());
-    ROS_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(parent_entry->state).c_str());
-    ROS_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << parent_entry->state);
+    SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
 
     int goal_succ_count = 0;
 
     std::vector<Action> actions;
-    if (!action_space->apply(parent_entry->state, actions)) {
-        ROS_WARN("Failed to get actions");
+    if (!m_actions->apply(parent_entry->state, actions)) {
+        SMPL_WARN("Failed to get actions");
         return;
     }
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     // check actions for validity
     RobotCoord succ_coord(robot()->jointVariableCount(), 0);
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu:", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu:", i);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
-        double dist;
-        if (!checkAction(parent_entry->state, action, dist)) {
+        if (!checkAction(parent_entry->state, action)) {
             continue;
         }
 
@@ -241,19 +242,12 @@ void ManipLattice::GetSuccs(
 
         // get the successor
 
-        // get pose of planning link
-        std::vector<double> tgt_off_pose;
-        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-            ROS_WARN("Failed to compute FK for planning frame");
-            continue;
-        }
-
         // check if hash entry already exists, if not then create one
         int succ_state_id = getOrCreateState(succ_coord, action.back());
         ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
 
         // check if this state meets the goal criteria
-        const bool is_goal_succ = isGoal(action.back(), tgt_off_pose);
+        const bool is_goal_succ = isGoal(action.back());
         if (is_goal_succ) {
             // update goal state
             ++goal_succ_count;
@@ -268,89 +262,71 @@ void ManipLattice::GetSuccs(
         costs->push_back(cost(parent_entry, succ_entry, is_goal_succ));
 
         // log successor details
-        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
-        ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_coord).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
-        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
+        SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
+        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
 
     if (goal_succ_count > 0) {
-        ROS_DEBUG_NAMED(params()->expands_log, "Got %d goal successors!", goal_succ_count);
+        SMPL_DEBUG_NAMED(params()->expands_log, "Got %d goal successors!", goal_succ_count);
     }
-
-    m_expanded_states.push_back(state_id);
 }
 
 Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
 
 void ManipLattice::GetLazySuccs(
-    int SourceStateID,
-    std::vector<int>* SuccIDV,
-    std::vector<int>* CostV,
-    std::vector<bool>* isTrueCost)
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs,
+    std::vector<bool>* true_costs)
 {
     GetLazySuccsStopwatch.start();
     PROFAUTOSTOP(GetLazySuccsStopwatch);
 
-    assert(SourceStateID >= 0 && SourceStateID < m_states.size());
+    assert(state_id >= 0 && state_id < m_states.size());
 
-    SuccIDV->clear();
-    CostV->clear();
-    isTrueCost->clear();
-
-    ROS_DEBUG_NAMED(params()->expands_log, "expand state %d", SourceStateID);
-
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return;
-    }
+    SMPL_DEBUG_NAMED(params()->expands_log, "expand state %d", state_id);
 
     // goal state should be absorbing
-    if (SourceStateID == m_goal_state_id) {
+    if (state_id == m_goal_state_id) {
         return;
     }
 
-    ManipLatticeState* state_entry = m_states[SourceStateID];
+    ManipLatticeState* state_entry = m_states[state_id];
 
     assert(state_entry);
     assert(state_entry->coord.size() >= robot()->jointVariableCount());
 
     // log expanded state details
-    ROS_DEBUG_NAMED(params()->expands_log, "  coord: %s", to_string(state_entry->coord).c_str());
-    ROS_DEBUG_NAMED(params()->expands_log, "  angles: %s", to_string(state_entry->state).c_str());
-    ROS_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(SourceStateID));
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << state_entry->state);
+    SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     const RobotState& source_angles = state_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(source_angles, "expansion"));
 
     std::vector<Action> actions;
-    if (!action_space->apply(source_angles, actions)) {
-        ROS_WARN("Failed to get successors");
+    if (!m_actions->apply(source_angles, actions)) {
+        SMPL_WARN("Failed to get successors");
         return;
     }
 
-    ROS_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     int goal_succ_count = 0;
     RobotCoord succ_coord(robot()->jointVariableCount());
     for (size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu:", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu:", i);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
 
         stateToCoord(action.back(), succ_coord);
 
-        std::vector<double> tgt_off_pose;
-        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-            ROS_WARN("Failed to compute FK for planning frame");
-            continue;
-        }
-
-        const bool succ_is_goal_state = isGoal(action.back(), tgt_off_pose);
+        const bool succ_is_goal_state = isGoal(action.back());
         if (succ_is_goal_state) {
             ++goal_succ_count;
         }
@@ -359,28 +335,25 @@ void ManipLattice::GetLazySuccs(
         ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
 
         if (succ_is_goal_state) {
-            SuccIDV->push_back(m_goal_state_id);
+            succs->push_back(m_goal_state_id);
         } else {
-            SuccIDV->push_back(succ_state_id);
+            succs->push_back(succ_state_id);
         }
-        CostV->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
-        isTrueCost->push_back(false);
+        costs->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
+        true_costs->push_back(false);
 
         // log successor details
-        ROS_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
-        ROS_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
-        ROS_DEBUG_NAMED(params()->expands_log, "        coord: %s", to_string(succ_coord).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        state: %s", to_string(succ_entry->state).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        pose: %s", to_string(tgt_off_pose).c_str());
-        ROS_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
-        ROS_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
+        SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %zu", i);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
+        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
 
     if (goal_succ_count > 0) {
-        ROS_DEBUG_NAMED(params()->expands_log, "Got %d goal successors!", goal_succ_count);
+        SMPL_DEBUG_NAMED(params()->expands_log, "Got %d goal successors!", goal_succ_count);
     }
-
-    m_expanded_states.push_back(SourceStateID);
 }
 
 Stopwatch GetTrueCostStopwatch("GetTrueCost", 10);
@@ -390,7 +363,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     GetTrueCostStopwatch.start();
     PROFAUTOSTOP(GetTrueCostStopwatch);
 
-    ROS_DEBUG_NAMED(params()->expands_log, "evaluating cost of transition %d -> %d", parentID, childID);
+    SMPL_DEBUG_NAMED(params()->expands_log, "evaluating cost of transition %d -> %d", parentID, childID);
 
     assert(parentID >= 0 && parentID < (int)m_states.size());
     assert(childID >= 0 && childID < (int)m_states.size());
@@ -403,14 +376,9 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     const RobotState& parent_angles = parent_entry->state;
     SV_SHOW_DEBUG(getStateVisualization(parent_angles, "expansion"));
 
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        return -1;
-    }
-
     std::vector<Action> actions;
-    if (!action_space->apply(parent_angles, actions)) {
-        ROS_WARN("Failed to get actions");
+    if (!m_actions->apply(parent_angles, actions)) {
+        SMPL_WARN("Failed to get actions");
         return -1;
     }
 
@@ -426,16 +394,10 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
 
         stateToCoord(action.back(), succ_coord);
 
-        std::vector<double> tgt_off_pose;
-        if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-            ROS_WARN("Failed to compute FK for planning frame");
-            continue;
-        }
-
         // check whether this action leads to the child state
         if (goal_edge) {
             // skip actions which don't end up at a goal state
-            if (!isGoal(action.back(), tgt_off_pose)) {
+            if (!isGoal(action.back())) {
                 continue;
             }
         } else {
@@ -445,11 +407,10 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
             }
         }
 
-        ROS_DEBUG_NAMED(params()->expands_log, "    action %zu:", num_actions++);
-        ROS_DEBUG_NAMED(params()->expands_log, "      waypoints %zu:", action.size());
+        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu:", num_actions++);
+        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints %zu:", action.size());
 
-        double dist;
-        if (!checkAction(parent_angles, action, dist)) {
+        if (!checkAction(parent_angles, action)) {
             continue;
         }
 
@@ -458,8 +419,7 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
         ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
         assert(succ_entry);
 
-        const bool is_goal = isGoal(action.back(), tgt_off_pose);
-        const int edge_cost = cost(parent_entry, succ_entry, is_goal);
+        const int edge_cost = cost(parent_entry, succ_entry, goal_edge);
         if (edge_cost < best_cost) {
             best_cost = edge_cost;
         }
@@ -477,34 +437,93 @@ const RobotState& ManipLattice::extractState(int state_id)
     return m_states[state_id]->state;
 }
 
-bool ManipLattice::projectToPoint(int state_id, Eigen::Vector3d& pos)
+bool ManipLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 {
     if (state_id == getGoalStateID()) {
-        assert(goal().tgt_off_pose.size() >= 3);
-        pos.x() = goal().tgt_off_pose[0];
-        pos.y() = goal().tgt_off_pose[1];
-        pos.z() = goal().tgt_off_pose[2];
+        assert(goal().tgt_off_pose.size() >= 6);
+        Eigen::Matrix3d R;
+        angles::from_euler_zyx(
+                goal().tgt_off_pose[5],
+                goal().tgt_off_pose[4],
+                goal().tgt_off_pose[3],
+                R);
+        pose =
+                Eigen::Translation3d(
+                        goal().tgt_off_pose[0],
+                        goal().tgt_off_pose[1],
+                        goal().tgt_off_pose[2]) *
+                Eigen::Affine3d(R);
         return true;
     }
 
-    std::vector<double> pose;
-    if (!computePlanningFrameFK(m_states[state_id]->state, pose)) {
-        ROS_WARN("Failed to compute fk for state %d", state_id);
+    std::vector<double> vpose;
+    if (!computePlanningFrameFK(m_states[state_id]->state, vpose)) {
+        SMPL_WARN("Failed to compute fk for state %d", state_id);
         return false;
     }
 
-    pos.x() = pose[0];
-    pos.y() = pose[1];
-    pos.z() = pose[2];
+    Eigen::Matrix3d R;
+    angles::from_euler_zyx(vpose[5], vpose[4], vpose[3], R);
+    pose =
+            Eigen::Translation3d(vpose[0], vpose[1], vpose[2]) *
+            Eigen::Affine3d(R);
     return true;
 }
 
 void ManipLattice::GetPreds(
-    int TargetStateID,
-    std::vector<int>* PredIDV,
-    std::vector<int>* CostV)
+    int state_id,
+    std::vector<int>* preds,
+    std::vector<int>* costs)
 {
-    ROS_WARN("GetPreds unimplemented");
+    SMPL_WARN("GetPreds unimplemented");
+}
+
+// angles are counterclockwise from 0 to 360 in radians, 0 is the center of bin
+// 0, ...
+void ManipLattice::coordToState(
+    const RobotCoord& coord,
+    RobotState& state) const
+{
+    assert((int)state.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
+
+    for (size_t i = 0; i < coord.size(); ++i) {
+        if (m_continuous[i]) {
+            state[i] = coord[i] * m_coord_deltas[i];
+        } else if (!m_bounded[i]) {
+            state[i] = (double)coord[i] * m_coord_deltas[i];
+        } else {
+            state[i] = m_min_limits[i] + coord[i] * m_coord_deltas[i];
+        }
+    }
+}
+
+void ManipLattice::stateToCoord(
+    const RobotState& state,
+    RobotCoord& coord) const
+{
+    assert((int)state.size() == robot()->jointVariableCount() &&
+            (int)coord.size() == robot()->jointVariableCount());
+
+    for (size_t i = 0; i < state.size(); ++i) {
+        if (m_continuous[i]) {
+            double pos_angle = angles::normalize_angle_positive(state[i]);
+
+            coord[i] = (int)((pos_angle + m_coord_deltas[i] * 0.5) / m_coord_deltas[i]);
+
+            if (coord[i] == m_coord_vals[i]) {
+                coord[i] = 0;
+            }
+        } else if (!m_bounded[i]) {
+            if (state[i] >= 0.0) {
+                coord[i] = (int)(state[i] / m_coord_deltas[i] + 0.5);
+            } else {
+                coord[i] = (int)(state[i] / m_coord_deltas[i] - 0.5);
+            }
+        } else {
+            coord[i] = (int)(((state[i] - m_min_limits[i]) / m_coord_deltas[i]) + 0.5);
+        }
+    }
 }
 
 ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
@@ -516,6 +535,8 @@ ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
     return m_states[state_id];
 }
 
+/// Return the state id of the state with the given coordinate or -1 if the
+/// state has not yet been allocated.
 int ManipLattice::getHashEntry(const RobotCoord& coord)
 {
     ManipLatticeState state;
@@ -577,8 +598,9 @@ bool ManipLattice::computePlanningFrameFK(
     std::vector<double>& pose) const
 {
     assert(state.size() == robot()->jointVariableCount());
+    assert(m_fk_iface);
 
-    if (!m_fk_iface || !m_fk_iface->computePlanningLinkFK(state, pose)) {
+    if (!m_fk_iface->computePlanningLinkFK(state, pose)) {
         return false;
     }
 
@@ -593,27 +615,22 @@ int ManipLattice::cost(
     ManipLatticeState* HashEntry2,
     bool bState2IsGoal) const
 {
-    return params()->cost_multiplier;
+    const int DefaultCostMultiplier = 1000;
+    return DefaultCostMultiplier;
 }
 
-bool ManipLattice::checkAction(
-    const RobotState& state,
-    const Action& action,
-    double& dist)
+bool ManipLattice::checkAction(const RobotState& state, const Action& action)
 {
     std::uint32_t violation_mask = 0x00000000;
-    int plen = 0;
-    int nchecks = 0;
-    dist = 0.0;
 
     // check intermediate states for collisions
     for (size_t iidx = 0; iidx < action.size(); ++iidx) {
         const RobotState& istate = action[iidx];
-        ROS_DEBUG_NAMED(params()->expands_log, "        %zu: %s", iidx, to_string(istate).c_str());
+        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << iidx << ": " << istate);
 
         // check joint limits
         if (!robot()->checkJointLimits(istate)) {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
             violation_mask |= 0x00000001;
             break;
         }
@@ -626,9 +643,9 @@ bool ManipLattice::checkAction(
         // meaning "collision check a waypoint path without including the
         // endpoints".
 //        // check for collisions
-//        if (!collisionChecker()->isStateValid(istate, params()->verbose_collisions_, false, dist))
+//        if (!collisionChecker()->isStateValid(istate, params()->verbose_collisions_))
 //        {
-//            ROS_DEBUG_NAMED(params()->expands_log_, "        -> in collision (dist: %0.3f)", dist);
+//            SMPL_DEBUG_NAMED(params()->expands_log_, "        -> in collision);
 //            violation_mask |= 0x00000002;
 //            break;
 //        }
@@ -639,8 +656,8 @@ bool ManipLattice::checkAction(
     }
 
     // check for collisions along path from parent to first waypoint
-    if (!collisionChecker()->isStateToStateValid(state, action[0], plen, nchecks, dist)) {
-        ROS_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision (dist: %0.3f, path_length: %d)", dist, plen);
+    if (!collisionChecker()->isStateToStateValid(state, action[0])) {
+        SMPL_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
 
@@ -652,10 +669,9 @@ bool ManipLattice::checkAction(
     for (size_t j = 1; j < action.size(); ++j) {
         const RobotState& prev_istate = action[j - 1];
         const RobotState& curr_istate = action[j];
-        if (!collisionChecker()->isStateToStateValid(
-                prev_istate, curr_istate, plen, nchecks, dist))
+        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate))
         {
-            ROS_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints %zu and %zu in collision (dist: %0.3f, path_length: %d)", j - 1, j, dist, plen);
+            SMPL_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints %zu and %zu in collision", j - 1, j);
             violation_mask |= 0x00000008;
             break;
         }
@@ -668,9 +684,7 @@ bool ManipLattice::checkAction(
     return true;
 }
 
-bool ManipLattice::isGoal(
-    const RobotState& state,
-    const std::vector<double>& pose)
+bool ManipLattice::isGoal(const RobotState& state)
 {
     switch (goal().type) {
     case GoalType::JOINT_STATE_GOAL:
@@ -684,6 +698,13 @@ bool ManipLattice::isGoal(
     }   break;
     case GoalType::XYZ_RPY_GOAL:
     {
+        // get pose of planning link
+        std::vector<double> pose;
+        if (!computePlanningFrameFK(state, pose)) {
+            SMPL_WARN("Failed to compute FK for planning frame");
+            return false;
+        }
+
         const double dx = fabs(pose[0] - goal().tgt_off_pose[0]);
         const double dy = fabs(pose[1] - goal().tgt_off_pose[1]);
         const double dz = fabs(pose[2] - goal().tgt_off_pose[2]);
@@ -698,12 +719,11 @@ bool ManipLattice::isGoal(
                 auto time_to_goal_s =
                         duration_cast<duration<double>>(time_to_goal_region);
                 m_near_goal = true;
-                ROS_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec. (after %zu expansions)",
+                SMPL_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec.",
                         pose[0], pose[1], pose[2],
                         goal().xyz_tolerance[0],
                         goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
-                        time_to_goal_s.count(),
-                        m_expanded_states.size());
+                        time_to_goal_s.count());
             }
             Eigen::Quaterniond qg(
                     Eigen::AngleAxisd(goal().tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
@@ -726,6 +746,13 @@ bool ManipLattice::isGoal(
     }   break;
     case GoalType::XYZ_GOAL:
     {
+        // get pose of planning link
+        std::vector<double> pose;
+        if (!computePlanningFrameFK(state, pose)) {
+            SMPL_WARN("Failed to compute FK for planning frame");
+            return false;
+        }
+
         if (fabs(pose[0] - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
             fabs(pose[1] - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
             fabs(pose[2] - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2])
@@ -735,89 +762,46 @@ bool ManipLattice::isGoal(
     }   break;
     default:
     {
-        ROS_ERROR_NAMED(params()->graph_log, "Unknown goal type.");
+        SMPL_ERROR_NAMED(params()->graph_log, "Unknown goal type.");
     }   break;
     }
 
     return false;
 }
 
-visualization_msgs::MarkerArray ManipLattice::getStateVisualization(
-    const RobotState& vars,
+auto ManipLattice::getStateVisualization(
+    const RobotState& state,
     const std::string& ns)
+    -> std::vector<visual::Marker>
 {
-    auto ma = collisionChecker()->getCollisionModelVisualization(vars);
-    for (auto& marker : ma.markers) {
+    auto markers = collisionChecker()->getCollisionModelVisualization(state);
+    for (auto& marker : markers) {
         marker.ns = ns;
     }
-    return ma;
-}
-
-int ManipLattice::getActionCost(
-    const RobotState& first,
-    const RobotState& last,
-    int dist)
-{
-    int num_prims = 0, cost = 0;
-    double diff = 0, max_diff = 0;
-
-    if (first.size() != last.size()) {
-        return -1;
-    }
-
-    /* NOTE: Not including forearm roll OR wrist roll movement to calculate mprim cost */
-
-    for (size_t i = 0; i < 6; i++) {
-        if (i == 4) {
-            continue;
-        }
-
-        diff = angles::shortest_angle_dist(first[i], last[i]);
-        if (max_diff < diff) {
-            max_diff = diff;
-        }
-    }
-
-    num_prims = max_diff / params()->max_mprim_offset + 0.5;
-    cost = num_prims * params()->cost_multiplier;
-
-    RobotState from_config_norm(first.size());
-    for (size_t i = 0; i < first.size(); ++i) {
-        from_config_norm[i] = angles::normalize_angle(first[i]);
-    }
-
-    return cost;
+    return markers;
 }
 
 bool ManipLattice::setStart(const RobotState& state)
 {
-    ROS_DEBUG_NAMED(params()->graph_log, "set the start state");
+    SMPL_DEBUG_NAMED(params()->graph_log, "set the start state");
 
     if ((int)state.size() < robot()->jointVariableCount()) {
-        ROS_ERROR_NAMED(params()->graph_log, "start state does not contain enough joint positions");
+        SMPL_ERROR_NAMED(params()->graph_log, "start state does not contain enough joint positions");
         return false;
     }
 
-    ROS_DEBUG_NAMED(params()->graph_log, "  state: %s", to_string(state).c_str());
-
-    // get joint positions of starting configuration
-    std::vector<double> pose(6, 0.0);
-    if (!computePlanningFrameFK(state, pose)) {
-        ROS_WARN(" -> unable to compute forward kinematics");
-        return false;
-    }
-    ROS_DEBUG_NAMED(params()->graph_log, "  planning link pose: { x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f }", pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]);
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  state: " << state);
 
     // check joint limits of starting configuration
     if (!robot()->checkJointLimits(state, true)) {
-        ROS_WARN(" -> violates the joint limits");
+        SMPL_WARN(" -> violates the joint limits");
         return false;
     }
 
     // check if the start configuration is in collision
-    double dist = 0.0;
-    if (!collisionChecker()->isStateValid(state, true, false, dist)) {
-        ROS_WARN(" -> in collision (distance to nearest obstacle %0.3fm)", dist);
+    if (!collisionChecker()->isStateValid(state, true)) {
+        SV_SHOW_WARN(collisionChecker()->getCollisionModelVisualization(state));
+        SMPL_WARN(" -> in collision");
         return false;
     }
 
@@ -826,7 +810,7 @@ bool ManipLattice::setStart(const RobotState& state)
     // get arm position in environment
     RobotCoord start_coord(robot()->jointVariableCount());
     stateToCoord(state, start_coord);
-    ROS_DEBUG_NAMED(params()->graph_log, "  coord: %s", to_string(start_coord).c_str());
+    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  coord: " << start_coord);
 
     m_start_state_id = getOrCreateState(start_coord, state);
 
@@ -848,19 +832,6 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
     }
 }
 
-void ManipLattice::getExpandedStates(std::vector<RobotState>& states) const
-{
-    RobotState state(robot()->jointVariableCount(), 0);
-
-    for (size_t i = 0; i < m_expanded_states.size(); ++i) {
-        const ManipLatticeState* entry = getHashEntry(m_expanded_states[i]);
-        if (entry) {
-            states.push_back(entry->state);
-        }
-        states.push_back(state);
-    }
-}
-
 void ManipLattice::setVisualizationFrameId(const std::string& frame_id)
 {
     m_viz_frame_id = frame_id;
@@ -871,9 +842,12 @@ const std::string& ManipLattice::visualizationFrameId() const
     return m_viz_frame_id;
 }
 
-void ManipLattice::computeCostPerCell()
-{
-    ROS_WARN("yeah...");
+RobotState ManipLattice::getDiscreteCenter(const RobotState& state) const {
+    RobotCoord coord(robot()->jointVariableCount());
+    RobotState center(robot()->jointVariableCount());
+    stateToCoord(state, coord);
+    coordToState(coord, center);
+    return center;
 }
 
 bool ManipLattice::extractPath(
@@ -894,14 +868,14 @@ bool ManipLattice::extractPath(
         if (state_id == getGoalStateID()) {
             const ManipLatticeState* entry = getHashEntry(getStartStateID());
             if (!entry) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
                 return false;
             }
             opath.push_back(entry->state);
         } else {
             const ManipLatticeState* entry = getHashEntry(state_id);
             if (!entry) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
             }
             opath.push_back(entry->state);
@@ -912,7 +886,7 @@ bool ManipLattice::extractPath(
     }
 
     if (idpath[0] == getGoalStateID()) {
-        ROS_ERROR_NAMED(params()->graph_log, "Cannot extract a non-trivial path starting from the goal state");
+        SMPL_ERROR_NAMED(params()->graph_log, "Cannot extract a non-trivial path starting from the goal state");
         return false;
     }
 
@@ -920,38 +894,32 @@ bool ManipLattice::extractPath(
     {
         const ManipLatticeState* entry = getHashEntry(idpath[0]);
         if (!entry) {
-            ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", idpath[0]);
+            SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", idpath[0]);
             return false;
         }
         opath.push_back(entry->state);
-    }
-
-    ActionSpacePtr action_space = actionSpace();
-    if (!action_space) {
-        ROS_ERROR_NAMED(params()->graph_log, "No action space available for path extraction");
-        return false;
     }
 
     // grab the rest of the points
     for (size_t i = 1; i < idpath.size(); ++i) {
         const int prev_id = idpath[i - 1];
         const int curr_id = idpath[i];
-        ROS_DEBUG_NAMED(params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
+        SMPL_DEBUG_NAMED(params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == getGoalStateID()) {
-            ROS_ERROR_NAMED(params()->graph_log, "Cannot determine goal state predecessor state during path extraction");
+            SMPL_ERROR_NAMED(params()->graph_log, "Cannot determine goal state predecessor state during path extraction");
             return false;
         }
 
         if (curr_id == getGoalStateID()) {
-            ROS_DEBUG_NAMED(params()->graph_log, "Search for transition to goal state");
+            SMPL_DEBUG_NAMED(params()->graph_log, "Search for transition to goal state");
 
             ManipLatticeState* prev_entry = m_states[prev_id];
             const RobotState& prev_state = prev_entry->state;
 
             std::vector<Action> actions;
-            if (!action_space->apply(prev_state, actions)) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to get actions while extracting the path");
+            if (!m_actions->apply(prev_state, actions)) {
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get actions while extracting the path");
                 return false;
             }
 
@@ -962,20 +930,13 @@ bool ManipLattice::extractPath(
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
                 const Action& action = actions[aidx];
 
-                std::vector<double> tgt_off_pose;
-                if (!computePlanningFrameFK(action.back(), tgt_off_pose)) {
-                    ROS_WARN("Failed to compute FK for planning frame");
-                    continue;
-                }
-
                 // skip non-goal states
-                if (!isGoal(action.back(), tgt_off_pose)) {
+                if (!isGoal(action.back())) {
                     continue;
                 }
 
                 // check the validity of this transition
-                double dist;
-                if (!checkAction(prev_state, action, dist)) {
+                if (!checkAction(prev_state, action)) {
                     continue;
                 }
 
@@ -992,7 +953,7 @@ bool ManipLattice::extractPath(
             }
 
             if (!best_goal_state) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor from state %s during path extraction", to_string(prev_entry->state).c_str());
+                SMPL_ERROR_STREAM_NAMED(params()->graph_log, "Failed to find valid goal successor from state " << prev_entry->state << " during path extraction");
                 return false;
             }
 
@@ -1000,11 +961,11 @@ bool ManipLattice::extractPath(
         } else {
             const ManipLatticeState* entry = getHashEntry(curr_id);
             if (!entry) {
-                ROS_ERROR_NAMED(params()->graph_log, "Failed to get state entry state %d", curr_id);
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry state %d", curr_id);
                 return false;
             }
 
-            ROS_DEBUG_NAMED(params()->graph_log, "Extract successor state %s", to_string(entry->state).c_str());
+            SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "Extract successor state " << entry->state);
             opath.push_back(entry->state);
         }
     }
@@ -1018,45 +979,20 @@ bool ManipLattice::extractPath(
 Extension* ManipLattice::getExtension(size_t class_code)
 {
     if (class_code == GetClassCode<RobotPlanningSpace>() ||
-        class_code == GetClassCode<PointProjectionExtension>() ||
-        class_code == GetClassCode<ExtractRobotStateExtension>() ||
-        class_code == GetClassCode<ManipLattice>())
+        class_code == GetClassCode<ExtractRobotStateExtension>())
     {
         return this;
     }
+
+    if (class_code == GetClassCode<PointProjectionExtension>() ||
+        class_code == GetClassCode<PoseProjectionExtension>())
+    {
+        if (m_fk_iface) {
+            return this;
+        }
+    }
+
     return nullptr;
-}
-
-/// \brief Get the (heuristic) distance from the planning link pose to the start
-double ManipLattice::getStartDistance(double x, double y, double z)
-{
-    if (numHeuristics() == 0) {
-        return 0.0;
-    }
-    return heuristic(0)->getMetricStartDistance(x, y, z);
-}
-
-double ManipLattice::getStartDistance(const std::vector<double>& pose)
-{
-    std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
-    return getStartDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
-}
-
-/// \brief Get the (heuristic) distance from the planning frame position to the
-///     goal
-double ManipLattice::getGoalDistance(double x, double y, double z)
-{
-    if (numHeuristics() == 0) {
-        return 0.0;
-    }
-    heuristic(0)->getMetricGoalDistance(x, y, z);
-}
-
-// \brief Get the (heuristic) distance from the planning link pose to the goal
-double ManipLattice::getGoalDistance(const std::vector<double>& pose)
-{
-    std::vector<double> tipoff_pose = getTargetOffsetPose(pose);
-    return getGoalDistance(tipoff_pose[0], tipoff_pose[1], tipoff_pose[2]);
 }
 
 /// \brief Return the ID of the goal state or -1 if no goal has been set.
@@ -1090,26 +1026,34 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 {
     // check arguments
     if (gc.pose.size() != 6) {
-        ROS_ERROR_NAMED(params()->graph_log, "Goal pose has incorrect format");
+        SMPL_ERROR_NAMED(params()->graph_log, "Goal pose has incorrect format");
         return false;
     }
 
     if (gc.tgt_off_pose.size() != 6) {
-        ROS_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
+        SMPL_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
         return false;
     }
 
-    SV_SHOW_INFO(::viz::getPosesMarkerArray({ gc.tgt_off_pose }, m_viz_frame_id, "target_goal"));
+    Eigen::Affine3d goal_pose(
+            Eigen::Translation3d(
+                    gc.tgt_off_pose[0],
+                    gc.tgt_off_pose[1],
+                    gc.tgt_off_pose[2]) *
+            Eigen::AngleAxisd(gc.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(gc.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(gc.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+    SV_SHOW_INFO(visual::MakePoseMarkers(goal_pose, m_viz_frame_id, "target_goal"));
 
     using namespace std::chrono;
     auto now = clock::now();
     auto now_s = duration_cast<duration<double>>(now.time_since_epoch());
-    ROS_DEBUG_NAMED(params()->graph_log, "time: %f", now_s.count());
-    ROS_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
-    ROS_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose[0], gc.pose[1], gc.pose[2]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", gc.pose[3], gc.pose[4], gc.pose[5]);
-    ROS_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "time: %f", now_s.count());
+    SMPL_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
+    SMPL_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose[0], gc.pose[1], gc.pose[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", gc.pose[3], gc.pose[4], gc.pose[5]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
 
     startNewSearch();
 
@@ -1120,11 +1064,13 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 /// \brief Set a full joint configuration goal.
 bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 {
-    // compute the goal pose
-    std::vector<double> pose;
-    if (!computePlanningFrameFK(goal.angles, pose)) {
-        ROS_WARN("Could not compute planning link FK for given goal configuration!");
-        return false;
+    if (goal.type == GoalType::XYZ_GOAL ||
+        goal.type == GoalType::XYZ_RPY_GOAL)
+    {
+        if (!m_fk_iface) {
+            SMPL_WARN("ForwardKinematicsInterface required for pose goals");
+            return false;
+        }
     }
 
     startNewSearch();
@@ -1136,7 +1082,6 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 // Reset any variables that should be set just before a new search is started.
 void ManipLattice::startNewSearch()
 {
-    m_expanded_states.clear();
     m_near_goal = false;
     m_t_start = clock::now();
 }

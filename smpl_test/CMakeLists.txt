@@ -25,12 +25,12 @@ find_package(orocos_kdl REQUIRED)
 
 find_package(Eigen REQUIRED)
 
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${Eigen_INCLUDE_DIRS})
-include_directories(${catkin_INCLUDE_DIRS})
-include_directories(${orocos_kdl_INCLUDE_DIRS})
-
 catkin_package()
+
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
+include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
 
 add_executable(callPlanner src/call_planner.cpp)
 target_link_libraries(callPlanner ${catkin_LIBRARIES})
@@ -50,8 +50,23 @@ target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 add_executable(egraph_test src/egraph_test.cpp)
 target_link_libraries(egraph_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(octree_test src/octree_tests.cpp)
+target_link_libraries(octree_test ${Boost_LIBRARIES})
+
+add_executable(sparse_grid_test src/sparse_grid_test.cpp)
+target_link_libraries(sparse_grid_test ${Boost_LIBRARIES})
+
+add_executable(sparse_binary_grid_test src/sparse_binary_grid_test.cpp)
+target_link_libraries(sparse_binary_grid_test ${Boost_LIBRARIES})
+
 add_executable(xytheta src/xytheta.cpp)
 target_link_libraries(xytheta ${catkin_LIBRARIES})
+
+add_executable(debug_vis_demo src/debug_vis_demo.cpp)
+target_link_libraries(debug_vis_demo ${catkin_LIBRARIES})
+
+add_executable(distance_map_test src/distance_map_test.cpp)
+target_link_libraries(distance_map_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
 install(
     TARGETS callPlanner

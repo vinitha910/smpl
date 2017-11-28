@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <limits>
 #include <utility>
+#include <queue>
 
 // system includes
 #include <eigen_conversions/eigen_msg.h>
@@ -45,6 +46,7 @@
 #include <leatherman/viz.h>
 #include <moveit_msgs/RobotState.h>
 #include <smpl/angles.h>
+#include <smpl/debug/marker_conversions.h>
 
 namespace sbpl {
 namespace collision {
@@ -130,8 +132,7 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
     AllowedCollisionMatrix acm(scene.allowed_collision_matrix);
     if (scene.is_diff) {
         m_scm->updateAllowedCollisionMatrix(acm);
-    }
-    else {
+    } else {
         m_scm->setAllowedCollisionMatrix(acm);
     }
 
@@ -171,8 +172,7 @@ bool CollisionSpace::setJointPosition(
         int jidx = m_rcm->jointVarIndex(name);
         m_joint_vars[jidx] = position;
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -183,6 +183,12 @@ void CollisionSpace::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
     m_rcs->setWorldToModelTransform(transform);
+    const int vfidx = m_rcm->jointVarIndexFirst(0);
+    const int vlidx = m_rcm->jointVarIndexLast(0);
+    std::copy(
+            m_rcs->getJointVarPositions() + vfidx,
+            m_rcs->getJointVarPositions() + vlidx,
+            m_joint_vars.data() + vfidx);
     m_scm->setWorldToModelTransform(transform);
 }
 
@@ -399,6 +405,21 @@ CollisionSpace::getCollisionRobotVisualization(
     return markers;
 }
 
+visualization_msgs::MarkerArray
+CollisionSpace::getCollisionRobotVisualization(const double* vals)
+{
+    updateState(vals);
+    // update the spheres within the group
+    for (int ssidx : m_rcs->groupSpheresStateIndices(m_gidx)) {
+        m_rcs->updateSphereStates(ssidx);
+    }
+    auto markers = m_rcs->getVisualization(m_gidx);
+    for (auto& m : markers.markers) {
+        m.header.frame_id = m_grid->getReferenceFrame();
+    }
+    return markers;
+}
+
 /// \brief Return a visualization of the collision details for the current state
 visualization_msgs::MarkerArray
 CollisionSpace::getCollisionDetailsVisualization() const
@@ -416,23 +437,28 @@ CollisionSpace::getCollisionDetailsVisualization(
     return visualization_msgs::MarkerArray();
 }
 
-/// \brief Return a visualization of the bounding box
 visualization_msgs::MarkerArray
-CollisionSpace::getBoundingBoxVisualization() const
+CollisionSpace::getCollisionDetailsVisualization(
+    const double* vals)
+{
+    // TODO: implement me
+    return visualization_msgs::MarkerArray();
+}
+
+/// \brief Return a visualization of the bounding box
+auto CollisionSpace::getBoundingBoxVisualization() const -> visual::Marker
 {
     return m_grid->getBoundingBoxVisualization();
 }
 
 /// \brief Return a visualization of the distance field
-visualization_msgs::MarkerArray
-CollisionSpace::getDistanceFieldVisualization() const
+auto CollisionSpace::getDistanceFieldVisualization() const -> visual::Marker
 {
     return m_grid->getDistanceFieldVisualization();
 }
 
 /// \brief Return a visualization of the occupied voxels
-visualization_msgs::MarkerArray
-CollisionSpace::getOccupiedVoxelsVisualization() const
+auto CollisionSpace::getOccupiedVoxelsVisualization() const -> visual::Marker
 {
     return m_grid->getOccupiedVoxelsVisualization();
 }
@@ -461,7 +487,19 @@ bool CollisionSpace::checkCollision(
     return m_scm->checkCollision(*m_rcs, *m_abcs, m_gidx, dist);
 }
 
+bool CollisionSpace::checkCollision(const double* state, double& dist)
+{
+    updateState(state);
+    return m_scm->checkCollision(*m_rcs, *m_abcs, m_gidx, dist);
+}
+
 double CollisionSpace::collisionDistance(const std::vector<double>& state)
+{
+    updateState(state);
+    return m_scm->collisionDistance(*m_rcs, *m_abcs, m_gidx);
+}
+
+double CollisionSpace::collisionDistance(const double* state)
 {
     updateState(state);
     return m_scm->collisionDistance(*m_rcs, *m_abcs, m_gidx);
@@ -475,76 +513,66 @@ bool CollisionSpace::collisionDetails(
     return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
 }
 
-bool CollisionSpace::isStateValid(
-    const motion::RobotState& state,
-    bool verbose,
-    bool visualize,
-    double& dist)
+bool CollisionSpace::collisionDetails(
+    const double* state,
+    CollisionDetails& details)
 {
-    dist = std::numeric_limits<double>::max();
+    updateState(state);
+    return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
+}
+
+motion::Extension* CollisionSpace::getExtension(size_t class_code)
+{
+    if (class_code == motion::GetClassCode<motion::CollisionChecker>()) {
+        return this;
+    }
+    return nullptr;
+}
+
+bool CollisionSpace::isStateValid(const motion::RobotState& state, bool verbose)
+{
+    double dist = std::numeric_limits<double>::max();
     return checkCollision(state, dist);
 }
 
 bool CollisionSpace::isStateToStateValid(
     const motion::RobotState& start,
     const motion::RobotState& finish,
-    int& path_length,
-    int& num_checks,
-    double &dist)
+    bool verbose)
 {
-    const bool verbose = false;
+    const double res = 0.05;
 
-    int inc_cc = 5;
-    double dist_temp = 0;
-    motion::RobotState start_norm(start);
-    motion::RobotState end_norm(finish);
-    std::vector<motion::RobotState> path;
-    dist = 100;
-    num_checks = 0;
+    MotionInterpolation interp(m_rcm.get());
 
-    if (!interpolatePath(start_norm, end_norm, path)) {
-        path_length = 0;
-        ROS_ERROR_ONCE("Failed to interpolate the path. It's probably infeasible due to joint limits.");
-        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  start: %s", to_string(start_norm).c_str());
-        ROS_ERROR_NAMED(CC_LOGGER, "[interpolate]  finish: %s", to_string(end_norm).c_str());
-        return false;
-    }
+    m_rmcm->fillMotionInterpolation(
+            start, finish,
+            m_planning_joint_to_collision_model_indices, res,
+            interp);
 
-    // for debugging & statistical purposes
-    path_length = path.size();
+    const int inc_cc = 5;
+
+    motion::RobotState interm;
 
     // TODO: Looks like the idea here is to collision check the path starting at
     // the most coarse resolution (just the endpoints) and increasing the
     // granularity until all points are checked. This could probably be made
     // irrespective of the number of waypoints by bisecting the path and
     // checking the endpoints recursively.
-
-    // try to find collisions that might come later in the path earlier
-    if (int(path.size()) > inc_cc) {
+    if (interp.waypointCount() > inc_cc) {
+        // try to find collisions that might come later in the path earlier
         for (int i = 0; i < inc_cc; i++) {
-            for (size_t j = i; j < path.size(); j = j + inc_cc) {
-                num_checks++;
-                if (!isStateValid(path[j], verbose, false, dist_temp)) {
-                    dist = dist_temp;
+            for (size_t j = i; j < interp.waypointCount(); j = j + inc_cc) {
+                interp.interpolate(j, interm, m_planning_joint_to_collision_model_indices);
+                if (!isStateValid(interm, verbose)) {
                     return false;
-                }
-
-                if (dist_temp < dist) {
-                    dist = dist_temp;
                 }
             }
         }
-    }
-    else {
-        for (size_t i = 0; i < path.size(); i++) {
-            num_checks++;
-            if (!isStateValid(path[i], verbose, false, dist_temp)) {
-                dist = dist_temp;
+    } else {
+        for (size_t i = 0; i < interp.waypointCount(); i++) {
+            interp.interpolate(i, interm, m_planning_joint_to_collision_model_indices);
+            if (!isStateValid(interm, verbose)) {
                 return false;
-            }
-
-            if (dist_temp < dist) {
-                dist = dist_temp;
             }
         }
     }
@@ -561,113 +589,46 @@ bool CollisionSpace::interpolatePath(
             finish.size() == m_planning_joint_to_collision_model_indices.size());
 
     // check joint limits on the start and finish points
-    if (!(withinJointPositionLimits(start) &&
-            withinJointPositionLimits(finish)))
+    if (withinJointPositionLimits(start) ||
+        withinJointPositionLimits(finish))
     {
         ROS_ERROR_NAMED(CC_LOGGER, "Joint limits violated");
         return false;
     }
 
-    // compute distance traveled by each joint
-    std::vector<double> diffs(planningVariableCount(), 0.0);
-    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
-        if (isContinuous(vidx)) {
-            diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
-        }
-        else {
-            diffs[vidx] = finish[vidx] - start[vidx];
-        }
+    const double res = 0.05;
+
+    MotionInterpolation interp(m_rcm.get());
+    m_rmcm->fillMotionInterpolation(
+            start, finish,
+            m_planning_joint_to_collision_model_indices, res,
+            interp);
+    opath.resize(interp.waypointCount());
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, opath[i], m_planning_joint_to_collision_model_indices);
     }
 
-    // compute the number of intermediate waypoints including start and end
-    int waypoint_count = 0;
-    for (size_t vidx = 0; vidx < planningVariableCount(); vidx++) {
-        int angle_waypoints = (int)(std::fabs(diffs[vidx]) / m_increments[vidx]) + 1;
-        waypoint_count = std::max(waypoint_count, angle_waypoints);
-    }
-    waypoint_count = std::max(waypoint_count, 2);
-
-    // fill intermediate waypoints
-    std::vector<motion::RobotState> path(
-            waypoint_count,
-            motion::RobotState(planningVariableCount(), 0.0));
-    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
-        for (size_t widx = 0; widx < waypoint_count; ++widx) {
-            double alpha = (double)widx / (double)(waypoint_count - 1);
-            double pos = start[vidx] + alpha * diffs[vidx];
-            path[widx][vidx] = pos;
-        }
-    }
-
-    // normalize output angles
-    for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
-        if (isContinuous(vidx)) {
-            for (size_t widx = 0; widx < waypoint_count; ++widx) {
-                path[widx][vidx] = angles::normalize_angle(path[widx][vidx]);
-            }
-        }
-    }
-
-    opath = std::move(path);
     return true;
 }
 
-visualization_msgs::MarkerArray
-CollisionSpace::getCollisionModelVisualization(const motion::RobotState& vals)
+auto CollisionSpace::getCollisionModelVisualization(const motion::RobotState& state)
+    -> std::vector<visual::Marker>
 {
-    return getCollisionRobotVisualization(vals);
-}
-
-/// \brief Retrieve visualization of the collision space
-///
-/// The visualization_msgs::MarkerArray's contents vary depending on the
-/// argument:
-///
-///     "world": markers representing all objects managed by the world
-///     "collision_world": cube list representing all occupied cells checked
-///             against the configured group
-///     "robot": visualization of the robot model at its current state
-///     "collision_robot": visualization of the robot collision model at its
-///             current state
-///     "collision_details": spheres representing the location of the most
-///             recent collision check
-///     "attached_object": spheres representing the bounding volumes of all
-///             attached objects
-///     <any argument excepted by OccupancyGrid::getVisualization>:
-///         <the corresponding visualization provided by OccupancyGrid>
-///
-/// \param type The type of visualization to get
-/// \return The visualization
-visualization_msgs::MarkerArray
-CollisionSpace::getVisualization(const std::string& type)
-{
-    if (type == "world") {
-        return getWorldVisualization();
+    auto ma = getCollisionRobotVisualization(state);
+    std::vector<visual::Marker> markers;
+    markers.reserve(ma.markers.size());
+    visual::Marker m;
+    for (auto& mm : ma.markers) {
+        visual::ConvertMarkerMsgToMarker(mm, m);
+        markers.push_back(m);
     }
-    else if (type == "collision_world") {
-        return getCollisionWorldVisualization();
-    }
-    else if (type == "robot") {
-        return getRobotVisualization();
-    }
-    else if (type == "collision_robot") {
-        return getCollisionRobotVisualization();
-    }
-    else if (type == "collision_details") {
-        // TODO: save the last state checked for collision?
-        return getCollisionDetailsVisualization(std::vector<double>(planningVariableCount(), 0));
-    }
-    else if (type == "attached_object") {
-        return visualization_msgs::MarkerArray();
-    }
-    else {
-        return m_grid->getVisualization(type);
-    }
+    return markers;
 }
 
 CollisionSpace::CollisionSpace() :
     m_grid(),
     m_rcm(),
+    m_rmcm(),
     m_abcm(),
     m_rcs(),
     m_abcs(),
@@ -675,8 +636,7 @@ CollisionSpace::CollisionSpace() :
     m_scm(),
     m_group_name(),
     m_gidx(-1),
-    m_planning_joint_to_collision_model_indices(),
-    m_increments()
+    m_planning_joint_to_collision_model_indices()
 {
 }
 
@@ -739,9 +699,21 @@ bool CollisionSpace::init(
         return false;
     }
 
-    if (!setPlanningJoints(planning_joints)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to set planning joints");
-        return false;
+    for (const std::string& joint_name : planning_joints) {
+        if (!m_rcm->hasJointVar(joint_name)) {
+            ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
+            return false;
+        }
+    }
+
+    // map planning joint indices to collision model indices
+    m_planning_joint_to_collision_model_indices.resize(planning_joints.size(), -1);
+
+    for (size_t i = 0; i < planning_joints.size(); ++i) {
+        const std::string& joint_name = planning_joints[i];;
+        int jidx = m_rcm->jointVarIndex(joint_name);
+
+        m_planning_joint_to_collision_model_indices[i] = jidx;
     }
 
     if (!m_rcm->hasGroup(group_name)) {
@@ -752,6 +724,7 @@ bool CollisionSpace::init(
     m_group_name = group_name;
     m_gidx = m_rcm->groupIndex(m_group_name);
 
+    m_rmcm = std::make_shared<RobotMotionCollisionModel>(m_rcm.get());
     m_abcm = std::make_shared<AttachedBodiesCollisionModel>(m_rcm.get()),
     m_rcs = std::make_shared<RobotCollisionState>(m_rcm.get());
     m_abcs = std::make_shared<AttachedBodiesCollisionState>(m_abcm.get(), m_rcs.get());
@@ -765,39 +738,34 @@ bool CollisionSpace::init(
     return true;
 }
 
-/// \brief Set the joint variables in the order they appear to isStateValid calls
-bool CollisionSpace::setPlanningJoints(
-    const std::vector<std::string>& joint_names)
-{
-    for (const std::string& joint_name : joint_names) {
-        if (!m_rcm->hasJointVar(joint_name)) {
-            ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
-            return false;
-        }
-    }
-
-    // map planning joint indices to collision model indices
-    m_planning_joint_to_collision_model_indices.resize(joint_names.size(), -1);
-
-    m_increments.resize(joint_names.size(), angles::to_radians(2.0));
-    for (size_t i = 0; i < joint_names.size(); ++i) {
-        const std::string& joint_name = joint_names[i];;
-        int jidx = m_rcm->jointVarIndex(joint_name);
-
-        m_planning_joint_to_collision_model_indices[i] = jidx;
-    }
-
-    return true;
-}
-
 void CollisionSpace::updateState(const std::vector<double>& vals)
 {
-    // update the robot state
-    for (size_t i = 0; i < vals.size(); ++i) {
-        int jidx = m_planning_joint_to_collision_model_indices[i];
-        m_joint_vars[jidx] = vals[i];
-    }
+    updateState(m_joint_vars, vals);
     copyState();
+}
+
+void CollisionSpace::updateState(const double* state)
+{
+    updateState(m_joint_vars, state);
+    copyState();
+}
+
+void CollisionSpace::updateState(
+    std::vector<double>& state,
+    const std::vector<double>& vals)
+{
+    assert(vals.size() == m_planning_joint_to_collision_model_indices[i]);
+    updateState(state, vals.data());
+}
+
+void CollisionSpace::updateState(
+    std::vector<double>& state,
+    const double* vals)
+{
+    for (size_t i = 0; i < m_planning_joint_to_collision_model_indices.size(); ++i) {
+        int jidx = m_planning_joint_to_collision_model_indices[i];
+        state[jidx] = vals[i];
+    }
 }
 
 void CollisionSpace::copyState()
@@ -825,116 +793,83 @@ bool CollisionSpace::withinJointPositionLimits(
     return inside;
 }
 
-/// \brief TODO
-/// \return TODO
-bool CollisionSpace::checkAttachedObjectCollision(
-    bool verbose,
-    bool visualize,
-    double& dist)
-{
-    return true;
-}
-
-/// \brief Return the distance from a line segment to the nearest occupied cell
-double CollisionSpace::isValidLineSegment(
-    const std::vector<int>& a,
-    const std::vector<int>& b,
-    const int radius)
-{
-    leatherman::bresenham3d_param_t params;
-    int nXYZ[3], retvalue = 1;
-    double cell_val, min_dist = 100.0;
-    leatherman::CELL3V tempcell;
-    std::vector<leatherman::CELL3V>* pTestedCells = NULL;
-
-    //iterate through the points on the segment
-    leatherman::get_bresenham3d_parameters(a[0], a[1], a[2], b[0], b[1], b[2], &params);
-    do {
-        leatherman::get_current_point3d(&params, &(nXYZ[0]), &(nXYZ[1]), &(nXYZ[2]));
-
-        if (!m_grid->isInBounds(nXYZ[0], nXYZ[1], nXYZ[2]))
-            return 0;
-
-        cell_val = m_grid->getDistance(nXYZ[0], nXYZ[1], nXYZ[2]);
-        if (cell_val <= radius) {
-            if (pTestedCells == NULL)
-                return cell_val;   //return 0
-            else
-                retvalue = 0;
-        }
-
-        if (cell_val < min_dist)
-            min_dist = cell_val;
-
-        //insert the tested point
-        if (pTestedCells) {
-            if (cell_val <= radius) {
-                tempcell.bIsObstacle = true;
-            }
-            else {
-                tempcell.bIsObstacle = false;
-            }
-            tempcell.x = nXYZ[0];
-            tempcell.y = nXYZ[1];
-            tempcell.z = nXYZ[2];
-            pTestedCells->push_back(tempcell);
-        }
-    }
-    while (leatherman::get_next_point3d(&params));
-
-    if (retvalue) {
-        return min_dist;
-    }
-    else {
-        return 0;
-    }
-}
-
-CollisionSpacePtr CollisionSpaceBuilder::build(
+auto BuildCollisionSpace(
     OccupancyGrid* grid,
     const std::string& urdf_string,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
 {
-    CollisionSpacePtr cspace(new CollisionSpace);
+    std::unique_ptr<CollisionSpace> cspace(new CollisionSpace);
     if (cspace->init(grid, urdf_string, config, group_name, planning_joints)) {
         return cspace;
-    }
-    else {
-        return CollisionSpacePtr();
+    } else {
+        return std::unique_ptr<CollisionSpace>();
     }
 }
 
-CollisionSpacePtr CollisionSpaceBuilder::build(
+auto BuildCollisionSpace(
     OccupancyGrid* grid,
     const urdf::ModelInterface& urdf,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
 {
-    CollisionSpacePtr cspace(new CollisionSpace);
+    std::unique_ptr<CollisionSpace> cspace(new CollisionSpace);
     if (cspace->init(grid, urdf, config, group_name, planning_joints)) {
         return cspace;
-    }
-    else {
-        return CollisionSpacePtr();
+    } else {
+        return std::unique_ptr<CollisionSpace>();
     }
 }
 
-CollisionSpacePtr CollisionSpaceBuilder::build(
+auto BuildCollisionSpace(
     OccupancyGrid* grid,
     const RobotCollisionModelConstPtr& rcm,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
 {
-    CollisionSpacePtr cspace(new CollisionSpace);
+    std::unique_ptr<CollisionSpace> cspace(new CollisionSpace);
     if (cspace->init(grid, rcm, group_name, planning_joints)) {
         return cspace;
+    } else {
+        return std::unique_ptr<CollisionSpace>();
     }
-    else {
-        return CollisionSpacePtr();
-    }
+}
+
+auto CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const std::string& urdf_string,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
+{
+    return BuildCollisionSpace(grid, urdf_string, config, group_name, planning_joints);
+}
+
+auto CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
+{
+    return BuildCollisionSpace(grid, urdf, config, group_name, planning_joints);
+}
+
+auto CollisionSpaceBuilder::build(
+    OccupancyGrid* grid,
+    const RobotCollisionModelConstPtr& rcm,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>
+{
+    return BuildCollisionSpace(grid, rcm, group_name, planning_joints);
 }
 
 } // namespace collision

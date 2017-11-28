@@ -63,6 +63,9 @@ public:
 
     ~WorldCollisionModel();
 
+    OccupancyGrid* grid();
+    const OccupancyGrid* grid() const;
+
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
     bool moveShapes(const ObjectConstPtr& object);
@@ -84,17 +87,7 @@ public:
     visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
 
     void setPadding(double padding);
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        const int gidx,
-        double& dist) const;
-
-    bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
-        const int gidx,
-        double& dist) const;
+    double padding() const;
 
 private:
 

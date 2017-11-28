@@ -64,38 +64,57 @@ public:
     void setWorldToModelTransform(const Eigen::Affine3d& transform);
 
     bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const int gidx,
         double& dist);
 
     bool checkCollision(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
         const int gidx,
         double& dist);
 
-    double collisionDistance(
+    bool checkMotionCollision(
         RobotCollisionState& state,
         AttachedBodiesCollisionState& ab_state,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
+    bool checkMotionCollision(
+        RobotCollisionState& state,
+        AttachedBodiesCollisionState& ab_state,
+        const AllowedCollisionsInterface& aci,
+        const RobotMotionCollisionModel& rmcm,
+        const std::vector<double>& start,
+        const std::vector<double>& finish,
+        const int gidx,
+        double& dist);
+
+    double collisionDistance(
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const int gidx);
 
     double collisionDistance(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
         const int gidx);
 
     bool collisionDetails(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const int gidx,
         CollisionDetails& details);
 
     bool collisionDetails(
-        RobotCollisionState& state,
-        AttachedBodiesCollisionState& ab_state,
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
         const AllowedCollisionsInterface& aci,
         const int gidx,
         CollisionDetails& details);
@@ -149,9 +168,9 @@ private:
         const AttachedBodiesCollisionState& ab_state,
         const int gidx) const;
 
-    void prepareState(int gidx, const RobotCollisionState& state);
+    void prepareState(int gidx, const double* state);
     void updateGroup(int gidx);
-    void copyState(const RobotCollisionState& state);
+    void copyState(const double* state);
     void updateVoxelsStates();
 
     // update the state of outside-group voxels and check for collisions between
@@ -205,6 +224,25 @@ private:
     double sphereDistance(
         const CollisionSphereState& s1,
         const CollisionSphereState& s2) const;
+
+    bool getRobotVoxelsStateCollisionDetails(CollisionDetails& details);
+    bool getAttachedBodyVoxelsStateCollisionDetails(CollisionDetails& details);
+
+    bool getRobotSpheresStateCollisionDetails(CollisionDetails& details);
+    bool getRobotSpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
+
+    bool getAttachedBodySpheresStateCollisionDetails(CollisionDetails& details);
+    bool getAttachedBodySpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
+
+    bool getRobotAttachedBodySpheresStateCollisionDetails(
+        CollisionDetails& details);
+    bool getRobotAttachedBodySpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
 };
 
 SelfCollisionModelImpl::SelfCollisionModelImpl(
@@ -269,6 +307,8 @@ void SelfCollisionModelImpl::initAllowedCollisionMatrix()
             m_acm.setEntry(link_name, child_link_name, true);
         }
     }
+    // NOTE: no need to update checked sphere indices here, they will be updated
+    // when the first request with a valid group index is received
 }
 
 /// Check that the input states are related to the collision models passed to
@@ -298,7 +338,7 @@ bool SelfCollisionModelImpl::checkCommonInputs(
 /// Prepare internal collision states with a query state and group
 void SelfCollisionModelImpl::prepareState(
     int gidx,
-    const RobotCollisionState& state)
+    const double* state)
 {
     updateGroup(gidx);
     copyState(state);
@@ -365,8 +405,8 @@ void SelfCollisionModelImpl::setWorldToModelTransform(
 }
 
 bool SelfCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const int gidx,
     double& dist)
 {
@@ -374,7 +414,7 @@ bool SelfCollisionModelImpl::checkCollision(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -388,8 +428,8 @@ bool SelfCollisionModelImpl::checkCollision(
 }
 
 bool SelfCollisionModelImpl::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const AllowedCollisionsInterface& aci,
     const int gidx,
     double& dist)
@@ -398,7 +438,7 @@ bool SelfCollisionModelImpl::checkCollision(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     if (!checkRobotVoxelsStateCollisions(dist) ||
         !checkAttachedBodyVoxelsStateCollisions(dist) ||
@@ -411,16 +451,65 @@ bool SelfCollisionModelImpl::checkCollision(
     return true;
 }
 
-double SelfCollisionModelImpl::collisionDistance(
+bool SelfCollisionModelImpl::checkMotionCollision(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    const double res = 0.05;
+    MotionInterpolation interp(m_rcm);
+    rmcm.fillMotionInterpolation(start, finish, res, interp);
+
+    motion::RobotState interm;
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, interm);
+        state.setJointVarPositions(interm.data());
+        if (!checkCollision(state, ab_state, gidx, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    const double res = 0.05;
+    MotionInterpolation interp(m_rcm);
+    rmcm.fillMotionInterpolation(start, finish, res, interp);
+
+    motion::RobotState interm;
+    for (int i = 0; i < interp.waypointCount(); ++i) {
+        interp.interpolate(i, interm);
+        state.setJointVarPositions(interm.data());
+        if (!checkCollision(state, ab_state, aci, gidx, dist)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+double SelfCollisionModelImpl::collisionDistance(
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const int gidx)
 {
     if (!checkCommonInputs(state, ab_state, gidx)) {
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     double tmp;
 
@@ -442,8 +531,8 @@ double SelfCollisionModelImpl::collisionDistance(
 }
 
 double SelfCollisionModelImpl::collisionDistance(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const AllowedCollisionsInterface& aci,
     const int gidx)
 {
@@ -451,7 +540,7 @@ double SelfCollisionModelImpl::collisionDistance(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     double tmp;
 
@@ -473,8 +562,8 @@ double SelfCollisionModelImpl::collisionDistance(
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const int gidx,
     CollisionDetails& details)
 {
@@ -482,30 +571,21 @@ bool SelfCollisionModelImpl::collisionDetails(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
-    double dist;
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
-    if (!checkRobotVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkRobotSpheresStateCollisions(dist)) {
-        ++details.sphere_collision_count;
-    }
-    if (!checkAttachedBodySpheresStateCollisions(dist)) {
-        ++details.sphere_collision_count;
-    }
-
-    return !(details.voxels_collision_count | details.sphere_collision_count);
+    bool res = true;
+    res &= getRobotVoxelsStateCollisionDetails(details);
+    res &= getAttachedBodyVoxelsStateCollisionDetails(details);
+    res &= getRobotSpheresStateCollisionDetails(details);
+    res &= getAttachedBodySpheresStateCollisionDetails(details);
+    return res;
 }
 
 bool SelfCollisionModelImpl::collisionDetails(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const AllowedCollisionsInterface& aci,
     const int gidx,
     CollisionDetails& details)
@@ -514,25 +594,17 @@ bool SelfCollisionModelImpl::collisionDetails(
         return false;
     }
 
-    prepareState(gidx, state);
+    prepareState(gidx, state.getJointVarPositions());
 
     double dist;
     details.voxels_collision_count = 0;
     details.sphere_collision_count = 0;
-    if (!checkRobotVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
-        ++details.voxels_collision_count;
-    }
-    if (!checkRobotSpheresStateCollisions(aci, dist)) {
-        ++details.sphere_collision_count;
-    }
-    if (!checkAttachedBodySpheresStateCollisions(aci, dist)) {
-        ++details.sphere_collision_count;
-    }
-
-    return !(details.voxels_collision_count | details.sphere_collision_count);
+    bool res = true;
+    res &= getRobotVoxelsStateCollisionDetails(details);
+    res &= getAttachedBodyVoxelsStateCollisionDetails(details);
+    res &= getRobotSpheresStateCollisionDetails(aci, details);
+    res &= getAttachedBodySpheresStateCollisionDetails(aci, details);
+    return res;
 }
 
 /// Switch to checking for a new collision group
@@ -687,9 +759,9 @@ void SelfCollisionModelImpl::updateGroup(int gidx)
     updateCheckedSpheresIndices();
 }
 
-void SelfCollisionModelImpl::copyState(const RobotCollisionState& state)
+void SelfCollisionModelImpl::copyState(const double* state)
 {
-    m_rcs.setJointVarPositions(state.getJointVarPositions());
+    (void)m_rcs.setJointVarPositions(state);
 }
 
 /// Lazily update the state of the occupancy grid, representing areas filled by
@@ -1010,6 +1082,14 @@ bool SelfCollisionModelImpl::checkRobotAttachedBodySpheresStateCollisions(
     return true;
 }
 
+/// \tparam StateA RobotCollisionState or AttachedBodiesCollisionState
+/// \tparam StateB RobotCollisionState or AttachedBodiesCollisionState
+/// \param ss1i The index of the first spheres state
+/// \param ss2i The index of the second spheres state
+/// \param ss1 The first spheres state
+/// \param ss2 The second spheres state
+/// \param[out] The squared distance between the first two spheres that were
+///     found in collision; unmodified if no collision was found
 template <typename StateA, typename StateB>
 bool SelfCollisionModelImpl::checkSpheresStateCollision(
     StateA& stateA,
@@ -1056,10 +1136,12 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
             if (m_acm.getEntry(s1m->name, s2m->name, type)) {
                 if (type != collision_detection::AllowedCollision::ALWAYS) {
                     ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                    dist = cd2;
                     return false;
                 }
             } else {
                 ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                dist = cd2;
                 return false;
             }
             // collision between leaves is ok
@@ -1566,6 +1648,120 @@ double SelfCollisionModelImpl::sphereDistance(
     return (s2.pos - s1.pos).norm() - s1.model->radius - s2.model->radius;
 }
 
+bool SelfCollisionModelImpl::getRobotVoxelsStateCollisionDetails(
+    CollisionDetails& details)
+{
+    const size_t old_size = details.details.size();
+
+    for (const int ssidx : m_rcs.groupSpheresStateIndices(m_gidx)) {
+        auto& q = m_vq;
+        q.clear();
+
+        const auto& ss = m_rcs.spheresState(ssidx);
+        const CollisionSphereState* s = ss.spheres.root();
+        q.push_back(s);
+
+        double dist;
+        if (!CheckVoxelsCollisions(m_rcs, q, *m_grid, m_padding, dist)) {
+            CollisionDetail detail;
+            detail.first_link = m_rcs.model()->linkName(ss.model->link_index);
+            detail.second_link = "_voxels_";
+            detail.penetration = dist;
+            details.details.push_back(detail);
+        }
+    }
+
+    return details.details.size() == old_size;
+}
+
+bool SelfCollisionModelImpl::getAttachedBodyVoxelsStateCollisionDetails(
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkAttachedBodyVoxelsStateCollisions(dist)) {
+        ++details.voxels_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getRobotSpheresStateCollisionDetails(
+    CollisionDetails& details)
+{
+    size_t old_size = details.details.size();
+
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check robot links vs robot links");
+
+    for (const auto& ss_pair : m_checked_spheres_states) {
+        int ss1i = ss_pair.first;
+        int ss2i = ss_pair.second;
+        const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
+        const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
+
+        double dist;
+        if (!checkSpheresStateCollision(
+                m_rcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
+        {
+            CollisionDetail detail;
+            detail.first_link = m_rcs.model()->linkName(ss1.model->link_index);
+            detail.second_link = m_rcs.model()->linkName(ss2.model->link_index);
+            detail.penetration = dist;
+            details.details.push_back(detail);
+        }
+    }
+
+    details.sphere_collision_count = details.details.size() - old_size;
+    return details.details.size() == old_size;
+}
+
+bool SelfCollisionModelImpl::getRobotSpheresStateCollisionDetails(
+    const AllowedCollisionsInterface& aci,
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkRobotSpheresStateCollisions(aci, dist)) {
+        ++details.sphere_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getAttachedBodySpheresStateCollisionDetails(
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkAttachedBodySpheresStateCollisions(dist)) {
+        ++details.sphere_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getAttachedBodySpheresStateCollisionDetails(
+    const AllowedCollisionsInterface& aci,
+    CollisionDetails& details)
+{
+    double dist;
+    if (!checkAttachedBodySpheresStateCollisions(aci, dist)) {
+        ++details.sphere_collision_count;
+        return false;
+    }
+    return true;
+}
+
+bool SelfCollisionModelImpl::getRobotAttachedBodySpheresStateCollisionDetails(
+    CollisionDetails& details)
+{
+    return false;
+}
+
+bool SelfCollisionModelImpl::getRobotAttachedBodySpheresStateCollisionDetails(
+    const AllowedCollisionsInterface& aci,
+    CollisionDetails& details)
+{
+    return false;
+}
+
 ///////////////////////////////////////
 // SelfCollisionModel Implementation //
 ///////////////////////////////////////
@@ -1611,8 +1807,8 @@ void SelfCollisionModel::setWorldToModelTransform(const Eigen::Affine3d& transfo
 }
 
 bool SelfCollisionModel::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const int gidx,
     double& dist)
 {
@@ -1620,8 +1816,8 @@ bool SelfCollisionModel::checkCollision(
 }
 
 bool SelfCollisionModel::checkCollision(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const AllowedCollisionsInterface& aci,
     const int gidx,
     double& dist)
@@ -1629,17 +1825,42 @@ bool SelfCollisionModel::checkCollision(
     return m_impl->checkCollision(state, ab_state, aci, gidx, dist);
 }
 
-double SelfCollisionModel::collisionDistance(
+bool SelfCollisionModel::checkMotionCollision(
     RobotCollisionState& state,
     AttachedBodiesCollisionState& ab_state,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    return m_impl->checkMotionCollision(state, ab_state, rmcm, start, finish, gidx, dist);
+}
+
+bool SelfCollisionModel::checkMotionCollision(
+    RobotCollisionState& state,
+    AttachedBodiesCollisionState& ab_state,
+    const AllowedCollisionsInterface& aci,
+    const RobotMotionCollisionModel& rmcm,
+    const std::vector<double>& start,
+    const std::vector<double>& finish,
+    const int gidx,
+    double& dist)
+{
+    return m_impl->checkMotionCollision(state, ab_state, aci, rmcm, start, finish, gidx, dist);
+}
+
+double SelfCollisionModel::collisionDistance(
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const int gidx)
 {
     return m_impl->collisionDistance(state, ab_state, gidx);
 }
 
 double SelfCollisionModel::collisionDistance(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const AllowedCollisionsInterface& aci,
     const int gidx)
 {
@@ -1647,8 +1868,8 @@ double SelfCollisionModel::collisionDistance(
 }
 
 bool SelfCollisionModel::collisionDetails(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const int gidx,
     CollisionDetails& details)
 {
@@ -1656,8 +1877,8 @@ bool SelfCollisionModel::collisionDetails(
 }
 
 bool SelfCollisionModel::collisionDetails(
-    RobotCollisionState& state,
-    AttachedBodiesCollisionState& ab_state,
+    const RobotCollisionState& state,
+    const AttachedBodiesCollisionState& ab_state,
     const AllowedCollisionsInterface& aci,
     const int gidx,
     CollisionDetails& details)

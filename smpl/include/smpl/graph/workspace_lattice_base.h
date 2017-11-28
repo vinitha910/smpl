@@ -33,7 +33,6 @@
 #define SMPL_WORKSPACE_LATTICE_BASE_H
 
 // project includes
-#include <smpl/occupancy_grid.h>
 #include <smpl/graph/robot_planning_space.h>
 
 namespace sbpl {
@@ -62,7 +61,9 @@ public:
 
     struct Params
     {
-        // NOTE: (x, y, z) resolutions defined by the input occupancy grid
+        double res_x;
+        double res_y;
+        double res_z;
 
         int R_count;
         int P_count;
@@ -71,13 +72,12 @@ public:
         std::vector<double> free_angle_res;
     };
 
-    WorkspaceLatticeBase(
+    virtual bool init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* params,
-        OccupancyGrid* grid);
+        const PlanningParams* pp,
+        const Params& params);
 
-    virtual bool init(const Params& _params);
     virtual bool initialized() const;
 
     const std::vector<double>& resolution() const { return m_res; }
@@ -85,41 +85,42 @@ public:
 
 protected:
 
-    OccupancyGrid* m_grid;
-    ForwardKinematicsInterface* m_fk_iface;
-    InverseKinematicsInterface* m_ik_iface;
-    RedundantManipulatorInterface* m_rm_iface;
+    ForwardKinematicsInterface* m_fk_iface = nullptr;
+    InverseKinematicsInterface* m_ik_iface = nullptr;
+    RedundantManipulatorInterface* m_rm_iface = nullptr;
 
     std::vector<double> m_res;
     std::vector<int> m_val_count;
-    int m_dof_count;
+    int m_dof_count = 0;
     std::vector<std::size_t> m_fangle_indices;
 
     size_t freeAngleCount() const { return m_fangle_indices.size(); }
 
     // conversions between robot states, workspace states, and workspace coords
-    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate);
-    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord);
-    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate);
-    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord);
-    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state);
-    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state);
+    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate) const;
+    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord) const;
+    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate) const;
+    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord) const;
+    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state) const;
+    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state) const;
 
     bool stateWorkspaceToRobot(
-        const WorkspaceState& state, const RobotState& seed, RobotState& ostate);
+        const WorkspaceState& state, const RobotState& seed, RobotState& ostate) const;
 
     // TODO: variants of workspace -> robot that don't restrict redundant angles
     // TODO: variants of workspace -> robot that take in a full seed state
 
     // conversions from discrete coordinates to continuous states
-    void posWorkspaceToCoord(const double* wp, int* gp);
-    void posCoordToWorkspace(const int* gp, double* wp);
-    void rotWorkspaceToCoord(const double* wr, int* gr);
-    void rotCoordToWorkspace(const int* gr, double* wr);
-    void poseWorkspaceToCoord(const double* wp, int* gp);
-    void poseCoordToWorkspace(const int* gp, double* wp);
-    void favWorkspaceToCoord(const double* wa, int* ga);
-    void favCoordToWorkspace(const int* ga, double* wa);
+    void posWorkspaceToCoord(const double* wp, int* gp) const;
+    void posCoordToWorkspace(const int* gp, double* wp) const;
+    void rotWorkspaceToCoord(const double* wr, int* gr) const;
+    void rotCoordToWorkspace(const int* gr, double* wr) const;
+    void poseWorkspaceToCoord(const double* wp, int* gp) const;
+    void poseCoordToWorkspace(const int* gp, double* wp) const;
+    void favWorkspaceToCoord(const double* wa, int* ga) const;
+    void favCoordToWorkspace(const int* ga, double* wa) const;
+
+    void normalizeEulerAngles(double *wr) const;
 };
 
 } // namespace motion

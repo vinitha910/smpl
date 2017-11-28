@@ -42,9 +42,12 @@ class EuclidDistHeuristic : public RobotHeuristic
 {
 public:
 
-    EuclidDistHeuristic(
-        const RobotPlanningSpacePtr& pspace,
-        const OccupancyGrid* grid);
+    bool init(RobotPlanningSpace* space);
+
+    void setWeightX(double wx);
+    void setWeightY(double wy);
+    void setWeightZ(double wz);
+    void setWeightRot(double wr);
 
     /// \name Required Public Functions from RobotHeuristic
     ///@{
@@ -66,7 +69,30 @@ public:
 
 private:
 
-    PointProjectionExtension* m_pp;
+    static constexpr double FIXED_POINT_RATIO = 1000.0;
+
+    PoseProjectionExtension* m_pose_ext = nullptr;
+    PointProjectionExtension* m_point_ext = nullptr;
+
+    double m_x_coeff = 1.0;
+    double m_y_coeff = 1.0;
+    double m_z_coeff = 1.0;
+    double m_rot_coeff = 1.0;
+
+    Eigen::Affine3d createPose(const std::vector<double>& pose) const;
+    Eigen::Vector3d createPoint(const std::vector<double>& point) const;
+
+    Eigen::Affine3d createPose(
+        double x, double y, double z,
+        double Y, double P, double R) const;
+
+    double computeDistance(
+        const Eigen::Affine3d& a,
+        const Eigen::Affine3d& b) const;
+
+    double computeDistance(
+        const Eigen::Vector3d& u,
+        const Eigen::Vector3d& v) const;
 };
 
 } // namespace motion

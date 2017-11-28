@@ -91,8 +91,19 @@ std::string AffineToString(const Eigen::Affine3d& t)
 ObjectConstPtr ConvertCollisionObjectToObject(
     const moveit_msgs::CollisionObject& co);
 
+struct CollisionDetail
+{
+    std::string first_link;
+    std::string second_link;
+    double penetration;
+    Eigen::Vector3d contact_point;
+    Eigen::Vector3d contact_normal;
+};
+
 struct CollisionDetails
 {
+    std::vector<CollisionDetail> details;
+
     // TODO:
     // * (body1 name, body2 name) "voxels" for voxels collisions; link names o/w
     // * penetration distance

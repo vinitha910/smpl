@@ -31,16 +31,26 @@
 
 #include <smpl/heuristic/attractor_heuristic.h>
 
+#include <smpl/occupancy_grid.h>
+
 namespace sbpl {
 namespace motion {
 
-AttractorHeuristic::AttractorHeuristic(
-    const RobotPlanningSpacePtr& ps,
+bool AttractorHeuristic::init(
+    RobotPlanningSpace* space,
     const OccupancyGrid* grid)
-:
-    RobotHeuristic(ps, grid)
 {
-    m_ers = ps->getExtension<ExtractRobotStateExtension>();
+    if (grid == NULL) {
+        return false;
+    }
+
+    if (!RobotHeuristic::init(space)) {
+        return false;
+    }
+
+    m_grid = grid;
+    m_ers = space->getExtension<ExtractRobotStateExtension>();
+    return true;
 }
 
 double AttractorHeuristic::getMetricGoalDistance(double x, double y, double z)

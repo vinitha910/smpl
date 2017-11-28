@@ -1,5 +1,5 @@
 world_collision_model:
-  frame: odom_combined
+  frame_id: odom_combined
   size_x: 2.0
   size_y: 3.0
   size_z: 2.0
@@ -10,7 +10,7 @@ world_collision_model:
   max_distance_m: 0.6
 
 self_collision_model:
-  frame: base_footprint
+  frame_id: base_footprint
   size_x: 3.0
   size_y: 3.0
   size_z: 2.0
@@ -21,53 +21,56 @@ self_collision_model:
   max_distance_m: 0.2
 
 robot_collision_model:
+  world_joint:
+    name: world_joint
+    type: planar # fixed, floating
   voxels_models:
-    - link_name: base_link
-    - link_name: bl_caster_rotation_link
-    - link_name: bl_caster_l_wheel_link
-    - link_name: bl_caster_r_wheel_link
-    - link_name: br_caster_rotation_link
-    - link_name: br_caster_l_wheel_link
-    - link_name: br_caster_r_wheel_link
-    - link_name: fl_caster_rotation_link
-    - link_name: fl_caster_l_wheel_link
-    - link_name: fl_caster_r_wheel_link
-    - link_name: fr_caster_rotation_link
-    - link_name: fr_caster_l_wheel_link
-    - link_name: fr_caster_r_wheel_link
-    - link_name: torso_lift_link
-    - link_name: head_pan_link
-    - link_name: head_tilt_link
-    - link_name: l_shoulder_pan_link
-    - link_name: l_shoulder_lift_link
-    - link_name: l_upper_arm_roll_link
-    - link_name: l_upper_arm_link
-    - link_name: l_elbow_flex_link
-    - link_name: l_forearm_roll_link
-    - link_name: l_forearm_link
-    - link_name: l_wrist_flex_link
-    - link_name: l_wrist_roll_link
-    - link_name: l_gripper_palm_link
-    - link_name: l_gripper_r_finger_link
-    - link_name: l_gripper_r_finger_tip_link
-    - link_name: l_gripper_l_finger_link
-    - link_name: l_gripper_l_finger_tip_link
-    - link_name: laser_tilt_mount_link
-    - link_name: r_shoulder_pan_link
-    - link_name: r_shoulder_lift_link
-    - link_name: r_upper_arm_roll_link
-    - link_name: r_upper_arm_link
-    - link_name: r_elbow_flex_link
-    - link_name: r_forearm_roll_link
-    - link_name: r_forearm_link
-    - link_name: r_wrist_flex_link
-    - link_name: r_wrist_roll_link
-    - link_name: r_gripper_palm_link
-    - link_name: r_gripper_r_finger_link
-    - link_name: r_gripper_r_finger_tip_link
-    - link_name: r_gripper_l_finger_link
-    - link_name: r_gripper_l_finger_tip_link
-    - link_name: base_bellow_link
+    - { link_name: base_link, res: 0.01 }
+    - { link_name: bl_caster_rotation_link, res: 0.01 }
+    - { link_name: bl_caster_l_wheel_link, res: 0.01 }
+    - { link_name: bl_caster_r_wheel_link, res: 0.01 }
+    - { link_name: br_caster_rotation_link, res: 0.01 }
+    - { link_name: br_caster_l_wheel_link, res: 0.01 }
+    - { link_name: br_caster_r_wheel_link, res: 0.01 }
+    - { link_name: fl_caster_rotation_link, res: 0.01 }
+    - { link_name: fl_caster_l_wheel_link, res: 0.01 }
+    - { link_name: fl_caster_r_wheel_link, res: 0.01 }
+    - { link_name: fr_caster_rotation_link, res: 0.01 }
+    - { link_name: fr_caster_l_wheel_link, res: 0.01 }
+    - { link_name: fr_caster_r_wheel_link, res: 0.01 }
+    - { link_name: torso_lift_link, res: 0.01 }
+    - { link_name: head_pan_link, res: 0.01 }
+    - { link_name: head_tilt_link, res: 0.01 }
+    - { link_name: l_shoulder_pan_link, res: 0.01 }
+    - { link_name: l_shoulder_lift_link, res: 0.01 }
+    - { link_name: l_upper_arm_roll_link, res: 0.01 }
+    - { link_name: l_upper_arm_link, res: 0.01 }
+    - { link_name: l_elbow_flex_link, res: 0.01 }
+    - { link_name: l_forearm_roll_link, res: 0.01 }
+    - { link_name: l_forearm_link, res: 0.01 }
+    - { link_name: l_wrist_flex_link, res: 0.01 }
+    - { link_name: l_wrist_roll_link, res: 0.01 }
+    - { link_name: l_gripper_palm_link, res: 0.01 }
+    - { link_name: l_gripper_r_finger_link, res: 0.01 }
+    - { link_name: l_gripper_r_finger_tip_link, res: 0.01 }
+    - { link_name: l_gripper_l_finger_link, res: 0.01 }
+    - { link_name: l_gripper_l_finger_tip_link, res: 0.01 }
+    - { link_name: laser_tilt_mount_link, res: 0.01 }
+    - { link_name: r_shoulder_pan_link, res: 0.01 }
+    - { link_name: r_shoulder_lift_link, res: 0.01 }
+    - { link_name: r_upper_arm_roll_link, res: 0.01 }
+    - { link_name: r_upper_arm_link, res: 0.01 }
+    - { link_name: r_elbow_flex_link, res: 0.01 }
+    - { link_name: r_forearm_roll_link, res: 0.01 }
+    - { link_name: r_forearm_link, res: 0.01 }
+    - { link_name: r_wrist_flex_link, res: 0.01 }
+    - { link_name: r_wrist_roll_link, res: 0.01 }
+    - { link_name: r_gripper_palm_link, res: 0.01 }
+    - { link_name: r_gripper_r_finger_link, res: 0.01 }
+    - { link_name: r_gripper_r_finger_tip_link, res: 0.01 }
+    - { link_name: r_gripper_l_finger_link, res: 0.01 }
+    - { link_name: r_gripper_l_finger_tip_link, res: 0.01 }
+    - { link_name: base_bellow_link, res: 0.01 }
 
     # Links with Trivial Collision Geometry (probably used for visualization,
     # stated here for reference)
@@ -147,14 +150,14 @@ robot_collision_model:
     - link_name: l_shoulder_pan_link
       auto: false
       spheres:
-        - { name: sh0, x: 0.13, y: 0.0, z: -0.04, radius: 0.16, priority: 5 }
+        - { name: lsh0, x: 0.13, y: 0.0, z: -0.04, radius: 0.16, priority: 5 }
     - link_name: l_upper_arm_roll_link
       auto: false
       spheres:
-        - { name: ua0, x: 0.18, y: 0.0, z: -0.015, radius: 0.11, priority: 4 }
-        - { name: ua1, x: 0.26, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
-        - { name: ua2, x: 0.3275, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
-        - { name: ua3, x: 0.40, y: 0.0, z: -0.0, radius: 0.105, priority: 2 }
+        - { name: lua0, x: 0.18, y: 0.0, z: -0.015, radius: 0.11, priority: 4 }
+        - { name: lua1, x: 0.26, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
+        - { name: lua2, x: 0.3275, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
+        - { name: lua3, x: 0.40, y: 0.0, z: -0.0, radius: 0.105, priority: 2 }
 #    - link_name: l_elbow_flex_link
 #      auto: false
 #      spheres:
@@ -163,53 +166,53 @@ robot_collision_model:
     - link_name: l_forearm_roll_link
       auto: false
       spheres:
-        - { name: fa0, x: 0.13, y: 0.0, z: 0.005, radius: 0.075, priority: 2 }
-        - { name: fa1, x: 0.20, y: 0.025, z: -0.01, radius: 0.055, priority: 3 }
-        - { name: fa2, x: 0.20, y: -0.025, z: -0.01, radius: 0.055, priority: 3 }
-        - { name: fa3, x: 0.265, y: 0.0275, z: -0.015, radius: 0.05, priority: 3 }
-        - { name: fa4, x: 0.265, y: -0.0275, z: -0.015, radius: 0.05, priority: 3 }
-        - { name: fa5, x: 0.32, y: 0.0225, z: -0.005, radius: 0.05, priority: 3 }
-        - { name: fa6, x: 0.32, y: -0.0225, z: -0.005, radius: 0.05, priority: 3 }
+        - { name: lfa0, x: 0.13, y: 0.0, z: 0.005, radius: 0.075, priority: 2 }
+        - { name: lfa1, x: 0.20, y: 0.025, z: -0.01, radius: 0.055, priority: 3 }
+        - { name: lfa2, x: 0.20, y: -0.025, z: -0.01, radius: 0.055, priority: 3 }
+        - { name: lfa3, x: 0.265, y: 0.0275, z: -0.015, radius: 0.05, priority: 3 }
+        - { name: lfa4, x: 0.265, y: -0.0275, z: -0.015, radius: 0.05, priority: 3 }
+        - { name: lfa5, x: 0.32, y: 0.0225, z: -0.005, radius: 0.05, priority: 3 }
+        - { name: lfa6, x: 0.32, y: -0.0225, z: -0.005, radius: 0.05, priority: 3 }
     - link_name: l_wrist_roll_link
       auto: false
       spheres:
 #        - { name: g0, x: 0.08, y: 0.0, z: 0.00, radius: 0.07, priority: 1 }
 #        - { name: g1, x: 0.14, y: 0.0, z: 0.00, radius: 0.07, priority: 5 }
 #        - { name: g2, x: 0.2, y: 0.0, z: 0.00, radius: 0.03, priority: 5 }
-        - { name: gr0, x: 0.0725, y: -0.0175, z: 0.00, radius: 0.04, priority: 2 }
-        - { name: gr1, x: 0.0725, y: 0.0175, z: 0.00, radius: 0.04, priority: 2 }
-        - { name: gr2, x: 0.0925, y: 0.0, z: 0.00, radius: 0.04, priority: 2 }
+        - { name: lgr0, x: 0.0725, y: -0.0175, z: 0.00, radius: 0.04, priority: 2 }
+        - { name: lgr1, x: 0.0725, y: 0.0175, z: 0.00, radius: 0.04, priority: 2 }
+        - { name: lgr2, x: 0.0925, y: 0.0, z: 0.00, radius: 0.04, priority: 2 }
     - link_name: l_gripper_l_finger_link
       auto: false
       spheres:
-        - { name: lf0, x: 0.03, y: 0.025, z: 0.00, radius: 0.04, priority: 1 }
-        - { name: lf1, x: 0.08, y: 0.0175, z: 0.00, radius: 0.035, priority: 1 }
+        - { name: llf0, x: 0.03, y: 0.025, z: 0.00, radius: 0.04, priority: 1 }
+        - { name: llf1, x: 0.08, y: 0.0175, z: 0.00, radius: 0.035, priority: 1 }
     - link_name: l_gripper_r_finger_link
       auto: false
       spheres:
-        - { name: rf0, x: 0.03, y: -0.025, z: 0.00, radius: 0.04, priority: 1 }
-        - { name: rf1, x: 0.08, y: -0.0175, z: 0.00, radius: 0.035, priority: 1 }
+        - { name: lrf0, x: 0.03, y: -0.025, z: 0.00, radius: 0.04, priority: 1 }
+        - { name: lrf1, x: 0.08, y: -0.0175, z: 0.00, radius: 0.035, priority: 1 }
     - link_name: l_gripper_r_finger_tip_link
       auto: false
       spheres:
-        - { name: rft0, x: 0.015, y: 0.005, z: 0.00, radius: 0.03, priority: 1 }
-        - { name: rft1, x: 0.035, y: 0.005, z: 0.00, radius: 0.02, priority: 1 }
+        - { name: lrft0, x: 0.015, y: 0.005, z: 0.00, radius: 0.03, priority: 1 }
+        - { name: lrft1, x: 0.035, y: 0.005, z: 0.00, radius: 0.02, priority: 1 }
     - link_name: l_gripper_l_finger_tip_link
       auto: false
       spheres:
-        - { name: lft0, x: 0.015, y: -0.005, z: 0.00, radius: 0.03, priority: 1 }
-        - { name: lft1, x: 0.035, y: -0.005, z: 0.00, radius: 0.02, priority: 1 }
+        - { name: llft0, x: 0.015, y: -0.005, z: 0.00, radius: 0.03, priority: 1 }
+        - { name: llft1, x: 0.035, y: -0.005, z: 0.00, radius: 0.02, priority: 1 }
     - link_name: r_shoulder_pan_link
       auto: false
       spheres:
-        - { name: sh0, x: 0.13, y: 0.0, z: -0.04, radius: 0.16, priority: 5 }
+        - { name: rsh0, x: 0.13, y: 0.0, z: -0.04, radius: 0.16, priority: 5 }
     - link_name: r_upper_arm_roll_link
       auto: false
       spheres:
-        - { name: ua0, x: 0.18, y: 0.0, z: -0.015, radius: 0.11, priority: 4 }
-        - { name: ua1, x: 0.26, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
-        - { name: ua2, x: 0.3275, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
-        - { name: ua3, x: 0.40, y: 0.0, z: -0.0, radius: 0.105, priority: 2 }
+        - { name: rua0, x: 0.18, y: 0.0, z: -0.015, radius: 0.11, priority: 4 }
+        - { name: rua1, x: 0.26, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
+        - { name: rua2, x: 0.3275, y: 0.00, z: -0.035, radius: 0.08, priority: 4 }
+        - { name: rua3, x: 0.40, y: 0.0, z: -0.0, radius: 0.105, priority: 2 }
 #    - link_name: r_elbow_flex_link
 #      auto: false
 #      spheres:
@@ -218,42 +221,42 @@ robot_collision_model:
     - link_name: r_forearm_roll_link
       auto: false
       spheres:
-        - { name: fa0, x: 0.13, y: 0.0, z: 0.005, radius: 0.075, priority: 2 }
-        - { name: fa1, x: 0.20, y: 0.025, z: -0.01, radius: 0.055, priority: 3 }
-        - { name: fa2, x: 0.20, y: -0.025, z: -0.01, radius: 0.055, priority: 3 }
-        - { name: fa3, x: 0.265, y: 0.0275, z: -0.015, radius: 0.05, priority: 3 }
-        - { name: fa4, x: 0.265, y: -0.0275, z: -0.015, radius: 0.05, priority: 3 }
-        - { name: fa5, x: 0.32, y: 0.0225, z: -0.005, radius: 0.05, priority: 3 }
-        - { name: fa6, x: 0.32, y: -0.0225, z: -0.005, radius: 0.05, priority: 3 }
+        - { name: rfa0, x: 0.13, y: 0.0, z: 0.005, radius: 0.075, priority: 2 }
+        - { name: rfa1, x: 0.20, y: 0.025, z: -0.01, radius: 0.055, priority: 3 }
+        - { name: rfa2, x: 0.20, y: -0.025, z: -0.01, radius: 0.055, priority: 3 }
+        - { name: rfa3, x: 0.265, y: 0.0275, z: -0.015, radius: 0.05, priority: 3 }
+        - { name: rfa4, x: 0.265, y: -0.0275, z: -0.015, radius: 0.05, priority: 3 }
+        - { name: rfa5, x: 0.32, y: 0.0225, z: -0.005, radius: 0.05, priority: 3 }
+        - { name: rfa6, x: 0.32, y: -0.0225, z: -0.005, radius: 0.05, priority: 3 }
     - link_name: r_wrist_roll_link
       auto: false
       spheres:
 #        - { name: g0, x: 0.08, y: 0.0, z: 0.00, radius: 0.07, priority: 1 }
 #        - { name: g1, x: 0.14, y: 0.0, z: 0.00, radius: 0.07, priority: 5 }
 #        - { name: g2, x: 0.2, y: 0.0, z: 0.00, radius: 0.03, priority: 5 }
-        - { name: gr0, x: 0.0725, y: -0.0175, z: 0.00, radius: 0.04, priority: 2 }
-        - { name: gr1, x: 0.0725, y: 0.0175, z: 0.00, radius: 0.04, priority: 2 }
-        - { name: gr2, x: 0.0925, y: 0.0, z: 0.00, radius: 0.04, priority: 2 }
+        - { name: rgr0, x: 0.0725, y: -0.0175, z: 0.00, radius: 0.04, priority: 2 }
+        - { name: rgr1, x: 0.0725, y: 0.0175, z: 0.00, radius: 0.04, priority: 2 }
+        - { name: rgr2, x: 0.0925, y: 0.0, z: 0.00, radius: 0.04, priority: 2 }
     - link_name: r_gripper_l_finger_link
       auto: false
       spheres:
-        - { name: lf0, x: 0.03, y: 0.025, z: 0.00, radius: 0.04, priority: 1 }
-        - { name: lf1, x: 0.08, y: 0.0175, z: 0.00, radius: 0.035, priority: 1 }
+        - { name: rlf0, x: 0.03, y: 0.025, z: 0.00, radius: 0.04, priority: 1 }
+        - { name: rlf1, x: 0.08, y: 0.0175, z: 0.00, radius: 0.035, priority: 1 }
     - link_name: r_gripper_r_finger_link
       auto: false
       spheres:
-        - { name: rf0, x: 0.03, y: -0.025, z: 0.00, radius: 0.04, priority: 1 }
-        - { name: rf1, x: 0.08, y: -0.0175, z: 0.00, radius: 0.035, priority: 1 }
+        - { name: rrf0, x: 0.03, y: -0.025, z: 0.00, radius: 0.04, priority: 1 }
+        - { name: rrf1, x: 0.08, y: -0.0175, z: 0.00, radius: 0.035, priority: 1 }
     - link_name: r_gripper_r_finger_tip_link
       auto: false
       spheres:
-        - { name: rft0, x: 0.015, y: 0.005, z: 0.00, radius: 0.03, priority: 1 }
-        - { name: rft1, x: 0.035, y: 0.005, z: 0.00, radius: 0.02, priority: 1 }
+        - { name: rrft0, x: 0.015, y: 0.005, z: 0.00, radius: 0.03, priority: 1 }
+        - { name: rrft1, x: 0.035, y: 0.005, z: 0.00, radius: 0.02, priority: 1 }
     - link_name: r_gripper_l_finger_tip_link
       auto: false
       spheres:
-        - { name: lft0, x: 0.015, y: -0.005, z: 0.00, radius: 0.03, priority: 1 }
-        - { name: lft1, x: 0.035, y: -0.005, z: 0.00, radius: 0.02, priority: 1 }
+        - { name: rlft0, x: 0.015, y: -0.005, z: 0.00, radius: 0.03, priority: 1 }
+        - { name: rlft1, x: 0.035, y: -0.005, z: 0.00, radius: 0.02, priority: 1 }
   collision_groups:
     - name: left_arm
       groups: [ left_gripper ]
@@ -261,7 +264,7 @@ robot_collision_model:
         - base: l_shoulder_pan_link
           tip: l_wrist_roll_link
     - name: left_arm_and_torso
-      groups: [ left_arm ]
+      groups: [ left_arm, torso ]
       links:
         - name: torso_lift_link
     - name: right_arm
@@ -270,7 +273,7 @@ robot_collision_model:
         - base: r_shoulder_pan_link
           tip: r_wrist_roll_link
     - name: right_arm_and_torso
-      groups: [ right_arm ]
+      groups: [ right_arm, torso ]
       links:
         - name: torso_lift_link
     - name: arms
@@ -285,6 +288,8 @@ robot_collision_model:
       links:
         - name: torso_lift_link
         - name: laser_tilt_mount_link
+    - name: base
+      groups: [ whole_body ]
     - name: whole_body
       groups: [ torso ]
       links:

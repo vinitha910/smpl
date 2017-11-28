@@ -38,6 +38,8 @@
 #include <chrono>
 #include <ratio>
 
+#include <smpl/config.h>
+
 // define clock APIs
 #define SMPL_CLOCK_ROS_TIME                 0
 #define SMPL_CLOCK_ROS_WALLTIME             1
@@ -120,6 +122,18 @@ typedef ::std::chrono::high_resolution_clock clock;
 #else
 #error "Unrecognized clock API configuration"
 #endif
+
+template <class Rep, class Period>
+double to_seconds(const std::chrono::duration<Rep, Period>& d)
+{
+    return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
+}
+
+inline clock::duration to_duration(double seconds)
+{
+    return std::chrono::duration_cast<clock::duration>(
+            std::chrono::duration<double>(seconds));
+}
 
 } // namespace sbpl
 

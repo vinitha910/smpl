@@ -40,6 +40,8 @@
 
 // project includes
 #include <smpl/grid.h>
+#include <smpl/occupancy_grid.h>
+#include <smpl/time.h>
 #include <smpl/types.h>
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/motion_primitive.h>
@@ -122,17 +124,16 @@ class AdaptiveWorkspaceLattice :
 {
 public:
 
-    AdaptiveWorkspaceLattice(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params,
-        OccupancyGrid* grid);
-
     ~AdaptiveWorkspaceLattice();
 
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
-    bool init(const Params& _params) override;
+    bool init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const PlanningParams* pp,
+        const Params& params,
+        const OccupancyGrid* grid);
     ///@}
 
     /// \name Required Public Functions from PointProjectionExtension
@@ -145,6 +146,8 @@ public:
     bool addHighDimRegion(int state_id) override;
     bool setTunnel(const std::vector<int>& states) override;
     bool isExecutable(const std::vector<int>& states) const override;
+    bool setTrackMode(const std::vector<int>& tunnel) override;
+    bool setPlanMode();
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpcae
@@ -155,6 +158,12 @@ public:
     bool extractPath(
         const std::vector<int>& ids,
         std::vector<RobotState>& path) override;
+    ///@}
+
+    /// \name Reimplemneted Functions from RobotPlanningSpace
+    ///@{
+    bool setStart(const RobotState& state) override;
+    bool setGoal(const GoalConstraint& goal) override;
     ///@}
 
     /// \name Required Public Functions from Extension
@@ -179,11 +188,13 @@ public:
 
 private:
 
-    AdaptiveState* m_goal_state;
-    int m_goal_state_id;
+    const OccupancyGrid* m_grid = nullptr;
 
-    AdaptiveState* m_start_state;
-    int m_start_state_id;
+    AdaptiveState* m_goal_state = nullptr;
+    int m_goal_state_id = -1;
+
+    AdaptiveState* m_start_state = nullptr;
+    int m_start_state_id = -1;
 
     typedef AdaptiveWorkspaceState HiStateKey;
     typedef PointerValueHash<HiStateKey> HiStateHash;
@@ -197,25 +208,33 @@ private:
 
     std::vector<AdaptiveState*> m_states;
 
+    clock::time_point m_t_start;
+    mutable bool m_near_goal = false;
+
     std::vector<Eigen::Vector3d> m_lo_prims;
     std::vector<MotionPrimitive> m_hi_prims;
 
-    int m_region_radius;
-    int m_tunnel_radius;
+    bool m_ik_amp_enabled = true;
+    double m_ik_amp_thresh = 0.2;
+
+    int m_region_radius = 1;
+    int m_tunnel_radius = 3;
+
+    bool m_plan_mode = true;
 
     struct AdaptiveGridCell
     {
         int grow_count;
-        bool hid; //planning_hd;
-        bool tracking_hd;
+        bool plan_hd; //planning_hd;
+        bool trak_hd;
 
-        AdaptiveGridCell() : grow_count(0), hid(false), tracking_hd(false) { }
-
-        operator bool() { return hid; }
+        AdaptiveGridCell() : grow_count(0), plan_hd(false), trak_hd(false) { }
     };
     Grid3<AdaptiveGridCell> m_dim_grid;
 
     bool initMotionPrimitives();
+
+    bool setGoalPose(const GoalConstraint& goal);
 
     void GetSuccs(
         const AdaptiveGridState& state,
@@ -228,6 +247,8 @@ private:
         std::vector<int>* costs);
 
     int reserveHashEntry(bool hid);
+
+    bool isHighDimensional(int gx, int gy, int gz) const;
 
     AdaptiveState* getHashEntry(int state_id) const;
     AdaptiveWorkspaceState* getHiHashEntry(int state_id) const;
@@ -246,14 +267,15 @@ private:
     bool checkAction(
         const RobotState& state,
         const Action& action,
-        double& dist,
         RobotState* final_rstate = nullptr);
 
     bool isGoal(const WorkspaceState& state) const;
+    bool isLoGoal(double x, double y, double z) const;
 
-    visualization_msgs::MarkerArray getStateVisualization(
-        const RobotState& state,
-        const std::string& ns);
+    auto getStateVisualization(const RobotState& state, const std::string& ns)
+        -> std::vector<visual::Marker>;
+
+    auto getAdaptiveGridVisualization(bool plan_mode) const -> visual::Marker;
 };
 
 } // namespace motion

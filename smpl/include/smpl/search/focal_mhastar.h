@@ -32,14 +32,6 @@
 #ifndef SMPL_FOCAL_MHASTAR_SEARCH_H
 #define SMPL_FOCAL_MHASTAR_SEARCH_H
 
-// standard includes
-#include <iomanip>
-#include <ostream>
-
-// system includes
-#include <sbpl/heuristics/heuristic.h>
-#include <sbpl/planners/planner.h>
-
 // project includes
 #include <smpl/search/mhastar_base.h>
 

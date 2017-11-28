@@ -1,7 +1,13 @@
 <launch>
+    <arg name="debug" default="false"/>
+
     <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
 
-    <node pkg="smpl_test" type="callPlanner" name="call_planner" output="screen">
+    <arg unless="$(arg debug)" name="launch-prefix" value=""/>
+    <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
+
+    <node pkg="smpl_test" type="callPlanner" name="call_planner"
+            launch-prefix="$(arg launch-prefix)">
         <param name="planning_frame" value="odom_combined"/>
 
         <!-- 1. robot model (for planning) -->

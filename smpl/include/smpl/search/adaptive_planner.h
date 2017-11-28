@@ -32,14 +32,17 @@
 #ifndef SMPL_ADAPTIVE_PLANNER_H
 #define SMPL_ADAPTIVE_PLANNER_H
 
+// standard includes
+#include <random>
+
 // system includes
 #include <sbpl/planners/planner.h>
-#include <sbpl/planners/araplanner.h>
 
 // project includes
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/search/arastar.h>
 
 namespace sbpl {
 namespace motion {
@@ -48,11 +51,23 @@ class AdaptivePlanner : public SBPLPlanner
 {
 public:
 
-    AdaptivePlanner(
-        const RobotPlanningSpacePtr& pspace,
-        const RobotHeuristicPtr& heur);
+    struct TimeParameters
+    {
+        enum TimingType { EXPANSIONS, TIME };
+
+        ARAStar::TimeParameters planning;
+        ARAStar::TimeParameters tracking;
+    };
+
+    AdaptivePlanner(RobotPlanningSpace* space, RobotHeuristic* heur);
 
     ~AdaptivePlanner();
+
+    void set_time_parameters(const TimeParameters& params) { m_time_params = params; }
+    void set_plan_eps(double eps) { m_eps_plan = eps; }
+    void set_track_eps(double eps) { m_eps_track = eps; }
+    double get_plan_eps() const { return m_eps_plan; }
+    double get_track_eps() const { return m_eps_track; }
 
     /// \name Reimplemented Public Functions from SBPLPlanner
     ///@{
@@ -60,6 +75,7 @@ public:
     int replan(std::vector<int>* solution, ReplanParams params, int* cost) override;
 
     int     force_planning_from_scratch_and_free_memory() override;
+
     double  get_solution_eps() const override;
     int     get_n_expands() const override;
     double  get_initial_eps() override;
@@ -68,6 +84,7 @@ public:
     int     get_n_expands_init_solution() override;
     double  get_final_epsilon() override;
     void    get_search_stats(std::vector<PlannerStats>* s) override;
+
     void    set_initialsolution_eps(double initialsolution_eps) override;
     ///@}
 
@@ -84,14 +101,19 @@ public:
 
 private:
 
-    ARAPlanner m_planner;
-    ARAPlanner m_tracker;
+    ARAStar m_planner;
+    ARAStar m_tracker;
 
     AdaptiveGraphExtension* m_adaptive_graph;
 
-    int m_start_id;
-    int m_goal_id;
+    TimeParameters m_time_params;
 
+    std::default_random_engine m_rng;
+
+    int m_start_state_id;
+    int m_goal_state_id;
+
+    double m_eps_plan;
     double m_eps_track;
 };
 

@@ -140,8 +140,6 @@ private:
     /// \name Robot State
     ///@{
     std::vector<double>                     m_jvar_positions;
-    std::vector<int>                        m_jvar_joints;
-    std::vector<double*>                    m_joint_var_offsets;
     std::vector<bool>                       m_dirty_joint_transforms;
     Affine3dVector                          m_joint_transforms;
     std::vector<bool>                       m_dirty_link_transforms;
@@ -183,7 +181,6 @@ RobotCollisionState::RobotCollisionState(
 :
     m_model(model),
     m_jvar_positions(),
-    m_joint_var_offsets(),
     m_dirty_link_transforms(),
     m_link_transforms(),
     m_link_transform_versions(),
@@ -214,8 +211,86 @@ inline
 bool RobotCollisionState::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
-    if (!transform.isApprox(m_link_transforms[0], 0.0)) {
-        m_link_transforms[0] = transform;
+    bool updated = false;
+    Eigen::Affine3d M;
+
+    // set variable values and compute root link transform
+    switch (m_model->jointType(0)) {
+    case JointType::FIXED:
+        M = Eigen::Affine3d::Identity();
+        break;
+    case JointType::REVOLUTE:
+    case JointType::CONTINUOUS: {
+        Eigen::Quaterniond q(transform.rotation());
+        size_t idx;
+        m_model->jointAxis(0).array().abs().maxCoeff(&idx);
+        double val = 2.0 * atan2(q.vec()[idx] / m_model->jointAxis(0)[idx], q.w());
+        if (val != m_jvar_positions[0]) {
+            m_jvar_positions[0] = val;
+            updated = true;
+            M = Eigen::AngleAxisd(val, m_model->jointAxis(0));
+        }
+    }   break;
+    case JointType::PRISMATIC: {
+        double val = transform.translation().dot(m_model->jointAxis(0));
+        if (val != m_jvar_positions[0]) {
+            m_jvar_positions[0] = val;
+            updated = true;
+        }
+        M = Eigen::Translation3d(val * m_model->jointAxis(0));
+    }   break;
+    case JointType::PLANAR: {
+        double x = transform.translation().x();
+        double y = transform.translation().y();
+        double theta;
+
+        Eigen::Quaterniond q(transform.rotation());
+        double s_squared = 1.0 - (q.w() * q.w());
+        // from MoveIt, from BULLET
+        if (s_squared < 10.0 * std::numeric_limits<double>::epsilon()) {
+            theta = 0.0;
+        } else {
+            double s = 1.0 / sqrt(s_squared);
+            theta = (2.0 * acos(q.w())) * (q.z() * s);
+        }
+
+        updated |= (m_jvar_positions[0] != x);
+        updated |= (m_jvar_positions[1] != y);
+        updated |= (m_jvar_positions[2] != theta);
+        if (updated) {
+            m_jvar_positions[0] = x;
+            m_jvar_positions[1] = y;
+            m_jvar_positions[2] = theta;
+
+            M = Eigen::Translation3d(x, y, 0.0) *
+                    Eigen::AngleAxisd(theta, Eigen::Vector3d::UnitZ());
+        }
+    }   break;
+    case JointType::FLOATING: {
+        updated |= (m_jvar_positions[0] != transform.translation().x());
+        updated |= (m_jvar_positions[1] != transform.translation().y());
+        updated |= (m_jvar_positions[2] != transform.translation().z());
+        const Eigen::Quaterniond q(transform.rotation());
+        updated |= (m_jvar_positions[3] != q.x());
+        updated |= (m_jvar_positions[4] != q.y());
+        updated |= (m_jvar_positions[5] != q.z());
+        updated |= (m_jvar_positions[6] != q.w());
+        if (updated) {
+            m_jvar_positions[0] = transform.translation().x();
+            m_jvar_positions[1] = transform.translation().y();
+            m_jvar_positions[2] = transform.translation().z();
+            m_jvar_positions[3] = q.x();
+            m_jvar_positions[4] = q.y();
+            m_jvar_positions[5] = q.z();
+            m_jvar_positions[6] = q.w();
+
+            M = transform;
+        }
+    }   break;
+    }
+
+    if (updated) {
+        m_link_transforms[0] = M;
         std::fill(m_dirty_link_transforms.begin(), m_dirty_link_transforms.end(), true);
         m_dirty_link_transforms[0] = false;
         ++m_link_transform_versions[0];
@@ -327,19 +402,26 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
     // do NOT optimize out this recursion...i don't know why, but attempts at
     // the equivalent iteration were not faster than the recursive version by a
     // noticeable margin
-    updateLinkTransform(plidx);
-    const Eigen::Affine3d& T_world_parent = m_link_transforms[plidx];
+    if (plidx >= 0) {
+        updateLinkTransform(plidx);
+    }
 
     if (m_dirty_joint_transforms[pjidx]) {
         JointTransformFunction fn = m_model->jointTransformFn(pjidx);
         const Eigen::Affine3d& joint_origin = m_model->jointOrigin(pjidx);
         const Eigen::Vector3d& joint_axis = m_model->jointAxis(pjidx);
-        double* variables = m_joint_var_offsets[pjidx];
+        int fvidx = m_model->jointVarIndexFirst(pjidx);
+        double* variables = m_jvar_positions.data() + fvidx;
         m_joint_transforms[pjidx] = fn(joint_origin, joint_axis, variables);
         m_dirty_joint_transforms[pjidx] = false;
     }
     const Eigen::Affine3d& T_parent_link = m_joint_transforms[pjidx];
-    m_link_transforms[lidx] = T_world_parent * T_parent_link;
+    if (plidx >= 0) {
+        const Eigen::Affine3d& T_world_parent = m_link_transforms[plidx];
+        m_link_transforms[lidx] = T_world_parent * T_parent_link;
+    } else {
+        m_link_transforms[lidx] = T_parent_link;
+    }
 
     ROS_DEBUG_NAMED(RCS_LOGGER, " -> %s", AffineToString(m_link_transforms[lidx]).c_str());
 

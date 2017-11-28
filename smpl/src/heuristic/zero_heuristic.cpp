@@ -34,12 +34,9 @@
 namespace sbpl {
 namespace motion {
 
-ZeroHeuristic::ZeroHeuristic(
-    const RobotPlanningSpacePtr& ps,
-    const OccupancyGrid* grid)
-:
-    RobotHeuristic(ps, grid)
+bool ZeroHeuristic::init(RobotPlanningSpace* space)
 {
+    return RobotHeuristic::init(space);
 }
 
 double ZeroHeuristic::getMetricGoalDistance(double x, double y, double z)

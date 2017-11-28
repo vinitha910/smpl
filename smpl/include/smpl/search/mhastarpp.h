@@ -32,17 +32,6 @@
 #ifndef SMPL_MHASTAR_PLUS_PLUS_H
 #define SMPL_MHASTAR_PLUS_PLUS_H
 
-// standard includes
-#include <iomanip>
-#include <ostream>
-
-// system includes
-#include <sbpl/heuristics/heuristic.h>
-#include <sbpl/planners/planner.h>
-
-// project includes
-#include <smpl/intrusive_heap.h>
-#include <smpl/time.h>
 #include <smpl/search/mhastar_base.h>
 
 namespace sbpl {

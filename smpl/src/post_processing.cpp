@@ -34,15 +34,16 @@
 
 // standard includes
 #include <chrono>
+#include <numeric>
 
 // system includes
 #include <Eigen/Dense>
-#include <leatherman/print.h>
-#include <ros/console.h>
 
 // project includes
 #include <smpl/angles.h>
 #include <smpl/time.h>
+#include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 #include <smpl/geometry/shortcut.h>
 
 namespace sbpl {
@@ -108,13 +109,8 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        int path_length;
-        int num_checks;
-        double dist;
         const size_t var_count = m_robot->getPlanningJoints().size();
-        if (m_cc->isStateToStateValid(
-                start, finish, path_length, num_checks, dist))
-        {
+        if (m_cc->isStateToStateValid(start, finish)) {
             *ofirst++ = start;
             *ofirst++ = finish;
             cost = distance(*m_robot, start, finish);
@@ -148,15 +144,10 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        int path_length;
-        int num_checks;
-        double dist;
         const size_t var_count = m_robot->getPlanningJoints().size();
         const RobotState pstart(start.begin(), start.begin() + var_count);
         const RobotState pend(finish.begin(), finish.begin() + var_count);
-        if (m_cc->isStateToStateValid(
-                pstart, pend, path_length, num_checks, dist))
-        {
+        if (m_cc->isStateToStateValid(pstart, pend)) {
             *ofirst++ = start;
             *ofirst++ = finish;
             cost = pv_distance(*m_robot, start, finish);
@@ -262,11 +253,7 @@ public:
             }
 
             // check the path segment for collisions
-            int path_length, num_checks;
-            double dist;
-            if (!m_cc->isStateToStateValid(
-                    prev_wp, wp, path_length, num_checks, dist))
-            {
+            if (!m_cc->isStateToStateValid(prev_wp, wp)) {
                 return false;
             }
 
@@ -372,7 +359,7 @@ void ShortcutPath(
         ComputePositionVelocityPathCosts(rm, opvpath_dnc, new_costs_dnc);
         double new_cost_dnc = std::accumulate(new_costs_dnc.begin(), new_costs_dnc.end(), 0.0);
         if (new_cost_dnc < next_cost) {
-            ROS_INFO("Divide and Conquer Wins! (%0.3f < %0.3f)", new_cost_dnc, next_cost);
+            SMPL_INFO("Divide and Conquer Wins! (%0.3f < %0.3f)", new_cost_dnc, next_cost);
             next_cost = new_cost_dnc;
             opvpath = std::move(opvpath_dnc);
         }
@@ -384,10 +371,10 @@ void ShortcutPath(
     }
 
     auto now = clock::now();
-    ROS_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
+    SMPL_INFO("Path shortcutting took %0.3f seconds", std::chrono::duration<double>(now - then).count());
 
-    ROS_INFO("Original path: waypoint count: %zu, cost: %0.3f", pin.size(), prev_cost);
-    ROS_INFO("Shortcutted path: waypount_count: %zu, cost: %0.3f", pout.size(), next_cost);
+    SMPL_INFO("Original path: waypoint count: %zu, cost: %0.3f", pin.size(), prev_cost);
+    SMPL_INFO("Shortcutted path: waypount_count: %zu, cost: %0.3f", pout.size(), next_cost);
 }
 
 bool CreatePositionVelocityPath(
@@ -474,75 +461,35 @@ bool ComputePositionVelocityPathCosts(
     return true;
 }
 
-void ShortcutTrajectory(
-    RobotModel* rm,
-    CollisionChecker* cc,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_in,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out,
-    ShortcutType type)
+bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
 {
-    std::vector<RobotState> pin(traj_in.size());
-    std::vector<RobotState> pout;
-
-    // convert JointTrajectoryPoint vector to vector<vector<double>> repr
-    for (size_t j = 0; j < traj_in.size(); ++j) {
-        pin[j].resize(traj_in[j].positions.size(),0);
-        for (size_t k = 0; k < traj_in[j].positions.size(); ++k) {
-            pin[j][k] = traj_in[j].positions[k];
-        }
-    }
-
-    if (pin.size() > 2) {
-        ShortcutPath(rm, cc, pin, pout, type);
-    }
-    else {
-        ROS_WARN("Path is too short for shortcutting.");
-        pout = pin;
-    }
-
-    traj_out.resize(pout.size());
-    for (size_t j = 0; j < pout.size(); ++j) {
-        for (size_t k = 0; k < pout[j].size(); ++k) {
-            traj_out[j].positions.resize(pout[j].size());
-            traj_out[j].positions[k] = pout[j][k];
-        }
-    }
-}
-
-bool InterpolateTrajectory(
-    CollisionChecker* cc,
-    const std::vector<trajectory_msgs::JointTrajectoryPoint>& traj,
-    std::vector<trajectory_msgs::JointTrajectoryPoint>& traj_out)
-{
-    if (traj.empty()) {
+    if (path.empty()) {
         return true;
     }
 
-    const size_t num_joints = traj.front().positions.size();
-    for (const auto& pt : traj) {
-        if (pt.positions.size() != num_joints) {
-            ROS_ERROR("Failed to interpolate trajectory. Input trajectory is malformed");
+    const size_t num_joints = path.front().size();
+    for (const auto& pt : path) {
+        if (pt.size() != num_joints) {
+            SMPL_ERROR("Failed to interpolate trajectory. Input trajectory is malformed");
             return false;
         }
     }
 
-    std::vector<RobotState> path;
-    RobotState start(num_joints, 0);
-    RobotState end(num_joints, 0);
+    std::vector<RobotState> opath;
 
     // tack on the first point of the trajectory
-    path.push_back(traj.front().positions);
+    opath.push_back(path.front());
 
     // iterate over path segments
-    for (size_t i = 0; i < traj.size() - 1; ++i) {
-        start = traj[i].positions;
-        end = traj[i + 1].positions;
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        const RobotState& start = path[i];
+        const RobotState& end = path[i + 1];
 
-        ROS_DEBUG_STREAM("Interpolating between " << start << " and " << end);
+        SMPL_DEBUG_STREAM("Interpolating between " << start << " and " << end);
 
         std::vector<RobotState> ipath;
-        if (!cc->interpolatePath(start, end, ipath)) {
-            ROS_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
+        if (!cc.interpolatePath(start, end, ipath)) {
+            SMPL_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
         }
 
@@ -550,36 +497,29 @@ bool InterpolateTrajectory(
         // take a slightly different
         bool collision = false;
         for (const auto& point : ipath) {
-            double dist;
-            if (!cc->isStateValid(point, false, false, dist)) {
+            if (!cc.isStateValid(point, false)) {
                 collision = true;
                 break;
             }
         }
 
         if (collision) {
-            ROS_ERROR("Interpolated path collides. Resorting to original waypoints");
-            path.push_back(end);
+            SMPL_ERROR("Interpolated path collides. Resorting to original waypoints");
+            opath.push_back(end);
             continue;
         }
 
         if (!ipath.empty()) {
             // concatenate current path and the intermediate path (we already
             // have the first waypoint in the path from last iteration)
-            path.insert(path.end(), ipath.begin() + 1, ipath.end());
+            opath.insert(opath.end(), std::next(ipath.begin()), ipath.end());
         }
 
-        ROS_DEBUG("[%zu] path length: %zu", i, path.size());
+        SMPL_DEBUG("[%zu] path length: %zu", i, opath.size());
     }
 
-    traj_out.resize(path.size());
-    for (size_t i = 0; i < path.size(); ++i) {
-        traj_out[i].positions.resize(path[i].size());
-        for (size_t j = 0; j < path[i].size(); ++j) {
-            traj_out[i].positions[j] = path[i][j];
-        }
-    }
-    ROS_INFO("Original path length: %d   Interpolated path length: %d", int(traj.size()), int(traj_out.size()));
+    SMPL_INFO("Original path length: %zu   Interpolated path length: %zu", path.size(), opath.size());
+    path = std::move(opath);
     return true;
 }
 

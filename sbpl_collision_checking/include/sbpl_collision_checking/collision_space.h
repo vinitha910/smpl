@@ -30,8 +30,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_collision_space_h
-#define sbpl_collision_collision_space_h
+#ifndef SBPL_COLLISION_CHECKING_COLLISION_SPACE_H
+#define SBPL_COLLISION_CHECKING_COLLISION_SPACE_H
 
 // standard includes
 #include <string>
@@ -54,6 +54,7 @@
 #include <sbpl_collision_checking/allowed_collisions_interface.h>
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
+#include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/self_collision_model.h>
 #include <sbpl_collision_checking/world_collision_model.h>
@@ -62,13 +63,32 @@
 namespace sbpl {
 namespace collision {
 
-class CollisionSpaceBuilder;
-
 class CollisionSpace : public motion::CollisionChecker
 {
 public:
 
+    CollisionSpace();
     ~CollisionSpace();
+
+    bool init(
+        OccupancyGrid* grid,
+        const std::string& urdf_string,
+        const CollisionModelConfig& config,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
+    bool init(
+        OccupancyGrid* grid,
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
+
+    bool init(
+        OccupancyGrid* grid,
+        const RobotCollisionModelConstPtr& rcm,
+        const std::string& group_name,
+        const std::vector<std::string>& planning_joints);
 
     bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
 
@@ -117,27 +137,39 @@ public:
 
     const std::string& getGroupName() const;
 
-    const RobotCollisionModelConstPtr& robotCollisionModel() const;
-    WorldCollisionModelConstPtr worldCollisionModel() const;
-    SelfCollisionModelConstPtr selfCollisionModel() const;
+    const RobotCollisionModelConstPtr&  robotCollisionModel() const;
+    const RobotMotionCollisionModelConstPtr& robotMotionCollisionModel() const;
+
+    auto grid() -> OccupancyGrid* { return m_grid; }
+    auto grid() const -> const OccupancyGrid* { return m_grid; }
+
+    WorldCollisionModelConstPtr  worldCollisionModel() const;
+    SelfCollisionModelConstPtr   selfCollisionModel() const;
 
     /// \name Visualization
     ///@{
-    visualization_msgs::MarkerArray getWorldVisualization() const;
-    visualization_msgs::MarkerArray getRobotVisualization() const;
+    auto getWorldVisualization() const -> visualization_msgs::MarkerArray;
+    auto getRobotVisualization() const -> visualization_msgs::MarkerArray;
 
-    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
-    visualization_msgs::MarkerArray getCollisionRobotVisualization() const;
-    visualization_msgs::MarkerArray getCollisionRobotVisualization(
-        const std::vector<double>& vals);
+    auto getCollisionWorldVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionRobotVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionRobotVisualization(const std::vector<double>& vals)
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionRobotVisualization(const double* jvals)
+        -> visualization_msgs::MarkerArray;
 
-    visualization_msgs::MarkerArray getCollisionDetailsVisualization() const;
-    visualization_msgs::MarkerArray getCollisionDetailsVisualization(
-        const std::vector<double>& vals);
+    auto getCollisionDetailsVisualization() const
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionDetailsVisualization(const std::vector<double>& vals)
+        -> visualization_msgs::MarkerArray;
+    auto getCollisionDetailsVisualization(const double* jvals)
+        -> visualization_msgs::MarkerArray;
 
-    visualization_msgs::MarkerArray getBoundingBoxVisualization() const;
-    visualization_msgs::MarkerArray getDistanceFieldVisualization() const;
-    visualization_msgs::MarkerArray getOccupiedVoxelsVisualization() const;
+    auto getBoundingBoxVisualization() const -> visual::Marker;
+    auto getDistanceFieldVisualization() const -> visual::Marker;
+    auto getOccupiedVoxelsVisualization() const -> visual::Marker;
     ///@}
 
     bool checkCollision(
@@ -148,46 +180,51 @@ public:
         double& dist);
 
     bool checkCollision(const std::vector<double>& state, double& dist);
+    bool checkCollision(const double* state, double& dist);
 
     double collisionDistance(const std::vector<double>& state);
+    double collisionDistance(const double* state);
 
     bool collisionDetails(
         const std::vector<double>& state,
         CollisionDetails& details);
+    bool collisionDetails(const double* state, CollisionDetails& details);
 
-    /// \name Reimplemented Public Functions
+    /// \name Required Functions from Extension
     ///@{
-    bool isStateValid(
-        const motion::RobotState& state,
-        bool verbose,
-        bool visualize,
-        double& dist) override;
+    motion::Extension* getExtension(size_t class_code) override;
+    ///@}
+
+    /// \name Required Functions from CollisionChecker
+    ///@{
+    bool isStateValid(const motion::RobotState& state, bool verbose = false) override;
 
     bool isStateToStateValid(
         const motion::RobotState& start,
         const motion::RobotState& finish,
-        int& path_length,
-        int& num_checks,
-        double& dist) override;
+        bool verbose = false) override;
 
     bool interpolatePath(
         const motion::RobotState& start,
         const motion::RobotState& finish,
         std::vector<motion::RobotState>& path) override;
+    ///@}
 
-    visualization_msgs::MarkerArray
-    getCollisionModelVisualization(const motion::RobotState& vals) override;
-
-    visualization_msgs::MarkerArray
-    getVisualization(const std::string& type) override;
+    /// \name Reimplemented Functions from CollisionChecker
+    ///@{
+    auto getCollisionModelVisualization(const motion::RobotState& vals)
+        -> std::vector<visual::Marker> override;
     ///@}
 
 private:
 
     OccupancyGrid*                  m_grid;
 
-    RobotCollisionModelConstPtr     m_rcm;
-    AttachedBodiesCollisionModelPtr m_abcm;
+    RobotCollisionModelConstPtr         m_rcm;
+    AttachedBodiesCollisionModelPtr     m_abcm;
+
+    RobotMotionCollisionModelConstPtr   m_rmcm;
+
     RobotCollisionStatePtr          m_rcs;
     AttachedBodiesCollisionStatePtr m_abcs;
     std::vector<double>             m_joint_vars;
@@ -201,31 +238,7 @@ private:
 
     // Planning Joint Information
     std::vector<int>                m_planning_joint_to_collision_model_indices;
-    std::vector<double>             m_increments;
 
-    CollisionSpace();
-
-    bool init(
-        OccupancyGrid* grid,
-        const std::string& urdf_string,
-        const CollisionModelConfig& config,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
-
-    bool init(
-        OccupancyGrid* grid,
-        const urdf::ModelInterface& urdf,
-        const CollisionModelConfig& config,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
-
-    bool init(
-        OccupancyGrid* grid,
-        const RobotCollisionModelConstPtr& rcm,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
-
-    bool setPlanningJoints(const std::vector<std::string>& joint_names);
     size_t planningVariableCount() const;
 
     bool isContinuous(int vidx) const;
@@ -234,19 +247,16 @@ private:
     double maxLimit(int vidx) const;
 
     void updateState(const std::vector<double>& vals);
+    void updateState(const double* vals);
+    void updateState(
+        std::vector<double>& state,
+        const std::vector<double>& vals);
+    void updateState(
+        std::vector<double>& state,
+        const double* vals);
     void copyState();
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
-
-    bool checkAttachedObjectCollision(
-        bool verbose, bool visualize, double& dist);
-
-    double isValidLineSegment(
-        const std::vector<int>& a,
-        const std::vector<int>& b,
-        const int radius);
-
-    friend class CollisionSpaceBuilder;
 };
 
 /// \brief Return the reference frame of the occupancy grid
@@ -267,6 +277,13 @@ inline
 const RobotCollisionModelConstPtr& CollisionSpace::robotCollisionModel() const
 {
     return m_rcm;
+}
+
+inline
+const RobotMotionCollisionModelConstPtr&
+CollisionSpace::robotMotionCollisionModel() const
+{
+    return m_rmcm;
 }
 
 inline
@@ -318,29 +335,55 @@ double CollisionSpace::maxLimit(int vidx) const
 typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;
 typedef std::shared_ptr<const CollisionSpace> CollisionSpaceConstPtr;
 
+auto BuildCollisionSpace(
+    OccupancyGrid* grid,
+    const std::string& urdf_string,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>;
+
+auto BuildCollisionSpace(
+    OccupancyGrid* grid,
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>;
+
+auto BuildCollisionSpace(
+    OccupancyGrid* grid,
+    const RobotCollisionModelConstPtr& rcm,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>;
+
 class CollisionSpaceBuilder
 {
 public:
 
-    CollisionSpacePtr build(
+    auto build(
         OccupancyGrid* grid,
         const std::string& urdf_string,
         const CollisionModelConfig& config,
         const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints)
+        -> std::unique_ptr<CollisionSpace>;
 
-    CollisionSpacePtr build(
+    auto build(
         OccupancyGrid* grid,
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config,
         const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints)
+        -> std::unique_ptr<CollisionSpace>;
 
-    CollisionSpacePtr build(
+    auto build(
         OccupancyGrid* grid,
         const RobotCollisionModelConstPtr& rcm,
         const std::string& group_name,
-        const std::vector<std::string>& planning_joints);
+        const std::vector<std::string>& planning_joints)
+        -> std::unique_ptr<CollisionSpace>;
 };
 
 } // namespace collision

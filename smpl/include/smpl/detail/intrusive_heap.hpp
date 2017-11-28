@@ -35,6 +35,7 @@
 #include "../intrusive_heap.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 namespace sbpl {
 
@@ -93,7 +94,7 @@ T* intrusive_heap<T, Compare>::min() const
 }
 
 template <class T, class Compare>
-class intrusive_heap<T, Compare>::const_iterator
+typename intrusive_heap<T, Compare>::const_iterator
 intrusive_heap<T, Compare>::begin() const
 {
     return m_data.begin() + 1;

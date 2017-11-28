@@ -38,14 +38,12 @@
 #include <algorithm>
 
 // system includes
-#include <ros/console.h>
 #include <sbpl/utils/key.h>
-#include <leatherman/print.h>
 
-static double to_secs(const sbpl::clock::duration &d)
-{
-    return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
-}
+// project includes
+#include <smpl/time.h>
+#include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
 
 namespace sbpl {
 
@@ -73,7 +71,7 @@ MetaMultiHeuristicAstarDTS::MetaMultiHeuristicAstarDTS(
     m_search_states(),
     m_open(nullptr)
 {
-    ROS_INFO("Construct Focal MHA* Search with %d heuristics", hcount);
+    SMPL_INFO("Construct Focal MHA* Search with %d heuristics", hcount);
     environment_ = environment;
 
     m_open = new rank_pq[hcount + 1];
@@ -101,7 +99,7 @@ MetaMultiHeuristicAstarDTS::~MetaMultiHeuristicAstarDTS()
 
 int MetaMultiHeuristicAstarDTS::set_start(int start_state_id)
 {
-    ROS_INFO("Set start to %d", start_state_id);
+    SMPL_INFO("Set start to %d", start_state_id);
     m_start_state = get_state(start_state_id);
     if (!m_start_state) {
         return 0;
@@ -112,7 +110,7 @@ int MetaMultiHeuristicAstarDTS::set_start(int start_state_id)
 
 int MetaMultiHeuristicAstarDTS::set_goal(int goal_state_id)
 {
-    ROS_INFO("Set goal to %d", goal_state_id);
+    SMPL_INFO("Set goal to %d", goal_state_id);
     m_goal_state = get_state(goal_state_id);
     if (!m_goal_state) {
         return 0;
@@ -152,9 +150,9 @@ int MetaMultiHeuristicAstarDTS::replan(
     ReplanParams params,
     int* solcost)
 {
-    ROS_INFO("Call replan");
+    SMPL_INFO("Call replan");
     if (!check_params(params)) { // errors printed within
-        ROS_WARN(" -> Parameters invalid");
+        SMPL_WARN(" -> Parameters invalid");
         return 0;
     }
 
@@ -190,7 +188,7 @@ int MetaMultiHeuristicAstarDTS::replan(
     reinit_state(m_start_state);
     m_start_state->g = 0;
 
-    ROS_INFO("Insert start state into OPEN and PSET");
+    SMPL_INFO("Insert start state into OPEN and PSET");
 
     // insert start state into OPEN with g(s) + h(s) as the priority
     // insert start state into PSET and place in all RANK lists
@@ -200,14 +198,14 @@ int MetaMultiHeuristicAstarDTS::replan(
         m_best_hvals[hidx - 1] = m_start_state->od[hidx].h;
         m_start_state->od[hidx].f = compute_key(m_start_state, hidx);
         m_open[hidx].push(&m_start_state->od[hidx]);
-        ROS_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, hidx, m_start_state->od[hidx].f);
+        SMPL_INFO("Inserted start state %d into search %d with f = %d", m_start_state->state_id, hidx, m_start_state->od[hidx].f);
     }
     std::fill(m_alphas.begin(), m_alphas.end(), 1.0);
     std::fill(m_betas.begin(), m_betas.end(), 1.0);
     m_rng.seed(0);
 
     auto end_time = sbpl::clock::now();
-    m_elapsed += to_secs(end_time - start_time);
+    m_elapsed += to_seconds(end_time - start_time);
 
     const int anchor_freq = m_hcount;
     int iter_count = 0;
@@ -253,14 +251,14 @@ int MetaMultiHeuristicAstarDTS::replan(
         }
 
         auto end_time = sbpl::clock::now();
-        m_elapsed += to_secs(end_time - start_time);
+        m_elapsed += to_seconds(end_time - start_time);
     }
 
     if (m_open[0].empty()) {
-        ROS_INFO("Anchor search exhausted");
+        SMPL_INFO("Anchor search exhausted");
     }
     if (time_limit_reached()) {
-        ROS_INFO("Time limit reached");
+        SMPL_INFO("Time limit reached");
     }
 
     return 0;
@@ -476,11 +474,11 @@ void MetaMultiHeuristicAstarDTS::init_state(
         state->od[i].me = state;
     }
 
-    ROS_DEBUG_STREAM("Initialized state: " << *state);
+    SMPL_DEBUG_STREAM("Initialized state: " << *state);
     for (int i = 0; i < num_heuristics(); ++i) {
-        ROS_DEBUG("  me[%d]: %p", i, state->od[i].me);
-        ROS_DEBUG("  h[%d]: %d", i, state->od[i].h);
-        ROS_DEBUG("  f[%d]: %d", i, state->od[i].f);
+        SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
+        SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
+        SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
     }
 }
 
@@ -502,11 +500,11 @@ void MetaMultiHeuristicAstarDTS::reinit_state(MHASearchState* state)
             state->od[i].f = INFINITECOST;
         }
 
-        ROS_DEBUG_STREAM("Reinitialized state: " << *state);
+        SMPL_DEBUG_STREAM("Reinitialized state: " << *state);
         for (int i = 0; i < num_heuristics(); ++i) {
-            ROS_DEBUG("  me[%d]: %p", i, state->od[i].me);
-            ROS_DEBUG("  h[%d]: %d", i, state->od[i].h);
-            ROS_DEBUG("  f[%d]: %d", i, state->od[i].f);
+            SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
+            SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
+            SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
         }
     }
 }
@@ -539,31 +537,31 @@ int MetaMultiHeuristicAstarDTS::choose_search()
         boost::math::beta_distribution<double> dist(m_alphas[hidx], m_betas[hidx]);
         r[hidx] = quantile(dist, m_uniform(m_rng));
     }
-    ROS_INFO("Choose Search from: %s", to_string(r).c_str());
+    SMPL_INFO_STREAM("Choose Search from: " << r);
     return std::distance(r.begin(), std::max_element(r.begin(), r.end())) + 1;
 }
 
 void MetaMultiHeuristicAstarDTS::update_meta_method(int hidx)
 {
-    ROS_INFO("Update Meta Method:");
-    ROS_INFO("  pre-alphas: %s", to_string(m_alphas).c_str());
-    ROS_INFO("  pre-betas: %s", to_string(m_betas).c_str());
+    SMPL_INFO("Update Meta Method:");
+    SMPL_INFO_STREAM("  pre-alphas: " << m_alphas);
+    SMPL_INFO_STREAM("  pre-betas: " << m_betas);
     int new_best_hval = m_open[hidx].min()->h;
     if (new_best_hval < m_best_hvals[hidx - 1]) {
-        ROS_INFO("Update[%d] Good! :D", hidx);
+        SMPL_INFO("Update[%d] Good! :D", hidx);
         m_best_hvals[hidx - 1] = new_best_hval;
         m_alphas[hidx - 1] += 1.0;
     } else {
-        ROS_INFO("Update[%d] Bad! D:", hidx);
+        SMPL_INFO("Update[%d] Bad! D:", hidx);
         m_betas[hidx - 1] += 1.0;
     }
-    ROS_INFO("  alphas: %s", to_string(m_alphas).c_str());
-    ROS_INFO("  betas: %s", to_string(m_betas).c_str());
+    SMPL_INFO_STREAM("  alphas: " << m_alphas);
+    SMPL_INFO_STREAM("  betas: " << m_betas);
 
     const double C = 100.0;
     if (m_alphas[hidx - 1] + m_betas[hidx - 1] > C) {
         double mod = C / (C + 1);
-        ROS_INFO("Renormalize! a: %0.3f, b: %0.3f -> a: %0.3f, b: %0.3f", m_alphas[hidx - 1], m_betas[hidx - 1], m_alphas[hidx - 1] * mod, m_betas[hidx - 1] * mod);
+        SMPL_INFO("Renormalize! a: %0.3f, b: %0.3f -> a: %0.3f, b: %0.3f", m_alphas[hidx - 1], m_betas[hidx - 1], m_alphas[hidx - 1] * mod, m_betas[hidx - 1] * mod);
         m_alphas[hidx - 1] *= mod;
         m_betas[hidx - 1] *= mod;
     }
@@ -571,7 +569,7 @@ void MetaMultiHeuristicAstarDTS::update_meta_method(int hidx)
 
 void MetaMultiHeuristicAstarDTS::expand(MHASearchState* state, int hidx)
 {
-    ROS_INFO("Expanding state %d in search %d", state->state_id, hidx);
+    SMPL_INFO("Expanding state %d in search %d", state->state_id, hidx);
 
     assert(!closed_in_add_search(state) || !closed_in_anc_search(state));
 
@@ -665,7 +663,7 @@ MHASearchState* MetaMultiHeuristicAstarDTS::select_state(int hidx)
 
 void MetaMultiHeuristicAstarDTS::extract_path(std::vector<int>* solution_path, int* solcost)
 {
-    ROS_INFO("Extracting path");
+    SMPL_INFO("Extracting path");
     solution_path->clear();
     *solcost = 0;
     for (MHASearchState* state = m_goal_state; state; state = state->bp)

@@ -36,15 +36,16 @@
 #define SMPL_ATTRACTOR_HEURISTIC_H
 
 namespace sbpl {
+
+class OccupancyGrid;
+
 namespace motion {
 
 class AttractorHeuristic : public RobotHeuristic
 {
 public:
 
-    AttractorHeuristic(
-        const RobotPlanningSpacePtr& ps,
-        const OccupancyGrid* grid);
+    bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
 
     void setAttractor(const RobotState& state) { m_attractor = state; }
     const RobotState& attractor() const { return m_attractor; }
@@ -69,8 +70,9 @@ public:
 
 private:
 
+    const OccupancyGrid* m_grid = nullptr;
+    ExtractRobotStateExtension* m_ers = nullptr;
     RobotState m_attractor;
-    ExtractRobotStateExtension* m_ers;
 };
 
 } // namespace motion

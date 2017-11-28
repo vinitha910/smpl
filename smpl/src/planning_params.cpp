@@ -32,9 +32,11 @@
 
 #include <smpl/planning_params.h>
 
+// standard includes
+#include <sstream>
+
 // system includes
-#include <leatherman/utils.h>
-#include <leatherman/print.h>
+#include <smpl/console/console.h>
 
 namespace sbpl {
 namespace motion {
@@ -42,9 +44,10 @@ namespace motion {
 const std::string PlanningParams::DefaultRobotModelLog = "robot";
 const std::string PlanningParams::DefaultGraphLog = "graph";
 const std::string PlanningParams::DefaultHeuristicLog = "heuristic";
-const std::string PlanningParams::DefaultExpandsLog = "expands";
+const std::string PlanningParams::DefaultExpandsLog = "graph.expansions";
 const std::string PlanningParams::DefaultPostProcessingLog = "post_process";
 const std::string PlanningParams::DefaultSolutionLog = "solution";
+const std::string PlanningParams::DefaultSuccessorsLog = "successors";
 
 std::string to_string(ShortcutType type)
 {
@@ -65,35 +68,208 @@ std::string to_string(ShortcutType type)
 PlanningParams::PlanningParams() :
     planning_frame(),
 
-    cost_multiplier(DefaultCostMultiplier),
     cost_per_cell(DefaultCostPerCell),
-    cost_per_meter(DefaultCostPerMeter),
-    cost_per_second(DefaultCostPerSecond),
-    time_per_cell(DefaultTimePerCell),
-    max_mprim_offset(DefaultMaxMprimOffset),
 
     planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
-    epsilon(DefaultEpsilon),
-    allowed_time(DefaultAllowedTime),
-    search_mode(DefaultSearchMode),
-
     shortcut_path(DefaultShortcutPath),
     interpolate_path(DefaultInterpolatePath),
-    waypoint_time(DefaultWaypointTime),
     shortcut_type(DefaultShortcutType),
 
-    print_path(true),
-    verbose(false),
-    verbose_heuristics(false),
-    verbose_collisions(false),
     robot_log(DefaultRobotModelLog),
     graph_log(DefaultGraphLog),
     heuristic_log(DefaultHeuristicLog),
     expands_log(DefaultExpandsLog),
+    successors_log(DefaultSuccessorsLog),
     post_processing_log(DefaultPostProcessingLog),
-    solution_log(DefaultSolutionLog)
+    solution_log(DefaultSolutionLog),
+
+    m_warn_defaults(false)
 {
+}
+
+template <typename T>
+std::string construct_warn_string(const std::string& name, T def)
+{
+    std::stringstream ss;
+    ss << "Missing parameter '" << name << "'. Default set to " << def;
+    return ss.str();
+}
+
+void PlanningParams::addParam(const std::string& name, bool val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::addParam(const std::string& name, int val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::addParam(const std::string& name, double val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::addParam(const std::string& name, const std::string& val)
+{
+    params[name] = val;
+}
+
+void PlanningParams::param(const std::string& name, bool& val, bool def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToBool(it->second, val);
+}
+
+void PlanningParams::param(const std::string& name, int& val, int def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToInt(it->second, val);
+}
+
+void PlanningParams::param(const std::string& name, double& val, double def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToDouble(it->second, val);
+}
+
+void PlanningParams::param(
+    const std::string& name,
+    std::string& val,
+    const std::string& def) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        val = def;
+        if (m_warn_defaults) {
+            SMPL_WARN("%s", construct_warn_string(name, def).c_str());
+        }
+        return;
+    }
+
+    convertToString(it->second, val);
+}
+
+bool PlanningParams::getParam(const std::string& name, bool& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToBool(it->second, val);
+    return true;
+}
+
+bool PlanningParams::getParam(const std::string& name, int& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToInt(it->second, val);
+    return true;
+}
+
+bool PlanningParams::getParam(const std::string& name, double& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToDouble(it->second, val);
+    return true;
+}
+
+bool PlanningParams::getParam(const std::string& name, std::string& val) const
+{
+    auto it = params.find(name);
+    if (it == params.end()) {
+        return false;
+    }
+
+    convertToString(it->second, val);
+    return true;
+}
+
+bool PlanningParams::hasParam(const std::string& name) const
+{
+    auto it = params.find(name);
+    return it != params.end();
+}
+
+void PlanningParams::convertToBool(const Parameter& p, bool& val) const
+{
+    struct bool_converter : public boost::static_visitor<bool> {
+        bool operator()(bool val) const { return (bool)val; }
+        bool operator()(double val) const { return (bool)val; }
+        bool operator()(int val) const { return (bool)val; }
+        bool operator()(const std::string& val) const { return val == "true"; }
+    };
+
+    val = boost::apply_visitor(bool_converter(), p);
+}
+
+void PlanningParams::convertToInt(const Parameter& p, int& val) const
+{
+    struct int_converter : public boost::static_visitor<int> {
+        int operator()(bool val) const { return (int)val; }
+        int operator()(double val) const { return (int)val; }
+        int operator()(int val) const { return (int)val; }
+        int operator()(const std::string& val) const { return std::stoi(val); }
+    };
+    val = boost::apply_visitor(int_converter(), p);
+}
+
+void PlanningParams::convertToDouble(const Parameter& p, double& val) const
+{
+    struct double_converter : public boost::static_visitor<double> {
+        double operator()(bool val) const { return (double)val; }
+        double operator()(double val) const { return (double)val; }
+        double operator()(int val) const { return (double)val; }
+        double operator()(const std::string& val) const { return std::stod(val); }
+    };
+
+    val = boost::apply_visitor(double_converter(), p);
+}
+
+void PlanningParams::convertToString(const Parameter& p, std::string& val) const
+{
+    struct string_converter : public boost::static_visitor<std::string> {
+        std::string operator()(bool val) const { return val ? "true" : "false"; }
+        std::string operator()(double val) const { return std::to_string(val); }
+        std::string operator()(int val) const { return std::to_string(val); }
+        const std::string& operator()(const std::string& val) const { return val; }
+    };
+
+    val = boost::apply_visitor(string_converter(), p);
 }
 
 } // namespace motion

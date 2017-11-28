@@ -33,6 +33,7 @@
 #define SMPL_GRID_H
 
 #include <cstdlib>
+#include <iterator>
 
 namespace sbpl {
 

@@ -31,16 +31,6 @@
 
 #include <smpl/search/unconstrained_mhastar.h>
 
-// standard includes
-#include <assert.h>
-#include <stdlib.h>
-#include <time.h>
-#include <algorithm>
-
-// system includes
-#include <ros/console.h>
-#include <sbpl/utils/key.h>
-
 namespace sbpl {
 
 UnconstrainedMHAStar::UnconstrainedMHAStar(
