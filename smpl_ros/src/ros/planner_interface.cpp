@@ -1360,7 +1360,7 @@ auto PlannerInterface::makePathVisualization(
             const float r = 0.1f;
             const float g = cinc * (float)(path.size() - (i + 1));
             const float b = cinc * (float)i;
-            marker.color = visual::Color{ r, g, b };
+            marker.color = visual::Color{ r, g, b, 1.0f };
         }
 
         for (auto&& m : std::move(markers)) {
