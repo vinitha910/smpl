@@ -3,9 +3,7 @@
 namespace sbpl {
 namespace visual {
 
-void ConvertMarkerMsgToMarker(
-    const visualization_msgs::Marker& mm,
-    Marker& m)
+void ConvertMarkerMsgToMarker(const visualization_msgs::Marker& mm, Marker& m)
 {
     Eigen::Affine3d pose(
             Eigen::Translation3d(
@@ -63,11 +61,22 @@ void ConvertMarkerMsgToMarker(
         m.shape = BillboardText{ mm.text };
         break;
     case visualization_msgs::Marker::MESH_RESOURCE:
-        m.shape = MeshResource{ mm.text };
+        m.shape = MeshResource{ mm.mesh_resource };
         break;
     case visualization_msgs::Marker::TRIANGLE_LIST:
         m.shape = TriangleList{ convert_points(mm.points) };
         break;
+    }
+
+    if (!mm.colors.empty()) {
+        std::vector<visual::Color> colors;
+        colors.reserve(mm.colors.size());
+        for (auto& color : mm.colors) {
+            colors.push_back(Color{ color.r, color.g, color.b, color.a });
+        }
+        m.color = std::move(colors);
+    } else {
+        m.color = visual::Color{ mm.color.r, mm.color.g, mm.color.b, mm.color.a };
     }
 
     m.frame_id = mm.header.frame_id;
