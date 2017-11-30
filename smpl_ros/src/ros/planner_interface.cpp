@@ -73,6 +73,7 @@
 #include <smpl/search/adaptive_planner.h>
 #include <smpl/search/arastar.h>
 #include <smpl/search/experience_graph_planner.h>
+#include <smpl/search/awastar.h>
 
 namespace sbpl {
 namespace motion {
@@ -550,6 +551,16 @@ auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     return std::move(search);
 }
 
+auto MakeAWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    auto search = make_unique<AWAStar>(space, heuristic);
+    double epsilon;
+    space->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+    return std::move(search);
+}
+
 auto MakeMHAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -733,6 +744,7 @@ PlannerInterface::PlannerInterface(
     /////////////////////////////
 
     m_planner_factories["arastar"] = MakeARAStar;
+    m_planner_factories["awastar"] = MakeAWAStar;
     m_planner_factories["mhastar"] = MakeMHAStar;
     m_planner_factories["larastar"] = MakeLARAStar;
     m_planner_factories["egwastar"] = MakeEGWAStar;
