@@ -61,7 +61,7 @@ void ConvertMarkerMsgToMarker(const visualization_msgs::Marker& mm, Marker& m)
         m.shape = BillboardText{ mm.text };
         break;
     case visualization_msgs::Marker::MESH_RESOURCE:
-        m.shape = MeshResource{ mm.mesh_resource };
+        m.shape = MeshResource{ mm.mesh_resource, Eigen::Vector3d(mm.scale.x, mm.scale.y, mm.scale.z) };
         break;
     case visualization_msgs::Marker::TRIANGLE_LIST:
         m.shape = TriangleList{ convert_points(mm.points) };
@@ -159,7 +159,9 @@ void ConvertMarkerToMarkerMsg(
     case SHAPE_MESH_RESOURCE:
         mm.type = visualization_msgs::Marker::MESH_RESOURCE;
         mm.mesh_resource = boost::get<MeshResource>(m.shape).uri;
-        mm.scale.x = mm.scale.y = mm.scale.z = 1.0;
+        mm.scale.x = boost::get<MeshResource>(m.shape).scale.x();
+        mm.scale.y = boost::get<MeshResource>(m.shape).scale.y();
+        mm.scale.z = boost::get<MeshResource>(m.shape).scale.z();
         break;
     case SHAPE_TRIANGLE_LIST:
         mm.type = visualization_msgs::Marker::TRIANGLE_LIST;

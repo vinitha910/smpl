@@ -24,7 +24,7 @@ struct PointList { std::vector<Eigen::Vector3d> points; };
 struct SphereList { std::vector<Eigen::Vector3d> points; double radius; };
 struct TriangleList { std::vector<Eigen::Vector3d> vertices; };
 struct BillboardText { std::string text; };
-struct MeshResource { std::string uri; };
+struct MeshResource { std::string uri; Eigen::Vector3d scale; };
 
 using Shape = boost::variant<
     Empty,
