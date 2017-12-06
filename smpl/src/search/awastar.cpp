@@ -263,7 +263,7 @@ int AWAStar::replan(
         }
         m_suspended.clear();
 
-        SMPL_DEBUG_NAMED(SLOG, "Found solution with eps = %d", m_sus_eps);
+        SMPL_DEBUG_NAMED(SLOG, "Found solution with eps = %ld", m_sus_eps);
         m_sus_eps -= 1;
     }
 

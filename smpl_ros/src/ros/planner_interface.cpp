@@ -1531,9 +1531,9 @@ void PlannerInterface::clearMotionPlanResponse(
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res) const
 {
-    res.trajectory_start.joint_state;
-    res.trajectory_start.multi_dof_joint_state;
-    res.trajectory_start.attached_collision_objects;
+//    res.trajectory_start.joint_state;
+//    res.trajectory_start.multi_dof_joint_state;
+//    res.trajectory_start.attached_collision_objects;
     res.trajectory_start.is_diff = false;
     res.group_name = req.group_name;
     res.trajectory.joint_trajectory.header.seq = 0;

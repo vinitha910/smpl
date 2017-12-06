@@ -96,7 +96,7 @@ public:
 
     /// \name Required Public Functions from ActionSpace
     ///@{
-    bool apply(const RobotState& parent, std::vector<Action>& actions);
+    bool apply(const RobotState& parent, std::vector<Action>& actions) override;
     ///@}
 
     /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver

@@ -133,12 +133,12 @@ public:
 
     /// \name Required Public Functions from ExtractRobotStateExtension
     ///@{
-    const RobotState& extractState(int state_id);
+    const RobotState& extractState(int state_id) override;
     ///@}
 
     /// \name Required Public Functions from PoseProjectionExtension
     ///@{
-    bool projectToPose(int state_id, Eigen::Affine3d& pos);
+    bool projectToPose(int state_id, Eigen::Affine3d& pos) override;
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpace
@@ -154,7 +154,7 @@ public:
 
     /// \name Required Public Functions from Extension
     ///@{
-    virtual Extension* getExtension(size_t class_code);
+    virtual Extension* getExtension(size_t class_code) override;
     ///@}
 
     /// \name Required Public Functions from DiscreteSpaceInformation

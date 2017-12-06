@@ -38,7 +38,7 @@ if(SMPL_ROS_BUILD)
     set(SMPL_SV_VISUALIZATION_MSGS ON)
 endif()
 
-add_compile_options("-std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 if(SMPL_ROS_BUILD AND SMPL_CONSOLE_ROS)
     add_definitions(-DSMPL_CONSOLE_ROS)

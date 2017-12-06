@@ -165,6 +165,9 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         case GoalType::JOINT_STATE_GOAL:
             ss << "state: " << goal().angles;
             break;
+        default:
+            assert(0);
+            break;
         }
         ss << " }>";
     } else {

@@ -261,11 +261,7 @@ int ManipLatticeActionSpace::shortDistCount() const
 
 bool ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type) const
 {
-    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
-        return m_mprim_enabled[type];
-    } else {
-        return false;
-    }
+    return m_mprim_enabled[type];
 }
 
 bool ManipLatticeActionSpace::useMultipleIkSolutions() const
@@ -280,18 +276,12 @@ bool ManipLatticeActionSpace::useLongAndShortPrims() const
 
 double ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type) const
 {
-    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
-        return m_mprim_thresh[type];
-    } else {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
+    return m_mprim_thresh[type];
 }
 
 void ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type, bool enable)
 {
-    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES) {
-        m_mprim_enabled[type] = enable;
-    }
+    m_mprim_enabled[type] = enable;
 }
 
 void ManipLatticeActionSpace::useMultipleIkSolutions(bool enable)
@@ -308,9 +298,7 @@ void ManipLatticeActionSpace::ampThresh(
     MotionPrimitive::Type type,
     double thresh)
 {
-    if (type >= 0 && type < MotionPrimitive::NUMBER_OF_MPRIM_TYPES &&
-        type != MotionPrimitive::LONG_DISTANCE)
-    {
+    if (type != MotionPrimitive::LONG_DISTANCE) {
         m_mprim_thresh[type] = thresh;
     }
 }

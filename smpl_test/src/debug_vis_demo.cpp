@@ -59,9 +59,6 @@ void VisualizeSphere()
     while (ros::ok()) {
         auto now = ros::Time::now();
 
-        auto make_sphere_marker = [&]() -> visualization_msgs::MarkerArray {
-        };
-
         SV_SHOW_INFO_NAMED("sphere", MakeSphereMarker((now - beginning).toSec()));
 
         loop_rate.sleep();
