@@ -429,7 +429,7 @@ void OccupancyGrid::ProjectOccupancyGrid()
     for (int gx = 0; gx < m_grid->numCellsX(); ++gx) {
         for (int gy = 0; gy < m_grid->numCellsY(); ++gy) {
             projection_[index(gx, gy)] = 0;
-            for (int gz = 4; gz < m_grid->numCellsZ()-100; ++gz) {
+            for (int gz = 2; gz < m_grid->numCellsZ()-100; ++gz) {
                 d = getDistance(gx, gy, gz);
                 if (d <= 0) {
                     projection_[index(gx, gy)] = 1;
